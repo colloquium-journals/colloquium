@@ -1,0 +1,248 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  orcidId   String?  @unique
+  role      UserRole @default(AUTHOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  authoredMessages    Message[]
+  authoredManuscripts ManuscriptAuthor[]
+  reviewAssignments   ReviewAssignment[]
+  magicLinks          MagicLink[]
+
+  @@map("users")
+}
+
+model MagicLink {
+  id          String    @id @default(cuid())
+  email       String
+  token       String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  redirectUrl String?
+  createdAt   DateTime  @default(now())
+
+  // Relationships
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  @@map("magic_links")
+}
+
+model JournalSettings {
+  id          String   @id @default("singleton")
+  name        String
+  description String?
+  logoUrl     String?
+  settings    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("journal_settings")
+}
+
+model Manuscript {
+  id          String           @id @default(cuid())
+  title       String
+  abstract    String?
+  content     String? // Markdown content
+  status      ManuscriptStatus @default(SUBMITTED)
+  submittedAt DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relationships
+  authors       ManuscriptAuthor[]
+  conversations Conversation[]
+  files         ManuscriptFile[]
+  reviews       ReviewAssignment[]
+
+  @@map("manuscripts")
+}
+
+model ManuscriptAuthor {
+  id           String @id @default(cuid())
+  manuscriptId String
+  userId       String
+  order        Int    @default(0)
+  isCorresponding Boolean @default(false)
+
+  // Relationships
+  manuscript Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([manuscriptId, userId])
+  @@map("manuscript_authors")
+}
+
+model ManuscriptFile {
+  id           String @id @default(cuid())
+  manuscriptId String
+  filename     String
+  originalName String
+  mimetype     String
+  size         Int
+  path         String
+  uploadedAt   DateTime @default(now())
+
+  // Relationships
+  manuscript Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+
+  @@map("manuscript_files")
+}
+
+model Conversation {
+  id           String           @id @default(cuid())
+  title        String
+  type         ConversationType // EDITORIAL, REVIEW, PUBLIC, etc.
+  privacy      PrivacyLevel     // PRIVATE, SEMI_PUBLIC, PUBLIC
+  manuscriptId String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relationships
+  manuscript   Manuscript                @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  participants ConversationParticipant[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String @id @default(cuid())
+  conversationId String
+  userId         String
+  role           ParticipantRole @default(PARTICIPANT)
+  joinedAt       DateTime        @default(now())
+
+  // Relationships
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  content        String
+  conversationId String
+  authorId       String
+  parentId       String? // For threading
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  isBot          Boolean  @default(false)
+  metadata       Json? // Bot-specific data, attachments, etc.
+
+  // Relationships
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User         @relation(fields: [authorId], references: [id])
+  parent       Message?     @relation("MessageThread", fields: [parentId], references: [id])
+  replies      Message[]    @relation("MessageThread")
+
+  @@map("messages")
+}
+
+model ReviewAssignment {
+  id           String        @id @default(cuid())
+  manuscriptId String
+  reviewerId   String
+  status       ReviewStatus  @default(PENDING)
+  assignedAt   DateTime      @default(now())
+  dueDate      DateTime?
+  completedAt  DateTime?
+
+  // Relationships
+  manuscript Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  reviewer   User       @relation(fields: [reviewerId], references: [id])
+
+  @@unique([manuscriptId, reviewerId])
+  @@map("review_assignments")
+}
+
+model BotDefinition {
+  id          String  @id
+  name        String
+  description String
+  version     String
+  author      String
+  isPublic    Boolean @default(false)
+  config      Json // Bot-specific configuration schema
+
+  // Relationships
+  install BotInstall?
+
+  @@map("bot_definitions")
+}
+
+model BotInstall {
+  id          String   @id @default(cuid())
+  botId       String   @unique
+  config      Json     @default("{}")
+  isEnabled   Boolean  @default(true)
+  installedAt DateTime @default(now())
+
+  // Relationships
+  bot BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@map("bot_installs")
+}
+
+enum UserRole {
+  AUTHOR
+  REVIEWER
+  EDITOR
+  ADMIN
+}
+
+enum ConversationType {
+  EDITORIAL   // Editors only
+  REVIEW      // Editors + assigned reviewers
+  SEMI_PUBLIC // + Authors
+  PUBLIC      // + Community
+  AUTHOR_ONLY // Authors discussing among themselves
+}
+
+enum PrivacyLevel {
+  PRIVATE     // Specific participants only
+  SEMI_PUBLIC // Journal members can see
+  PUBLIC      // Anyone can see
+}
+
+enum ParticipantRole {
+  OBSERVER
+  PARTICIPANT
+  MODERATOR
+}
+
+enum ManuscriptStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  REVISION_REQUESTED
+  REVISED
+  ACCEPTED
+  REJECTED
+  PUBLISHED
+}
+
+enum ReviewStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  IN_PROGRESS
+  COMPLETED
+}
