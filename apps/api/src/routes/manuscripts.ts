@@ -86,8 +86,59 @@ router.get('/', async (req, res, next) => {
 // POST /api/manuscripts - Submit new manuscript
 router.post('/', async (req, res, next) => {
   try {
-    // TODO: Implement manuscript submission
-    res.status(201).json({ message: 'Manuscript submitted' });
+    const {
+      title,
+      abstract,
+      content,
+      authors,
+      keywords = [],
+      metadata = {}
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !abstract || !authors || authors.length === 0) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Title, abstract, and at least one author are required',
+        details: {
+          title: !title ? 'Title is required' : null,
+          abstract: !abstract ? 'Abstract is required' : null,
+          authors: !authors || authors.length === 0 ? 'At least one author is required' : null
+        }
+      });
+    }
+
+    // Create the manuscript
+    const manuscript = await prisma.manuscript.create({
+      data: {
+        title: title.trim(),
+        abstract: abstract.trim(),
+        content: content?.trim() || null,
+        authors: Array.isArray(authors) ? authors.map((author: string) => author.trim()) : [authors.trim()],
+        keywords: Array.isArray(keywords) ? keywords.map((keyword: string) => keyword.trim()).filter(Boolean) : [],
+        status: 'SUBMITTED',
+        metadata: metadata || {}
+      }
+    });
+
+    // Return the created manuscript
+    const formattedManuscript = {
+      id: manuscript.id,
+      title: manuscript.title,
+      abstract: manuscript.abstract,
+      content: manuscript.content,
+      authors: manuscript.authors,
+      keywords: manuscript.keywords,
+      status: manuscript.status,
+      submittedAt: manuscript.createdAt,
+      updatedAt: manuscript.updatedAt,
+      metadata: manuscript.metadata
+    };
+
+    res.status(201).json({
+      message: 'Manuscript submitted successfully',
+      manuscript: formattedManuscript
+    });
   } catch (error) {
     next(error);
   }

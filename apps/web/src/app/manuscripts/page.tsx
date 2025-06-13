@@ -18,8 +18,9 @@ import {
   Anchor,
   Divider
 } from '@mantine/core';
-import { IconSearch, IconAlertCircle, IconCalendar, IconUsers, IconTag } from '@tabler/icons-react';
+import { IconSearch, IconAlertCircle, IconCalendar, IconUsers, IconTag, IconUpload } from '@tabler/icons-react';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 
 interface Manuscript {
   id: string;
@@ -135,13 +136,21 @@ export default function ManuscriptsPage() {
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
+        {/* Breadcrumbs */}
+        <Breadcrumbs items={[{ title: 'Manuscripts' }]} />
+
         {/* Header */}
-        <Stack gap="md">
-          <Title order={1}>Published Manuscripts</Title>
-          <Text size="lg" c="dimmed">
-            Explore the latest research published in our journal
-          </Text>
-        </Stack>
+        <Group justify="space-between" align="flex-start">
+          <Stack gap="md">
+            <Title order={1}>Published Manuscripts</Title>
+            <Text size="lg" c="dimmed">
+              Explore the latest research published in our journal
+            </Text>
+          </Stack>
+          <Button component={Link} href="/manuscripts/submit" leftSection={<IconUpload size={16} />}>
+            Submit Manuscript
+          </Button>
+        </Group>
 
         {/* Search and Filters */}
         <Card shadow="sm" padding="lg" radius="md">

@@ -20,8 +20,8 @@ export default function HomePage() {
           <Button size="lg" leftSection={<IconRocket size={20} />} component={Link} href="/dashboard">
             Get Started
           </Button>
-          <Button size="lg" variant="outline" leftSection={<IconBook size={20} />}>
-            Learn More
+          <Button size="lg" variant="outline" leftSection={<IconBook size={20} />} component={Link} href="/manuscripts">
+            Browse Articles
           </Button>
         </Group>
 
