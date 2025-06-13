@@ -14,8 +14,10 @@ An open-source scientific journal publishing platform that democratizes academic
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- Docker and Docker Compose
+- **Node.js 18+** and npm
+- **Docker Desktop** (must be running before setup)
+  - [Download Docker Desktop](https://docs.docker.com/get-docker/)
+  - Make sure Docker is started before running setup
 - PostgreSQL 15+ (if not using Docker)
 
 ### Development Setup

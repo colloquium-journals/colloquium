@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Group, Text, ActionIcon, Menu, Badge } from '@mantine/core';
-import { IconDots, IconReply, IconFlag } from '@tabler/icons-react';
+import { IconDots, IconArrowBack, IconFlag } from '@tabler/icons-react';
 import { UserAvatar } from './UserAvatar';
 
 export interface ConversationMessageProps {
@@ -49,7 +49,7 @@ export const ConversationMessage: React.FC<ConversationMessageProps> = ({
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item 
-              leftSection={<IconReply size={14} />}
+              leftSection={<IconArrowBack size={14} />}
               onClick={() => onReply?.(message.id)}
             >
               Reply

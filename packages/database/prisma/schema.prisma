@@ -20,10 +20,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relationships
-  authoredMessages    Message[]
-  authoredManuscripts ManuscriptAuthor[]
-  reviewAssignments   ReviewAssignment[]
-  magicLinks          MagicLink[]
+  authoredMessages         Message[]
+  authoredManuscripts      ManuscriptAuthor[]
+  reviewAssignments        ReviewAssignment[]
+  magicLinks               MagicLink[]
+  conversationParticipants ConversationParticipant[]
 
   @@map("users")
 }
@@ -75,10 +76,10 @@ model Manuscript {
 }
 
 model ManuscriptAuthor {
-  id           String @id @default(cuid())
-  manuscriptId String
-  userId       String
-  order        Int    @default(0)
+  id              String  @id @default(cuid())
+  manuscriptId    String
+  userId          String
+  order           Int     @default(0)
   isCorresponding Boolean @default(false)
 
   // Relationships
@@ -90,7 +91,7 @@ model ManuscriptAuthor {
 }
 
 model ManuscriptFile {
-  id           String @id @default(cuid())
+  id           String   @id @default(cuid())
   manuscriptId String
   filename     String
   originalName String
@@ -109,7 +110,7 @@ model Conversation {
   id           String           @id @default(cuid())
   title        String
   type         ConversationType // EDITORIAL, REVIEW, PUBLIC, etc.
-  privacy      PrivacyLevel     // PRIVATE, SEMI_PUBLIC, PUBLIC
+  privacy      PrivacyLevel // PRIVATE, SEMI_PUBLIC, PUBLIC
   manuscriptId String
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -123,7 +124,7 @@ model Conversation {
 }
 
 model ConversationParticipant {
-  id             String @id @default(cuid())
+  id             String          @id @default(cuid())
   conversationId String
   userId         String
   role           ParticipantRole @default(PARTICIPANT)
@@ -158,11 +159,11 @@ model Message {
 }
 
 model ReviewAssignment {
-  id           String        @id @default(cuid())
+  id           String       @id @default(cuid())
   manuscriptId String
   reviewerId   String
-  status       ReviewStatus  @default(PENDING)
-  assignedAt   DateTime      @default(now())
+  status       ReviewStatus @default(PENDING)
+  assignedAt   DateTime     @default(now())
   dueDate      DateTime?
   completedAt  DateTime?
 
@@ -210,17 +211,17 @@ enum UserRole {
 }
 
 enum ConversationType {
-  EDITORIAL   // Editors only
-  REVIEW      // Editors + assigned reviewers
+  EDITORIAL // Editors only
+  REVIEW // Editors + assigned reviewers
   SEMI_PUBLIC // + Authors
-  PUBLIC      // + Community
+  PUBLIC // + Community
   AUTHOR_ONLY // Authors discussing among themselves
 }
 
 enum PrivacyLevel {
-  PRIVATE     // Specific participants only
+  PRIVATE // Specific participants only
   SEMI_PUBLIC // Journal members can see
-  PUBLIC      // Anyone can see
+  PUBLIC // Anyone can see
 }
 
 enum ParticipantRole {

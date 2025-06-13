@@ -5,11 +5,40 @@ export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
 
-// Export types from Prisma client
+// Export types from Prisma client (this includes the generated enums and models)
 export * from '@prisma/client';
 
-// Re-export shared types from @colloquium/types
-export * from '@colloquium/types';
+// Re-export only specific types from @colloquium/types that don't conflict
+export type {
+  ApiResponse,
+  AuthUser,
+  JWTPayload,
+  BotContext,
+  BotResponse,
+  BotAttachment,
+  BotAction,
+  Bot,
+  CreateManuscriptData,
+  CreateConversationData,
+  CreateMessageData,
+  UpdateUserData,
+  UpdateJournalSettingsData,
+  UpdateBotConfigData,
+  LoginData
+} from '@colloquium/types';
+
+// Re-export schemas for validation
+export {
+  loginSchema,
+  manuscriptSubmissionSchema,
+  conversationSchema,
+  messageSchema,
+  userUpdateSchema,
+  journalSettingsSchema,
+  botConfigSchema,
+  BotTrigger,
+  BotPermission
+} from '@colloquium/types';
 
 // Custom database utilities
 export async function connectDatabase() {

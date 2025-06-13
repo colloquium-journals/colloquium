@@ -175,6 +175,12 @@ npm run db:reset
 ```
 ⚠️ This will delete all data and re-run migrations and seeding.
 
+**Seed Database Only:**
+```bash
+npm run db:seed
+```
+This adds sample data without affecting the schema. Safe to run multiple times (idempotent).
+
 **Create New Migration:**
 ```bash
 cd packages/database
@@ -196,6 +202,25 @@ The database is seeded with sample data including:
 ## Troubleshooting
 
 ### Common Issues
+
+**Docker Not Running:**
+```bash
+# Check if Docker is running
+docker info
+
+# Option 1: Use our helper script (recommended)
+./scripts/start-docker.sh
+
+# Option 2: Start manually
+# On macOS:
+open -a Docker
+
+# On Linux:
+sudo systemctl start docker
+
+# Wait for Docker to be ready, then retry
+./scripts/dev-setup.sh
+```
 
 **Port Already in Use:**
 ```bash
@@ -230,6 +255,12 @@ npm run build
 If you encounter issues with Mantine packages, ensure you're using compatible versions:
 - `@mantine/core@^7.12.0` and related packages
 - `@mantine/tiptap` instead of the deprecated `@mantine/rich-text-editor`
+
+**Prisma Type Conflicts:**
+If you see "Module has already exported a member" errors:
+- This happens when Prisma-generated types conflict with custom types
+- The database package uses selective re-exports to avoid conflicts
+- Run `npx prisma generate` after schema changes
 
 **Permission Issues with Setup Script:**
 ```bash

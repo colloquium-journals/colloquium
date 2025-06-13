@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 // JWT types
 export interface JWTPayload {
@@ -17,7 +17,12 @@ export function generateJWT(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
     throw new Error('JWT_SECRET environment variable is required');
   }
 
-  const expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+  // Default to 7 days in seconds
+  const expiresIn = process.env.JWT_EXPIRES_IN ? 
+    (process.env.JWT_EXPIRES_IN.endsWith('d') ? 
+      parseInt(process.env.JWT_EXPIRES_IN.slice(0, -1)) * 24 * 60 * 60 : 
+      parseInt(process.env.JWT_EXPIRES_IN)
+    ) : 7 * 24 * 60 * 60;
 
   return jwt.sign(payload, secret, { expiresIn });
 }

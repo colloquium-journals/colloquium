@@ -71,8 +71,12 @@ async function main() {
 
   console.log('✅ Sample users created');
 
-  // Create sample manuscript
-  const manuscript = await prisma.manuscript.create({
+  // Create sample manuscript (only if it doesn't exist)
+  const existingManuscript = await prisma.manuscript.findFirst({
+    where: { title: 'A Novel Approach to Academic Publishing: The Colloquium Platform' }
+  });
+
+  const manuscript = existingManuscript || await prisma.manuscript.create({
     data: {
       title: 'A Novel Approach to Academic Publishing: The Colloquium Platform',
       abstract: 'This paper introduces Colloquium, an open-source platform that democratizes scientific journal publishing through conversational review processes and an extensible bot ecosystem. We demonstrate how this approach can reduce barriers to academic publishing while maintaining rigorous peer review standards.',
@@ -110,10 +114,17 @@ The Colloquium platform represents a significant step forward in democratizing a
     }
   });
 
-  console.log('✅ Sample manuscript created');
+  console.log(existingManuscript ? '✅ Sample manuscript already exists' : '✅ Sample manuscript created');
 
-  // Create sample conversation
-  const conversation = await prisma.conversation.create({
+  // Create sample conversation (only if it doesn't exist)
+  const existingConversation = await prisma.conversation.findFirst({
+    where: { 
+      manuscriptId: manuscript.id,
+      title: 'Editorial Review Discussion'
+    }
+  });
+
+  const conversation = existingConversation || await prisma.conversation.create({
     data: {
       title: 'Editorial Review Discussion',
       type: ConversationType.EDITORIAL,
@@ -146,7 +157,7 @@ The Colloquium platform represents a significant step forward in democratizing a
     }
   });
 
-  console.log('✅ Sample conversation created');
+  console.log(existingConversation ? '✅ Sample conversation already exists' : '✅ Sample conversation created');
 
   // Create core bot definitions
   const plagiarismBot = await prisma.botDefinition.upsert({
@@ -185,24 +196,39 @@ The Colloquium platform represents a significant step forward in democratizing a
     }
   });
 
-  // Install bots
-  await prisma.botInstall.createMany({
-    data: [
-      {
-        botId: plagiarismBot.id,
-        config: {
-          autoTrigger: true,
-          triggerOnSubmission: true
-        }
-      },
-      {
-        botId: statsBot.id,
-        config: {
-          autoTrigger: false,
-          requireExplicitMention: true
-        }
+  // Install bots (use upsert to handle existing installations)
+  await prisma.botInstall.upsert({
+    where: { botId: plagiarismBot.id },
+    update: {
+      config: {
+        autoTrigger: true,
+        triggerOnSubmission: true
       }
-    ]
+    },
+    create: {
+      botId: plagiarismBot.id,
+      config: {
+        autoTrigger: true,
+        triggerOnSubmission: true
+      }
+    }
+  });
+
+  await prisma.botInstall.upsert({
+    where: { botId: statsBot.id },
+    update: {
+      config: {
+        autoTrigger: false,
+        requireExplicitMention: true
+      }
+    },
+    create: {
+      botId: statsBot.id,
+      config: {
+        autoTrigger: false,
+        requireExplicitMention: true
+      }
+    }
   });
 
   console.log('✅ Sample bots created and installed');
