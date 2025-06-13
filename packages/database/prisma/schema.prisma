@@ -65,12 +65,19 @@ model Manuscript {
   status      ManuscriptStatus @default(SUBMITTED)
   submittedAt DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  publishedAt DateTime?        // When manuscript was published
+  
+  // Simple fields for API compatibility
+  authors     String[]         // Simple array of author names
+  keywords    String[]         @default([])
+  fileUrl     String?          // URL to the manuscript file
+  metadata    Json?            // Additional metadata
 
   // Relationships
-  authors       ManuscriptAuthor[]
-  conversations Conversation[]
-  files         ManuscriptFile[]
-  reviews       ReviewAssignment[]
+  authorRelations ManuscriptAuthor[] @relation("authorRelations")
+  conversations   Conversation[]
+  files           ManuscriptFile[]
+  reviews         ReviewAssignment[]
 
   @@map("manuscripts")
 }
@@ -83,7 +90,7 @@ model ManuscriptAuthor {
   isCorresponding Boolean @default(false)
 
   // Relationships
-  manuscript Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  manuscript Manuscript @relation("authorRelations", fields: [manuscriptId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id])
 
   @@unique([manuscriptId, userId])

@@ -1,5 +1,6 @@
 import { Container, Title, Text, Button, Stack, Card, Group } from '@mantine/core';
 import { IconBook, IconUsers, IconRocket } from '@tabler/icons-react';
+import Link from 'next/link';
 
 export default function HomePage() {
   return (
@@ -16,7 +17,7 @@ export default function HomePage() {
         </Stack>
 
         <Group gap="md" mt="xl">
-          <Button size="lg" leftSection={<IconRocket size={20} />}>
+          <Button size="lg" leftSection={<IconRocket size={20} />} component={Link} href="/dashboard">
             Get Started
           </Button>
           <Button size="lg" variant="outline" leftSection={<IconBook size={20} />}>

@@ -233,6 +233,98 @@ The Colloquium platform represents a significant step forward in democratizing a
 
   console.log('✅ Sample bots created and installed');
 
+  // Create additional published manuscripts for the feed
+  const publishedManuscripts = [
+    {
+      title: 'Machine Learning Applications in Peer Review Automation',
+      abstract: 'This study explores the use of machine learning algorithms to assist in the peer review process, examining effectiveness and bias reduction in academic publishing.',
+      authors: ['Dr. Sarah Johnson', 'Prof. Michael Chen'],
+      keywords: ['machine learning', 'peer review', 'automation', 'bias reduction'],
+      publishedAt: new Date('2024-01-15')
+    },
+    {
+      title: 'Blockchain Technology for Transparent Academic Publishing',
+      abstract: 'We present a blockchain-based system for ensuring transparency and immutability in academic publishing, addressing concerns about research integrity.',
+      authors: ['Prof. Elena Rodriguez', 'Dr. James Kim', 'Dr. Maria Santos'],
+      keywords: ['blockchain', 'transparency', 'publishing', 'research integrity'],
+      publishedAt: new Date('2024-01-10')
+    },
+    {
+      title: 'Open Science Platforms: A Comparative Analysis',
+      abstract: 'A comprehensive comparison of modern open science platforms, evaluating their impact on research collaboration and knowledge dissemination.',
+      authors: ['Dr. Robert Wilson'],
+      keywords: ['open science', 'collaboration', 'platforms', 'knowledge dissemination'],
+      publishedAt: new Date('2024-01-05')
+    },
+    {
+      title: 'Digital Transformation in Academic Libraries',
+      abstract: 'This paper examines how academic libraries are adapting to digital transformation, focusing on new services and changing user needs.',
+      authors: ['Dr. Lisa Anderson', 'Prof. David Lee'],
+      keywords: ['digital transformation', 'academic libraries', 'services', 'user needs'],
+      publishedAt: new Date('2023-12-28')
+    },
+    {
+      title: 'Collaborative Research Networks in the Digital Age',
+      abstract: 'An analysis of how digital tools are reshaping collaborative research networks and enabling new forms of scientific cooperation.',
+      authors: ['Prof. Anna Thompson', 'Dr. Carlos Mendez', 'Dr. Jennifer Wu'],
+      keywords: ['collaboration', 'research networks', 'digital tools', 'cooperation'],
+      publishedAt: new Date('2023-12-20')
+    }
+  ];
+
+  for (const manuscriptData of publishedManuscripts) {
+    const existingPub = await prisma.manuscript.findFirst({
+      where: { title: manuscriptData.title }
+    });
+
+    if (!existingPub) {
+      await prisma.manuscript.create({
+        data: {
+          title: manuscriptData.title,
+          abstract: manuscriptData.abstract,
+          content: `# ${manuscriptData.title}
+
+## Abstract
+
+${manuscriptData.abstract}
+
+## Introduction
+
+This section introduces the research topic and provides background context...
+
+## Methodology
+
+This section describes the research methods and approaches used...
+
+## Results
+
+This section presents the findings and analysis...
+
+## Discussion
+
+This section discusses the implications and significance of the results...
+
+## Conclusion
+
+This section summarizes the key findings and future directions...
+
+## References
+
+1. Reference 1...
+2. Reference 2...
+3. Reference 3...`,
+          status: ManuscriptStatus.PUBLISHED,
+          authors: manuscriptData.authors,
+          keywords: manuscriptData.keywords,
+          publishedAt: manuscriptData.publishedAt,
+          fileUrl: `/manuscripts/${manuscriptData.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.pdf`
+        }
+      });
+    }
+  }
+
+  console.log('✅ Published manuscripts created');
+
   console.log('🎉 Database seeding completed successfully!');
 }
 
