@@ -11,13 +11,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  orcidId   String?  @unique
-  role      UserRole @default(AUTHOR)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  orcidId     String?  @unique
+  bio         String?
+  affiliation String?
+  website     String?
+  role        UserRole @default(AUTHOR)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relationships
   authoredMessages         Message[]
@@ -25,6 +28,8 @@ model User {
   reviewAssignments        ReviewAssignment[]
   magicLinks               MagicLink[]
   conversationParticipants ConversationParticipant[]
+  actionEditorRole         ActionEditor[]            @relation("ActionEditorRole")
+  assignedActionEditors    ActionEditor[]            @relation("ActionEditorAssigner")
 
   @@map("users")
 }
@@ -78,6 +83,7 @@ model Manuscript {
   conversations   Conversation[]
   files           ManuscriptFile[]
   reviews         ReviewAssignment[]
+  actionEditor    ActionEditor?
 
   @@map("manuscripts")
 }
@@ -146,21 +152,23 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   content        String
   conversationId String
   authorId       String
   parentId       String? // For threading
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  isBot          Boolean  @default(false)
+  privacy        MessagePrivacy @default(AUTHOR_VISIBLE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  isBot          Boolean        @default(false)
   metadata       Json? // Bot-specific data, attachments, etc.
 
   // Relationships
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author       User         @relation(fields: [authorId], references: [id])
-  parent       Message?     @relation("MessageThread", fields: [parentId], references: [id])
-  replies      Message[]    @relation("MessageThread")
+  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author        User           @relation(fields: [authorId], references: [id])
+  parent        Message?       @relation("MessageThread", fields: [parentId], references: [id])
+  replies       Message[]      @relation("MessageThread")
+  botExecutions BotExecution[]
 
   @@map("messages")
 }
@@ -183,16 +191,21 @@ model ReviewAssignment {
 }
 
 model BotDefinition {
-  id          String  @id
-  name        String
-  description String
-  version     String
-  author      String
-  isPublic    Boolean @default(false)
-  config      Json // Bot-specific configuration schema
+  id                String            @id
+  name              String
+  description       String
+  version           String
+  author            String
+  isPublic          Boolean           @default(false)
+  configSchema      Json?             // JSON Schema for bot configuration
+  permissions       BotPermission[]   // Required permissions
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @default(now()) @updatedAt
 
   // Relationships
-  install BotInstall?
+  install   BotInstall?
+  actions   BotAction[]
+  executions BotExecution[]
 
   @@map("bot_definitions")
 }
@@ -203,11 +216,85 @@ model BotInstall {
   config      Json     @default("{}")
   isEnabled   Boolean  @default(true)
   installedAt DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 
   // Relationships
   bot BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
 
   @@map("bot_installs")
+}
+
+model BotPermission {
+  id          String @id @default(cuid())
+  botId       String
+  permission  String // e.g., "manuscript.assign_reviewer", "manuscript.make_decision"
+  description String // Human-readable description of what this permission allows
+
+  // Relationships
+  bot BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@unique([botId, permission])
+  @@map("bot_permissions")
+}
+
+model BotAction {
+  id          String   @id @default(cuid())
+  botId       String
+  name        String   // e.g., "assign_reviewer", "make_decision"
+  description String
+  inputSchema Json     // JSON Schema for action inputs
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  bot        BotDefinition  @relation(fields: [botId], references: [id], onDelete: Cascade)
+  executions BotExecution[]
+
+  @@unique([botId, name])
+  @@map("bot_actions")
+}
+
+model BotExecution {
+  id           String            @id @default(cuid())
+  botId        String
+  actionId     String?
+  messageId    String?           // Message that triggered this execution
+  status       BotExecutionStatus @default(PENDING)
+  input        Json?             // Input parameters
+  output       Json?             // Execution result
+  error        String?           // Error message if failed
+  executedAt   DateTime          @default(now())
+  completedAt  DateTime?
+
+  // Relationships
+  bot     BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
+  action  BotAction?    @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  message Message?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@map("bot_executions")
+}
+
+model ActionEditor {
+  id           String   @id @default(cuid())
+  manuscriptId String
+  editorId     String
+  assignedAt   DateTime @default(now())
+  assignedBy   String?  // User who made the assignment
+
+  // Relationships
+  manuscript Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  editor     User       @relation("ActionEditorRole", fields: [editorId], references: [id])
+  assignedByUser User?  @relation("ActionEditorAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([manuscriptId]) // Only one action editor per manuscript
+  @@map("action_editors")
+}
+
+enum BotExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 enum UserRole {
@@ -253,4 +340,12 @@ enum ReviewStatus {
   DECLINED
   IN_PROGRESS
   COMPLETED
+}
+
+enum MessagePrivacy {
+  PUBLIC          // Anyone can see (for fully open journals)
+  AUTHOR_VISIBLE  // Authors, reviewers, editors, and admins can see
+  REVIEWER_ONLY   // Only reviewers, editors, and admins can see  
+  EDITOR_ONLY     // Only editors and admins can see
+  ADMIN_ONLY      // Only admins can see
 }

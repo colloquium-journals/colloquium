@@ -6,6 +6,7 @@ import { MessageCard } from './MessageCard';
 interface MessageData {
   id: string;
   content: string;
+  privacy: string;
   author: {
     name: string;
     email: string;

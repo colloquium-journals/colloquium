@@ -99,11 +99,14 @@ export async function comparePassword(password: string, hash: string): Promise<b
 export enum Permission {
   READ_MANUSCRIPT = 'read_manuscript',
   EDIT_MANUSCRIPT = 'edit_manuscript',
+  SUBMIT_MANUSCRIPT = 'submit_manuscript',
+  DELETE_MANUSCRIPT = 'delete_manuscript',
   CREATE_CONVERSATION = 'create_conversation',
   MODERATE_CONVERSATION = 'moderate_conversation',
   ASSIGN_REVIEWERS = 'assign_reviewers',
   MAKE_EDITORIAL_DECISIONS = 'make_editorial_decisions',
   INSTALL_BOTS = 'install_bots',
+  MANAGE_BOTS = 'manage_bots',
   MANAGE_SETTINGS = 'manage_settings',
   MANAGE_USERS = 'manage_users'
 }
@@ -119,6 +122,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [Role.AUTHOR]: [
     Permission.READ_MANUSCRIPT,
     Permission.EDIT_MANUSCRIPT,
+    Permission.SUBMIT_MANUSCRIPT,
     Permission.CREATE_CONVERSATION
   ],
   [Role.REVIEWER]: [
@@ -127,6 +131,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   [Role.EDITOR]: [
     Permission.READ_MANUSCRIPT,
+    Permission.EDIT_MANUSCRIPT,
     Permission.CREATE_CONVERSATION,
     Permission.MODERATE_CONVERSATION,
     Permission.ASSIGN_REVIEWERS,
@@ -134,11 +139,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   [Role.ADMIN]: [
     Permission.READ_MANUSCRIPT,
+    Permission.EDIT_MANUSCRIPT,
+    Permission.SUBMIT_MANUSCRIPT,
+    Permission.DELETE_MANUSCRIPT,
     Permission.CREATE_CONVERSATION,
     Permission.MODERATE_CONVERSATION,
     Permission.ASSIGN_REVIEWERS,
     Permission.MAKE_EDITORIAL_DECISIONS,
     Permission.INSTALL_BOTS,
+    Permission.MANAGE_BOTS,
     Permission.MANAGE_SETTINGS,
     Permission.MANAGE_USERS
   ]

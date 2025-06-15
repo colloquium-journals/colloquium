@@ -11,34 +11,34 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@colloquium/auth": "*",
+    "@colloquium/types": "*",
+    "@colloquium/ui": "*",
+    "@mantine/core": "^7.12.0",
+    "@mantine/dates": "^7.12.0",
+    "@mantine/form": "^7.12.0",
+    "@mantine/hooks": "^7.17.8",
+    "@mantine/modals": "^7.12.0",
+    "@mantine/notifications": "^7.12.0",
+    "@mantine/spotlight": "^7.17.8",
+    "@mantine/tiptap": "^7.12.0",
+    "@tabler/icons-react": "^2.40.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@tiptap/pm": "^2.1.0",
+    "@tiptap/react": "^2.1.0",
+    "@tiptap/starter-kit": "^2.1.0",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@mantine/core": "^7.12.0",
-    "@mantine/hooks": "^7.12.0",
-    "@mantine/form": "^7.12.0",
-    "@mantine/notifications": "^7.12.0",
-    "@mantine/modals": "^7.12.0",
-    "@mantine/dates": "^7.12.0",
-    "@mantine/spotlight": "^7.12.0",
-    "@mantine/tiptap": "^7.12.0",
-    "@tiptap/react": "^2.1.0",
-    "@tiptap/pm": "^2.1.0",
-    "@tiptap/starter-kit": "^2.1.0",
-    "@tabler/icons-react": "^2.40.0",
-    "@tanstack/react-query": "^5.0.0",
-    "zod": "^3.22.0",
-    "@colloquium/types": "*",
-    "@colloquium/ui": "*",
-    "@colloquium/auth": "*"
+    "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@colloquium/eslint-config": "*",
     "@types/node": "^20.8.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "typescript": "^5.2.2",
     "eslint": "^8.50.0",
     "eslint-config-next": "^14.0.0",
-    "@colloquium/eslint-config": "*"
+    "typescript": "^5.2.2"
   }
 }

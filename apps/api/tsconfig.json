@@ -1,8 +1,8 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
+    "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -13,7 +13,14 @@
     "noEmit": false,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@colloquium/types": ["../../packages/types/dist"],
+      "@colloquium/auth": ["../../packages/auth/dist"],
+      "@colloquium/database": ["../../packages/database/dist"],
+      "@colloquium/bots": ["../../packages/bots/dist"]
+    }
   },
   "include": [
     "src/**/*"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Paper, 
   Textarea, 
@@ -10,51 +10,127 @@ import {
   Text, 
   Badge,
   Menu,
-  ActionIcon
+  ActionIcon,
+  Select
 } from '@mantine/core';
-import { IconSend, IconAt, IconX } from '@tabler/icons-react';
+import { IconSend, IconAt, IconX, IconLock, IconEye, IconUsers, IconShield } from '@tabler/icons-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Bot {
   id: string;
   name: string;
   description: string;
   color: string;
+  isInstalled: boolean;
+  isEnabled: boolean;
 }
 
 interface MessageComposerProps {
-  onSubmit: (content: string) => void;
+  onSubmit: (content: string, privacy?: string) => void;
   placeholder?: string;
   disabled?: boolean;
 }
 
-// Mock bot data - will be replaced with API data
-const availableBots: Bot[] = [
+// Bot colors for UI consistency
+const BOT_COLORS = [
+  'blue', 'green', 'red', 'orange', 'purple', 'cyan', 'pink', 'gray'
+];
+
+// Privacy level options with their descriptions and icons
+const privacyOptions = [
   {
-    id: 'plagiarism-checker',
-    name: 'Plagiarism Checker',
-    description: 'Checks manuscripts for potential plagiarism',
-    color: 'red'
-  },
-  {
-    id: 'statistics-reviewer',
-    name: 'Statistics Reviewer',
-    description: 'Reviews statistical methods and analyses',
+    value: 'AUTHOR_VISIBLE',
+    label: 'Authors & Reviewers',
+    description: 'Visible to authors, reviewers, editors, and admins',
+    icon: IconUsers,
     color: 'blue'
   },
   {
-    id: 'formatting-checker',
-    name: 'Formatting Checker',
-    description: 'Validates manuscript formatting and style',
+    value: 'REVIEWER_ONLY', 
+    label: 'Reviewers Only',
+    description: 'Only visible to reviewers, editors, and admins',
+    icon: IconShield,
+    color: 'orange'
+  },
+  {
+    value: 'EDITOR_ONLY',
+    label: 'Editors Only', 
+    description: 'Only visible to editors and admins',
+    icon: IconLock,
+    color: 'red'
+  },
+  {
+    value: 'PUBLIC',
+    label: 'Public',
+    description: 'Visible to everyone',
+    icon: IconEye,
     color: 'green'
   }
 ];
 
+// Get default privacy based on user role
+function getDefaultPrivacy(userRole: string | undefined): string {
+  switch (userRole) {
+    case 'ADMIN':
+    case 'EDITOR':
+      return 'AUTHOR_VISIBLE';
+    case 'REVIEWER':
+      return 'REVIEWER_ONLY';
+    case 'AUTHOR':
+    default:
+      return 'AUTHOR_VISIBLE';
+  }
+}
+
 export function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false }: MessageComposerProps) {
+  const { user } = useAuth();
   const [content, setContent] = useState('');
   const [mentionedBots, setMentionedBots] = useState<Bot[]>([]);
+  const [availableBots, setAvailableBots] = useState<Bot[]>([]);
   const [showBotMenu, setShowBotMenu] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [privacy, setPrivacy] = useState(getDefaultPrivacy(user?.role));
+  const [loadingBots, setLoadingBots] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch available bots
+  useEffect(() => {
+    if (!user) return; // Only fetch bots when user is authenticated
+
+    const fetchBots = async () => {
+      try {
+        setLoadingBots(true);
+        const response = await fetch('http://localhost:4000/api/bots', {
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Fetched bots:', data); // Debug log
+          const enabledBots = data.bots
+            .filter((bot: any) => bot.isInstalled && bot.isEnabled)
+            .map((bot: any, index: number) => ({
+              id: bot.id,
+              name: bot.name,
+              description: bot.description,
+              color: BOT_COLORS[index % BOT_COLORS.length],
+              isInstalled: bot.isInstalled,
+              isEnabled: bot.isEnabled
+            }));
+          console.log('Enabled bots:', enabledBots); // Debug log
+          setAvailableBots(enabledBots);
+        } else {
+          console.error('Failed to fetch bots:', response.status, response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching bots:', error);
+      } finally {
+        setLoadingBots(false);
+      }
+    };
+
+    fetchBots();
+  }, [user]);
 
   const handleSubmit = async () => {
     if (!content.trim() || disabled) return;
@@ -70,7 +146,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
         );
       });
 
-      await onSubmit(processedContent);
+      await onSubmit(processedContent, privacy);
       setContent('');
       setMentionedBots([]);
     } finally {
@@ -181,24 +257,52 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Label>Available Bots</Menu.Label>
-                {availableBots.map(bot => (
-                  <Menu.Item
-                    key={bot.id}
-                    onClick={() => addBotMention(bot)}
-                    disabled={mentionedBots.some(b => b.id === bot.id)}
-                  >
-                    <div>
-                      <Text size="sm" fw={500}>
-                        {bot.name}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {bot.description}
-                      </Text>
-                    </div>
+                {loadingBots ? (
+                  <Menu.Item disabled>
+                    <Group gap="xs">
+                      <Text size="sm">Loading bots...</Text>
+                    </Group>
                   </Menu.Item>
-                ))}
+                ) : availableBots.length === 0 ? (
+                  <Menu.Item disabled>
+                    <Text size="sm" c="dimmed">No bots available</Text>
+                  </Menu.Item>
+                ) : (
+                  availableBots.map(bot => (
+                    <Menu.Item
+                      key={bot.id}
+                      onClick={() => addBotMention(bot)}
+                      disabled={mentionedBots.some(b => b.id === bot.id)}
+                    >
+                      <div>
+                        <Text size="sm" fw={500}>
+                          {bot.name}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {bot.description}
+                        </Text>
+                      </div>
+                    </Menu.Item>
+                  ))
+                )}
               </Menu.Dropdown>
             </Menu>
+
+            <Select
+              size="xs"
+              value={privacy}
+              onChange={setPrivacy}
+              data={privacyOptions.map(opt => ({
+                value: opt.value,
+                label: opt.label
+              }))}
+              leftSection={(() => {
+                const option = privacyOptions.find(opt => opt.value === privacy);
+                return option ? <option.icon size={14} /> : <IconEye size={14} />;
+              })()}
+              w={180}
+              comboboxProps={{ size: 'xs' }}
+            />
 
             <Text size="xs" c="dimmed">
               Tip: Use Ctrl+Enter to send

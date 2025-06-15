@@ -1,62 +1,276 @@
 import { Router } from 'express';
+import { authenticate, requirePermission } from '../middleware/auth';
+import { Permission } from '@colloquium/auth';
+import { botExecutor } from '../bots';
 
 const router = Router();
 
-// GET /api/bots - List available bots
-router.get('/', async (req, res, next) => {
+// GET /api/bots - List all available and installed bots
+router.get('/', authenticate, async (req, res, next) => {
   try {
-    // TODO: Implement bot listing
-    res.json([]);
+    // Get all registered command-based bots
+    const availableBots = botExecutor.getCommandBots();
+    const installedBots = botExecutor.getInstalledBots();
+
+    // Combine information
+    const botsWithStatus = availableBots.map(bot => {
+      const installation = installedBots.find(ib => ib.botId === bot.id);
+      
+      return {
+        id: bot.id,
+        name: bot.name,
+        description: bot.description,
+        version: bot.version,
+        commands: bot.commands.map(cmd => ({
+          name: cmd.name,
+          description: cmd.description,
+          usage: cmd.usage,
+          parameters: cmd.parameters
+        })),
+        keywords: bot.keywords,
+        permissions: bot.permissions,
+        isInstalled: !!installation,
+        isEnabled: installation ? installation.config.isEnabled : false,
+        config: installation?.config || {},
+        help: bot.help
+      };
+    });
+
+    res.json({
+      bots: botsWithStatus
+    });
   } catch (error) {
     next(error);
   }
 });
 
-// GET /api/bots/installed - List installed bots
-router.get('/installed', async (req, res, next) => {
+// GET /api/bots/:id - Get specific bot details
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
-    // TODO: Implement installed bot listing
-    res.json([]);
+    const { id } = req.params;
+
+    const commandBots = botExecutor.getCommandBots();
+    const bot = commandBots.find(b => b.id === id);
+    
+    if (!bot) {
+      return res.status(404).json({
+        error: 'Bot not found',
+        message: `Bot with ID ${id} is not registered`
+      });
+    }
+
+    const installedBots = botExecutor.getInstalledBots();
+    const installation = installedBots.find(ib => ib.botId === id);
+
+    const botDetails = {
+      id: bot.id,
+      name: bot.name,
+      description: bot.description,
+      version: bot.version,
+      commands: bot.commands.map(cmd => ({
+        name: cmd.name,
+        description: cmd.description,
+        usage: cmd.usage,
+        parameters: cmd.parameters,
+        examples: cmd.examples,
+        permissions: cmd.permissions
+      })),
+      keywords: bot.keywords,
+      triggers: bot.triggers,
+      permissions: bot.permissions,
+      help: bot.help,
+      isInstalled: !!installation,
+      isEnabled: installation ? installation.config.isEnabled : false,
+      config: installation?.config || {}
+    };
+
+    res.json(botDetails);
   } catch (error) {
     next(error);
   }
 });
 
-// POST /api/bots/:botId/install - Install bot
-router.post('/:botId/install', async (req, res, next) => {
+// POST /api/bots/:id/install - Install a bot
+router.post('/:id/install', authenticate, requirePermission(Permission.MANAGE_BOTS), async (req, res, next) => {
   try {
-    // TODO: Implement bot installation
-    res.status(201).json({ message: 'Bot installed' });
+    const { id } = req.params;
+    const { config = {} } = req.body;
+
+    const commandBots = botExecutor.getCommandBots();
+    const bot = commandBots.find(b => b.id === id);
+    
+    if (!bot) {
+      return res.status(404).json({
+        error: 'Bot not found',
+        message: `Bot with ID ${id} is not registered`
+      });
+    }
+
+    botExecutor.installBot(id, config);
+
+    res.json({
+      message: `Bot ${bot.name} installed successfully`,
+      botId: id
+    });
   } catch (error) {
     next(error);
   }
 });
 
-// DELETE /api/bots/:botId - Uninstall bot
-router.delete('/:botId', async (req, res, next) => {
+// PUT /api/bots/:id/configure - Update bot configuration
+router.put('/:id/configure', authenticate, requirePermission(Permission.MANAGE_BOTS), async (req, res, next) => {
   try {
-    // TODO: Implement bot uninstallation
-    res.json({ message: 'Bot uninstalled' });
+    const { id } = req.params;
+    const { config, isEnabled } = req.body;
+
+    const installedBots = botExecutor.getInstalledBots();
+    const installation = installedBots.find(ib => ib.botId === id);
+
+    if (!installation) {
+      return res.status(404).json({
+        error: 'Bot not installed',
+        message: `Bot with ID ${id} is not installed`
+      });
+    }
+
+    const updatedConfig = {
+      ...installation.config,
+      ...(config !== undefined ? config : {}),
+      isEnabled: isEnabled !== undefined ? isEnabled : installation.config.isEnabled
+    };
+
+    // Reinstall with updated config
+    botExecutor.installBot(id, updatedConfig);
+
+    res.json({
+      message: 'Bot configuration updated successfully',
+      config: updatedConfig
+    });
   } catch (error) {
     next(error);
   }
 });
 
-// PUT /api/bots/:botId/config - Update bot configuration
-router.put('/:botId/config', async (req, res, next) => {
+// POST /api/bots/:id/execute/:command - Execute a bot command
+router.post('/:id/execute/:command', authenticate, async (req, res, next) => {
   try {
-    // TODO: Implement bot configuration update
-    res.json({ message: 'Bot configuration updated' });
+    const { id: botId, command: commandName } = req.params;
+    const { parameters = {}, manuscriptId, conversationId } = req.body;
+
+    const commandBots = botExecutor.getCommandBots();
+    const bot = commandBots.find(b => b.id === botId);
+    
+    if (!bot) {
+      return res.status(404).json({
+        error: 'Bot not found',
+        message: `Bot with ID ${botId} is not registered`
+      });
+    }
+
+    const command = bot.commands.find(cmd => cmd.name === commandName);
+    if (!command) {
+      return res.status(404).json({
+        error: 'Command not found',
+        message: `Command ${commandName} not found for bot ${botId}`
+      });
+    }
+
+    // Execute the command
+    const result = await botExecutor.executeCommandBot(
+      {
+        botId,
+        command: commandName,
+        parameters,
+        rawText: `@${bot.name.toLowerCase().replace(/\s+/g, '-')} ${commandName}`
+      },
+      {
+        conversationId: conversationId || '',
+        manuscriptId: manuscriptId || '',
+        triggeredBy: {
+          messageId: '',
+          userId: req.user!.id,
+          trigger: 'MENTION' as any
+        },
+        journal: {
+          id: 'default',
+          settings: {}
+        },
+        config: {}
+      }
+    );
+
+    if (result.errors && result.errors.length > 0) {
+      res.status(400).json({
+        error: 'Command execution failed',
+        errors: result.errors
+      });
+    } else {
+      res.json({
+        message: 'Command executed successfully',
+        result: result.messages,
+        actions: result.actions
+      });
+    }
   } catch (error) {
     next(error);
   }
 });
 
-// POST /api/bots/:botId/execute - Trigger bot execution
-router.post('/:botId/execute', async (req, res, next) => {
+// GET /api/bots/:id/help - Get bot help information
+router.get('/:id/help', authenticate, async (req, res, next) => {
   try {
-    // TODO: Implement bot execution
-    res.json({ message: 'Bot executed' });
+    const { id } = req.params;
+    const { command } = req.query;
+
+    const commandBots = botExecutor.getCommandBots();
+    const bot = commandBots.find(b => b.id === id);
+    
+    if (!bot) {
+      return res.status(404).json({
+        error: 'Bot not found',
+        message: `Bot with ID ${id} is not registered`
+      });
+    }
+
+    if (command) {
+      // Get help for specific command
+      const cmd = bot.commands.find(c => c.name === command);
+      if (!cmd) {
+        return res.status(404).json({
+          error: 'Command not found',
+          message: `Command ${command} not found for bot ${id}`
+        });
+      }
+
+      res.json({
+        command: cmd.name,
+        description: cmd.description,
+        usage: cmd.usage,
+        parameters: cmd.parameters,
+        examples: cmd.examples,
+        permissions: cmd.permissions
+      });
+    } else {
+      // Get general bot help
+      const help = botExecutor.getCommandParser().generateBotHelp(id);
+      
+      res.json({
+        help,
+        bot: {
+          id: bot.id,
+          name: bot.name,
+          description: bot.description,
+          version: bot.version,
+          commands: bot.commands.map(cmd => ({
+            name: cmd.name,
+            description: cmd.description,
+            usage: cmd.usage
+          })),
+          keywords: bot.keywords,
+          helpInfo: bot.help
+        }
+      });
+    }
   } catch (error) {
     next(error);
   }

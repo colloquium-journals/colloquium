@@ -1,20 +1,24 @@
-import { Bot, BotContext, BotResponse, BotTrigger } from '@colloquium/types';
+import { BotContext, BotResponse, BotTrigger } from '@colloquium/types';
+import { CommandBot, CommandParser, ParsedCommand } from './commands';
 
 export class BotExecutor {
-  private bots: Map<string, Bot> = new Map();
+  private commandBots: Map<string, CommandBot> = new Map();
   private installations: Map<string, any> = new Map();
+  private commandParser: CommandParser = new CommandParser();
 
-  registerBot(bot: Bot): void {
-    this.bots.set(bot.id, bot);
+
+  registerCommandBot(bot: CommandBot): void {
+    this.commandBots.set(bot.id, bot);
+    this.commandParser.registerBot(bot);
   }
 
   unregisterBot(botId: string): void {
-    this.bots.delete(botId);
+    this.commandBots.delete(botId);
     this.installations.delete(botId);
   }
 
   installBot(botId: string, config: any): void {
-    if (!this.bots.has(botId)) {
+    if (!this.commandBots.has(botId)) {
       throw new Error(`Bot ${botId} is not registered`);
     }
     this.installations.set(botId, { ...config, isEnabled: true });
@@ -24,30 +28,48 @@ export class BotExecutor {
     this.installations.delete(botId);
   }
 
-  async executeBot(botId: string, context: BotContext): Promise<BotResponse> {
-    const bot = this.bots.get(botId);
+
+  async executeCommandBot(parsedCommand: ParsedCommand, context: BotContext): Promise<BotResponse> {
+    const bot = this.commandBots.get(parsedCommand.botId);
     if (!bot) {
-      throw new Error(`Bot ${botId} is not registered`);
+      throw new Error(`Command bot ${parsedCommand.botId} is not registered`);
     }
 
-    const installation = this.installations.get(botId);
+    const installation = this.installations.get(parsedCommand.botId);
     if (!installation || !installation.isEnabled) {
-      throw new Error(`Bot ${botId} is not installed or is disabled`);
+      throw new Error(`Bot ${parsedCommand.botId} is not installed or is disabled`);
+    }
+
+    // Handle unrecognized commands by showing help
+    if (parsedCommand.isUnrecognized) {
+      return this.generateUnrecognizedCommandResponse(bot, parsedCommand.command);
+    }
+
+    const command = bot.commands.find(cmd => cmd.name === parsedCommand.command);
+    if (!command) {
+      return this.generateUnrecognizedCommandResponse(bot, parsedCommand.command);
+    }
+
+    // Validate parameters
+    const validation = this.commandParser.validateParameters(parsedCommand.parameters, command);
+    if (!validation.isValid) {
+      return {
+        errors: validation.errors
+      };
     }
 
     try {
-      // Merge installation config with context
-      const enhancedContext: BotContext = {
+      // Execute command with timeout
+      const timeoutMs = process.env.BOT_EXECUTION_TIMEOUT ? 
+        parseInt(process.env.BOT_EXECUTION_TIMEOUT) : 30000;
+
+      const enhancedContext = {
         ...context,
         config: { ...context.config, ...installation }
       };
 
-      // Execute bot with timeout
-      const timeoutMs = process.env.BOT_EXECUTION_TIMEOUT ? 
-        parseInt(process.env.BOT_EXECUTION_TIMEOUT) : 30000;
-
       const response = await Promise.race([
-        bot.execute(enhancedContext),
+        command.execute(parsedCommand.parameters, enhancedContext),
         new Promise<never>((_, reject) => 
           setTimeout(() => reject(new Error('Bot execution timeout')), timeoutMs)
         )
@@ -55,54 +77,106 @@ export class BotExecutor {
 
       return response;
     } catch (error) {
-      console.error(`Bot ${botId} execution failed:`, error);
+      console.error(`Command bot ${parsedCommand.botId} execution failed:`, error);
       return {
         errors: [error instanceof Error ? error.message : 'Unknown error occurred']
       };
     }
   }
 
-  async executeBotsByTrigger(trigger: BotTrigger, context: BotContext): Promise<BotResponse[]> {
+  async processMessage(messageContent: string, context: BotContext): Promise<BotResponse[]> {
     const responses: BotResponse[] = [];
 
-    for (const [botId, bot] of this.bots.entries()) {
-      const installation = this.installations.get(botId);
-      
-      if (!installation || !installation.isEnabled) {
-        continue;
-      }
-
-      if (bot.triggers.includes(trigger)) {
-        try {
-          const response = await this.executeBot(botId, context);
-          responses.push(response);
-        } catch (error) {
-          console.error(`Failed to execute bot ${botId}:`, error);
-          responses.push({
-            errors: [error instanceof Error ? error.message : 'Unknown error occurred']
-          });
-        }
+    // Parse message for bot commands
+    const parsedCommands = this.commandParser.parseMessage(messageContent);
+    
+    // Execute each parsed command
+    for (const parsedCommand of parsedCommands) {
+      try {
+        const response = await this.executeCommandBot(parsedCommand, context);
+        responses.push(response);
+      } catch (error) {
+        console.error(`Failed to execute command bot ${parsedCommand.botId}:`, error);
+        responses.push({
+          errors: [error instanceof Error ? error.message : 'Unknown error occurred']
+        });
       }
     }
 
     return responses;
   }
 
-  getInstalledBots(): Array<{ botId: string; bot: Bot; config: any }> {
-    const installed: Array<{ botId: string; bot: Bot; config: any }> = [];
+  async executeBotsByTrigger(trigger: BotTrigger, context: BotContext): Promise<BotResponse[]> {
+    const responses: BotResponse[] = [];
+
+    // Execute command bots that have matching triggers
+    for (const [botId, bot] of this.commandBots.entries()) {
+      const installation = this.installations.get(botId);
+      
+      if (!installation || !installation.isEnabled) {
+        continue;
+      }
+
+      if (bot.triggers.includes(trigger.toString() as any)) {
+        // For command bots with triggers, we could execute an auto-trigger command
+        // For now, command bots are primarily mention-based, so we skip auto-execution
+        console.log(`Bot ${bot.name} triggered by ${trigger}, but no auto-execution implemented`);
+      }
+    }
+
+    return responses;
+  }
+
+  getInstalledBots(): Array<{ botId: string; bot: CommandBot; config: any }> {
+    const installed: Array<{ botId: string; bot: CommandBot; config: any }> = [];
 
     for (const [botId, config] of this.installations.entries()) {
-      const bot = this.bots.get(botId);
-      if (bot) {
-        installed.push({ botId, bot, config });
+      const commandBot = this.commandBots.get(botId);
+      
+      if (commandBot) {
+        installed.push({ botId, bot: commandBot, config });
       }
     }
 
     return installed;
   }
 
-  getAvailableBots(): Bot[] {
-    return Array.from(this.bots.values());
+  getAvailableBots(): CommandBot[] {
+    return Array.from(this.commandBots.values());
+  }
+
+  getCommandBots(): CommandBot[] {
+    return Array.from(this.commandBots.values());
+  }
+
+  getCommandParser(): CommandParser {
+    return this.commandParser;
+  }
+
+  private generateUnrecognizedCommandResponse(bot: CommandBot, unrecognizedCommand: string): BotResponse {
+    let message = `❌ **Unrecognized Command:** \`${unrecognizedCommand}\`\n\n`;
+    message += `I don't recognize the command \`${unrecognizedCommand}\` for **${bot.name}**.\n\n`;
+    
+    message += `**Available Commands:**\n`;
+    bot.commands.forEach(cmd => {
+      message += `• \`${cmd.name}\` - ${cmd.description}\n`;
+    });
+    
+    message += `\n**Usage Examples:**\n`;
+    const exampleCommands = bot.commands.slice(0, 3); // Show first 3 commands as examples
+    exampleCommands.forEach(cmd => {
+      if (cmd.examples.length > 0) {
+        message += `• \`${cmd.examples[0]}\`\n`;
+      }
+    });
+    
+    message += `\n💡 **Need more help?** Try \`@${bot.name.toLowerCase().replace(/\s+/g, '-')} help\` for detailed documentation.`;
+    
+    return {
+      messages: [{
+        content: message
+      }]
+    };
   }
 }
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
-  Container, 
   Title, 
   Grid, 
   Card, 
@@ -16,7 +16,8 @@ import {
   Select,
   Pagination,
   Anchor,
-  Divider
+  Divider,
+  Button
 } from '@mantine/core';
 import { IconSearch, IconAlertCircle, IconCalendar, IconUsers, IconTag, IconUpload } from '@tabler/icons-react';
 import Link from 'next/link';
@@ -45,6 +46,7 @@ interface ManuscriptsResponse {
 }
 
 export default function ManuscriptsPage() {
+  const { isAuthenticated } = useAuth();
   const [manuscripts, setManuscripts] = useState<Manuscript[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,9 @@ export default function ManuscriptsPage() {
         params.append('search', searchTerm);
       }
 
-      const response = await fetch(`http://localhost:4000/api/manuscripts?${params}`);
+      const response = await fetch(`http://localhost:4000/api/manuscripts?${params}`, {
+        credentials: 'include' // Include auth cookies for access control
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch manuscripts');
@@ -114,28 +118,25 @@ export default function ManuscriptsPage() {
 
   if (loading && manuscripts.length === 0) {
     return (
-      <Container size="lg" py="xl">
-        <Stack align="center" gap="md">
-          <Loader size="lg" />
-          <Text>Loading manuscripts...</Text>
-        </Stack>
-      </Container>
+      <Stack align="center" gap="md" py="xl">
+        <Loader size="lg" />
+        <Text>Loading manuscripts...</Text>
+      </Stack>
     );
   }
 
   if (error) {
     return (
-      <Container size="lg" py="xl">
+      <Stack py="xl">
         <Alert icon={<IconAlertCircle size={16} />} color="red">
           {error}
         </Alert>
-      </Container>
+      </Stack>
     );
   }
 
   return (
-    <Container size="xl" py="xl">
-      <Stack gap="xl">
+    <Stack gap="xl" py="xl">
         {/* Breadcrumbs */}
         <Breadcrumbs items={[{ title: 'Manuscripts' }]} />
 
@@ -147,9 +148,15 @@ export default function ManuscriptsPage() {
               Explore the latest research published in our journal
             </Text>
           </Stack>
-          <Button component={Link} href="/manuscripts/submit" leftSection={<IconUpload size={16} />}>
-            Submit Manuscript
-          </Button>
+          {isAuthenticated ? (
+            <Button component={Link} href="/manuscripts/submit" leftSection={<IconUpload size={16} />}>
+              Submit Manuscript
+            </Button>
+          ) : (
+            <Button component={Link} href="/auth/login" variant="outline">
+              Login to Submit
+            </Button>
+          )}
         </Group>
 
         {/* Search and Filters */}
@@ -296,6 +303,5 @@ export default function ManuscriptsPage() {
           </Group>
         )}
       </Stack>
-    </Container>
   );
 }

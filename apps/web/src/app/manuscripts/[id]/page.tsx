@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Container, 
   Title, 
@@ -55,6 +56,8 @@ interface Manuscript {
 
 export default function ManuscriptDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const manuscriptId = params.id as string;
   
   const [manuscript, setManuscript] = useState<Manuscript | null>(null);
@@ -65,7 +68,9 @@ export default function ManuscriptDetailPage() {
     const fetchManuscript = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:4000/api/manuscripts/${manuscriptId}`);
+        const response = await fetch(`http://localhost:4000/api/manuscripts/${manuscriptId}`, {
+          credentials: 'include' // Include auth cookies
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch manuscript');
@@ -114,6 +119,7 @@ export default function ManuscriptDetailPage() {
       default: return 'gray';
     }
   };
+
 
   if (loading) {
     return (
@@ -219,9 +225,9 @@ export default function ManuscriptDetailPage() {
                   variant="outline"
                   leftSection={<IconMessage size={16} />}
                   component={Link}
-                  href={`/conversations?manuscript=${manuscript.id}`}
+                  href={`/submissions?manuscript=${manuscript.id}`}
                 >
-                  View Discussions
+                  View Discussion
                 </Button>
               )}
             </Group>
@@ -250,7 +256,7 @@ export default function ManuscriptDetailPage() {
                       <Group gap="xs">
                         <Anchor
                           component={Link}
-                          href={`/conversations/${conversation.id}`}
+                          href={`/submissions/${conversation.id}`}
                           fw={500}
                         >
                           {conversation.title}
@@ -281,7 +287,7 @@ export default function ManuscriptDetailPage() {
                       size="xs"
                       variant="outline"
                       component={Link}
-                      href={`/conversations/${conversation.id}`}
+                      href={`/submissions/${conversation.id}`}
                     >
                       View
                     </Button>
@@ -298,6 +304,7 @@ export default function ManuscriptDetailPage() {
             ← Back to Manuscripts
           </Button>
         </Group>
+
       </Stack>
     </Container>
   );

@@ -170,10 +170,25 @@ The Colloquium platform represents a significant step forward in democratizing a
       version: '1.0.0',
       author: 'Colloquium Team',
       isPublic: true,
-      config: {
-        databases: ['crossref', 'pubmed', 'arxiv'],
-        threshold: 0.15,
-        excludeReferences: true
+      configSchema: {
+        type: 'object',
+        properties: {
+          databases: {
+            type: 'array',
+            items: { type: 'string' },
+            default: ['crossref', 'pubmed', 'arxiv']
+          },
+          threshold: {
+            type: 'number',
+            minimum: 0,
+            maximum: 1,
+            default: 0.15
+          },
+          excludeReferences: {
+            type: 'boolean',
+            default: true
+          }
+        }
       }
     }
   });
@@ -188,10 +203,23 @@ The Colloquium platform represents a significant step forward in democratizing a
       version: '1.0.0',
       author: 'Colloquium Team',
       isPublic: true,
-      config: {
-        checkMethods: ['anova', 'regression', 'ttest'],
-        requireEffectSizes: true,
-        requireConfidenceIntervals: true
+      configSchema: {
+        type: 'object',
+        properties: {
+          checkMethods: {
+            type: 'array',
+            items: { type: 'string' },
+            default: ['anova', 'regression', 'ttest']
+          },
+          requireEffectSizes: {
+            type: 'boolean',
+            default: true
+          },
+          requireConfidenceIntervals: {
+            type: 'boolean',
+            default: true
+          }
+        }
       }
     }
   });

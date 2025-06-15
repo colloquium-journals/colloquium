@@ -12,13 +12,27 @@ import {
   Button,
   Collapse,
   Textarea,
-  Stack
+  Stack,
+  Tooltip,
+  Divider
 } from '@mantine/core';
-import { IconDots, IconArrowBack, IconFlag, IconCheck, IconX } from '@tabler/icons-react';
+import { 
+  IconDots, 
+  IconArrowBack, 
+  IconFlag, 
+  IconCheck, 
+  IconX, 
+  IconEye, 
+  IconLock, 
+  IconUsers, 
+  IconShield,
+  IconInfoCircle
+} from '@tabler/icons-react';
 
 interface MessageData {
   id: string;
   content: string;
+  privacy: string;
   author: {
     name: string;
     email: string;
@@ -76,6 +90,61 @@ export function MessageCard({ message, onReply, isReply = false }: MessageCardPr
     }
   };
 
+  const getVisibilityInfo = (privacy: string) => {
+    switch (privacy) {
+      case 'PUBLIC':
+        return {
+          icon: IconEye,
+          label: 'Public',
+          description: 'Visible to everyone',
+          color: 'green',
+          audience: ['Authors', 'Reviewers', 'Editors', 'Admins', 'Public']
+        };
+      case 'AUTHOR_VISIBLE':
+        return {
+          icon: IconUsers,
+          label: 'Authors & Reviewers',
+          description: 'Visible to authors, reviewers, editors, and admins',
+          color: 'blue',
+          audience: ['Authors', 'Reviewers', 'Editors', 'Admins']
+        };
+      case 'REVIEWER_ONLY':
+        return {
+          icon: IconShield,
+          label: 'Reviewers Only',
+          description: 'Only visible to reviewers, editors, and admins',
+          color: 'orange',
+          audience: ['Reviewers', 'Editors', 'Admins']
+        };
+      case 'EDITOR_ONLY':
+        return {
+          icon: IconLock,
+          label: 'Editors Only',
+          description: 'Only visible to editors and admins',
+          color: 'red',
+          audience: ['Editors', 'Admins']
+        };
+      case 'ADMIN_ONLY':
+        return {
+          icon: IconLock,
+          label: 'Admins Only',
+          description: 'Only visible to admins',
+          color: 'red',
+          audience: ['Admins']
+        };
+      default:
+        return {
+          icon: IconEye,
+          label: 'Unknown',
+          description: 'Visibility level unknown',
+          color: 'gray',
+          audience: ['Unknown']
+        };
+    }
+  };
+
+  const visibilityInfo = getVisibilityInfo(message.privacy);
+
   return (
     <Card 
       shadow="sm" 
@@ -107,10 +176,45 @@ export function MessageCard({ message, onReply, isReply = false }: MessageCardPr
                     Bot
                   </Badge>
                 )}
+                <Tooltip 
+                  label={
+                    <Stack gap="xs">
+                      <Text size="sm" fw={500}>{visibilityInfo.description}</Text>
+                      <Divider />
+                      <Text size="xs" fw={500}>Visible to:</Text>
+                      {visibilityInfo.audience.map((role, index) => (
+                        <Text key={index} size="xs">• {role}</Text>
+                      ))}
+                    </Stack>
+                  }
+                  multiline
+                  width={200}
+                  withArrow
+                >
+                  <Badge 
+                    size="xs" 
+                    variant="light" 
+                    color={visibilityInfo.color}
+                    leftSection={<visibilityInfo.icon size={10} />}
+                  >
+                    {visibilityInfo.label}
+                  </Badge>
+                </Tooltip>
               </Group>
-              <Text size="xs" c="dimmed">
-                {formatTimestamp(message.createdAt)}
-              </Text>
+              <Group gap="xs" align="center">
+                <Text size="xs" c="dimmed">
+                  {formatTimestamp(message.createdAt)}
+                </Text>
+                <ActionIcon 
+                  variant="subtle" 
+                  size="xs"
+                  color={visibilityInfo.color}
+                >
+                  <Tooltip label={`${visibilityInfo.description}. Click for details.`}>
+                    <IconInfoCircle size={12} />
+                  </Tooltip>
+                </ActionIcon>
+              </Group>
             </div>
           </Group>
 

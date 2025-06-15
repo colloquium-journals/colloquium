@@ -1,11 +1,10 @@
-import { Container, Title, Text, Button, Stack, Card, Group } from '@mantine/core';
+import { Title, Text, Button, Stack, Card, Group } from '@mantine/core';
 import { IconBook, IconUsers, IconRocket } from '@tabler/icons-react';
 import Link from 'next/link';
 
 export default function HomePage() {
   return (
-    <Container size="lg" py="xl">
-      <Stack align="center" gap="xl">
+    <Stack align="center" gap="xl" py="xl">
         <Stack align="center" gap="md">
           <Title order={1} size="3rem" ta="center" c="academic.8">
             Colloquium
@@ -72,6 +71,5 @@ export default function HomePage() {
           </Group>
         </Stack>
       </Stack>
-    </Container>
   );
 }

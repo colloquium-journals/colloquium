@@ -22,6 +22,7 @@ interface ConversationData {
 interface MessageData {
   id: string;
   content: string;
+  privacy: string;
   author: {
     name: string;
     email: string;
@@ -46,64 +47,34 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       try {
         setLoading(true);
         
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}`, {
+          credentials: 'include' // Include auth cookies
+        });
         
-        // Mock conversation data based on our seeded data
-        const mockConversation: ConversationData = {
-          id: conversationId,
-          title: 'Editorial Review Discussion',
-          type: 'EDITORIAL',
-          privacy: 'PRIVATE',
+        if (!response.ok) {
+          throw new Error('Failed to fetch conversation');
+        }
+        
+        const data = await response.json();
+        
+        // Format the data to match our ConversationData interface
+        const formattedConversation: ConversationData = {
+          id: data.id,
+          title: data.title,
+          type: data.type,
+          privacy: data.privacy,
           manuscript: {
-            title: 'A Novel Approach to Academic Publishing: The Colloquium Platform',
-            authors: ['Sample Author']
+            title: data.manuscript.title,
+            authors: data.manuscript.authors
           },
-          messages: [
-            {
-              id: '1',
-              content: 'This manuscript looks promising. The approach to conversational review is novel and could have significant impact on academic publishing. I recommend sending it out for peer review.',
-              author: {
-                name: 'Editor User',
-                email: 'editor@colloquium.example.com'
-              },
-              createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-              isBot: false
-            },
-            {
-              id: '2',
-              content: 'I agree. The technical implementation seems sound and the use case is compelling. Let\'s assign reviewers from our network.',
-              author: {
-                name: 'Admin User',
-                email: 'admin@colloquium.example.com'
-              },
-              createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
-              isBot: false
-            },
-            {
-              id: '3',
-              content: `Plagiarism check completed for manuscript.
-
-**Results:**
-- Potential matches found: 0
-- Databases checked: crossref, pubmed
-- Similarity threshold: 15.0%
-- Confidence level: 95.0%
-
-✅ No significant plagiarism detected.`,
-              author: {
-                name: 'Plagiarism Checker',
-                email: 'bot@colloquium.example.com'
-              },
-              createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-              isBot: true
-            }
-          ]
+          messages: data.messages
         };
         
-        setConversation(mockConversation);
+        setConversation(formattedConversation);
+        setError(null);
       } catch (err) {
         setError('Failed to load conversation');
+        console.error('Error fetching conversation:', err);
       } finally {
         setLoading(false);
       }
@@ -114,25 +85,46 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     }
   }, [conversationId]);
 
-  const handleNewMessage = (content: string, parentId?: string) => {
+  const handleNewMessage = async (content: string, parentId?: string, privacy?: string) => {
     if (!conversation) return;
 
-    const newMessage: MessageData = {
-      id: Date.now().toString(),
-      content,
-      author: {
-        name: 'Current User', // Will be replaced with actual user data
-        email: 'user@example.com'
-      },
-      createdAt: new Date().toISOString(),
-      isBot: false,
-      parentId
-    };
+    try {
+      console.log('Posting message:', { content, parentId, privacy }); // Debug log
+      
+      const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include', // Include auth cookies
+        body: JSON.stringify({
+          content,
+          parentId,
+          privacy
+        })
+      });
 
-    setConversation(prev => prev ? {
-      ...prev,
-      messages: [...prev.messages, newMessage]
-    } : null);
+      console.log('Response status:', response.status); // Debug log
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error:', errorData); // Debug log
+        throw new Error(errorData.message || 'Failed to post message');
+      }
+
+      const result = await response.json();
+      console.log('Message posted successfully:', result); // Debug log
+      const newMessage = result.data;
+
+      // Add the new message to the conversation
+      setConversation(prev => prev ? {
+        ...prev,
+        messages: [...prev.messages, newMessage]
+      } : null);
+    } catch (err) {
+      console.error('Error posting message:', err);
+      // Could show a toast notification here
+    }
   };
 
   if (loading) {
@@ -209,7 +201,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
       {/* Message Composer */}
       <MessageComposer 
-        onSubmit={(content) => handleNewMessage(content)}
+        onSubmit={(content, privacy) => handleNewMessage(content, undefined, privacy)}
         placeholder="Write your message... Use @bot-name to mention bots"
       />
     </Stack>
