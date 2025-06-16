@@ -1,0 +1,63 @@
+{
+  "name": "{{PACKAGE_NAME}}",
+  "version": "1.0.0",
+  "description": "{{BOT_DESCRIPTION}}",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": [{{KEYWORDS}}],
+  "author": {
+    "name": "{{AUTHOR_NAME}}"{{#if AUTHOR_EMAIL}},
+    "email": "{{AUTHOR_EMAIL}}"{{/if}}{{#if AUTHOR_URL}},
+    "url": "{{AUTHOR_URL}}"{{/if}}
+  },
+  "license": "{{LICENSE}}",
+  "homepage": "{{GIT_URL}}",
+  "repository": {
+    "type": "git",
+    "url": "{{GIT_URL}}.git"
+  },
+  "bugs": {
+    "url": "{{GIT_URL}}/issues"
+  },
+  "colloquium": {
+    "botId": "{{BOT_NAME}}",
+    "apiVersion": "1.0.0",
+    "permissions": ["read_manuscript"],
+    "category": "{{CATEGORY}}",
+    "isDefault": false
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "prepublishOnly": "npm run build && npm test && npm run lint"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@colloquium/types": "*",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/jest": "^29.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.2"
+  },
+  "peerDependencies": {
+    "@colloquium/types": "*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

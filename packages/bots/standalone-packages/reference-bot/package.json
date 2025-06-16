@@ -1,0 +1,66 @@
+{
+  "name": "@colloquium/reference-bot",
+  "version": "1.0.0",
+  "description": "Validates references and checks DOI availability and correctness for academic manuscripts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": [
+    "colloquium",
+    "bot",
+    "references",
+    "doi",
+    "citation",
+    "bibliography",
+    "academic",
+    "publishing"
+  ],
+  "author": {
+    "name": "Colloquium Team",
+    "email": "team@colloquium.org",
+    "url": "https://colloquium.org"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/colloquium/colloquium",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/colloquium/colloquium.git",
+    "directory": "packages/bots/standalone-packages/reference-bot"
+  },
+  "bugs": {
+    "url": "https://github.com/colloquium/colloquium/issues"
+  },
+  "colloquium": {
+    "botId": "reference-bot",
+    "apiVersion": "1.0.0",
+    "permissions": ["read_manuscript"],
+    "category": "quality",
+    "isDefault": true,
+    "minColloquiumVersion": "0.1.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.2",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0"
+  },
+  "peerDependencies": {
+    "@colloquium/types": "*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
