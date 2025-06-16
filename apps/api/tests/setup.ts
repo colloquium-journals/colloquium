@@ -1,0 +1,59 @@
+import { beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+
+// Global test timeout
+jest.setTimeout(30000);
+
+// Mock environment variables for testing
+process.env.NODE_ENV = 'test';
+process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
+process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/colloquium_test';
+process.env.REDIS_URL = 'redis://localhost:6379/1';
+
+// Mock external services
+beforeAll(async () => {
+  // Setup test database connections, etc.
+  console.log('🧪 Setting up API test environment');
+});
+
+afterAll(async () => {
+  // Cleanup test database connections, etc.
+  console.log('🧹 Cleaning up API test environment');
+});
+
+beforeEach(() => {
+  // Reset mocks before each test
+  jest.clearAllMocks();
+});
+
+afterEach(() => {
+  // Additional cleanup after each test
+});
+
+// Global test utilities
+global.testUtils = {
+  // Helper functions that can be used across tests
+  createMockUser: () => ({
+    id: 'test-user-id',
+    email: 'test@example.com',
+    name: 'Test User',
+    role: 'AUTHOR' as const,
+    orcidId: null,
+    createdAt: new Date()
+  }),
+  
+  createMockManuscript: () => ({
+    id: 'test-manuscript-id',
+    title: 'Test Manuscript',
+    status: 'SUBMITTED' as const,
+    submittedAt: new Date(),
+    authorId: 'test-user-id'
+  })
+};
+
+// Extend global namespace for TypeScript
+declare global {
+  var testUtils: {
+    createMockUser: () => any;
+    createMockManuscript: () => any;
+  };
+}

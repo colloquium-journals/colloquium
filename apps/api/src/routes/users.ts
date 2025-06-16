@@ -218,6 +218,113 @@ router.get('/me', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/users/profile/:identifier - Get user or bot profile for mentions
+router.get('/profile/:identifier', authenticate, async (req, res, next) => {
+  try {
+    const identifier = req.params.identifier;
+    
+    // Check if it's a bot identifier
+    const botPatterns = [
+      /^editorial-bot$/i,
+      /^plagiarism-bot$/i,
+      /^statistics-bot$/i,
+      /^formatting-bot$/i,
+      /-bot$/i
+    ];
+    
+    const isBot = botPatterns.some(pattern => pattern.test(identifier));
+    
+    if (isBot) {
+      // Return bot profile information
+      const botInfo = getBotProfile(identifier.toLowerCase());
+      if (!botInfo) {
+        return res.status(404).json({
+          error: 'Bot not found',
+          message: 'The specified bot does not exist'
+        });
+      }
+      
+      return res.json({
+        user: {
+          id: identifier.toLowerCase(),
+          name: botInfo.displayName,
+          email: `${identifier.toLowerCase()}@colloquium.ai`,
+          role: botInfo.role,
+          bio: botInfo.description,
+          affiliation: 'Colloquium AI Systems',
+          isBot: true
+        }
+      });
+    }
+    
+    // Look up user by ID or email
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: identifier },
+          { email: identifier }
+        ]
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        orcidId: true,
+        bio: true,
+        affiliation: true,
+        website: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found',
+        message: 'The specified user does not exist'
+      });
+    }
+    
+    res.json({
+      user: {
+        ...user,
+        isBot: false
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Helper function to get bot profile information
+function getBotProfile(botId: string) {
+  const botProfiles: Record<string, { displayName: string; description: string; role: string }> = {
+    'editorial-bot': {
+      displayName: 'Editorial Bot',
+      description: 'Assists with manuscript editorial workflows and review processes',
+      role: 'Editorial Assistant'
+    },
+    'plagiarism-bot': {
+      displayName: 'Plagiarism Bot',
+      description: 'Checks manuscripts for potential plagiarism and citation issues',
+      role: 'Content Reviewer'
+    },
+    'statistics-bot': {
+      displayName: 'Statistics Bot',
+      description: 'Reviews statistical analysis and methodology in manuscripts',
+      role: 'Statistical Reviewer'
+    },
+    'formatting-bot': {
+      displayName: 'Formatting Bot',
+      description: 'Checks manuscript formatting and style guidelines',
+      role: 'Style Checker'
+    }
+  };
+  
+  return botProfiles[botId];
+}
+
 // PUT /api/users/me - Update user profile
 router.put('/me', authenticate, async (req, res, next) => {
   try {

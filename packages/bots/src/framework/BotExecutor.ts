@@ -5,6 +5,7 @@ export class BotExecutor {
   private commandBots: Map<string, CommandBot> = new Map();
   private installations: Map<string, any> = new Map();
   private commandParser: CommandParser = new CommandParser();
+  private botUserIds: Map<string, string> = new Map();
 
 
   registerCommandBot(bot: CommandBot): void {
@@ -12,9 +13,18 @@ export class BotExecutor {
     this.commandParser.registerBot(bot);
   }
 
+  setBotUserId(botId: string, userId: string): void {
+    this.botUserIds.set(botId, userId);
+  }
+
+  getBotUserId(botId: string): string | undefined {
+    return this.botUserIds.get(botId);
+  }
+
   unregisterBot(botId: string): void {
     this.commandBots.delete(botId);
     this.installations.delete(botId);
+    this.botUserIds.delete(botId);
   }
 
   installBot(botId: string, config: any): void {
@@ -54,6 +64,7 @@ export class BotExecutor {
     const validation = this.commandParser.validateParameters(parsedCommand.parameters, command);
     if (!validation.isValid) {
       return {
+        botId: parsedCommand.botId,
         errors: validation.errors
       };
     }
@@ -75,10 +86,15 @@ export class BotExecutor {
         )
       ]);
 
-      return response;
+      // Add bot ID to response
+      return {
+        ...response,
+        botId: parsedCommand.botId
+      };
     } catch (error) {
       console.error(`Command bot ${parsedCommand.botId} execution failed:`, error);
       return {
+        botId: parsedCommand.botId,
         errors: [error instanceof Error ? error.message : 'Unknown error occurred']
       };
     }
@@ -157,6 +173,11 @@ export class BotExecutor {
     let message = `❌ **Unrecognized Command:** \`${unrecognizedCommand}\`\n\n`;
     message += `I don't recognize the command \`${unrecognizedCommand}\` for **${bot.name}**.\n\n`;
     
+    // Special case for common naming mistakes
+    if (unrecognizedCommand.toLowerCase() === 'bot') {
+      message += `💡 **Tip:** It looks like you might have typed the bot name with spaces. Use \`@${bot.id}\` instead of \`@${bot.name}\`.\n\n`;
+    }
+    
     message += `**Available Commands:**\n`;
     bot.commands.forEach(cmd => {
       message += `• \`${cmd.name}\` - ${cmd.description}\n`;
@@ -170,9 +191,10 @@ export class BotExecutor {
       }
     });
     
-    message += `\n💡 **Need more help?** Try \`@${bot.name.toLowerCase().replace(/\s+/g, '-')} help\` for detailed documentation.`;
+    message += `\n💡 **Need more help?** Try \`@${bot.id} help\` for detailed documentation.`;
     
     return {
+      botId: bot.id,
       messages: [{
         content: message
       }]

@@ -28,6 +28,7 @@ import {
   IconShield,
   IconInfoCircle
 } from '@tabler/icons-react';
+import { MessageContent } from './MessageContent';
 
 interface MessageData {
   id: string;
@@ -45,9 +46,10 @@ interface MessageCardProps {
   message: MessageData;
   onReply: (content: string) => void;
   isReply?: boolean;
+  conversationId: string;
 }
 
-export function MessageCard({ message, onReply, isReply = false }: MessageCardProps) {
+export function MessageCard({ message, onReply, isReply = false, conversationId }: MessageCardProps) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -164,7 +166,7 @@ export function MessageCard({ message, onReply, isReply = false }: MessageCardPr
               color={message.isBot ? 'blue' : 'gray'}
               radius="xl"
             >
-              {getInitials(message.author.name)}
+              {message.isBot ? '🤖' : getInitials(message.author.name)}
             </Avatar>
             <div>
               <Group gap="xs" align="center">
@@ -242,15 +244,11 @@ export function MessageCard({ message, onReply, isReply = false }: MessageCardPr
         </Group>
 
         {/* Message Content */}
-        <Text 
-          size="sm" 
-          style={{ 
-            whiteSpace: 'pre-wrap',
-            lineHeight: 1.6
-          }}
-        >
-          {message.content}
-        </Text>
+        <MessageContent 
+          content={message.content}
+          conversationId={conversationId}
+          size="sm"
+        />
 
         {/* Reply Form */}
         <Collapse in={showReplyForm}>

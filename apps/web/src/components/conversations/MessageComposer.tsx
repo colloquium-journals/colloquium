@@ -141,7 +141,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
       let processedContent = content;
       mentionedBots.forEach(bot => {
         processedContent = processedContent.replace(
-          new RegExp(`@${bot.name.replace(/\s+/g, '-').toLowerCase()}`, 'g'),
+          new RegExp(`@${bot.id}`, 'g'),
           `@${bot.name}`
         );
       });
@@ -164,7 +164,8 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
   const addBotMention = (bot: Bot) => {
     if (mentionedBots.find(b => b.id === bot.id)) return;
 
-    const botMention = `@${bot.name.replace(/\s+/g, '-').toLowerCase()}`;
+    // Use bot ID for the @-mention, not the display name
+    const botMention = `@${bot.id}`;
     const newContent = content + (content ? ' ' : '') + botMention + ' ';
     
     setContent(newContent);
@@ -182,7 +183,8 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
     const bot = mentionedBots.find(b => b.id === botId);
     if (!bot) return;
 
-    const botMention = `@${bot.name.replace(/\s+/g, '-').toLowerCase()}`;
+    // Use bot ID for removal, not the display name
+    const botMention = `@${bot.id}`;
     const newContent = content.replace(new RegExp(`\\s*${botMention}\\s*`, 'g'), ' ').trim();
     
     setContent(newContent);
@@ -217,7 +219,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
                   </ActionIcon>
                 }
               >
-                @{bot.name}
+                @{bot.id}
               </Badge>
             ))}
           </Group>

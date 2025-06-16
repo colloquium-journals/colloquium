@@ -9,6 +9,8 @@
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -16,10 +18,13 @@
     "bcrypt": "^5.1.1"
   },
   "devDependencies": {
-    "@types/node": "^20.8.0",
-    "@types/jsonwebtoken": "^9.0.0",
+    "@colloquium/eslint-config": "*",
     "@types/bcrypt": "^5.0.0",
-    "typescript": "^5.2.2",
-    "@colloquium/eslint-config": "*"
+    "@types/jest": "^29.5.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^20.8.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.2"
   }
 }

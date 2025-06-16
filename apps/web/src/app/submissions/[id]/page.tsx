@@ -1,30 +1,28 @@
 'use client';
 
-import { Container, Title, Text, Paper, Stack } from '@mantine/core';
-import { ConversationThread } from '@/components/conversations/ConversationThread';
-import { VisibilityLegend } from '@/components/conversations/VisibilityLegend';
+import { Container, Stack, Box } from '@mantine/core';
 import { useParams } from 'next/navigation';
+import { SubmissionHeader, ConversationSection } from '@/components/submissions';
 
 export default function SubmissionPage() {
   const params = useParams();
   const submissionId = params.id as string;
 
   return (
-    <Container size="lg" py="xl">
-      <Stack gap="lg">
-        <Paper shadow="sm" p="md" radius="md">
-          <Title order={2} mb="xs">
-            Submission Discussion
-          </Title>
-          <Text size="sm" c="dimmed">
-            Manuscript discussion and review thread
-          </Text>
-        </Paper>
-
-        <VisibilityLegend variant="compact" />
-        
-        <ConversationThread conversationId={submissionId} />
-      </Stack>
-    </Container>
+    <Box style={{ backgroundColor: 'var(--mantine-color-gray-0)', minHeight: '100vh' }}>
+      <Container size="lg" py="xl">
+        <Stack gap="xl">
+          {/* Detailed Submission Header */}
+          <SubmissionHeader submissionId={submissionId} />
+          
+          {/* Discussion Section - Bot-Centric Interactions */}
+          <ConversationSection 
+            conversationId={submissionId}
+            title="Peer Review Discussion"
+            description="Use @bot-name commands to interact with editorial bots, request reviews, or get assistance"
+          />
+        </Stack>
+      </Container>
+    </Box>
   );
 }

@@ -3,6 +3,7 @@ import { prisma } from '@colloquium/database';
 import { authenticate, requirePermission, optionalAuth } from '../middleware/auth';
 import { Permission } from '@colloquium/auth';
 import { botExecutor } from '../bots';
+import { broadcastToConversation } from './events';
 
 const router = Router();
 
@@ -400,15 +401,21 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
 
       // Create bot response messages
       for (const botResponse of botResponses) {
-        if (botResponse.messages) {
+        if (botResponse.messages && botResponse.botId) {
+          const botUserId = botExecutor.getBotUserId(botResponse.botId);
+          if (!botUserId) {
+            console.error(`No user ID found for bot: ${botResponse.botId}`);
+            continue;
+          }
+
           for (const botMessage of botResponse.messages) {
             await prisma.message.create({
               data: {
                 content: botMessage.content,
                 conversationId,
-                authorId: null, // Bot messages don't have human authors
+                authorId: botUserId,
                 parentId: botMessage.replyTo || message.id,
-                privacy: 'AUTHOR_VISIBLE', // Bot messages default to author-visible
+                privacy: 'AUTHOR_VISIBLE',
                 isBot: true
               }
             });
@@ -418,17 +425,22 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
         if (botResponse.errors && botResponse.errors.length > 0) {
           console.error('Bot execution errors:', botResponse.errors);
           
-          // Optionally create error message for debugging
-          await prisma.message.create({
-            data: {
-              content: `❌ **Bot Error:** ${botResponse.errors.join(', ')}`,
-              conversationId,
-              authorId: null,
-              parentId: message.id,
-              privacy: 'EDITOR_ONLY', // Error messages only visible to editors
-              isBot: true
+          if (botResponse.botId) {
+            const botUserId = botExecutor.getBotUserId(botResponse.botId);
+            if (botUserId) {
+              // Create error message for debugging
+              await prisma.message.create({
+                data: {
+                  content: `❌ **Bot Error:** ${botResponse.errors.join(', ')}`,
+                  conversationId,
+                  authorId: botUserId,
+                  parentId: message.id,
+                  privacy: 'AUTHOR_VISIBLE', // Make errors visible to users for better UX
+                  isBot: true
+                }
+              });
             }
-          });
+          }
         }
       }
     } catch (error) {
@@ -447,6 +459,61 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
       parentId: message.parentId,
       isBot: message.isBot
     };
+
+    // Broadcast the new message via SSE
+    broadcastToConversation(conversationId, {
+      type: 'new-message',
+      message: formattedMessage
+    });
+
+    // Fetch and broadcast any bot responses that were created
+    setTimeout(async () => {
+      try {
+        // Give bots a moment to process and create responses
+        const botMessages = await prisma.message.findMany({
+          where: {
+            conversationId,
+            isBot: true,
+            createdAt: {
+              gte: new Date(Date.now() - 5000) // Messages created in the last 5 seconds
+            }
+          },
+          include: {
+            author: {
+              select: { 
+                id: true, 
+                firstName: true, 
+                lastName: true, 
+                email: true, 
+                role: true 
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
+        });
+
+        // Broadcast each bot message
+        for (const botMessage of botMessages) {
+          const formattedBotMessage = {
+            id: botMessage.id,
+            content: botMessage.content,
+            privacy: botMessage.privacy,
+            author: botMessage.author,
+            createdAt: botMessage.createdAt,
+            updatedAt: botMessage.updatedAt,
+            parentId: botMessage.parentId,
+            isBot: botMessage.isBot
+          };
+
+          broadcastToConversation(conversationId, {
+            type: 'new-message',
+            message: formattedBotMessage
+          });
+        }
+      } catch (error) {
+        console.error('Error broadcasting bot messages:', error);
+      }
+    }, 1000); // Wait 1 second for bot processing
 
     res.status(201).json({
       message: 'Message posted successfully',

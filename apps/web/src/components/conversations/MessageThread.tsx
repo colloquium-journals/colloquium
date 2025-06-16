@@ -19,9 +19,10 @@ interface MessageData {
 interface MessageThreadProps {
   messages: MessageData[];
   onReply: (messageId: string, content: string) => void;
+  conversationId: string;
 }
 
-export function MessageThread({ messages, onReply }: MessageThreadProps) {
+export function MessageThread({ messages, onReply, conversationId }: MessageThreadProps) {
   // Build a tree structure for threaded messages
   const messageMap = new Map<string, MessageData>();
   const children = new Map<string, MessageData[]>();
@@ -60,6 +61,7 @@ export function MessageThread({ messages, onReply }: MessageThreadProps) {
           message={message}
           onReply={(content) => onReply(message.id, content)}
           isReply={depth > 0}
+          conversationId={conversationId}
         />
         {sortedChildren.length > 0 && (
           <Stack gap="sm" mt="sm">

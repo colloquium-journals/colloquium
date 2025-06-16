@@ -15,7 +15,9 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -23,11 +25,14 @@
     "@colloquium/types": "*"
   },
   "devDependencies": {
+    "@colloquium/eslint-config": "*",
+    "@types/jest": "^29.5.0",
     "@types/node": "^20.8.0",
-    "typescript": "^5.2.2",
+    "jest": "^29.7.0",
     "prisma": "^5.22.0",
+    "ts-jest": "^29.1.0",
     "tsx": "^3.14.0",
-    "@colloquium/eslint-config": "*"
+    "typescript": "^5.2.2"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

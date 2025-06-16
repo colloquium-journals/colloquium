@@ -9,14 +9,19 @@
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@colloquium/eslint-config": "*",
+    "@types/jest": "^29.5.0",
     "@types/node": "^20.8.0",
-    "typescript": "^5.2.2",
-    "@colloquium/eslint-config": "*"
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.2"
   }
 }

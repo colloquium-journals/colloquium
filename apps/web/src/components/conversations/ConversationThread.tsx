@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Stack, Paper, Title, Text, Badge, Group, Loader, Alert } from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconWifi, IconWifiOff, IconLoader } from '@tabler/icons-react';
 import { MessageThread } from './MessageThread';
 import { MessageComposer } from './MessageComposer';
+import { useSSE } from '../../hooks/useSSE';
 
 // Mock data types (will be replaced with real API calls)
 interface ConversationData {
@@ -40,6 +41,28 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
   const [conversation, setConversation] = useState<ConversationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle real-time messages
+  const handleNewMessage = useCallback((newMessage: MessageData) => {
+    setConversation(prev => {
+      if (!prev) return prev;
+      
+      // Check if message already exists (avoid duplicates)
+      const messageExists = prev.messages.some(msg => msg.id === newMessage.id);
+      if (messageExists) return prev;
+
+      return {
+        ...prev,
+        messages: [...prev.messages, newMessage]
+      };
+    });
+  }, []);
+
+  // Initialize SSE connection
+  const { isConnected, connectionStatus } = useSSE(conversationId, {
+    enabled: !!conversationId,
+    onNewMessage: handleNewMessage
+  });
 
   // Mock data - will be replaced with API call
   useEffect(() => {
@@ -85,7 +108,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     }
   }, [conversationId]);
 
-  const handleNewMessage = async (content: string, parentId?: string, privacy?: string) => {
+  const handlePostMessage = async (content: string, parentId?: string, privacy?: string) => {
     if (!conversation) return;
 
     try {
@@ -114,13 +137,9 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
       const result = await response.json();
       console.log('Message posted successfully:', result); // Debug log
-      const newMessage = result.data;
-
-      // Add the new message to the conversation
-      setConversation(prev => prev ? {
-        ...prev,
-        messages: [...prev.messages, newMessage]
-      } : null);
+      
+      // Note: We don't add the message to local state here anymore
+      // The message will be received via WebSocket and added through handleNewMessage
     } catch (err) {
       console.error('Error posting message:', err);
       // Could show a toast notification here
@@ -188,6 +207,23 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
               <Badge color={getPrivacyColor(conversation.privacy)} variant="light">
                 {conversation.privacy}
               </Badge>
+              <Badge 
+                color={
+                  connectionStatus === 'connected' ? 'green' : 
+                  connectionStatus === 'connecting' ? 'yellow' : 
+                  connectionStatus === 'error' ? 'red' : 'gray'
+                } 
+                variant="light"
+                leftSection={
+                  connectionStatus === 'connected' ? <IconWifi size={12} /> :
+                  connectionStatus === 'connecting' ? <IconLoader size={12} /> :
+                  <IconWifiOff size={12} />
+                }
+              >
+                {connectionStatus === 'connected' ? 'Live' : 
+                 connectionStatus === 'connecting' ? 'Connecting' : 
+                 connectionStatus === 'error' ? 'Error' : 'Offline'}
+              </Badge>
             </Group>
           </Group>
         </Stack>
@@ -196,12 +232,13 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       {/* Message Thread */}
       <MessageThread 
         messages={conversation.messages}
-        onReply={(messageId, content) => handleNewMessage(content, messageId)}
+        onReply={(messageId, content) => handlePostMessage(content, messageId)}
+        conversationId={conversationId}
       />
 
       {/* Message Composer */}
       <MessageComposer 
-        onSubmit={(content, privacy) => handleNewMessage(content, undefined, privacy)}
+        onSubmit={(content, privacy) => handlePostMessage(content, undefined, privacy)}
         placeholder="Write your message... Use @bot-name to mention bots"
       />
     </Stack>

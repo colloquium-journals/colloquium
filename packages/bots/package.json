@@ -2,13 +2,15 @@
   "name": "@colloquium/bots",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/bots/src/index.js",
-  "types": "dist/bots/src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -16,8 +18,11 @@
     "@colloquium/database": "*"
   },
   "devDependencies": {
+    "@colloquium/eslint-config": "*",
+    "@types/jest": "^29.5.0",
     "@types/node": "^20.8.0",
-    "typescript": "^5.2.2",
-    "@colloquium/eslint-config": "*"
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.2"
   }
 }

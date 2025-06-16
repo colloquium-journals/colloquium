@@ -110,7 +110,10 @@ export const messageSchema = z.object({
 
 export const userUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
-  orcidId: z.string().regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/, 'Invalid ORCID format').optional()
+  orcidId: z.string().regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/, 'Invalid ORCID format').optional(),
+  bio: z.string().max(1000, 'Bio too long').optional(),
+  affiliation: z.string().max(200, 'Affiliation too long').optional(),
+  website: z.string().url('Invalid website URL').optional()
 });
 
 export const journalSettingsSchema = z.object({
@@ -148,6 +151,7 @@ export interface BotContext {
 }
 
 export interface BotResponse {
+  botId?: string;
   messages?: {
     content: string;
     replyTo?: string;

@@ -62,7 +62,7 @@ export class CommandParser {
     const commands: ParsedCommand[] = [];
     
     // Look for @bot-name command patterns
-    const mentionPattern = /@([a-zA-Z0-9-]+)\s+([a-zA-Z0-9-]+)(?:\s+(.*))?/g;
+    const mentionPattern = /@([a-zA-Z0-9-]+)\s+([a-zA-Z0-9-]+)(?:\s+([^@]*))?/g;
     let match;
 
     while ((match = mentionPattern.exec(text)) !== null) {
@@ -93,6 +93,33 @@ export class CommandParser {
           parameters: { originalText: paramText || '' },
           rawText: match[0],
           isUnrecognized: true
+        });
+      }
+    }
+
+    // Also look for simple bot mentions without commands (e.g., just "@editorial-bot")
+    const simpleMentionPattern = /@([a-zA-Z0-9-]+)(?![\s\w])/g;
+    let simpleMentionMatch;
+    
+    while ((simpleMentionMatch = simpleMentionPattern.exec(text)) !== null) {
+      const [, botName] = simpleMentionMatch;
+      
+      // Find bot by name or ID
+      const bot = this.findBotByName(botName);
+      if (!bot) continue;
+      
+      // Check if this mention was already processed as a command
+      const alreadyProcessed = commands.some(cmd => 
+        cmd.rawText.includes(`@${botName}`)
+      );
+      
+      if (!alreadyProcessed) {
+        // Trigger help command for simple mentions
+        commands.push({
+          botId: bot.id,
+          command: 'help',
+          parameters: {},
+          rawText: simpleMentionMatch[0]
         });
       }
     }

@@ -5,7 +5,7 @@ import { CommandBot, BotCommand } from '../framework/commands';
 const statusCommand: BotCommand = {
   name: 'status',
   description: 'Update the status of a manuscript',
-  usage: '@editorial status <new-status> [reason="reason for change"]',
+  usage: '@editorial-bot status <new-status> [reason="reason for change"]',
   parameters: [
     {
       name: 'newStatus',
@@ -24,9 +24,9 @@ const statusCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial status UNDER_REVIEW',
-    '@editorial status REVISION_REQUESTED reason="Minor formatting issues"',
-    '@editorial status ACCEPTED reason="High quality research with clear findings"'
+    '@editorial-bot status UNDER_REVIEW',
+    '@editorial-bot status REVISION_REQUESTED reason="Minor formatting issues"',
+    '@editorial-bot status ACCEPTED reason="High quality research with clear findings"'
   ],
   permissions: ['update_manuscript'],
   async execute(params, context) {
@@ -76,7 +76,7 @@ const statusCommand: BotCommand = {
 const assignCommand: BotCommand = {
   name: 'assign',
   description: 'Assign reviewers to a manuscript',
-  usage: '@editorial assign <reviewer-emails> [deadline="YYYY-MM-DD"]',
+  usage: '@editorial-bot assign <reviewer-emails> [deadline="YYYY-MM-DD"]',
   parameters: [
     {
       name: 'reviewers',
@@ -103,9 +103,9 @@ const assignCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial assign reviewer1@uni.edu,reviewer2@inst.org',
-    '@editorial assign reviewer@example.com deadline="2024-02-15"',
-    '@editorial assign expert@university.edu deadline="2024-03-01" message="This paper needs statistical review"'
+    '@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org',
+    '@editorial-bot assign reviewer@example.com deadline="2024-02-15"',
+    '@editorial-bot assign expert@university.edu deadline="2024-03-01" message="This paper needs statistical review"'
   ],
   permissions: ['assign_reviewers'],
   async execute(params, context) {
@@ -139,7 +139,7 @@ const assignCommand: BotCommand = {
 const summaryCommand: BotCommand = {
   name: 'summary',
   description: 'Generate a summary of manuscript review progress',
-  usage: '@editorial summary [format="brief|detailed"]',
+  usage: '@editorial-bot summary [format="brief|detailed"]',
   parameters: [
     {
       name: 'format',
@@ -152,8 +152,8 @@ const summaryCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial summary',
-    '@editorial summary format="detailed"'
+    '@editorial-bot summary',
+    '@editorial-bot summary format="detailed"'
   ],
   permissions: ['read_manuscript'],
   async execute(params, context) {
@@ -207,7 +207,7 @@ const summaryCommand: BotCommand = {
 const helpCommand: BotCommand = {
   name: 'help',
   description: 'Show help information for editorial bot commands',
-  usage: '@editorial help [command="command-name"]',
+  usage: '@editorial-bot help [command="command-name"]',
   parameters: [
     {
       name: 'command',
@@ -218,9 +218,9 @@ const helpCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial help',
-    '@editorial help command="status"',
-    '@editorial help command="assign"'
+    '@editorial-bot help',
+    '@editorial-bot help command="status"',
+    '@editorial-bot help command="assign"'
   ],
   permissions: [],
   async execute(params, context) {
@@ -231,7 +231,7 @@ const helpCommand: BotCommand = {
       const cmd = editorialBot.commands.find(c => c.name === command);
       if (!cmd) {
         return {
-          messages: [{ content: `❌ Command '${command}' not found. Use @editorial help to see all commands.` }]
+          messages: [{ content: `❌ Command '${command}' not found. Use @editorial-bot help to see all commands.` }]
         };
       }
       
@@ -266,7 +266,7 @@ const helpCommand: BotCommand = {
     });
     
     help += `**Keywords:** ${editorialBot.keywords.join(', ')}\n\n`;
-    help += `Use \`@editorial help command="command-name"\` for detailed help on specific commands.`;
+    help += `Use \`@editorial-bot help command="command-name"\` for detailed help on specific commands.`;
     
     return { messages: [{ content: help }] };
   }
@@ -284,11 +284,11 @@ export const editorialBot: CommandBot = {
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers'],
   help: {
     overview: 'The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.',
-    quickStart: 'Start by using @editorial help to see all available commands. Most common: @editorial status <status> and @editorial assign <reviewers>',
+    quickStart: 'Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot status <status> and @editorial-bot assign <reviewers>',
     examples: [
-      '@editorial status UNDER_REVIEW reason="Initial review passed"',
-      '@editorial assign reviewer1@uni.edu,reviewer2@inst.org deadline="2024-02-15"',
-      '@editorial summary format="detailed"'
+      '@editorial-bot status UNDER_REVIEW reason="Initial review passed"',
+      '@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org deadline="2024-02-15"',
+      '@editorial-bot summary format="detailed"'
     ]
   }
 };

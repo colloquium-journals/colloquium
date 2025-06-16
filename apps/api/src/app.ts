@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import session from 'express-session';
 import dotenv from 'dotenv';
 
 // Import routes
@@ -15,6 +16,8 @@ import messagesRoutes from './routes/messages';
 import usersRoutes from './routes/users';
 import botsRoutes from './routes/bots';
 import contentRoutes from './routes/content';
+import eventsRoutes from './routes/events';
+import orcidRoutes from './routes/orcid';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -42,6 +45,16 @@ app.use(cors({
 app.use(compression());
 app.use(morgan('combined'));
 app.use(cookieParser());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'fallback-secret-for-development',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 1000 * 60 * 15 // 15 minutes
+  }
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -64,6 +77,8 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/bots', botsRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/orcid', orcidRoutes);
 
 // Error handling middleware
 app.use(notFound);
@@ -71,7 +86,6 @@ app.use(errorHandler);
 
 // Initialize bot system
 initializeBots().catch(console.error);
-
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
