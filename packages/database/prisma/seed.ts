@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, ManuscriptStatus, ConversationType, PrivacyLevel } from '@prisma/client';
+import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -28,22 +28,28 @@ async function main() {
   // Create admin user
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@colloquium.example.com' },
-    update: {},
+    update: {
+      role: GlobalRole.ADMIN,
+      name: 'Admin User'
+    },
     create: {
       email: 'admin@colloquium.example.com',
       name: 'Admin User',
-      role: UserRole.ADMIN
+      role: GlobalRole.ADMIN
     }
   });
 
   // Create editor user
   const editorUser = await prisma.user.upsert({
     where: { email: 'editor@colloquium.example.com' },
-    update: {},
+    update: {
+      role: GlobalRole.EDITOR_IN_CHIEF,
+      name: 'Editor User'
+    },
     create: {
       email: 'editor@colloquium.example.com',
       name: 'Editor User',
-      role: UserRole.EDITOR
+      role: GlobalRole.EDITOR_IN_CHIEF
     }
   });
 
@@ -54,7 +60,7 @@ async function main() {
     create: {
       email: 'author@colloquium.example.com',
       name: 'Sample Author',
-      role: UserRole.AUTHOR
+      role: GlobalRole.USER
     }
   });
 
@@ -65,7 +71,7 @@ async function main() {
     create: {
       email: 'reviewer@colloquium.example.com',
       name: 'Sample Reviewer',
-      role: UserRole.REVIEWER
+      role: GlobalRole.USER
     }
   });
 
@@ -76,7 +82,7 @@ async function main() {
     create: {
       email: 'alice.researcher@university.edu',
       name: 'Dr. Alice Researcher',
-      role: UserRole.AUTHOR,
+      role: GlobalRole.USER,
       orcidId: '0000-0002-1825-0097',
       affiliation: 'University of Technology',
       bio: 'Assistant Professor of Computer Science specializing in machine learning and academic publishing systems.'
@@ -89,7 +95,7 @@ async function main() {
     create: {
       email: 'bob.scientist@research.org',
       name: 'Prof. Bob Scientist',
-      role: UserRole.AUTHOR,
+      role: GlobalRole.USER,
       orcidId: '0000-0003-4567-8901',
       affiliation: 'Research Institute of Advanced Studies',
       bio: 'Senior Research Scientist with expertise in digital publishing platforms and peer review systems.'
@@ -102,7 +108,7 @@ async function main() {
     create: {
       email: 'charlie.academic@college.edu',
       name: 'Dr. Charlie Academic',
-      role: UserRole.AUTHOR,
+      role: GlobalRole.USER,
       affiliation: 'Liberal Arts College',
       bio: 'Professor of Information Science studying scholarly communication and open access publishing.'
     }

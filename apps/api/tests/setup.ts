@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import { GlobalRole, ManuscriptStatus } from '@colloquium/database';
 
 // Global test timeout
 jest.setTimeout(30000);
@@ -36,7 +37,7 @@ global.testUtils = {
     id: 'test-user-id',
     email: 'test@example.com',
     name: 'Test User',
-    role: 'AUTHOR' as const,
+    role: GlobalRole.USER,
     orcidId: null,
     createdAt: new Date()
   }),
@@ -44,7 +45,7 @@ global.testUtils = {
   createMockManuscript: () => ({
     id: 'test-manuscript-id',
     title: 'Test Manuscript',
-    status: 'SUBMITTED' as const,
+    status: ManuscriptStatus.SUBMITTED,
     submittedAt: new Date(),
     authorId: 'test-user-id'
   })

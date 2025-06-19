@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { 
-  Card, 
   Group, 
   Text, 
   Avatar, 
@@ -29,6 +28,7 @@ import {
   IconInfoCircle
 } from '@tabler/icons-react';
 import { MessageContent } from './MessageContent';
+import { UserProfileHover } from '../shared';
 
 interface MessageData {
   id: string;
@@ -37,6 +37,11 @@ interface MessageData {
   author: {
     name: string;
     email: string;
+    role?: string;
+    affiliation?: string;
+    orcid?: string;
+    joinedAt?: string;
+    bio?: string;
   };
   createdAt: string;
   isBot: boolean;
@@ -148,99 +153,125 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
   const visibilityInfo = getVisibilityInfo(message.privacy);
 
   return (
-    <Card 
-      shadow="sm" 
-      padding="lg" 
-      radius="md" 
+    <div
       style={{ 
-        borderLeft: isReply ? '3px solid var(--mantine-color-blue-3)' : undefined,
-        backgroundColor: isReply ? 'var(--mantine-color-gray-0)' : undefined
+        border: '1px solid var(--mantine-color-gray-3)',
+        borderLeft: isReply ? '4px solid var(--mantine-color-blue-4)' : '1px solid var(--mantine-color-gray-3)',
+        borderRadius: 'var(--mantine-radius-md)',
+        padding: 'var(--mantine-spacing-lg)',
+        backgroundColor: isReply ? 'var(--mantine-color-gray-0)' : 'white'
       }}
     >
       <Stack gap="sm">
         {/* Message Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="sm">
-            <Avatar 
-              size="md" 
-              color={message.isBot ? 'blue' : 'gray'}
-              radius="xl"
+            <UserProfileHover 
+              user={{
+                name: message.author.name,
+                email: message.author.email,
+                isBot: message.isBot,
+                role: message.author.role,
+                affiliation: message.author.affiliation,
+                orcid: message.author.orcid,
+                joinedAt: message.author.joinedAt,
+                bio: message.author.bio
+              }}
+              disabled={message.isBot}
             >
-              {message.isBot ? '🤖' : getInitials(message.author.name)}
-            </Avatar>
+              <Avatar 
+                size="md" 
+                color={message.isBot ? 'blue' : 'gray'}
+                radius="xl"
+                style={{ cursor: message.isBot ? 'default' : 'pointer' }}
+              >
+                {message.isBot ? '🤖' : getInitials(message.author.name)}
+              </Avatar>
+            </UserProfileHover>
             <div>
               <Group gap="xs" align="center">
-                <Text size="sm" fw={500}>
-                  {message.author.name}
-                </Text>
+                <UserProfileHover 
+                  user={{
+                    name: message.author.name,
+                    email: message.author.email,
+                    isBot: message.isBot,
+                    role: message.author.role,
+                    affiliation: message.author.affiliation,
+                    orcid: message.author.orcid,
+                    joinedAt: message.author.joinedAt,
+                    bio: message.author.bio
+                  }}
+                  disabled={message.isBot}
+                >
+                  <Text 
+                    size="sm" 
+                    fw={500}
+                    style={{ cursor: message.isBot ? 'default' : 'pointer' }}
+                  >
+                    {message.author.name}
+                  </Text>
+                </UserProfileHover>
                 {message.isBot && (
                   <Badge size="xs" variant="light" color="blue">
                     Bot
                   </Badge>
                 )}
-                <Tooltip 
-                  label={
-                    <Stack gap="xs">
-                      <Text size="sm" fw={500}>{visibilityInfo.description}</Text>
-                      <Divider />
-                      <Text size="xs" fw={500}>Visible to:</Text>
-                      {visibilityInfo.audience.map((role, index) => (
-                        <Text key={index} size="xs">• {role}</Text>
-                      ))}
-                    </Stack>
-                  }
-                  multiline
-                  width={200}
-                  withArrow
-                >
-                  <Badge 
-                    size="xs" 
-                    variant="light" 
-                    color={visibilityInfo.color}
-                    leftSection={<visibilityInfo.icon size={10} />}
-                  >
-                    {visibilityInfo.label}
-                  </Badge>
-                </Tooltip>
               </Group>
               <Group gap="xs" align="center">
                 <Text size="xs" c="dimmed">
                   {formatTimestamp(message.createdAt)}
                 </Text>
-                <ActionIcon 
-                  variant="subtle" 
-                  size="xs"
-                  color={visibilityInfo.color}
-                >
-                  <Tooltip label={`${visibilityInfo.description}. Click for details.`}>
-                    <IconInfoCircle size={12} />
-                  </Tooltip>
-                </ActionIcon>
               </Group>
             </div>
           </Group>
 
-          <Menu shadow="md" width={150} position="bottom-end">
-            <Menu.Target>
-              <ActionIcon variant="subtle" size="sm">
-                <IconDots size={14} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Item 
-                leftSection={<IconArrowBack size={14} />}
-                onClick={() => setShowReplyForm(!showReplyForm)}
+          <Group gap="sm" align="center">
+            <Tooltip 
+              label={
+                <Stack gap="xs">
+                  <Text size="sm" fw={500}>{visibilityInfo.description}</Text>
+                  <Divider />
+                  <Text size="xs" fw={500}>Visible to:</Text>
+                  {visibilityInfo.audience.map((role, index) => (
+                    <Text key={index} size="xs">• {role}</Text>
+                  ))}
+                </Stack>
+              }
+              multiline
+              withArrow
+            >
+              <Badge 
+                size="xs" 
+                variant="light" 
+                color={visibilityInfo.color}
+                leftSection={<visibilityInfo.icon size={10} />}
               >
-                Reply
-              </Menu.Item>
-              <Menu.Item 
-                leftSection={<IconFlag size={14} />}
-                color="red"
-              >
-                Report
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+                {visibilityInfo.label}
+              </Badge>
+            </Tooltip>
+            
+            <Menu shadow="md" width={150} position="bottom-end">
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="sm">
+                  <IconDots size={14} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item 
+                  leftSection={<IconArrowBack size={14} />}
+                  onClick={() => setShowReplyForm(!showReplyForm)}
+                >
+                  Reply
+                </Menu.Item>
+                <Menu.Item 
+                  leftSection={<IconFlag size={14} />}
+                  color="red"
+                >
+                  Report
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
         </Group>
 
         {/* Message Content */}
@@ -288,6 +319,6 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
           </Stack>
         </Collapse>
       </Stack>
-    </Card>
+    </div>
   );
 }

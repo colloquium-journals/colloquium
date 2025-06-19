@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyJWT, Permission, Role, hasPermission } from '@colloquium/auth';
+import { verifyJWT, Permission, GlobalPermission, GlobalRole, hasPermission, hasGlobalPermission } from '@colloquium/auth';
 import { prisma } from '@colloquium/database';
 
 // Extend Express Request to include user
@@ -10,7 +10,7 @@ declare global {
         id: string;
         email: string;
         name: string | null;
-        role: Role;
+        role: GlobalRole;
         orcidId: string | null;
         createdAt: Date;
       };
@@ -55,8 +55,12 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         });
       }
 
-      // Add user to request object
-      req.user = user;
+      // Add user to request object (cast role to match auth package enum)
+      req.user = {
+        ...user,
+        role: user.role as GlobalRole
+      };
+      console.log(`DEBUG: Authenticated user - email: ${user.email}, role: ${user.role}`);
       next();
     } catch (jwtError) {
       return res.status(401).json({
@@ -78,7 +82,7 @@ export const requirePermission = (permission: Permission) => {
       });
     }
 
-    if (!hasPermission(req.user.role as Role, permission)) {
+    if (!hasPermission(req.user.role, permission)) {
       return res.status(403).json({
         error: 'Insufficient Permissions',
         message: `This action requires ${permission} permission`
@@ -89,7 +93,27 @@ export const requirePermission = (permission: Permission) => {
   };
 };
 
-export const requireRole = (role: Role) => {
+export const requireGlobalPermission = (permission: GlobalPermission) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Not Authenticated',
+        message: 'Authentication required'
+      });
+    }
+
+    if (!hasGlobalPermission(req.user.role, permission)) {
+      return res.status(403).json({
+        error: 'Insufficient Permissions',
+        message: `This action requires ${permission} permission`
+      });
+    }
+
+    next();
+  };
+};
+
+export const requireRole = (role: GlobalRole) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
@@ -109,7 +133,7 @@ export const requireRole = (role: Role) => {
   };
 };
 
-export const requireAnyRole = (roles: Role[]) => {
+export const requireAnyRole = (roles: GlobalRole[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
@@ -118,7 +142,7 @@ export const requireAnyRole = (roles: Role[]) => {
       });
     }
 
-    if (!roles.includes(req.user.role as Role)) {
+    if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         error: 'Insufficient Permissions',
         message: `This action requires one of: ${roles.join(', ')}`
@@ -153,7 +177,10 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
         });
 
         if (user) {
-          req.user = user;
+          req.user = {
+            ...user,
+            role: user.role as GlobalRole
+          };
         }
       } catch (jwtError) {
         // Ignore invalid tokens for optional auth
@@ -165,3 +192,6 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     next(error);
   }
 };
+
+// Alias for authenticate for convenience
+export const requireAuth = authenticate;

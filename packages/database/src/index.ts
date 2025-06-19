@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 // Extend PrismaClient with custom methods if needed
 export const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
 });
 
 // Export types from Prisma client (this includes the generated enums and models)
@@ -44,7 +44,7 @@ export {
 export async function connectDatabase() {
   try {
     await prisma.$connect();
-    console.log('✅ Database connected successfully');
+    // console.log('✅ Database connected successfully');
   } catch (error) {
     console.error('❌ Database connection failed:', error);
     process.exit(1);
@@ -53,7 +53,7 @@ export async function connectDatabase() {
 
 export async function disconnectDatabase() {
   await prisma.$disconnect();
-  console.log('🔌 Database disconnected');
+  // console.log('🔌 Database disconnected');
 }
 
 // Graceful shutdown

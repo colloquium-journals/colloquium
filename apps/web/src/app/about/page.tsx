@@ -214,10 +214,12 @@ export default function AboutPage() {
                   component={Link}
                   href="/about/editorial-board"
                   size="md"
-                  rightSection={<IconExternalLink size={16} />}
                   fullWidth
                 >
-                  View Editorial Board
+                  <Group gap="xs">
+                    View Editorial Board
+                    <IconExternalLink size={16} />
+                  </Group>
                 </Button>
                 
                 <Badge variant="light" size="md" fullWidth>
@@ -282,9 +284,11 @@ export default function AboutPage() {
               <Anchor 
                 href="https://github.com/colloquium" 
                 target="_blank"
-                rightSection={<IconExternalLink size={12} />}
               >
-                GitHub
+                <Group gap="xs" align="center">
+                  GitHub
+                  <IconExternalLink size={12} />
+                </Group>
               </Anchor>
             </Group>
           </Stack>

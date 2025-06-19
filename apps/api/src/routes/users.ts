@@ -1,23 +1,25 @@
 import { Router } from 'express';
-import { prisma } from '@colloquium/database';
+import { prisma, GlobalRole as PrismaGlobalRole } from '@colloquium/database';
 import { authenticate, requireRole, requirePermission } from '../middleware/auth';
 import { Permission, Role } from '@colloquium/auth';
+import { validateRequest, asyncHandler } from '../middleware/validation';
+import { UserUpdateSchema, UserQuerySchema, IdSchema } from '../schemas/validation';
 import { z } from 'zod';
 import axios from 'axios';
 
 const router = Router();
 
-// Validation schemas
-const updateProfileSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name too long').optional(),
-  orcidId: z.string().regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/, 'Invalid ORCID ID format').optional(),
-  bio: z.string().max(1000, 'Bio too long').optional(),
-  affiliation: z.string().max(200, 'Affiliation too long').optional(),
-  website: z.string().url('Invalid website URL').optional()
-});
-
+// Additional validation schemas specific to users
 const updateRoleSchema = z.object({
   role: z.enum(['AUTHOR', 'REVIEWER', 'EDITOR', 'ADMIN'])
+});
+
+const updateProfileSchema = z.object({
+  name: z.string().optional(),
+  bio: z.string().optional(),
+  affiliation: z.string().optional(),
+  website: z.string().url().optional(),
+  orcidId: z.string().optional()
 });
 
 // ORCID API integration
@@ -34,7 +36,7 @@ async function fetchORCIDProfile(orcidId: string) {
       }
     );
 
-    const profile = response.data;
+    const profile = response.data as any; // ORCID API response type
     const name = profile.name;
     const affiliations = profile.addresses?.address || [];
     
@@ -50,7 +52,10 @@ async function fetchORCIDProfile(orcidId: string) {
 }
 
 // GET /api/users - List users (for admin)
-router.get('/', authenticate, requireRole(Role.ADMIN), async (req, res, next) => {
+router.get('/', authenticate, (req, res, next) => {
+  const { GlobalRole } = require('@colloquium/auth');
+  return requireRole(GlobalRole.ADMIN)(req, res, next);
+}, async (req, res, next) => {
   try {
     const { page = '1', limit = '20', search, role } = req.query;
 
@@ -505,7 +510,10 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/users/:id/role - Update user role (admin only)
-router.post('/:id/role', authenticate, requireRole(Role.ADMIN), async (req, res, next) => {
+router.post('/:id/role', authenticate, (req, res, next) => {
+  const { GlobalRole } = require('@colloquium/auth');
+  return requireRole(GlobalRole.ADMIN)(req, res, next);
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
     const validation = updateRoleSchema.safeParse(req.body);
@@ -520,6 +528,22 @@ router.post('/:id/role', authenticate, requireRole(Role.ADMIN), async (req, res,
 
     const { role } = validation.data;
 
+    // Map string role to PrismaGlobalRole enum
+    const roleMapping: Record<string, PrismaGlobalRole> = {
+      'ADMIN': PrismaGlobalRole.ADMIN,
+      'EDITOR': PrismaGlobalRole.EDITOR_IN_CHIEF,
+      'AUTHOR': PrismaGlobalRole.USER,
+      'REVIEWER': PrismaGlobalRole.USER
+    };
+
+    const mappedRole = roleMapping[role];
+    if (!mappedRole) {
+      return res.status(400).json({
+        error: 'Invalid Role',
+        message: `Role ${role} is not valid`
+      });
+    }
+
     // Prevent admins from removing their own admin role
     if (id === req.user!.id && role !== 'ADMIN') {
       return res.status(400).json({
@@ -530,7 +554,7 @@ router.post('/:id/role', authenticate, requireRole(Role.ADMIN), async (req, res,
 
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { role, updatedAt: new Date() },
+      data: { role: mappedRole, updatedAt: new Date() },
       select: {
         id: true,
         email: true,
@@ -545,7 +569,7 @@ router.post('/:id/role', authenticate, requireRole(Role.ADMIN), async (req, res,
       user: updatedUser
     });
   } catch (error) {
-    if (error.code === 'P2025') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
       return res.status(404).json({
         error: 'User Not Found',
         message: 'User not found'

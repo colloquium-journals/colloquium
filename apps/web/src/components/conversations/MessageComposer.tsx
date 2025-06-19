@@ -11,9 +11,12 @@ import {
   Badge,
   Menu,
   ActionIcon,
-  Select
+  Select,
+  Tooltip,
+  Popover,
+  Code
 } from '@mantine/core';
-import { IconSend, IconAt, IconX, IconLock, IconEye, IconUsers, IconShield } from '@tabler/icons-react';
+import { IconSend, IconAt, IconX, IconLock, IconEye, IconUsers, IconShield, IconMarkdown, IconHelp } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Bot {
@@ -91,6 +94,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [privacy, setPrivacy] = useState(getDefaultPrivacy(user?.role));
   const [loadingBots, setLoadingBots] = useState(false);
+  const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch available bots
@@ -106,7 +110,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Fetched bots:', data); // Debug log
+          // console.log('Fetched bots:', data); // Debug log
           const enabledBots = data.bots
             .filter((bot: any) => bot.isInstalled && bot.isEnabled)
             .map((bot: any, index: number) => ({
@@ -117,7 +121,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
               isInstalled: bot.isInstalled,
               isEnabled: bot.isEnabled
             }));
-          console.log('Enabled bots:', enabledBots); // Debug log
+          // console.log('Enabled bots:', enabledBots); // Debug log
           setAvailableBots(enabledBots);
         } else {
           console.error('Failed to fetch bots:', response.status, response.statusText);
@@ -226,17 +230,90 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
         )}
 
         {/* Message Input */}
-        <Textarea
-          ref={textareaRef}
-          placeholder={placeholder}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyDown={handleKeyPress}
-          minRows={3}
-          autosize
-          maxRows={8}
-          disabled={disabled}
-        />
+        <Stack gap="xs">
+          <Textarea
+            ref={textareaRef}
+            placeholder={placeholder}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onKeyDown={handleKeyPress}
+            minRows={3}
+            autosize
+            maxRows={8}
+            disabled={disabled}
+          />
+          
+          {/* Formatting Help */}
+          <Group justify="flex-end">
+            <Popover
+              opened={showMarkdownHelp}
+              onChange={setShowMarkdownHelp}
+              position="top-end"
+              width={320}
+              trapFocus
+              shadow="md"
+            >
+              <Popover.Target>
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  color="gray"
+                  leftSection={<IconMarkdown size={12} />}
+                  onClick={() => setShowMarkdownHelp(!showMarkdownHelp)}
+                >
+                  Markdown supported
+                </Button>
+              </Popover.Target>
+              <Popover.Dropdown>
+                <Stack gap="xs">
+                  <Text size="sm" fw={600}>Markdown Formatting</Text>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs">**bold**</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Text size="xs" fw={600}>bold</Text>
+                  </Group>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs">*italic*</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Text size="xs" fs="italic">italic</Text>
+                  </Group>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs">`code`</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Code size="xs">code</Code>
+                  </Group>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs"># Heading</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Text size="sm" fw={600}>Heading</Text>
+                  </Group>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs">- List item</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Text size="xs">• List item</Text>
+                  </Group>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs">[Link](url)</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Text size="xs" c="blue">Link</Text>
+                  </Group>
+                  
+                  <Group gap="xs" align="flex-start">
+                    <Code size="xs">{'> Quote'}</Code>
+                    <Text size="xs" c="dimmed">{'→'}</Text>
+                    <Text size="xs" fs="italic" c="dimmed">Quote</Text>
+                  </Group>
+                </Stack>
+              </Popover.Dropdown>
+            </Popover>
+          </Group>
+        </Stack>
 
         {/* Actions */}
         <Group justify="space-between">

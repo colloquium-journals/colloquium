@@ -4,229 +4,127 @@ The Editorial Bot is Colloquium's core manuscript management assistant, designed
 
 ## Overview
 
-The Editorial Bot helps editors and administrators manage manuscripts through their entire lifecycle, from submission to publication. It can assign reviewers, designate action editors, and make final editorial decisions.
+The Editorial Bot assists with manuscript editorial workflows, status updates, and reviewer assignments. It provides a conversational interface for managing the entire review process from submission to publication decision.
 
 **Bot ID**: `editorial-bot`  
-**Version**: `1.0.0`  
+**Version**: `2.1.0`  
 **Author**: Colloquium System
 
-## Actions
+## Commands
 
-### 1. Assign Reviewer (`assign_reviewer`)
+### 1. Status (`status`)
 
-Assigns a reviewer to a manuscript with optional due date.
+Updates the status of a manuscript with an optional reason.
 
-#### Input Parameters
+**Usage:** `@editorial-bot status <new-status> [reason="reason for change"]`
 
-```json
-{
-  "manuscriptId": "string (required)",
-  "reviewerId": "string (required)", 
-  "dueDate": "string (optional, ISO date format)"
-}
+#### Parameters
+- `newStatus` (required): The new status - one of: SUBMITTED, UNDER_REVIEW, REVISION_REQUESTED, REVISED, ACCEPTED, REJECTED, PUBLISHED
+- `reason` (optional): Reason for the status change
+
+#### Examples
 ```
-
-#### Example Usage
-
-**Via Conversation:**
+@editorial-bot status UNDER_REVIEW
+@editorial-bot status REVISION_REQUESTED reason="Minor formatting issues"
+@editorial-bot status ACCEPTED reason="High quality research with clear findings"
 ```
-@Editorial Bot assign john.doe@university.edu as reviewer for manuscript ms-123 with due date 2024-02-15
-```
-
-**Via API:**
-```bash
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/assign_reviewer \
-  -H "Content-Type: application/json" \
-  -H "Cookie: auth-token=your-jwt-token" \
-  -d '{
-    "input": {
-      "manuscriptId": "cm287example123",
-      "reviewerId": "cm287reviewer456", 
-      "dueDate": "2024-02-15"
-    }
-  }'
-```
-
-#### Success Response
-
-```json
-{
-  "message": "Action executed successfully",
-  "result": {
-    "id": "review-assignment-id",
-    "manuscriptId": "cm287example123",
-    "reviewerId": "cm287reviewer456",
-    "status": "PENDING",
-    "dueDate": "2024-02-15T00:00:00.000Z",
-    "reviewer": {
-      "id": "cm287reviewer456",
-      "name": "Dr. Jane Smith",
-      "email": "jane.smith@university.edu"
-    },
-    "manuscript": {
-      "id": "cm287example123", 
-      "title": "Novel Approach to Quantum Computing"
-    }
-  },
-  "botMessage": "Successfully assigned Dr. Jane Smith as reviewer for \"Novel Approach to Quantum Computing\""
-}
-```
-
-#### Validation Rules
-
-- Manuscript must exist
-- Reviewer must exist and have REVIEWER, EDITOR, or ADMIN role
-- Reviewer cannot already be assigned to the manuscript
-- Due date must be in the future (if provided)
 
 ---
 
-### 2. Assign Action Editor (`assign_action_editor`)
+### 2. Assign (`assign`)
 
-Designates an action editor for a manuscript. Action editors are responsible for managing the review process for specific manuscripts.
+Assigns reviewers to a manuscript with optional deadline and custom message.
 
-#### Input Parameters
+**Usage:** `@editorial-bot assign <reviewer-emails> [deadline="YYYY-MM-DD"] [message="custom message"]`
 
-```json
-{
-  "manuscriptId": "string (required)",
-  "editorId": "string (required)"
-}
+#### Parameters
+- `reviewers` (required): Comma-separated list of reviewer email addresses
+- `deadline` (optional): Review deadline in YYYY-MM-DD format (defaults to 30 days from now)
+- `message` (optional): Custom message to send to reviewers
+
+#### Examples
 ```
-
-#### Example Usage
-
-**Via Conversation:**
+@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org
+@editorial-bot assign reviewer@example.com deadline="2024-02-15"
+@editorial-bot assign expert@university.edu deadline="2024-03-01" message="This paper needs statistical review"
 ```
-@Editorial Bot set editor@university.edu as action editor for manuscript ms-123
-```
-
-**Via API:**
-```bash
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/assign_action_editor \
-  -H "Content-Type: application/json" \
-  -H "Cookie: auth-token=your-jwt-token" \
-  -d '{
-    "input": {
-      "manuscriptId": "cm287example123",
-      "editorId": "cm287editor789"
-    }
-  }'
-```
-
-#### Success Response
-
-```json
-{
-  "message": "Action executed successfully",
-  "result": {
-    "id": "action-editor-assignment-id",
-    "manuscriptId": "cm287example123", 
-    "editorId": "cm287editor789",
-    "assignedAt": "2024-01-15T10:30:00.000Z",
-    "assignedBy": "cm287admin001",
-    "editor": {
-      "id": "cm287editor789",
-      "name": "Prof. Robert Wilson", 
-      "email": "robert.wilson@university.edu"
-    },
-    "manuscript": {
-      "id": "cm287example123",
-      "title": "Novel Approach to Quantum Computing"
-    }
-  },
-  "botMessage": "Successfully assigned Prof. Robert Wilson as action editor for \"Novel Approach to Quantum Computing\""
-}
-```
-
-#### Validation Rules
-
-- Manuscript must exist
-- Editor must exist and have EDITOR or ADMIN role
-- Replaces existing action editor if one is already assigned
-- Only one action editor per manuscript allowed
 
 ---
 
-### 3. Make Decision (`make_decision`)
+### 3. Summary (`summary`)
 
-Makes an editorial decision on a manuscript (accept, reject, or request revisions).
+Generates a summary of manuscript review progress.
 
-#### Input Parameters
+**Usage:** `@editorial-bot summary [format="brief|detailed"]`
 
-```json
-{
-  "manuscriptId": "string (required)",
-  "decision": "string (required, one of: ACCEPTED, REJECTED, REVISION_REQUESTED)",
-  "comments": "string (optional)"
-}
+#### Parameters
+- `format` (optional): Level of detail - "brief" (default) or "detailed"
+
+#### Examples
+```
+@editorial-bot summary
+@editorial-bot summary format="detailed"
 ```
 
-#### Example Usage
+---
 
-**Via Conversation:**
+### 4. Respond (`respond`)
+
+Respond to a review invitation (accept or decline).
+
+**Usage:** `@editorial-bot respond <assignment-id> <accept|decline> [message="optional message"]`
+
+#### Parameters
+- `assignmentId` (required): The ID of the review assignment to respond to
+- `response` (required): "accept" or "decline"
+- `message` (optional): Optional message to include with your response
+
+#### Examples
 ```
-@Editorial Bot accept manuscript ms-123 with comments "Excellent contribution to the field"
-```
-
-**Via API:**
-```bash
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/make_decision \
-  -H "Content-Type: application/json" \
-  -H "Cookie: auth-token=your-jwt-token" \
-  -d '{
-    "input": {
-      "manuscriptId": "cm287example123",
-      "decision": "ACCEPTED",
-      "comments": "Excellent contribution to the field. Minor formatting issues should be addressed before publication."
-    }
-  }'
-```
-
-#### Success Response
-
-```json
-{
-  "message": "Action executed successfully",
-  "result": {
-    "id": "cm287example123",
-    "title": "Novel Approach to Quantum Computing",
-    "status": "ACCEPTED",
-    "updatedAt": "2024-01-15T14:45:00.000Z",
-    "metadata": {
-      "editorialDecision": {
-        "decision": "ACCEPTED",
-        "comments": "Excellent contribution to the field. Minor formatting issues should be addressed before publication.",
-        "decidedAt": "2024-01-15T14:45:00.000Z",
-        "decidedBy": "cm287editor789",
-        "actionEditor": "Prof. Robert Wilson"
-      }
-    },
-    "actionEditor": {
-      "id": "action-editor-id",
-      "editor": {
-        "id": "cm287editor789",
-        "name": "Prof. Robert Wilson",
-        "email": "robert.wilson@university.edu"
-      }
-    }
-  },
-  "botMessage": "Manuscript \"Novel Approach to Quantum Computing\" has been accepted with comments: Excellent contribution to the field. Minor formatting issues should be addressed before publication."
-}
+@editorial-bot respond assignment-12345 accept
+@editorial-bot respond assignment-67890 decline message="I have a conflict of interest"
+@editorial-bot respond assignment-11111 accept message="Happy to review this work"
 ```
 
-#### Decision Types
+---
 
-- **`ACCEPTED`**: Manuscript is accepted for publication
-- **`REJECTED`**: Manuscript is rejected 
-- **`REVISION_REQUESTED`**: Authors should revise and resubmit
+### 5. Submit (`submit`)
 
-#### Validation Rules
+Submit a review for a manuscript.
 
-- Manuscript must exist
-- Decision must be one of the valid values
-- Editorial decision is recorded in manuscript metadata
-- Manuscript status is updated accordingly
+**Usage:** `@editorial-bot submit <assignment-id> recommendation=<accept|minor_revision|major_revision|reject> review="your review text" [score=1-10] [confidential="editor comments"]`
+
+#### Parameters
+- `assignmentId` (required): The ID of the review assignment
+- `recommendation` (required): One of "accept", "minor_revision", "major_revision", "reject"
+- `review` (required): Your detailed review of the manuscript
+- `score` (optional): Score from 1-10
+- `confidential` (optional): Confidential comments for editors only
+
+#### Examples
+```
+@editorial-bot submit assignment-12345 recommendation="accept" review="Excellent work with clear methodology"
+@editorial-bot submit assignment-67890 recommendation="minor_revision" review="Good work but needs revision" score="7"
+@editorial-bot submit assignment-11111 recommendation="major_revision" review="Interesting but needs significant work" confidential="Author seems inexperienced"
+```
+
+---
+
+### 6. Help (`help`)
+
+Show help information for editorial bot commands.
+
+**Usage:** `@editorial-bot help [command="command-name"]`
+
+#### Parameters
+- `command` (optional): Specific command to get help for
+
+#### Examples
+```
+@editorial-bot help
+@editorial-bot help command="status"
+@editorial-bot help command="assign"
+```
 
 ## Permissions
 
@@ -234,177 +132,85 @@ The Editorial Bot requires the following permissions:
 
 | Permission | Description |
 |------------|-------------|
-| `manuscript.assign_reviewer` | Assign reviewers to manuscripts |
-| `manuscript.assign_action_editor` | Assign action editors to manuscripts |
-| `manuscript.make_decision` | Make editorial decisions on manuscripts |
-| `manuscript.view_all` | View all manuscript details including private information |
+| `read_manuscript` | View manuscript details |
+| `update_manuscript` | Update manuscript status and metadata |
+| `assign_reviewers` | Assign reviewers to manuscripts |
 
-## User Access Control
+## Keywords & Triggers
 
-### Who Can Execute Actions
+The bot responds to the following keywords in conversations:
+- "editorial decision"
+- "review status" 
+- "assign reviewer"
+- "manuscript status"
 
-| Role | Assign Reviewer | Assign Action Editor | Make Decision |
-|------|----------------|---------------------|---------------|
-| **Admin** | ✅ | ✅ | ✅ |
-| **Editor** | ✅ | ✅ | ✅ |
-| **Reviewer** | ❌ | ❌ | ❌ |
-| **Author** | ❌ | ❌ | ❌ |
+And is automatically triggered by these events:
+- `MANUSCRIPT_SUBMITTED`
+- `REVIEW_COMPLETE`
 
-### Manuscript Context
+## Quick Start
 
-- Actions require valid manuscript ID
-- User permissions are checked against manuscript relationships
-- Action editors have enhanced permissions for their assigned manuscripts
+The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.
 
-## Configuration
+1. Use `@editorial-bot help` to see all available commands
+2. Most common commands:
+   - `@editorial-bot status <status>` to update manuscript status
+   - `@editorial-bot assign <reviewers>` to assign reviewers
 
-The Editorial Bot supports the following configuration options:
-
-```json
-{
-  "autoAssignReviewers": {
-    "type": "boolean",
-    "description": "Automatically assign reviewers based on keywords",
-    "default": false
-  },
-  "defaultReviewDays": {
-    "type": "number", 
-    "description": "Default number of days for review deadline",
-    "default": 21
-  },
-  "requireActionEditor": {
-    "type": "boolean",
-    "description": "Require action editor assignment before review",
-    "default": true
-  }
-}
-```
-
-### Default Configuration
-
-```json
-{
-  "autoAssignReviewers": false,
-  "defaultReviewDays": 21,
-  "requireActionEditor": true
-}
-```
-
-## Installation
-
-The Editorial Bot is automatically installed during system initialization with default configuration.
-
-### Manual Installation
-
-```bash
-curl -X POST http://localhost:4000/api/bots/editorial-bot/install \
-  -H "Content-Type: application/json" \
-  -H "Cookie: auth-token=admin-token" \
-  -d '{
-    "config": {
-      "autoAssignReviewers": false,
-      "defaultReviewDays": 30,
-      "requireActionEditor": true  
-    }
-  }'
-```
-
-## Usage Examples
-
-### Complete Editorial Workflow
-
-```bash
-# 1. Assign action editor
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/assign_action_editor \
-  -d '{"input": {"manuscriptId": "ms-123", "editorId": "editor-456"}}'
-
-# 2. Assign reviewers  
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/assign_reviewer \
-  -d '{"input": {"manuscriptId": "ms-123", "reviewerId": "reviewer-789", "dueDate": "2024-02-15"}}'
-
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/assign_reviewer \
-  -d '{"input": {"manuscriptId": "ms-123", "reviewerId": "reviewer-012", "dueDate": "2024-02-15"}}'
-
-# 3. Make editorial decision (after reviews are complete)
-curl -X POST http://localhost:4000/api/bots/editorial-bot/execute/make_decision \
-  -d '{"input": {"manuscriptId": "ms-123", "decision": "REVISION_REQUESTED", "comments": "Please address reviewer concerns about methodology"}}'
-```
-
-### Conversation-Based Usage
-
-Users can mention the Editorial Bot in conversations:
+### Common Workflow Examples
 
 ```
-@Editorial Bot please assign the following reviewers to manuscript ms-123:
-- alice@university.edu (due Feb 15)  
-- bob@institute.org (due Feb 15)
+# Update manuscript status to under review
+@editorial-bot status UNDER_REVIEW reason="Initial review passed"
 
-Also set charlie@college.edu as the action editor.
+# Assign reviewers with deadline
+@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org deadline="2024-02-15"
+
+# Get detailed progress summary
+@editorial-bot summary format="detailed"
 ```
 
-## Error Handling
+## Implementation Details
 
-### Common Errors
+The Editorial Bot is built using the command-based bot framework. Each command:
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `Manuscript not found` | Invalid manuscript ID | Verify manuscript exists |
-| `User not found` | Invalid user ID | Check user exists and has correct role |
-| `Permission denied` | Insufficient user permissions | Use admin/editor account |
-| `Reviewer already assigned` | Duplicate reviewer assignment | Check existing assignments first |
-| `Invalid decision` | Unsupported decision type | Use ACCEPTED, REJECTED, or REVISION_REQUESTED |
+- Validates input parameters
+- Executes the requested action
+- Returns formatted messages for display
+- Optionally triggers system actions (like updating database records)
 
-### Error Response Format
+### Bot Actions
 
-```json
-{
-  "error": "Action execution failed",
-  "message": "Reviewer alice@university.edu is already assigned to this manuscript"
-}
-```
+Commands can trigger these system actions:
+- `UPDATE_MANUSCRIPT_STATUS` - Updates manuscript status
+- `ASSIGN_REVIEWER` - Assigns reviewers to manuscripts  
+- `RESPOND_TO_REVIEW` - Records reviewer response to invitations
+- `SUBMIT_REVIEW` - Stores completed reviews
 
-## Monitoring & Auditing
+### Integration Notes
 
-### Execution History
+- Commands are executed within manuscript conversation contexts
+- The bot has access to manuscript IDs from the conversation context
+- All actions are logged for audit trails
+- Commands can be triggered by mentioning `@editorial-bot` in conversations
 
-View all Editorial Bot executions:
+## Supported Manuscript Statuses
 
-```bash
-curl http://localhost:4000/api/bots/editorial-bot/executions
-```
+The following statuses are supported for the `status` command:
 
-### Execution Logs
+- `SUBMITTED` - Initial submission received
+- `UNDER_REVIEW` - Currently being reviewed
+- `REVISION_REQUESTED` - Authors asked to revise and resubmit
+- `REVISED` - Revised version submitted by authors
+- `ACCEPTED` - Accepted for publication
+- `REJECTED` - Rejected for publication  
+- `PUBLISHED` - Published and publicly available
 
-Each execution is logged with:
-- **Input parameters**: What was requested
-- **Execution context**: Who triggered it and when
-- **Result**: Success/failure and returned data
-- **Timing**: Start and completion timestamps
-- **Errors**: Detailed error information if failed
+## Review Recommendations
 
-## Integration with Other Systems
+The following recommendations are supported for the `submit` command:
 
-### Notification System
-
-When integrated with the notification system, the Editorial Bot can:
-- Email reviewers when assigned
-- Notify authors of editorial decisions
-- Alert editors when actions are needed
-
-### Manuscript Workflow
-
-The Editorial Bot integrates with the manuscript lifecycle:
-- **Submission**: Auto-assign action editor if configured
-- **Review**: Manage reviewer assignments and deadlines
-- **Decision**: Update manuscript status and notify stakeholders
-- **Publication**: Trigger publication workflow for accepted manuscripts
-
-## Future Enhancements
-
-Planned features for future versions:
-
-- **Auto-reviewer matching**: AI-powered reviewer suggestions based on expertise
-- **Deadline management**: Automatic reminders and escalations
-- **Batch operations**: Assign multiple reviewers or make bulk decisions
-- **Custom workflows**: Configurable decision trees for different manuscript types
-- **Integration APIs**: Connect with external editorial management systems
+- `accept` - Recommend acceptance without changes
+- `minor_revision` - Accept with minor revisions required
+- `major_revision` - Accept pending major revisions
+- `reject` - Recommend rejection

@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { z } from 'zod';
 import { authenticate, requirePermission, optionalAuth } from '../middleware/auth';
-import { Permission } from '@colloquium/auth';
+import { Permission, hasManuscriptPermission, ManuscriptPermission, GlobalRole } from '@colloquium/auth';
 
 const router = Router();
 
@@ -92,7 +92,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     }
 
     // If user is not authenticated or not an editor/admin, only show published manuscripts
-    if (!req.user || (req.user.role !== 'EDITOR' && req.user.role !== 'ADMIN')) {
+    if (!req.user || (req.user.role !== GlobalRole.EDITOR_IN_CHIEF && req.user.role !== GlobalRole.MANAGING_EDITOR && req.user.role !== GlobalRole.ADMIN)) {
       where.status = 'PUBLISHED';
     }
 
@@ -124,14 +124,14 @@ router.get('/', optionalAuth, async (req, res, next) => {
     ]);
 
     // Format response
-    const formattedManuscripts = manuscripts.map(manuscript => ({
+    const formattedManuscripts = manuscripts.map((manuscript: any) => ({
       id: manuscript.id,
       title: manuscript.title,
       abstract: manuscript.abstract,
       authors: manuscript.authors,
       keywords: manuscript.keywords,
       status: manuscript.status,
-      submittedAt: manuscript.createdAt,
+      submittedAt: manuscript.submittedAt,
       publishedAt: manuscript.publishedAt,
       conversationCount: manuscript._count.conversations,
       fileUrl: manuscript.fileUrl,
@@ -153,7 +153,11 @@ router.get('/', optionalAuth, async (req, res, next) => {
 });
 
 // POST /api/manuscripts - Submit new manuscript (with file upload support)
-router.post('/', authenticate, requirePermission(Permission.SUBMIT_MANUSCRIPT), upload.array('files', 5), async (req, res, next) => {
+router.post('/', authenticate, (req, res, next) => {
+  // Check permissions dynamically
+  const { Permission } = require('@colloquium/auth');
+  return requirePermission(Permission.SUBMIT_MANUSCRIPT)(req, res, next);
+}, upload.array('files', 5), async (req, res, next) => {
   try {
     // Parse and validate the manuscript data
     const manuscriptData = manuscriptSubmissionSchema.parse({
@@ -163,12 +167,12 @@ router.post('/', authenticate, requirePermission(Permission.SUBMIT_MANUSCRIPT), 
       authors: Array.isArray(req.body.authors) ? req.body.authors : 
                typeof req.body.authors === 'string' ? [req.body.authors] : [],
       keywords: Array.isArray(req.body.keywords) ? req.body.keywords : 
-                typeof req.body.keywords === 'string' ? req.body.keywords.split(',').map(k => k.trim()) : [],
+                typeof req.body.keywords === 'string' ? req.body.keywords.split(',').map((k: string) => k.trim()) : [],
       metadata: req.body.metadata ? JSON.parse(req.body.metadata) : {}
     });
 
     // Start a transaction to ensure data consistency
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create the manuscript
       const manuscript = await tx.manuscript.create({
         data: {
@@ -254,11 +258,11 @@ router.post('/', authenticate, requirePermission(Permission.SUBMIT_MANUSCRIPT), 
       authors: result.manuscript.authors,
       keywords: result.manuscript.keywords,
       status: result.manuscript.status,
-      submittedAt: result.manuscript.createdAt,
+      submittedAt: result.manuscript.submittedAt,
       updatedAt: result.manuscript.updatedAt,
       metadata: result.manuscript.metadata,
       fileUrl: result.manuscript.fileUrl,
-      files: result.files.map(file => ({
+      files: result.files.map((file: any) => ({
         id: file.id,
         originalName: file.originalName,
         mimetype: file.mimetype,
@@ -337,6 +341,16 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             }
           }
         },
+        actionEditor: {
+          select: {
+            editorId: true
+          }
+        },
+        reviews: {
+          select: {
+            reviewerId: true
+          }
+        },
         _count: {
           select: {
             conversations: true
@@ -352,12 +366,32 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       });
     }
 
-    // Check if user can access this manuscript
-    const isPublished = manuscript.status === 'PUBLISHED';
-    const isAuthor = req.user && manuscript.authorRelations.some(rel => rel.userId === req.user!.id);
-    const isEditor = req.user && (req.user.role === 'EDITOR' || req.user.role === 'ADMIN');
+    // Check if user can access this manuscript using new permission system
+    console.log('DEBUG: Checking manuscript permissions for manuscript:', id);
+    console.log('DEBUG: User:', req.user?.email, 'Role:', req.user?.role);
+    console.log('DEBUG: Manuscript status:', manuscript.status);
     
-    if (!isPublished && !isAuthor && !isEditor) {
+    const isPublished = manuscript.status === 'PUBLISHED';
+    const isAuthor = req.user && manuscript.authorRelations.some((rel: any) => rel.userId === req.user!.id);
+    const isActionEditor = req.user && manuscript.actionEditor?.editorId === req.user.id;
+    const isReviewer = req.user && manuscript.reviews.some((review: any) => review.reviewerId === req.user!.id);
+    
+    console.log('DEBUG: Permission context - isPublished:', isPublished, 'isAuthor:', isAuthor, 'isActionEditor:', isActionEditor, 'isReviewer:', isReviewer);
+    
+    const canView = hasManuscriptPermission(
+      req.user?.role || GlobalRole.USER,
+      ManuscriptPermission.VIEW_MANUSCRIPT,
+      {
+        isAuthor,
+        isActionEditor,
+        isReviewer,
+        isPublished
+      }
+    );
+    
+    console.log('DEBUG: Can view manuscript:', canView);
+    
+    if (!canView) {
       return res.status(403).json({
         error: 'Access Denied',
         message: 'You do not have permission to view this manuscript'
@@ -370,7 +404,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       title: manuscript.title,
       abstract: manuscript.abstract,
       authors: manuscript.authors, // Legacy field
-      authorDetails: manuscript.authorRelations.map(rel => ({
+      authorDetails: manuscript.authorRelations.map((rel: any) => ({
         id: rel.user.id,
         name: rel.user.name,
         email: rel.user.email,
@@ -380,13 +414,13 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       })),
       keywords: manuscript.keywords,
       status: manuscript.status,
-      submittedAt: manuscript.createdAt,
+      submittedAt: manuscript.submittedAt,
       publishedAt: manuscript.publishedAt,
       updatedAt: manuscript.updatedAt,
       fileUrl: manuscript.fileUrl,
       metadata: manuscript.metadata,
       conversationCount: manuscript._count.conversations,
-      files: manuscript.files.map(file => ({
+      files: manuscript.files.map((file: any) => ({
         id: file.id,
         originalName: file.originalName,
         mimetype: file.mimetype,
@@ -394,7 +428,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         uploadedAt: file.uploadedAt,
         downloadUrl: `/api/manuscripts/${manuscript.id}/files/${file.id}/download`
       })),
-      conversations: manuscript.conversations.map(conv => ({
+      conversations: manuscript.conversations.map((conv: any) => ({
         id: conv.id,
         title: conv.title,
         type: conv.type,
@@ -405,8 +439,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         updatedAt: conv.updatedAt
       })),
       permissions: {
-        canEdit: isAuthor || isEditor,
-        canDelete: isEditor
+        canEdit: isAuthor || (req.user?.role === GlobalRole.EDITOR_IN_CHIEF || req.user?.role === GlobalRole.ADMIN),
+        canDelete: req.user?.role === GlobalRole.EDITOR_IN_CHIEF || req.user?.role === GlobalRole.ADMIN
       }
     };
 
@@ -426,7 +460,7 @@ router.get('/:id/files', async (req, res, next) => {
       orderBy: { uploadedAt: 'asc' }
     });
 
-    const formattedFiles = files.map(file => ({
+    const formattedFiles = files.map((file: any) => ({
       id: file.id,
       originalName: file.originalName,
       mimetype: file.mimetype,
@@ -482,7 +516,7 @@ router.get('/:id/files/:fileId/download', async (req, res, next) => {
 });
 
 // PUT /api/manuscripts/:id - Update manuscript
-router.put('/:id', authenticate, requirePermission(Permission.EDIT_MANUSCRIPT), async (req, res, next) => {
+router.put('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, abstract, content, keywords, status } = req.body;
@@ -506,7 +540,7 @@ router.put('/:id', authenticate, requirePermission(Permission.EDIT_MANUSCRIPT), 
 
     // Check if user can edit this manuscript
     const isAuthor = existingManuscript.authorRelations.length > 0;
-    const isEditor = req.user!.role === 'EDITOR' || req.user!.role === 'ADMIN';
+    const isEditor = req.user!.role === GlobalRole.EDITOR_IN_CHIEF || req.user!.role === GlobalRole.ADMIN;
     
     if (!isAuthor && !isEditor) {
       return res.status(403).json({
@@ -575,7 +609,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
       orderBy: { updatedAt: 'desc' }
     });
 
-    const formattedConversations = conversations.map(conv => ({
+    const formattedConversations = conversations.map((conv: any) => ({
       id: conv.id,
       title: conv.title,
       type: conv.type,

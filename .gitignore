@@ -90,3 +90,6 @@ temp/
 # Prisma
 prisma/migrations/
 !prisma/migrations/.gitkeep
+
+# uploaded files
+apps/api/uploads/

@@ -91,7 +91,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
 });
 
 // POST /api/bots/:id/install - Install a bot
-router.post('/:id/install', authenticate, requirePermission(Permission.MANAGE_BOTS), async (req, res, next) => {
+router.post('/:id/install', authenticate, (req, res, next) => {
+  const { Permission } = require('@colloquium/auth');
+  return requirePermission(Permission.MANAGE_BOTS)(req, res, next);
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { config = {} } = req.body;
@@ -118,7 +121,10 @@ router.post('/:id/install', authenticate, requirePermission(Permission.MANAGE_BO
 });
 
 // PUT /api/bots/:id/configure - Update bot configuration
-router.put('/:id/configure', authenticate, requirePermission(Permission.MANAGE_BOTS), async (req, res, next) => {
+router.put('/:id/configure', authenticate, (req, res, next) => {
+  const { Permission } = require('@colloquium/auth');
+  return requirePermission(Permission.MANAGE_BOTS)(req, res, next);
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { config, isEnabled } = req.body;

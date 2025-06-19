@@ -10,12 +10,12 @@ describe('Editorial Bot', () => {
       expect(editorialBot.id).toBe('editorial-bot');
       expect(editorialBot.name).toBe('Editorial Bot');
       expect(editorialBot.description).toContain('manuscript editorial workflows');
-      expect(editorialBot.version).toBe('2.0.0');
+      expect(editorialBot.version).toBe('2.1.0');
     });
 
     it('should have all required commands', () => {
       const commandNames = editorialBot.commands.map(cmd => cmd.name);
-      expect(commandNames).toEqual(['status', 'assign', 'summary', 'help']);
+      expect(commandNames).toEqual(['status', 'assign', 'summary', 'respond', 'submit', 'help']);
     });
 
     it('should have appropriate keywords', () => {

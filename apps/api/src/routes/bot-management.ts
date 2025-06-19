@@ -1,6 +1,6 @@
 import express from 'express';
 import { z } from 'zod';
-import { authMiddleware } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
 import { DatabaseBotManager } from '@colloquium/bots/src/framework/botManager';
 import { BotInstallationSource, BotPluginError } from '@colloquium/bots/src/framework/plugin';
 
@@ -42,7 +42,7 @@ const adminMiddleware = (req: express.Request, res: express.Response, next: expr
 };
 
 // List all installed bots
-router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/', authenticate, adminMiddleware, async (req, res) => {
   try {
     const installations = await botManager.list();
     
@@ -74,7 +74,7 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Get specific bot details
-router.get('/:botId', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/:botId', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     const installation = await botManager.get(botId);
@@ -120,7 +120,7 @@ router.get('/:botId', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Install a new bot
-router.post('/install', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/install', authenticate, adminMiddleware, async (req, res) => {
   try {
     const validation = installBotSchema.safeParse(req.body);
     if (!validation.success) {
@@ -200,7 +200,7 @@ router.post('/install', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Uninstall a bot
-router.delete('/:botId', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/:botId', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     
@@ -234,7 +234,7 @@ router.delete('/:botId', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Update a bot
-router.put('/:botId', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:botId', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     const validation = updateBotSchema.safeParse(req.body);
@@ -284,7 +284,7 @@ router.put('/:botId', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Enable a bot
-router.post('/:botId/enable', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/:botId/enable', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     await botManager.enable(botId);
@@ -317,7 +317,7 @@ router.post('/:botId/enable', authMiddleware, adminMiddleware, async (req, res) 
 });
 
 // Disable a bot
-router.post('/:botId/disable', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/:botId/disable', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     await botManager.disable(botId);
@@ -350,7 +350,7 @@ router.post('/:botId/disable', authMiddleware, adminMiddleware, async (req, res)
 });
 
 // Configure a bot
-router.put('/:botId/config', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/:botId/config', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     const validation = updateBotConfigSchema.safeParse(req.body);
@@ -396,7 +396,7 @@ router.put('/:botId/config', authMiddleware, adminMiddleware, async (req, res) =
 });
 
 // Install default bots
-router.post('/install-defaults', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/install-defaults', authenticate, adminMiddleware, async (req, res) => {
   try {
     const installations = await botManager.installDefaults();
     

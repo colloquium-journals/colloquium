@@ -10,6 +10,11 @@ interface MessageData {
   author: {
     name: string;
     email: string;
+    role?: string;
+    affiliation?: string;
+    orcid?: string;
+    joinedAt?: string;
+    bio?: string;
   };
   createdAt: string;
   isBot: boolean;

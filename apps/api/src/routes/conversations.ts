@@ -1,16 +1,25 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
 import { authenticate, requirePermission, optionalAuth } from '../middleware/auth';
-import { Permission } from '@colloquium/auth';
+import { Permission, GlobalRole } from '@colloquium/auth';
 import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
+import { botActionProcessor } from '../services/botActionProcessor';
 
 const router = Router();
 
 // Helper function to determine if user can see a message based on privacy level
 async function canUserSeeMessage(userId: string | undefined, userRole: string | undefined, messagePrivacy: string, manuscriptId: string) {
+  console.log(`Checking permissions - userId: ${userId}, userRole: ${userRole}, messagePrivacy: ${messagePrivacy}, manuscriptId: ${manuscriptId}`);
+  
   if (!userId || !userRole) {
+    console.log('No user ID or role, only allowing PUBLIC messages');
     return messagePrivacy === 'PUBLIC';
+  }
+
+  // Special debug logging for this specific case
+  if (messagePrivacy === 'AUTHOR_VISIBLE') {
+    console.log(`DEBUG: Checking AUTHOR_VISIBLE message - userRole is '${userRole}', checking if it matches ADMIN, EDITOR_IN_CHIEF, or MANAGING_EDITOR`);
   }
 
   switch (messagePrivacy) {
@@ -19,7 +28,7 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
     
     case 'AUTHOR_VISIBLE':
       // Check if user is author, reviewer, editor, or admin
-      if (userRole === 'EDITOR' || userRole === 'ADMIN') return true;
+      if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR') return true;
       
       // Check if user is an author of the manuscript
       const authorRelation = await prisma.manuscriptAuthor.findFirst({
@@ -41,7 +50,7 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
     
     case 'REVIEWER_ONLY':
       // Only reviewers, editors, and admins
-      if (userRole === 'EDITOR' || userRole === 'ADMIN') return true;
+      if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR') return true;
       
       const reviewAssignment = await prisma.reviewAssignment.findFirst({
         where: {
@@ -52,7 +61,7 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
       return !!reviewAssignment;
     
     case 'EDITOR_ONLY':
-      return userRole === 'EDITOR' || userRole === 'ADMIN';
+      return userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR';
     
     case 'ADMIN_ONLY':
       return userRole === 'ADMIN';
@@ -66,11 +75,10 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
 function getDefaultPrivacyLevel(userRole: string | undefined): string {
   switch (userRole) {
     case 'ADMIN':
-    case 'EDITOR':
+    case 'EDITOR_IN_CHIEF':
+    case 'MANAGING_EDITOR':
       return 'AUTHOR_VISIBLE';
-    case 'REVIEWER':
-      return 'REVIEWER_ONLY';
-    case 'AUTHOR':
+    case 'USER':
     default:
       return 'AUTHOR_VISIBLE';
   }
@@ -104,7 +112,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     } else {
       // Authenticated users have more complex filtering rules
       if (!privacy) { // Only apply automatic filtering if privacy filter isn't explicitly set
-        if (req.user.role === 'ADMIN' || req.user.role === 'EDITOR') {
+        if (req.user.role === GlobalRole.ADMIN || req.user.role === GlobalRole.EDITOR_IN_CHIEF || req.user.role === GlobalRole.MANAGING_EDITOR) {
           // Admins and editors can see all conversations (no additional filter)
         } else {
           // Authors and reviewers can see:
@@ -251,6 +259,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     }
 
     // Filter messages based on user's permission to see them
+    console.log(`Found ${conversation.messages.length} total messages for conversation ${id}`);
     const visibleMessages = [];
     for (const msg of conversation.messages) {
       const canSee = await canUserSeeMessage(
@@ -259,10 +268,12 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         msg.privacy, 
         conversation.manuscriptId
       );
+      console.log(`Message ${msg.id} (privacy: ${msg.privacy}) - can user see: ${canSee}`);
       if (canSee) {
         visibleMessages.push(msg);
       }
     }
+    console.log(`Returning ${visibleMessages.length} visible messages`);
 
     // Format response
     const formattedConversation = {
@@ -307,7 +318,10 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // POST /api/conversations/:id/messages - Post new message
-router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_CONVERSATION), async (req, res, next) => {
+router.post('/:id/messages', authenticate, (req, res, next) => {
+  const { Permission } = require('@colloquium/auth');
+  return requirePermission(Permission.CREATE_CONVERSATION)(req, res, next);
+}, async (req, res, next) => {
   try {
     const { id: conversationId } = req.params;
     const { content, parentId, privacy } = req.body;
@@ -356,6 +370,15 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
     const messagePrivacy = privacy || getDefaultPrivacyLevel(req.user!.role);
 
     // Create the message
+    console.log('Creating message with data:', {
+      content: content.trim(),
+      conversationId,
+      authorId: req.user!.id,
+      parentId: parentId || null,
+      privacy: messagePrivacy,
+      isBot: false
+    });
+
     const message = await prisma.message.create({
       data: {
         content: content.trim(),
@@ -375,6 +398,8 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
         }
       }
     });
+
+    console.log('Message created successfully:', message.id);
 
     // Update conversation's updatedAt timestamp
     await prisma.conversation.update({
@@ -409,7 +434,7 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
           }
 
           for (const botMessage of botResponse.messages) {
-            await prisma.message.create({
+            const createdBotMessage = await prisma.message.create({
               data: {
                 content: botMessage.content,
                 conversationId,
@@ -417,8 +442,82 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
                 parentId: botMessage.replyTo || message.id,
                 privacy: 'AUTHOR_VISIBLE',
                 isBot: true
+              },
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true
+                  }
+                }
               }
             });
+
+            // Immediately broadcast bot response
+            const formattedBotMessage = {
+              id: createdBotMessage.id,
+              content: createdBotMessage.content,
+              privacy: createdBotMessage.privacy,
+              author: createdBotMessage.author,
+              createdAt: createdBotMessage.createdAt,
+              updatedAt: createdBotMessage.updatedAt,
+              parentId: createdBotMessage.parentId,
+              isBot: createdBotMessage.isBot
+            };
+
+            broadcastToConversation(conversationId, {
+              type: 'new-message',
+              message: formattedBotMessage
+            });
+          }
+
+          // Process bot actions
+          if (botResponse.actions && botResponse.actions.length > 0) {
+            try {
+              await botActionProcessor.processActions(botResponse.actions, {
+                manuscriptId: conversation.manuscriptId,
+                userId: req.user!.id,
+                conversationId
+              });
+            } catch (actionError) {
+              console.error('Failed to process bot actions:', actionError);
+              // Create an error message for failed actions
+              const actionErrorMessage = await prisma.message.create({
+                data: {
+                  content: `⚠️ **Action Processing Error:** Some bot actions could not be completed. Please check the logs or retry manually.`,
+                  conversationId,
+                  authorId: botUserId,
+                  parentId: message.id,
+                  privacy: 'EDITOR_ONLY', // Only show to editors
+                  isBot: true
+                },
+                include: {
+                  author: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              });
+
+              // Immediately broadcast action error message
+              broadcastToConversation(conversationId, {
+                type: 'new-message',
+                message: {
+                  id: actionErrorMessage.id,
+                  content: actionErrorMessage.content,
+                  privacy: actionErrorMessage.privacy,
+                  author: actionErrorMessage.author,
+                  createdAt: actionErrorMessage.createdAt,
+                  updatedAt: actionErrorMessage.updatedAt,
+                  parentId: actionErrorMessage.parentId,
+                  isBot: actionErrorMessage.isBot
+                }
+              });
+            }
           }
         }
 
@@ -429,7 +528,7 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
             const botUserId = botExecutor.getBotUserId(botResponse.botId);
             if (botUserId) {
               // Create error message for debugging
-              await prisma.message.create({
+              const errorMessage = await prisma.message.create({
                 data: {
                   content: `❌ **Bot Error:** ${botResponse.errors.join(', ')}`,
                   conversationId,
@@ -437,6 +536,30 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
                   parentId: message.id,
                   privacy: 'AUTHOR_VISIBLE', // Make errors visible to users for better UX
                   isBot: true
+                },
+                include: {
+                  author: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              });
+
+              // Immediately broadcast error message
+              broadcastToConversation(conversationId, {
+                type: 'new-message',
+                message: {
+                  id: errorMessage.id,
+                  content: errorMessage.content,
+                  privacy: errorMessage.privacy,
+                  author: errorMessage.author,
+                  createdAt: errorMessage.createdAt,
+                  updatedAt: errorMessage.updatedAt,
+                  parentId: errorMessage.parentId,
+                  isBot: errorMessage.isBot
                 }
               });
             }
@@ -466,54 +589,7 @@ router.post('/:id/messages', authenticate, requirePermission(Permission.CREATE_C
       message: formattedMessage
     });
 
-    // Fetch and broadcast any bot responses that were created
-    setTimeout(async () => {
-      try {
-        // Give bots a moment to process and create responses
-        const botMessages = await prisma.message.findMany({
-          where: {
-            conversationId,
-            isBot: true,
-            createdAt: {
-              gte: new Date(Date.now() - 5000) // Messages created in the last 5 seconds
-            }
-          },
-          include: {
-            author: {
-              select: { 
-                id: true, 
-                firstName: true, 
-                lastName: true, 
-                email: true, 
-                role: true 
-              }
-            }
-          },
-          orderBy: { createdAt: 'asc' }
-        });
-
-        // Broadcast each bot message
-        for (const botMessage of botMessages) {
-          const formattedBotMessage = {
-            id: botMessage.id,
-            content: botMessage.content,
-            privacy: botMessage.privacy,
-            author: botMessage.author,
-            createdAt: botMessage.createdAt,
-            updatedAt: botMessage.updatedAt,
-            parentId: botMessage.parentId,
-            isBot: botMessage.isBot
-          };
-
-          broadcastToConversation(conversationId, {
-            type: 'new-message',
-            message: formattedBotMessage
-          });
-        }
-      } catch (error) {
-        console.error('Error broadcasting bot messages:', error);
-      }
-    }, 1000); // Wait 1 second for bot processing
+    // Bot responses are now broadcast immediately when created above
 
     res.status(201).json({
       message: 'Message posted successfully',

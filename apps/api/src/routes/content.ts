@@ -21,10 +21,7 @@ const contentPathSchema = z.object({
 marked.setOptions({
   gfm: true,
   breaks: false,
-  pedantic: false,
-  sanitize: false, // We'll handle sanitization separately if needed
-  smartLists: true,
-  smartypants: true
+  pedantic: false
 });
 
 // Helper function to read and parse markdown files
@@ -85,10 +82,11 @@ function listContentFiles(dirPath: string) {
 router.get('/editorial-board', async (req, res, next) => {
   try {
     // Get users with EDITOR or ADMIN roles
+    const { GlobalRole } = require('@colloquium/database');
     const editors = await prisma.user.findMany({
       where: {
         role: {
-          in: ['EDITOR', 'ADMIN']
+          in: [GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ADMIN]
         },
         // Only include users with names (more professional presentation)
         name: {
@@ -107,18 +105,8 @@ router.get('/editorial-board', async (req, res, next) => {
         createdAt: true,
         _count: {
           select: {
-            authoredManuscripts: {
-              where: {
-                manuscript: {
-                  status: 'PUBLISHED'
-                }
-              }
-            },
-            reviewAssignments: {
-              where: {
-                status: 'COMPLETED'
-              }
-            }
+            authoredManuscripts: true,
+            reviewAssignments: true
           }
         }
       },
@@ -162,8 +150,8 @@ router.get('/editorial-board', async (req, res, next) => {
       members: boardMembers,
       totalMembers: boardMembers.length,
       roles: {
-        admins: boardMembers.filter(m => m.role === 'ADMIN').length,
-        editors: boardMembers.filter(m => m.role === 'EDITOR').length
+        admins: boardMembers.filter(m => m.role === GlobalRole.ADMIN).length,
+        editors: boardMembers.filter(m => m.role === GlobalRole.EDITOR_IN_CHIEF).length
       }
     });
   } catch (error) {
@@ -257,8 +245,38 @@ router.get('/:section/:page', async (req, res, next) => {
 
 // GET /api/content/:section/index - Get section index page (alias for index.md)
 router.get('/:section/index', async (req, res, next) => {
-  req.params.page = 'index';
-  return router.handle(req, res, next);
+  try {
+    const { section } = req.params;
+    const validation = contentPathSchema.safeParse({ section, page: 'index' });
+    
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Invalid Path',
+        message: 'Section name contains invalid characters'
+      });
+    }
+
+    const filePath = join(CONTENT_DIR, section, 'index.md');
+    const content = parseMarkdownFile(filePath);
+    
+    if (!content) {
+      return res.status(404).json({
+        error: 'Content Not Found',
+        message: `No index page found for section: ${section}`
+      });
+    }
+
+    res.json({
+      section,
+      page: 'index',
+      title: content.frontmatter.title || 'Index',
+      content: content.html,
+      metadata: content.frontmatter,
+      lastModified: content.lastModified || new Date()
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // GET /api/content - List all content sections

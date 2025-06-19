@@ -1,7 +1,15 @@
 import express from 'express';
 import crypto from 'crypto';
 import { prisma } from '@colloquium/database';
-import { authMiddleware } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
+
+// Extend session interface
+declare module 'express-session' {
+  interface SessionData {
+    orcidState?: string;
+    userId?: string;
+  }
+}
 
 const router = express.Router();
 
@@ -36,7 +44,7 @@ function decryptToken(encryptedToken: string): string {
 }
 
 // Start ORCID OAuth flow
-router.get('/auth', authMiddleware, async (req, res) => {
+router.get('/auth', authenticate, async (req, res) => {
   try {
     if (!ORCID_CLIENT_ID) {
       return res.status(500).json({
@@ -53,7 +61,7 @@ router.get('/auth', authMiddleware, async (req, res) => {
     // Store state in session or temporary store (using memory for now)
     req.session = req.session || {};
     req.session.orcidState = state;
-    req.session.userId = req.user.id;
+    req.session.userId = req.user!.id;
 
     const authUrl = new URL(`${ORCID_BASE_URL}/oauth/authorize`);
     authUrl.searchParams.set('client_id', ORCID_CLIENT_ID);
@@ -169,10 +177,10 @@ router.get('/callback', async (req, res) => {
 });
 
 // Unlink ORCID account
-router.delete('/unlink', authMiddleware, async (req, res) => {
+router.delete('/unlink', authenticate, async (req, res) => {
   try {
     await prisma.user.update({
-      where: { id: req.user.id },
+      where: { id: req.user!.id },
       data: {
         orcidId: null,
         orcidVerified: false,
@@ -197,10 +205,10 @@ router.delete('/unlink', authMiddleware, async (req, res) => {
 });
 
 // Get ORCID verification status
-router.get('/status', authMiddleware, async (req, res) => {
+router.get('/status', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
+      where: { id: req.user!.id },
       select: {
         orcidId: true,
         orcidVerified: true

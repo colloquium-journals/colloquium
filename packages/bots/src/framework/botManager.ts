@@ -2,6 +2,7 @@ import { prisma } from '@colloquium/database';
 import { BotManager, BotInstallation, BotInstallationSource, BotPluginError, BotPluginLoader } from './plugin';
 import { NodeBotPluginLoader } from './pluginLoader';
 import { BotExecutor } from './BotExecutor';
+import path from 'path';
 
 export class DatabaseBotManager implements BotManager {
   private pluginLoader: BotPluginLoader;
@@ -69,10 +70,12 @@ export class DatabaseBotManager implements BotManager {
           author: manifest.author.name,
           isPublic: true,
           configSchema: this.generateConfigSchema(bot),
-          permissions: bot.permissions.map(permission => ({
-            permission,
-            description: `Permission: ${permission}`
-          }))
+          permissions: {
+            create: bot.permissions.map(permission => ({
+              permission,
+              description: `Permission: ${permission}`
+            }))
+          }
         },
         update: {
           name: bot.name,
@@ -101,7 +104,7 @@ export class DatabaseBotManager implements BotManager {
         updatedAt: installation.updatedAt
       };
 
-      console.log(`✅ Bot ${bot.name} (${bot.id}) installed successfully`);
+      // console.log(`✅ Bot ${bot.name} (${bot.id}) installed successfully`);
       return installationRecord;
 
     } catch (error) {
@@ -145,7 +148,7 @@ export class DatabaseBotManager implements BotManager {
         });
       }
 
-      console.log(`✅ Bot ${botId} uninstalled successfully`);
+      // console.log(`✅ Bot ${botId} uninstalled successfully`);
     } catch (error) {
       throw new BotPluginError(
         `Failed to uninstall bot ${botId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -178,7 +181,7 @@ export class DatabaseBotManager implements BotManager {
       // Install new version
       const newInstallation = await this.install(source, currentConfig);
 
-      console.log(`✅ Bot ${botId} updated to version ${newInstallation.version}`);
+      // console.log(`✅ Bot ${botId} updated to version ${newInstallation.version}`);
       return newInstallation;
     } catch (error) {
       throw new BotPluginError(
@@ -207,7 +210,7 @@ export class DatabaseBotManager implements BotManager {
     // Re-enable in bot executor
     this.botExecutor.installBot(botId, installation.config);
     
-    console.log(`✅ Bot ${botId} enabled`);
+    // console.log(`✅ Bot ${botId} enabled`);
   }
 
   async disable(botId: string): Promise<void> {
@@ -228,7 +231,7 @@ export class DatabaseBotManager implements BotManager {
     // Disable in bot executor
     this.botExecutor.uninstallBot(botId);
     
-    console.log(`✅ Bot ${botId} disabled`);
+    // console.log(`✅ Bot ${botId} disabled`);
   }
 
   async configure(botId: string, config: Record<string, any>): Promise<void> {
@@ -252,7 +255,7 @@ export class DatabaseBotManager implements BotManager {
       this.botExecutor.installBot(botId, config);
     }
 
-    console.log(`✅ Bot ${botId} configuration updated`);
+    // console.log(`✅ Bot ${botId} configuration updated`);
   }
 
   async list(): Promise<BotInstallation[]> {
@@ -263,7 +266,7 @@ export class DatabaseBotManager implements BotManager {
     });
 
     // Convert to BotInstallation format
-    return installations.map(install => ({
+    return installations.map((install: any) => ({
       id: install.id,
       packageName: `@colloquium/bot-${install.botId}`, // Default package name format
       version: install.bot.version,
@@ -302,7 +305,24 @@ export class DatabaseBotManager implements BotManager {
   }
 
   async installDefaults(): Promise<BotInstallation[]> {
-    const defaultBots = [
+    // In development, use local bot implementations
+    // In production, use published npm packages
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    
+    const defaultBots = isDevelopment ? [
+      { 
+        source: { type: 'local' as const, path: path.resolve(__dirname, '../../dist/core/editorialBot') },
+        config: { autoStatusUpdates: true, notifyAuthors: true }
+      },
+      { 
+        source: { type: 'local' as const, path: path.resolve(__dirname, '../../dist/core/plagiarismBot') },
+        config: { defaultThreshold: 0.15, enabledDatabases: ['crossref', 'pubmed', 'arxiv'] }
+      },
+      { 
+        source: { type: 'local' as const, path: path.resolve(__dirname, '../../dist/core/referenceBot') },
+        config: { defaultTimeout: 30, includeMissingDoiReferences: true }
+      }
+    ] : [
       { 
         source: { type: 'npm' as const, packageName: '@colloquium/editorial-bot' },
         config: { autoStatusUpdates: true, notifyAuthors: true }
@@ -322,18 +342,18 @@ export class DatabaseBotManager implements BotManager {
     for (const { source, config } of defaultBots) {
       try {
         // Check if already installed
-        const botId = this.extractBotIdFromPackageName(source.packageName);
+        const botId = this.extractBotIdFromSource(source);
         const existing = await this.get(botId);
         
         if (!existing) {
           const installation = await this.install(source, config);
           installations.push(installation);
-          console.log(`✅ Default bot ${source.packageName} installed`);
+          // console.log(`✅ Default bot ${this.getSourceName(source)} installed`);
         } else {
-          console.log(`ℹ️ Default bot ${source.packageName} already installed`);
+          // console.log(`ℹ️ Default bot ${this.getSourceName(source)} already installed`);
         }
       } catch (error) {
-        console.error(`❌ Failed to install default bot ${source.packageName}:`, error);
+        console.error(`❌ Failed to install default bot ${this.getSourceName(source)}:`, error);
       }
     }
 
@@ -352,6 +372,36 @@ export class DatabaseBotManager implements BotManager {
         return source.url.split('/').pop() || 'unknown';
       default:
         return 'unknown';
+    }
+  }
+
+  private extractBotIdFromSource(source: BotInstallationSource): string {
+    switch (source.type) {
+      case 'npm':
+        return this.extractBotIdFromPackageName(source.packageName);
+      case 'local':
+        return path.basename(source.path);
+      case 'git':
+        return path.basename(source.url, '.git');
+      case 'url':
+        return path.basename(source.url, '.tgz');
+      default:
+        return 'unknown-bot';
+    }
+  }
+
+  private getSourceName(source: BotInstallationSource): string {
+    switch (source.type) {
+      case 'npm':
+        return source.packageName;
+      case 'local':
+        return `local:${source.path}`;
+      case 'git':
+        return `git:${source.url}`;
+      case 'url':
+        return `url:${source.url}`;
+      default:
+        return 'unknown-source';
     }
   }
 

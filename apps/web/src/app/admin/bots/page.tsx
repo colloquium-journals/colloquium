@@ -30,7 +30,6 @@ import {
   IconTrash,
   IconRefresh,
   IconPower,
-  IconPowerOff,
   IconDots,
   IconAlertCircle,
   IconCheck,
@@ -418,7 +417,7 @@ export default function BotManagementPage() {
                             bot.isEnabled ? (
                               <IconPower size={12} color="white" />
                             ) : (
-                              <IconPowerOff size={12} color="gray" />
+                              <IconPower size={12} color="gray" />
                             )
                           }
                         />
@@ -558,7 +557,7 @@ export default function BotManagementPage() {
             
             <JsonInput
               label="Configuration"
-              placeholder="{\n  \"key\": \"value\"\n}"
+              placeholder={'{\n  "key": "value"\n}'}
               value={configForm}
               onChange={setConfigForm}
               minRows={8}

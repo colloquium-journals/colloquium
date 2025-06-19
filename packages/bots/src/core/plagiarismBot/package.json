@@ -1,0 +1,17 @@
+{
+  "name": "plagiarism-bot",
+  "version": "1.0.0",
+  "description": "Plagiarism detection bot for Colloquium",
+  "main": "index.js",
+  "colloquium": {
+    "botId": "plagiarism-bot",
+    "apiVersion": "1.0.0",
+    "permissions": ["read_manuscript"],
+    "isDefault": true,
+    "category": "quality"
+  },
+  "author": {
+    "name": "Colloquium Development Team"
+  },
+  "license": "MIT"
+}

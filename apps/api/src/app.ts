@@ -19,6 +19,7 @@ import botManagementRoutes from './routes/bot-management';
 import contentRoutes from './routes/content';
 import eventsRoutes from './routes/events';
 import orcidRoutes from './routes/orcid';
+import reviewersRoutes from './routes/reviewers';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -81,6 +82,7 @@ app.use('/api/bot-management', botManagementRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/orcid', orcidRoutes);
+app.use('/api/reviewers', reviewersRoutes);
 
 // Error handling middleware
 app.use(notFound);

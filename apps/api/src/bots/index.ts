@@ -1,6 +1,6 @@
 import * as BotsPackage from '@colloquium/bots';
 import { prisma } from '@colloquium/database';
-import { DatabaseBotManager } from '@colloquium/bots/src/framework/botManager';
+import { DatabaseBotManager } from '@colloquium/bots';
 
 // Export the bot executor for use in other parts of the application
 export const botExecutor = new BotsPackage.BotExecutor();
@@ -24,7 +24,7 @@ async function ensureBotUser(botId: string, botName: string): Promise<string> {
         role: 'BOT'
       }
     });
-    console.log(`✅ Created bot user: ${botName} (${email})`);
+    // console.log(`✅ Created bot user: ${botName} (${email})`);
   }
 
   return botUser.id;
@@ -32,7 +32,7 @@ async function ensureBotUser(botId: string, botName: string): Promise<string> {
 
 // Initialize and register all bots
 export async function initializeBots() {
-  console.log('Initializing command-based bot system...');
+  // console.log('Initializing command-based bot system...');
   
   const { editorialBot, plagiarismBot, referenceBot } = BotsPackage;
 
@@ -68,7 +68,7 @@ export async function initializeBots() {
       includeMissingDoiReferences: true
     });
 
-    console.log('✅ Command-based bots installed successfully');
+    // console.log('✅ Command-based bots installed successfully');
   } catch (error) {
     console.error('❌ Failed to install command-based bots:', error);
   }
@@ -76,14 +76,14 @@ export async function initializeBots() {
   // Install default bots via plugin system if this is a fresh installation
   const installedBots = await botManager.list();
   if (installedBots.length === 0) {
-    console.log('🔧 Installing default bots...');
+    // console.log('🔧 Installing default bots...');
     try {
       await botManager.installDefaults();
-      console.log('✅ Default bots installed successfully');
+      // console.log('✅ Default bots installed successfully');
     } catch (error) {
       console.error('❌ Failed to install default bots:', error);
     }
   }
 
-  console.log('Bot system initialized');
+  // console.log('Bot system initialized');
 }

@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { IconUser, IconLogout, IconLogin } from '@tabler/icons-react';
+import { IconUser, IconLogout, IconLogin, IconSettings, IconRobot } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface AppShellLayoutProps {
@@ -185,6 +185,26 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                   >
                     Profile
                   </Menu.Item>
+                  {user.role === 'ADMIN' && (
+                    <>
+                      <Menu.Divider />
+                      <Menu.Label>Administration</Menu.Label>
+                      <Menu.Item 
+                        leftSection={<IconSettings size={14} />}
+                        component={Link}
+                        href="/admin/settings"
+                      >
+                        Journal Settings
+                      </Menu.Item>
+                      <Menu.Item 
+                        leftSection={<IconRobot size={14} />}
+                        component={Link}
+                        href="/admin/bots"
+                      >
+                        Bot Management
+                      </Menu.Item>
+                    </>
+                  )}
                   <Menu.Divider />
                   <Menu.Item 
                     leftSection={<IconLogout size={14} />}

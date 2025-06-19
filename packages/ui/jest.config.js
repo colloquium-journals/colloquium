@@ -24,7 +24,7 @@ module.exports = {
   clearMocks: true,
   restoreMocks: true,
   passWithNoTests: true,
-  moduleNameMapping: {
+  moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy'
   }
 };

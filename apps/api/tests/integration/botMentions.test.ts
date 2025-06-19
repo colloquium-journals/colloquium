@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../../src/app';
-import { prisma } from '@colloquium/database';
+import { prisma, ConversationType, GlobalRole } from '@colloquium/database';
 import { botExecutor } from '@colloquium/bots';
 import { sign } from 'jsonwebtoken';
 
@@ -16,7 +16,7 @@ describe('Bot Mentions Integration', () => {
         email: 'test@example.com',
         firstName: 'Test',
         lastName: 'User',
-        role: 'AUTHOR'
+        role: GlobalRole.USER
       }
     });
     userId = user.id;
@@ -32,7 +32,7 @@ describe('Bot Mentions Integration', () => {
     const conversation = await prisma.conversation.create({
       data: {
         title: 'Test Conversation',
-        type: 'PRIVATE_EDITORIAL',
+        type: ConversationType.EDITORIAL,
         status: 'ACTIVE',
         participantIds: [userId],
         createdById: userId

@@ -27,6 +27,11 @@ interface MessageData {
   author: {
     name: string;
     email: string;
+    role?: string;
+    affiliation?: string;
+    orcid?: string;
+    joinedAt?: string;
+    bio?: string;
   };
   createdAt: string;
   isBot: boolean;
@@ -138,8 +143,24 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       const result = await response.json();
       console.log('Message posted successfully:', result); // Debug log
       
-      // Note: We don't add the message to local state here anymore
-      // The message will be received via WebSocket and added through handleNewMessage
+      // TEMPORARY FIX: Add message immediately to local state while debugging SSE
+      if (result.data) {
+        setConversation(prev => {
+          if (!prev) return prev;
+          
+          // Check if message already exists (avoid duplicates)
+          const messageExists = prev.messages.some(msg => msg.id === result.data.id);
+          if (messageExists) return prev;
+
+          return {
+            ...prev,
+            messages: [...prev.messages, result.data]
+          };
+        });
+      }
+      
+      // Note: The message should also be received via SSE and added through handleNewMessage
+      // If you see duplicate messages, the SSE is working and this fix can be removed
     } catch (err) {
       console.error('Error posting message:', err);
       // Could show a toast notification here
@@ -185,50 +206,6 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
   return (
     <Stack gap="lg">
-      {/* Conversation Header */}
-      <Paper shadow="sm" p="lg" radius="md">
-        <Stack gap="md">
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Title order={3} mb="xs">
-                {conversation.title}
-              </Title>
-              <Text size="sm" c="dimmed" mb="md">
-                Manuscript: {conversation.manuscript.title}
-              </Text>
-              <Text size="sm" c="dimmed">
-                Authors: {conversation.manuscript.authors.join(', ')}
-              </Text>
-            </div>
-            <Group gap="xs">
-              <Badge color={getTypeColor(conversation.type)} variant="light">
-                {conversation.type}
-              </Badge>
-              <Badge color={getPrivacyColor(conversation.privacy)} variant="light">
-                {conversation.privacy}
-              </Badge>
-              <Badge 
-                color={
-                  connectionStatus === 'connected' ? 'green' : 
-                  connectionStatus === 'connecting' ? 'yellow' : 
-                  connectionStatus === 'error' ? 'red' : 'gray'
-                } 
-                variant="light"
-                leftSection={
-                  connectionStatus === 'connected' ? <IconWifi size={12} /> :
-                  connectionStatus === 'connecting' ? <IconLoader size={12} /> :
-                  <IconWifiOff size={12} />
-                }
-              >
-                {connectionStatus === 'connected' ? 'Live' : 
-                 connectionStatus === 'connecting' ? 'Connecting' : 
-                 connectionStatus === 'error' ? 'Error' : 'Offline'}
-              </Badge>
-            </Group>
-          </Group>
-        </Stack>
-      </Paper>
-
       {/* Message Thread */}
       <MessageThread 
         messages={conversation.messages}

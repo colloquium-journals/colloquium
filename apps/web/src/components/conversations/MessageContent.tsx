@@ -1,6 +1,8 @@
 import { Text } from '@mantine/core';
 import { parseContentWithMentions, ContentChunk } from '../../lib/mentions';
+import { parseMarkdownWithMentions, MarkdownChunk } from '../../lib/markdown';
 import { MentionTooltip } from './MentionTooltip';
+import styles from './MarkdownContent.module.css';
 
 interface MessageContentProps {
   content: string;
@@ -10,36 +12,61 @@ interface MessageContentProps {
 }
 
 export function MessageContent({ content, conversationId, size = 'sm', style }: MessageContentProps) {
-  const chunks = parseContentWithMentions(content);
+  const chunks = parseMarkdownWithMentions(content);
 
   return (
-    <Text 
-      size={size} 
+    <div 
       style={{
-        whiteSpace: 'pre-wrap',
+        fontSize: size === 'xs' ? '12px' : size === 'sm' ? '14px' : size === 'md' ? '16px' : '18px',
         lineHeight: 1.6,
         ...style
       }}
     >
       {chunks.map((chunk, index) => (
-        <MessageChunk 
+        <MarkdownChunk 
           key={index} 
           chunk={chunk} 
           conversationId={conversationId} 
         />
       ))}
-    </Text>
+    </div>
   );
 }
 
-interface MessageChunkProps {
-  chunk: ContentChunk;
+interface MarkdownChunkProps {
+  chunk: MarkdownChunk;
   conversationId: string;
 }
 
-function MessageChunk({ chunk, conversationId }: MessageChunkProps) {
-  if (chunk.type === 'text') {
-    return <>{chunk.content}</>;
+function MarkdownChunk({ chunk, conversationId }: MarkdownChunkProps) {
+  if (chunk.type === 'markdown' && chunk.html) {
+    // Check if this is truly block content (not just simple text wrapped in p tags)
+    const hasRealBlockElements = /<(h[1-6]|div|ul|ol|li|blockquote|pre|table|tr|td|th)\b[^>]*>/i.test(chunk.html);
+    const isSimpleParagraph = /^<p[^>]*>.*<\/p>\s*$/s.test(chunk.html.trim()) && !hasRealBlockElements;
+    
+    if (hasRealBlockElements || (!isSimpleParagraph && /<p\b[^>]*>/i.test(chunk.html))) {
+      // Use div for true block-level content
+      return (
+        <div 
+          className={styles.markdownContentBlock}
+          dangerouslySetInnerHTML={{ __html: chunk.html }}
+        />
+      );
+    } else {
+      // For simple content (including single paragraphs that could be inline), strip p tags and use span
+      let inlineHtml = chunk.html;
+      if (isSimpleParagraph) {
+        // Strip the paragraph tags and any trailing whitespace/newlines
+        inlineHtml = chunk.html.replace(/^<p[^>]*>(.*)<\/p>\s*$/s, '$1');
+      }
+      
+      return (
+        <span 
+          className={styles.markdownContent}
+          dangerouslySetInnerHTML={{ __html: inlineHtml }}
+        />
+      );
+    }
   }
 
   if (chunk.type === 'mention' && chunk.mention) {

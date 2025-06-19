@@ -169,7 +169,7 @@ export interface BotAttachment {
 }
 
 export interface BotAction {
-  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION';
+  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW';
   data: Record<string, any>;
 }
 

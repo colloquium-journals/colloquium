@@ -136,7 +136,7 @@ export class BotExecutor {
       if (bot.triggers.includes(trigger.toString() as any)) {
         // For command bots with triggers, we could execute an auto-trigger command
         // For now, command bots are primarily mention-based, so we skip auto-execution
-        console.log(`Bot ${bot.name} triggered by ${trigger}, but no auto-execution implemented`);
+        // console.log(`Bot ${bot.name} triggered by ${trigger}, but no auto-execution implemented`);
       }
     }
 

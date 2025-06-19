@@ -1,0 +1,1 @@
+export { UserProfileHover } from './UserProfileHover';

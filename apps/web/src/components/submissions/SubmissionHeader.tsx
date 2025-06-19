@@ -12,7 +12,9 @@ import {
   Divider,
   Box,
   Loader,
-  Alert
+  Alert,
+  Button,
+  ActionIcon
 } from '@mantine/core';
 import { 
   IconCalendar, 
@@ -21,7 +23,9 @@ import {
   IconAlertCircle,
   IconClock,
   IconCheck,
-  IconX
+  IconX,
+  IconEye,
+  IconDownload
 } from '@tabler/icons-react';
 
 interface SubmissionData {
@@ -57,7 +61,7 @@ interface SubmissionData {
 }
 
 interface SubmissionHeaderProps {
-  submissionId: string;
+  submissionId: string; // This is actually a conversation ID
 }
 
 export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
@@ -69,16 +73,66 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     const fetchSubmission = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/manuscripts/${submissionId}`, {
+        
+        // Fetch the conversation to get the manuscript data
+        const conversationResponse = await fetch(`http://localhost:4000/api/conversations/${submissionId}`, {
           credentials: 'include'
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch submission details');
+        if (!conversationResponse.ok) {
+          throw new Error('Failed to fetch conversation details');
         }
 
-        const data = await response.json();
-        setSubmission(data.manuscript);
+        const conversationData = await conversationResponse.json();
+        const manuscript = conversationData.manuscript;
+
+        if (!manuscript) {
+          throw new Error('No manuscript associated with this conversation');
+        }
+
+        // Try to fetch full manuscript details, but fall back to conversation data if forbidden
+        let manuscriptData = manuscript;
+        try {
+          const manuscriptResponse = await fetch(`http://localhost:4000/api/manuscripts/${manuscript.id}`, {
+            credentials: 'include'
+          });
+
+          if (manuscriptResponse.ok) {
+            manuscriptData = await manuscriptResponse.json();
+          }
+        } catch (err) {
+          // If we can't fetch full manuscript details, use what we have from conversation
+          console.warn('Could not fetch full manuscript details, using conversation data:', err);
+        }
+
+        // Format submission data from either full manuscript or conversation manuscript data
+        setSubmission({
+          id: manuscriptData.id,
+          title: manuscriptData.title,
+          abstract: manuscriptData.abstract || '',
+          status: manuscriptData.status || 'SUBMITTED',
+          submittedAt: manuscriptData.submittedAt || manuscriptData.createdAt || new Date().toISOString(),
+          updatedAt: manuscriptData.updatedAt || new Date().toISOString(),
+          authors: manuscriptData.authorDetails?.map((author: any) => ({
+            id: author.id,
+            name: author.name,
+            email: author.email,
+            affiliation: author.affiliation,
+            isCorresponding: author.isCorresponding
+          })) || manuscriptData.authors?.map((name: string, index: number) => ({
+            id: `author-${index}`,
+            name,
+            email: '',
+            isCorresponding: index === 0
+          })) || [],
+          keywords: manuscriptData.keywords || [],
+          manuscript: manuscriptData.files?.[0] ? {
+            filename: manuscriptData.files[0].originalName,
+            size: manuscriptData.files[0].size,
+            uploadedAt: manuscriptData.files[0].uploadedAt
+          } : undefined,
+          reviewAssignments: [] // TODO: Add if available
+        });
       } catch (err) {
         console.error('Error fetching submission:', err);
         setError('Failed to load submission details');
@@ -91,6 +145,32 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       fetchSubmission();
     }
   }, [submissionId]);
+
+  const handleDownload = async () => {
+    if (!submission?.manuscript) return;
+    
+    try {
+      const response = await fetch(`http://localhost:4000/api/manuscripts/${submission.id}/download`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download manuscript');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = submission.manuscript.filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading manuscript:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -119,7 +199,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
           {/* Title and Status */}
           <Group justify="space-between" align="flex-start">
             <Box style={{ flex: 1 }}>
-              <Group gap="sm" mb="xs">
+              <Group gap="sm" mb="xs" align="center">
                 <Badge 
                   size="lg"
                   variant="filled"
@@ -128,10 +208,20 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 >
                   {getStatusLabel(submission.status)}
                 </Badge>
-                <Text size="sm" c="dimmed">
-                  ID: {submission.id}
-                </Text>
+                {submission.manuscript && (
+                  <Button
+                    size="sm"
+                    variant="light"
+                    leftSection={<IconDownload size={16} />}
+                    onClick={handleDownload}
+                  >
+                    Download Paper
+                  </Button>
+                )}
               </Group>
+              <Text size="sm" c="dimmed" mb="xs">
+                ID: {submission.id}
+              </Text>
               
               <Title order={1} size="h2" mb="md" style={{ lineHeight: 1.3 }}>
                 {submission.title}
@@ -153,14 +243,16 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
 
           {/* Keywords */}
           {submission.keywords && submission.keywords.length > 0 && (
-            <Group gap="xs">
-              <Text size="sm" fw={500} c="dimmed">Keywords:</Text>
-              {submission.keywords.map((keyword, index) => (
-                <Badge key={index} size="sm" variant="light" color="gray">
-                  {keyword}
-                </Badge>
-              ))}
-            </Group>
+            <Box>
+              <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
+              <Group gap="xs">
+                {submission.keywords.map((keyword, index) => (
+                  <Badge key={index} size="sm" variant="light" color="gray">
+                    {keyword}
+                  </Badge>
+                ))}
+              </Group>
+            </Box>
           )}
         </Stack>
       </Paper>
@@ -181,14 +273,16 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                     {author.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                   </Avatar>
                   <Box>
-                    <Text size="sm" fw={500}>
-                      {author.name}
+                    <Group gap="xs" align="center">
+                      <Text size="sm" fw={500}>
+                        {author.name}
+                      </Text>
                       {author.isCorresponding && (
-                        <Badge size="xs" variant="light" color="orange" ml="xs">
+                        <Badge size="xs" variant="light" color="orange">
                           Corresponding
                         </Badge>
                       )}
-                    </Text>
+                    </Group>
                     {author.affiliation && (
                       <Text size="xs" c="dimmed">{author.affiliation}</Text>
                     )}

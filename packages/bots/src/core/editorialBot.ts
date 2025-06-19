@@ -272,13 +272,162 @@ const helpCommand: BotCommand = {
   }
 };
 
+const respondCommand: BotCommand = {
+  name: 'respond',
+  description: 'Respond to a review invitation (accept or decline)',
+  usage: '@editorial-bot respond <assignment-id> <accept|decline> [message="optional message"]',
+  parameters: [
+    {
+      name: 'assignmentId',
+      description: 'The ID of the review assignment to respond to',
+      type: 'string',
+      required: true,
+      examples: ['assignment-12345']
+    },
+    {
+      name: 'response',
+      description: 'Accept or decline the review invitation',
+      type: 'enum',
+      required: true,
+      enumValues: ['accept', 'decline'],
+      examples: ['accept', 'decline']
+    },
+    {
+      name: 'message',
+      description: 'Optional message to include with your response',
+      type: 'string',
+      required: false,
+      examples: ['I am available for this review', 'I have a conflict of interest']
+    }
+  ],
+  examples: [
+    '@editorial-bot respond assignment-12345 accept',
+    '@editorial-bot respond assignment-67890 decline message="I have a conflict of interest"',
+    '@editorial-bot respond assignment-11111 accept message="Happy to review this work"'
+  ],
+  permissions: ['read_manuscript'],
+  async execute(params, context) {
+    const { assignmentId, response, message } = params;
+
+    let responseMessage = `📋 **Review Invitation Response**\n\n`;
+    responseMessage += `**Assignment ID:** ${assignmentId}\n`;
+    responseMessage += `**Response:** ${response.toUpperCase()}\n`;
+    
+    if (message) {
+      responseMessage += `**Message:** ${message}\n`;
+    }
+    
+    responseMessage += `**Processed:** ${new Date().toLocaleString()}\n\n`;
+
+    if (response === 'accept') {
+      responseMessage += `✅ Review invitation accepted. You can now begin your review.`;
+    } else {
+      responseMessage += `❌ Review invitation declined. Editors will be notified.`;
+    }
+
+    return {
+      messages: [{ content: responseMessage }],
+      actions: [{
+        type: 'RESPOND_TO_REVIEW',
+        data: { 
+          assignmentId, 
+          response: response.toUpperCase(), 
+          message 
+        }
+      }]
+    };
+  }
+};
+
+const submitCommand: BotCommand = {
+  name: 'submit',
+  description: 'Submit a review for a manuscript',
+  usage: '@editorial-bot submit <assignment-id> recommendation=<accept|minor_revision|major_revision|reject> review="your review text" [score=1-10] [confidential="editor comments"]',
+  parameters: [
+    {
+      name: 'assignmentId',
+      description: 'The ID of the review assignment',
+      type: 'string',
+      required: true,
+      examples: ['assignment-12345']
+    },
+    {
+      name: 'recommendation',
+      description: 'Your overall recommendation',
+      type: 'enum',
+      required: true,
+      enumValues: ['accept', 'minor_revision', 'major_revision', 'reject'],
+      examples: ['accept', 'minor_revision', 'major_revision', 'reject']
+    },
+    {
+      name: 'review',
+      description: 'Your detailed review of the manuscript',
+      type: 'string',
+      required: true,
+      examples: ['This manuscript presents a novel approach to...']
+    },
+    {
+      name: 'score',
+      description: 'Optional score from 1-10',
+      type: 'number',
+      required: false,
+      examples: ['8', '7', '6']
+    },
+    {
+      name: 'confidential',
+      description: 'Confidential comments for editors only',
+      type: 'string',
+      required: false,
+      examples: ['The methodology section needs clarification...']
+    }
+  ],
+  examples: [
+    '@editorial-bot submit assignment-12345 recommendation="accept" review="Excellent work with clear methodology"',
+    '@editorial-bot submit assignment-67890 recommendation="minor_revision" review="Good work but needs revision" score="7"',
+    '@editorial-bot submit assignment-11111 recommendation="major_revision" review="Interesting but needs significant work" confidential="Author seems inexperienced"'
+  ],
+  permissions: ['read_manuscript'],
+  async execute(params, context) {
+    const { assignmentId, recommendation, review, score, confidential } = params;
+
+    let responseMessage = `📝 **Review Submitted**\n\n`;
+    responseMessage += `**Assignment ID:** ${assignmentId}\n`;
+    responseMessage += `**Recommendation:** ${recommendation.replace('_', ' ').toUpperCase()}\n`;
+    
+    if (score) {
+      responseMessage += `**Score:** ${score}/10\n`;
+    }
+    
+    responseMessage += `**Submitted:** ${new Date().toLocaleString()}\n\n`;
+    responseMessage += `✅ Your review has been submitted and editors have been notified.`;
+    
+    if (confidential) {
+      responseMessage += `\n\n🔒 Confidential comments have been shared with editors only.`;
+    }
+
+    return {
+      messages: [{ content: responseMessage }],
+      actions: [{
+        type: 'SUBMIT_REVIEW',
+        data: { 
+          assignmentId, 
+          reviewContent: review,
+          recommendation: recommendation.toUpperCase(),
+          confidentialComments: confidential,
+          score: score ? parseInt(score) : undefined
+        }
+      }]
+    };
+  }
+};
+
 // Define the editorial bot
 export const editorialBot: CommandBot = {
   id: 'editorial-bot',
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, and reviewer assignments',
-  version: '2.0.0',
-  commands: [statusCommand, assignCommand, summaryCommand, helpCommand],
+  version: '2.1.0',
+  commands: [statusCommand, assignCommand, summaryCommand, respondCommand, submitCommand, helpCommand],
   keywords: ['editorial decision', 'review status', 'assign reviewer', 'manuscript status'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers'],

@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { prisma } from '@colloquium/database';
+import { prisma, GlobalRole } from '@colloquium/database';
 import { generateJWT, generateSecureToken } from '@colloquium/auth';
 import * as nodemailer from 'nodemailer';
 import { z } from 'zod';
+import { validateRequest } from '../middleware/validation';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ const transporter = nodemailer.createTransport({
 // Validation schemas
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  redirectUrl: z.string().url().optional()
+  redirectUrl: z.string().url('Invalid url').optional()
 });
 
 const verifySchema = z.object({
@@ -32,18 +33,9 @@ const verifySchema = z.object({
 });
 
 // POST /api/auth/login - Send magic link
-router.post('/login', async (req, res, next) => {
+router.post('/login', validateRequest({ body: loginSchema }), async (req, res, next) => {
   try {
-    const validation = loginSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Please provide a valid email address',
-        details: validation.error.issues
-      });
-    }
-
-    const { email, redirectUrl } = validation.data;
+    const { email, redirectUrl } = req.body;
 
     // Generate secure token
     const token = generateSecureToken();
@@ -59,7 +51,7 @@ router.post('/login', async (req, res, next) => {
       user = await prisma.user.create({
         data: {
           email: email.toLowerCase(),
-          role: 'AUTHOR'
+          role: GlobalRole.USER
         }
       });
     }
@@ -129,18 +121,9 @@ This link will expire in 15 minutes. If you didn't request this email, you can s
 });
 
 // GET /api/auth/verify - Verify magic link
-router.get('/verify', async (req, res, next) => {
+router.get('/verify', validateRequest({ query: verifySchema }), async (req, res, next) => {
   try {
-    const validation = verifySchema.safeParse(req.query);
-    if (!validation.success) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: 'Invalid token or email',
-        details: validation.error.issues
-      });
-    }
-
-    const { token, email } = validation.data;
+    const { token, email } = req.query as { token: string; email: string };
 
     // Find the magic link
     const magicLink = await prisma.magicLink.findUnique({
@@ -148,7 +131,7 @@ router.get('/verify', async (req, res, next) => {
       include: { user: true }
     });
 
-    if (!magicLink) {
+    if (!magicLink || !magicLink.user) {
       return res.status(400).json({
         error: 'Invalid Token',
         message: 'This magic link is invalid or has already been used'
@@ -187,9 +170,9 @@ router.get('/verify', async (req, res, next) => {
 
     // Generate JWT
     const jwtToken = generateJWT({
-      userId: magicLink.user!.id,
-      email: magicLink.user!.email,
-      role: magicLink.user!.role
+      userId: magicLink.user.id,
+      email: magicLink.user.email,
+      role: magicLink.user.role
     });
 
     // Set HTTP-only cookie for security
@@ -201,7 +184,7 @@ router.get('/verify', async (req, res, next) => {
     });
 
     // Check if user needs to complete profile (new user without name)
-    const needsProfileCompletion = !magicLink.user!.name;
+    const needsProfileCompletion = !magicLink.user.name;
     const finalRedirectUrl = needsProfileCompletion 
       ? `${process.env.FRONTEND_URL}/profile/complete`
       : magicLink.redirectUrl;
@@ -209,10 +192,10 @@ router.get('/verify', async (req, res, next) => {
     res.json({
       message: 'Successfully authenticated',
       user: {
-        id: magicLink.user!.id,
-        email: magicLink.user!.email,
-        name: magicLink.user!.name,
-        role: magicLink.user!.role
+        id: magicLink.user.id,
+        email: magicLink.user.email,
+        name: magicLink.user.name,
+        role: magicLink.user.role
       },
       token: jwtToken,
       redirectUrl: finalRedirectUrl,

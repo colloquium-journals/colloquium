@@ -1,0 +1,17 @@
+{
+  "name": "editorial-bot",
+  "version": "1.0.0",
+  "description": "Editorial workflow management bot for Colloquium",
+  "main": "index.js",
+  "colloquium": {
+    "botId": "editorial-bot",
+    "apiVersion": "1.0.0",
+    "permissions": ["read_manuscript", "update_manuscript", "assign_reviewers"],
+    "isDefault": true,
+    "category": "editorial"
+  },
+  "author": {
+    "name": "Colloquium Development Team"
+  },
+  "license": "MIT"
+}

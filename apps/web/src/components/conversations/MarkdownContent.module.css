@@ -1,0 +1,132 @@
+/* Markdown content styling for message content */
+.markdownContent {
+  display: inline;
+  white-space: pre-wrap;
+}
+
+/* Block-level markdown content needs different display */
+.markdownContentBlock {
+  display: inline-block;
+  width: 100%;
+  white-space: pre-wrap;
+}
+
+/* Apply markdown styles to both inline and block content */
+.markdownContent h1,
+.markdownContent h2,
+.markdownContent h3,
+.markdownContent h4,
+.markdownContent h5,
+.markdownContent h6,
+.markdownContentBlock h1,
+.markdownContentBlock h2,
+.markdownContentBlock h3,
+.markdownContentBlock h4,
+.markdownContentBlock h5,
+.markdownContentBlock h6 {
+  margin: 0.5em 0 0.25em 0;
+  font-weight: 600;
+}
+
+.markdownContent h1,
+.markdownContentBlock h1 {
+  font-size: 1.5em;
+}
+
+.markdownContent h2,
+.markdownContentBlock h2 {
+  font-size: 1.3em;
+}
+
+.markdownContent h3,
+.markdownContentBlock h3 {
+  font-size: 1.1em;
+}
+
+.markdownContent p,
+.markdownContentBlock p {
+  margin: 0.5em 0;
+  display: inline-block;
+  width: 100%;
+}
+
+.markdownContent ul,
+.markdownContent ol,
+.markdownContentBlock ul,
+.markdownContentBlock ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.markdownContent li,
+.markdownContentBlock li {
+  margin: 0.25em 0;
+}
+
+.markdownContent blockquote,
+.markdownContentBlock blockquote {
+  margin: 0.5em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid var(--mantine-color-gray-4);
+  background-color: var(--mantine-color-gray-0);
+  font-style: italic;
+}
+
+.markdownContent code,
+.markdownContentBlock code {
+  padding: 2px 4px;
+  border-radius: 3px;
+  background-color: var(--mantine-color-gray-1);
+  font-family: Monaco, Consolas, 'Courier New', monospace;
+  font-size: 0.9em;
+  border: 1px solid var(--mantine-color-gray-3);
+  color: var(--mantine-color-dark-7);
+  white-space: nowrap;
+}
+
+.markdownContent pre,
+.markdownContentBlock pre {
+  margin: 0.5em 0;
+  padding: 1em;
+  border-radius: 6px;
+  background-color: var(--mantine-color-gray-1);
+  overflow: auto;
+}
+
+.markdownContent pre code,
+.markdownContentBlock pre code {
+  padding: 0;
+  background-color: transparent;
+}
+
+.markdownContent a,
+.markdownContentBlock a {
+  color: var(--mantine-color-blue-6);
+  text-decoration: none;
+}
+
+.markdownContent a:hover,
+.markdownContentBlock a:hover {
+  text-decoration: underline;
+}
+
+.markdownContent strong,
+.markdownContentBlock strong {
+  font-weight: 600;
+}
+
+.markdownContent em,
+.markdownContentBlock em {
+  font-style: italic;
+}
+
+/* Ensure proper spacing between markdown and other elements */
+.markdownContent > :first-child,
+.markdownContentBlock > :first-child {
+  margin-top: 0;
+}
+
+.markdownContent > :last-child,
+.markdownContentBlock > :last-child {
+  margin-bottom: 0;
+}

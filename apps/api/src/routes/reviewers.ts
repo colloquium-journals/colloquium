@@ -1,0 +1,990 @@
+import { Router } from 'express';
+import { prisma } from '@colloquium/database';
+import { requireAuth, requireAnyRole } from '../middleware/auth';
+import { validateRequest, asyncHandler } from '../middleware/validation';
+import { 
+  ReviewAssignmentCreateSchema, 
+  ReviewAssignmentUpdateSchema,
+  ReviewerInvitationSchema,
+  ReviewerSearchSchema,
+  BulkReviewerAssignmentSchema,
+  ReviewInvitationResponseSchema,
+  ReviewSubmissionSchema,
+  IdSchema,
+  PaginationSchema
+} from '../schemas/validation';
+import * as nodemailer from 'nodemailer';
+
+const router = Router();
+
+// Email transporter (should be configured in a service)
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'localhost',
+  port: parseInt(process.env.SMTP_PORT || '1025'),
+  secure: false,
+  auth: process.env.SMTP_USER ? {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  } : undefined,
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// GET /api/reviewers/search - Search for potential reviewers
+router.get('/search',
+  requireAuth,
+  (req, res, next) => {
+    const { GlobalRole } = require('@colloquium/auth');
+    return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
+  },
+  validateRequest({
+    query: ReviewerSearchSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { query, manuscriptId, excludeConflicts, limit } = req.query;
+
+    // Build search conditions
+    const searchConditions: any = {
+      OR: [
+        { name: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+        { bio: { contains: query, mode: 'insensitive' } },
+        { affiliation: { contains: query, mode: 'insensitive' } }
+      ],
+      role: { in: ['USER', 'MANAGING_EDITOR', 'EDITOR_IN_CHIEF'] } // Potential reviewers
+    };
+
+    // Exclude users who already have assignments for this manuscript
+    if (manuscriptId && excludeConflicts) {
+      const existingAssignments = await prisma.reviewAssignment.findMany({
+        where: { manuscriptId },
+        select: { reviewerId: true }
+      });
+      
+      const assignedReviewerIds = existingAssignments.map(a => a.reviewerId);
+      if (assignedReviewerIds.length > 0) {
+        searchConditions.id = { notIn: assignedReviewerIds };
+      }
+
+      // Also exclude manuscript authors
+      const manuscript = await prisma.manuscript.findUnique({
+        where: { id: manuscriptId },
+        include: { authorRelations: true }
+      });
+
+      if (manuscript) {
+        const authorIds = manuscript.authorRelations.map(ar => ar.userId);
+        if (authorIds.length > 0) {
+          searchConditions.id = searchConditions.id || {};
+          searchConditions.id.notIn = [...(searchConditions.id.notIn || []), ...authorIds];
+        }
+      }
+    }
+
+    const reviewers = await prisma.user.findMany({
+      where: searchConditions,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        affiliation: true,
+        orcidId: true,
+        createdAt: true
+      },
+      take: limit,
+      orderBy: [
+        { name: 'asc' },
+        { email: 'asc' }
+      ]
+    });
+
+    res.json({
+      reviewers,
+      total: reviewers.length,
+      query: {
+        query,
+        manuscriptId,
+        excludeConflicts,
+        limit
+      }
+    });
+  })
+);
+
+// POST /api/reviewers/invite - Send reviewer invitations
+router.post('/invite',
+  requireAuth,
+  (req, res, next) => {
+    const { GlobalRole } = require('@colloquium/auth');
+    return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
+  },
+  validateRequest({
+    body: ReviewerInvitationSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { manuscriptId, reviewerEmails, dueDate, message, autoAssign } = req.body;
+    const inviterId = req.user.id;
+
+    // Verify manuscript exists and user has permission
+    const manuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId },
+      include: {
+        authorRelations: {
+          include: { user: true }
+        }
+      }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: {
+          message: 'Manuscript not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    const results = {
+      successful: [] as any[],
+      failed: [] as any[],
+      alreadyInvited: [] as any[]
+    };
+
+    for (const email of reviewerEmails) {
+      try {
+        // Check if user exists
+        let reviewer = await prisma.user.findUnique({
+          where: { email: email.toLowerCase() }
+        });
+
+        // If user doesn't exist, create them as a potential reviewer
+        if (!reviewer) {
+          reviewer = await prisma.user.create({
+            data: {
+              email: email.toLowerCase(),
+              role: 'USER'
+            }
+          });
+        }
+
+        // Check if already assigned to this manuscript
+        const existingAssignment = await prisma.reviewAssignment.findUnique({
+          where: {
+            manuscriptId_reviewerId: {
+              manuscriptId,
+              reviewerId: reviewer.id
+            }
+          }
+        });
+
+        if (existingAssignment) {
+          results.alreadyInvited.push({
+            email,
+            reviewerId: reviewer.id,
+            status: existingAssignment.status
+          });
+          continue;
+        }
+
+        // Create review assignment
+        const assignment = await prisma.reviewAssignment.create({
+          data: {
+            manuscriptId,
+            reviewerId: reviewer.id,
+            status: autoAssign ? 'ACCEPTED' : 'PENDING',
+            dueDate: dueDate ? new Date(dueDate) : undefined
+          }
+        });
+
+        // Send invitation email
+        if (!autoAssign) {
+          const invitationUrl = `${process.env.FRONTEND_URL}/review-invitations/${assignment.id}`;
+          
+          try {
+            await transporter.sendMail({
+              from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+              to: reviewer.email,
+              subject: `Review Invitation: ${manuscript.title}`,
+              html: `
+                <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                  <h1 style="color: #2563eb; margin-bottom: 24px;">Review Invitation</h1>
+                  <p>You have been invited to review the manuscript:</p>
+                  <h2 style="margin: 16px 0;">${manuscript.title}</h2>
+                  
+                  ${message ? `
+                    <div style="background-color: #f9fafb; padding: 16px; margin: 24px 0; border-radius: 6px;">
+                      <h3 style="margin-top: 0;">Message from Editor:</h3>
+                      <p style="margin-bottom: 0;">${message}</p>
+                    </div>
+                  ` : ''}
+                  
+                  <p><strong>Review due date:</strong> ${dueDate ? new Date(dueDate).toLocaleDateString() : 'To be determined'}</p>
+                  
+                  <div style="margin: 32px 0;">
+                    <a href="${invitationUrl}?action=accept" 
+                       style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-right: 16px;">
+                      Accept Review
+                    </a>
+                    <a href="${invitationUrl}?action=decline" 
+                       style="display: inline-block; background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                      Decline Review
+                    </a>
+                  </div>
+                  
+                  <p style="color: #6b7280; font-size: 14px;">
+                    If you cannot click the buttons above, visit: ${invitationUrl}
+                  </p>
+                </div>
+              `,
+              text: `
+Review Invitation
+
+You have been invited to review: ${manuscript.title}
+
+${message ? `Message from Editor: ${message}\n\n` : ''}
+
+Review due: ${dueDate ? new Date(dueDate).toLocaleDateString() : 'To be determined'}
+
+Accept: ${invitationUrl}?action=accept
+Decline: ${invitationUrl}?action=decline
+              `
+            });
+          } catch (emailError) {
+            console.error('Failed to send review invitation:', emailError);
+          }
+        }
+
+        results.successful.push({
+          email,
+          reviewerId: reviewer.id,
+          assignmentId: assignment.id,
+          status: assignment.status
+        });
+
+      } catch (error) {
+        console.error(`Failed to invite reviewer ${email}:`, error);
+        results.failed.push({
+          email,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    res.json({
+      message: `Sent ${results.successful.length} invitations successfully`,
+      results
+    });
+  })
+);
+
+// POST /api/reviewers/assign - Assign reviewer directly (no invitation)
+router.post('/assign',
+  requireAuth,
+  (req, res, next) => {
+    const { GlobalRole } = require('@colloquium/auth');
+    return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
+  },
+  validateRequest({
+    body: ReviewAssignmentCreateSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { manuscriptId, reviewerId, dueDate, message } = req.body;
+
+    // Verify manuscript exists
+    const manuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: {
+          message: 'Manuscript not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Verify reviewer exists
+    const reviewer = await prisma.user.findUnique({
+      where: { id: reviewerId }
+    });
+
+    if (!reviewer) {
+      return res.status(404).json({
+        error: {
+          message: 'Reviewer not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Check if already assigned
+    const existingAssignment = await prisma.reviewAssignment.findUnique({
+      where: {
+        manuscriptId_reviewerId: {
+          manuscriptId,
+          reviewerId
+        }
+      }
+    });
+
+    if (existingAssignment) {
+      return res.status(409).json({
+        error: {
+          message: 'Reviewer is already assigned to this manuscript',
+          type: 'ConflictError'
+        }
+      });
+    }
+
+    // Create assignment
+    const assignment = await prisma.reviewAssignment.create({
+      data: {
+        manuscriptId,
+        reviewerId,
+        status: 'ACCEPTED',
+        dueDate: dueDate ? new Date(dueDate) : undefined
+      },
+      include: {
+        reviewer: {
+          select: { id: true, name: true, email: true }
+        },
+        manuscript: {
+          select: { id: true, title: true }
+        }
+      }
+    });
+
+    res.status(201).json({
+      message: 'Reviewer assigned successfully',
+      assignment
+    });
+  })
+);
+
+// GET /api/reviewers/assignments/:manuscriptId - Get review assignments for a manuscript
+router.get('/assignments/:manuscriptId',
+  requireAuth,
+  (req, res, next) => {
+    const { GlobalRole } = require('@colloquium/auth');
+    return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
+  },
+  validateRequest({
+    params: IdSchema.transform(id => ({ manuscriptId: id }))
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { manuscriptId } = req.params;
+
+    const assignments = await prisma.reviewAssignment.findMany({
+      where: { manuscriptId },
+      include: {
+        reviewer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            affiliation: true,
+            orcidId: true
+          }
+        }
+      },
+      orderBy: { assignedAt: 'desc' }
+    });
+
+    res.json({
+      assignments,
+      summary: {
+        total: assignments.length,
+        pending: assignments.filter(a => a.status === 'PENDING').length,
+        accepted: assignments.filter(a => a.status === 'ACCEPTED').length,
+        declined: assignments.filter(a => a.status === 'DECLINED').length,
+        inProgress: assignments.filter(a => a.status === 'IN_PROGRESS').length,
+        completed: assignments.filter(a => a.status === 'COMPLETED').length
+      }
+    });
+  })
+);
+
+// PUT /api/reviewers/assignments/:id - Update review assignment
+router.put('/assignments/:id',
+  requireAuth,
+  validateRequest({
+    params: IdSchema.transform(id => ({ id })),
+    body: ReviewAssignmentUpdateSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const { status, dueDate, completedAt } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Get the assignment
+    const assignment = await prisma.reviewAssignment.findUnique({
+      where: { id },
+      include: {
+        reviewer: true,
+        manuscript: true
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review assignment not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Check permissions: reviewer can update their own assignments, editors can update any
+    const canUpdate = assignment.reviewerId === userId || 
+                     ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'].includes(userRole);
+
+    if (!canUpdate) {
+      return res.status(403).json({
+        error: {
+          message: 'You do not have permission to update this assignment',
+          type: 'ForbiddenError'
+        }
+      });
+    }
+
+    // Update the assignment
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (dueDate !== undefined) updateData.dueDate = new Date(dueDate);
+    if (completedAt !== undefined) updateData.completedAt = new Date(completedAt);
+
+    // Auto-set completion date when status changes to COMPLETED
+    if (status === 'COMPLETED' && !completedAt) {
+      updateData.completedAt = new Date();
+    }
+
+    const updatedAssignment = await prisma.reviewAssignment.update({
+      where: { id },
+      data: updateData,
+      include: {
+        reviewer: {
+          select: { id: true, name: true, email: true }
+        },
+        manuscript: {
+          select: { id: true, title: true }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Review assignment updated successfully',
+      assignment: updatedAssignment
+    });
+  })
+);
+
+// DELETE /api/reviewers/assignments/:id - Remove review assignment
+router.delete('/assignments/:id',
+  requireAuth,
+  (req, res, next) => {
+    const { GlobalRole } = require('@colloquium/auth');
+    return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
+  },
+  validateRequest({
+    params: IdSchema.transform(id => ({ id }))
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+
+    const assignment = await prisma.reviewAssignment.findUnique({
+      where: { id }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review assignment not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    await prisma.reviewAssignment.delete({
+      where: { id }
+    });
+
+    res.json({
+      message: 'Review assignment removed successfully'
+    });
+  })
+);
+
+// POST /api/reviewers/bulk-assign - Bulk assign reviewers
+router.post('/bulk-assign',
+  requireAuth,
+  (req, res, next) => {
+    const { GlobalRole } = require('@colloquium/auth');
+    return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
+  },
+  validateRequest({
+    body: BulkReviewerAssignmentSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { manuscriptId, assignments } = req.body;
+
+    // Verify manuscript exists
+    const manuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: {
+          message: 'Manuscript not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    const results = {
+      successful: [] as any[],
+      failed: [] as any[],
+      skipped: [] as any[]
+    };
+
+    for (const assignment of assignments) {
+      try {
+        // Check if reviewer exists
+        const reviewer = await prisma.user.findUnique({
+          where: { id: assignment.reviewerId }
+        });
+
+        if (!reviewer) {
+          results.failed.push({
+            reviewerId: assignment.reviewerId,
+            error: 'Reviewer not found'
+          });
+          continue;
+        }
+
+        // Check if already assigned
+        const existing = await prisma.reviewAssignment.findUnique({
+          where: {
+            manuscriptId_reviewerId: {
+              manuscriptId,
+              reviewerId: assignment.reviewerId
+            }
+          }
+        });
+
+        if (existing) {
+          results.skipped.push({
+            reviewerId: assignment.reviewerId,
+            reason: 'Already assigned'
+          });
+          continue;
+        }
+
+        // Create assignment
+        const newAssignment = await prisma.reviewAssignment.create({
+          data: {
+            manuscriptId,
+            reviewerId: assignment.reviewerId,
+            status: 'ACCEPTED',
+            dueDate: assignment.dueDate ? new Date(assignment.dueDate) : undefined
+          },
+          include: {
+            reviewer: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        });
+
+        results.successful.push(newAssignment);
+
+      } catch (error) {
+        results.failed.push({
+          reviewerId: assignment.reviewerId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    res.json({
+      message: `Successfully assigned ${results.successful.length} reviewers`,
+      results
+    });
+  })
+);
+
+// POST /api/reviewers/invitations/:id/respond - Respond to review invitation
+router.post('/invitations/:id/respond',
+  requireAuth,
+  validateRequest({
+    params: IdSchema.transform(id => ({ id })),
+    body: ReviewInvitationResponseSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const { response, message, availableUntil } = req.body;
+    const userId = req.user.id;
+
+    // Find the review assignment
+    const assignment = await prisma.reviewAssignment.findUnique({
+      where: { id },
+      include: {
+        reviewer: true,
+        manuscript: {
+          include: {
+            authorRelations: {
+              include: { user: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review invitation not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Verify the user is the assigned reviewer
+    if (assignment.reviewerId !== userId) {
+      return res.status(403).json({
+        error: {
+          message: 'You can only respond to your own review invitations',
+          type: 'ForbiddenError'
+        }
+      });
+    }
+
+    // Check if already responded
+    if (assignment.status !== 'PENDING') {
+      return res.status(400).json({
+        error: {
+          message: `You have already ${assignment.status.toLowerCase()} this review invitation`,
+          type: 'ValidationError'
+        }
+      });
+    }
+
+    // Update the assignment status
+    const newStatus = response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED';
+    const updatedAssignment = await prisma.reviewAssignment.update({
+      where: { id },
+      data: {
+        status: newStatus,
+        ...(response === 'ACCEPT' && availableUntil && { dueDate: new Date(availableUntil) })
+      },
+      include: {
+        reviewer: {
+          select: { id: true, name: true, email: true }
+        },
+        manuscript: {
+          select: { id: true, title: true }
+        }
+      }
+    });
+
+    // Create a message in the manuscript's editorial conversation to notify editors
+    const editorialConversation = await prisma.conversation.findFirst({
+      where: {
+        manuscriptId: assignment.manuscriptId,
+        type: 'EDITORIAL'
+      }
+    });
+
+    if (editorialConversation) {
+      const responseMessage = response === 'ACCEPT' 
+        ? `✅ **Review Invitation Accepted**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n**Manuscript:** ${assignment.manuscript.title}${message ? `\n**Message:** ${message}` : ''}`
+        : `❌ **Review Invitation Declined**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n**Manuscript:** ${assignment.manuscript.title}${message ? `\n**Reason:** ${message}` : ''}`;
+
+      await prisma.message.create({
+        data: {
+          content: responseMessage,
+          conversationId: editorialConversation.id,
+          authorId: userId,
+          privacy: 'EDITOR_ONLY',
+          metadata: {
+            type: 'review_invitation_response',
+            assignmentId: assignment.id,
+            response: newStatus
+          }
+        }
+      });
+    }
+
+    // Send notification email to editors
+    try {
+      const editors = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
+        },
+        select: { email: true, name: true }
+      });
+
+      const emailSubject = `Review ${response === 'ACCEPT' ? 'Accepted' : 'Declined'}: ${assignment.manuscript.title}`;
+      const emailContent = `
+        <h2>Review Invitation ${response === 'ACCEPT' ? 'Accepted' : 'Declined'}</h2>
+        <p><strong>Reviewer:</strong> ${assignment.reviewer.name || assignment.reviewer.email}</p>
+        <p><strong>Manuscript:</strong> ${assignment.manuscript.title}</p>
+        ${message ? `<p><strong>${response === 'ACCEPT' ? 'Message' : 'Reason'}:</strong> ${message}</p>` : ''}
+        ${response === 'ACCEPT' && availableUntil ? `<p><strong>Available until:</strong> ${new Date(availableUntil).toLocaleDateString()}</p>` : ''}
+      `;
+
+      for (const editor of editors) {
+        await transporter.sendMail({
+          from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+          to: editor.email,
+          subject: emailSubject,
+          html: `
+            <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <h1 style="color: #2563eb; margin-bottom: 24px;">Review Response Notification</h1>
+              ${emailContent}
+              <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+                This is an automated notification from the Colloquium editorial system.
+              </p>
+            </div>
+          `,
+          text: `Review Invitation ${response}\n\nReviewer: ${assignment.reviewer.name || assignment.reviewer.email}\nManuscript: ${assignment.manuscript.title}${message ? `\n${response === 'ACCEPT' ? 'Message' : 'Reason'}: ${message}` : ''}`
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send editor notification email:', emailError);
+    }
+
+    res.json({
+      message: `Review invitation ${response.toLowerCase()}ed successfully`,
+      assignment: updatedAssignment,
+      status: newStatus
+    });
+  })
+);
+
+// POST /api/reviewers/assignments/:id/submit - Submit review
+router.post('/assignments/:id/submit',
+  requireAuth,
+  validateRequest({
+    params: IdSchema.transform(id => ({ id })),
+    body: ReviewSubmissionSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const { reviewContent, recommendation, confidentialComments, score, attachments } = req.body;
+    const userId = req.user.id;
+
+    // Find the review assignment
+    const assignment = await prisma.reviewAssignment.findUnique({
+      where: { id },
+      include: {
+        reviewer: true,
+        manuscript: {
+          include: {
+            authorRelations: {
+              include: { user: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review assignment not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Verify the user is the assigned reviewer
+    if (assignment.reviewerId !== userId) {
+      return res.status(403).json({
+        error: {
+          message: 'You can only submit reviews for your own assignments',
+          type: 'ForbiddenError'
+        }
+      });
+    }
+
+    // Check if review is in the right status
+    if (!['ACCEPTED', 'IN_PROGRESS'].includes(assignment.status)) {
+      return res.status(400).json({
+        error: {
+          message: `Cannot submit review for assignment with status: ${assignment.status}`,
+          type: 'ValidationError'
+        }
+      });
+    }
+
+    // Update assignment to completed
+    const updatedAssignment = await prisma.reviewAssignment.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date()
+      }
+    });
+
+    // Create review submission record (you might want to add this to your schema)
+    const reviewSubmission = {
+      assignmentId: id,
+      reviewContent,
+      recommendation,
+      confidentialComments,
+      score,
+      attachments,
+      submittedAt: new Date()
+    };
+
+    // Create message in review conversation
+    const reviewConversation = await prisma.conversation.findFirst({
+      where: {
+        manuscriptId: assignment.manuscriptId,
+        type: 'REVIEW'
+      }
+    });
+
+    if (reviewConversation) {
+      await prisma.message.create({
+        data: {
+          content: `📝 **Review Submitted**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n\n**Recommendation:** ${recommendation}\n\n**Review:**\n${reviewContent}${score ? `\n\n**Score:** ${score}/10` : ''}`,
+          conversationId: reviewConversation.id,
+          authorId: userId,
+          privacy: 'AUTHOR_VISIBLE',
+          metadata: {
+            type: 'review_submission',
+            assignmentId: id,
+            recommendation,
+            score,
+            hasConfidentialComments: !!confidentialComments
+          }
+        }
+      });
+
+      // Create confidential comments for editors only
+      if (confidentialComments) {
+        await prisma.message.create({
+          data: {
+            content: `🔒 **Confidential Comments**\n\n${confidentialComments}`,
+            conversationId: reviewConversation.id,
+            authorId: userId,
+            privacy: 'EDITOR_ONLY',
+            metadata: {
+              type: 'confidential_review_comments',
+              assignmentId: id
+            }
+          }
+        });
+      }
+    }
+
+    // Notify editors
+    try {
+      const editors = await prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
+        },
+        select: { email: true, name: true }
+      });
+
+      for (const editor of editors) {
+        await transporter.sendMail({
+          from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+          to: editor.email,
+          subject: `Review Submitted: ${assignment.manuscript.title}`,
+          html: `
+            <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+              <h1 style="color: #2563eb; margin-bottom: 24px;">Review Submitted</h1>
+              <p><strong>Reviewer:</strong> ${assignment.reviewer.name || assignment.reviewer.email}</p>
+              <p><strong>Manuscript:</strong> ${assignment.manuscript.title}</p>
+              <p><strong>Recommendation:</strong> ${recommendation}</p>
+              ${score ? `<p><strong>Score:</strong> ${score}/10</p>` : ''}
+              <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+                View the full review in the manuscript conversation.
+              </p>
+            </div>
+          `,
+          text: `Review Submitted\n\nReviewer: ${assignment.reviewer.name || assignment.reviewer.email}\nManuscript: ${assignment.manuscript.title}\nRecommendation: ${recommendation}${score ? `\nScore: ${score}/10` : ''}`
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send review submission notification:', emailError);
+    }
+
+    res.json({
+      message: 'Review submitted successfully',
+      assignment: updatedAssignment,
+      submission: reviewSubmission
+    });
+  })
+);
+
+// GET /api/reviewers/invitations/:id - Get review invitation details
+router.get('/invitations/:id',
+  requireAuth,
+  validateRequest({
+    params: IdSchema.transform(id => ({ id }))
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const assignment = await prisma.reviewAssignment.findUnique({
+      where: { id },
+      include: {
+        reviewer: {
+          select: { id: true, name: true, email: true }
+        },
+        manuscript: {
+          select: {
+            id: true,
+            title: true,
+            abstract: true,
+            submittedAt: true,
+            authorRelations: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                    affiliation: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review invitation not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Verify the user is the assigned reviewer
+    if (assignment.reviewerId !== userId) {
+      return res.status(403).json({
+        error: {
+          message: 'You can only view your own review invitations',
+          type: 'ForbiddenError'
+        }
+      });
+    }
+
+    res.json({
+      invitation: assignment
+    });
+  })
+);
+
+export default router;

@@ -95,10 +95,187 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-// Role-based access control
+// Role-based access control with global and manuscript-specific permissions
+export enum GlobalPermission {
+  // System administration
+  MANAGE_JOURNAL_SETTINGS = 'manage_journal_settings',
+  MANAGE_USERS = 'manage_users',
+  MANAGE_BOTS = 'manage_bots',
+  INSTALL_BOTS = 'install_bots',
+  
+  // Editorial oversight
+  VIEW_ALL_MANUSCRIPTS = 'view_all_manuscripts',
+  ASSIGN_ACTION_EDITORS = 'assign_action_editors',
+  OVERRIDE_EDITORIAL_DECISIONS = 'override_editorial_decisions',
+  
+  // User management
+  ONBOARD_USERS = 'onboard_users',
+  MANAGE_REVIEWER_POOL = 'manage_reviewer_pool',
+  
+  // Basic permissions
+  SUBMIT_MANUSCRIPT = 'submit_manuscript',
+  CREATE_CONVERSATION = 'create_conversation'
+}
+
+export enum ManuscriptPermission {
+  // Author permissions
+  EDIT_MANUSCRIPT = 'edit_manuscript',
+  WITHDRAW_MANUSCRIPT = 'withdraw_manuscript',
+  RESPOND_TO_REVIEWS = 'respond_to_reviews',
+  
+  // Editor permissions  
+  ASSIGN_REVIEWERS = 'assign_reviewers',
+  MAKE_EDITORIAL_DECISION = 'make_editorial_decision',
+  MODERATE_CONVERSATIONS = 'moderate_conversations',
+  ACCESS_EDITOR_CONVERSATIONS = 'access_editor_conversations',
+  
+  // Reviewer permissions
+  ACCESS_REVIEW_MATERIALS = 'access_review_materials',
+  SUBMIT_REVIEW = 'submit_review',
+  
+  // General access
+  VIEW_MANUSCRIPT = 'view_manuscript',
+  PARTICIPATE_IN_CONVERSATIONS = 'participate_in_conversations'
+}
+
+export enum GlobalRole {
+  ADMIN = 'ADMIN',
+  EDITOR_IN_CHIEF = 'EDITOR_IN_CHIEF', 
+  MANAGING_EDITOR = 'MANAGING_EDITOR',
+  USER = 'USER',
+  BOT = 'BOT'
+}
+
+export const GLOBAL_ROLE_PERMISSIONS: Record<GlobalRole, GlobalPermission[]> = {
+  [GlobalRole.ADMIN]: [
+    GlobalPermission.MANAGE_JOURNAL_SETTINGS,
+    GlobalPermission.MANAGE_USERS,
+    GlobalPermission.MANAGE_BOTS,
+    GlobalPermission.INSTALL_BOTS,
+    GlobalPermission.VIEW_ALL_MANUSCRIPTS,
+    GlobalPermission.ASSIGN_ACTION_EDITORS,
+    GlobalPermission.OVERRIDE_EDITORIAL_DECISIONS,
+    GlobalPermission.ONBOARD_USERS,
+    GlobalPermission.MANAGE_REVIEWER_POOL,
+    GlobalPermission.SUBMIT_MANUSCRIPT,
+    GlobalPermission.CREATE_CONVERSATION
+  ],
+  [GlobalRole.EDITOR_IN_CHIEF]: [
+    GlobalPermission.VIEW_ALL_MANUSCRIPTS,
+    GlobalPermission.ASSIGN_ACTION_EDITORS,
+    GlobalPermission.OVERRIDE_EDITORIAL_DECISIONS,
+    GlobalPermission.MANAGE_REVIEWER_POOL,
+    GlobalPermission.SUBMIT_MANUSCRIPT,
+    GlobalPermission.CREATE_CONVERSATION
+  ],
+  [GlobalRole.MANAGING_EDITOR]: [
+    GlobalPermission.ONBOARD_USERS,
+    GlobalPermission.MANAGE_REVIEWER_POOL,
+    GlobalPermission.ASSIGN_ACTION_EDITORS,
+    GlobalPermission.SUBMIT_MANUSCRIPT,
+    GlobalPermission.CREATE_CONVERSATION
+  ],
+  [GlobalRole.USER]: [
+    GlobalPermission.SUBMIT_MANUSCRIPT,
+    GlobalPermission.CREATE_CONVERSATION
+  ],
+  [GlobalRole.BOT]: []
+};
+
+// Check if user has global permission
+export function hasGlobalPermission(userRole: GlobalRole, permission: GlobalPermission): boolean {
+  const rolePermissions = GLOBAL_ROLE_PERMISSIONS[userRole];
+  return rolePermissions.includes(permission);
+}
+
+// Check manuscript-specific permissions based on relationship to manuscript
+export function hasManuscriptPermission(
+  userRole: GlobalRole,
+  permission: ManuscriptPermission,
+  context: {
+    isAuthor?: boolean;
+    isActionEditor?: boolean;
+    isReviewer?: boolean;
+    isPublished?: boolean;
+  }
+): boolean {
+  const { isAuthor, isActionEditor, isReviewer, isPublished } = context;
+  
+  // Admin and Editor-in-Chief have most manuscript permissions
+  if (userRole === GlobalRole.ADMIN || userRole === GlobalRole.EDITOR_IN_CHIEF) {
+    switch (permission) {
+      case ManuscriptPermission.VIEW_MANUSCRIPT:
+      case ManuscriptPermission.ACCESS_EDITOR_CONVERSATIONS:
+      case ManuscriptPermission.MODERATE_CONVERSATIONS:
+      case ManuscriptPermission.MAKE_EDITORIAL_DECISION:
+      case ManuscriptPermission.ASSIGN_REVIEWERS:
+        return true;
+      default:
+        break;
+    }
+  }
+  
+  // Author permissions
+  if (isAuthor) {
+    switch (permission) {
+      case ManuscriptPermission.VIEW_MANUSCRIPT:
+      case ManuscriptPermission.EDIT_MANUSCRIPT:
+      case ManuscriptPermission.WITHDRAW_MANUSCRIPT:
+      case ManuscriptPermission.RESPOND_TO_REVIEWS:
+      case ManuscriptPermission.PARTICIPATE_IN_CONVERSATIONS:
+        return true;
+      default:
+        break;
+    }
+  }
+  
+  // Action Editor permissions
+  if (isActionEditor) {
+    switch (permission) {
+      case ManuscriptPermission.VIEW_MANUSCRIPT:
+      case ManuscriptPermission.ASSIGN_REVIEWERS:
+      case ManuscriptPermission.MAKE_EDITORIAL_DECISION:
+      case ManuscriptPermission.MODERATE_CONVERSATIONS:
+      case ManuscriptPermission.ACCESS_EDITOR_CONVERSATIONS:
+      case ManuscriptPermission.PARTICIPATE_IN_CONVERSATIONS:
+        return true;
+      default:
+        break;
+    }
+  }
+  
+  // Reviewer permissions
+  if (isReviewer) {
+    switch (permission) {
+      case ManuscriptPermission.VIEW_MANUSCRIPT:
+      case ManuscriptPermission.ACCESS_REVIEW_MATERIALS:
+      case ManuscriptPermission.SUBMIT_REVIEW:
+      case ManuscriptPermission.PARTICIPATE_IN_CONVERSATIONS:
+        return true;
+      default:
+        break;
+    }
+  }
+  
+  // Public access for published manuscripts
+  if (isPublished && permission === ManuscriptPermission.VIEW_MANUSCRIPT) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Legacy compatibility functions (to be phased out)
+export enum Role {
+  AUTHOR = 'USER', // Map to USER since authorship is now manuscript-specific
+  REVIEWER = 'USER',
+  EDITOR = 'MANAGING_EDITOR',
+  ADMIN = 'ADMIN'
+}
+
 export enum Permission {
   READ_MANUSCRIPT = 'read_manuscript',
-  EDIT_MANUSCRIPT = 'edit_manuscript',
+  EDIT_MANUSCRIPT = 'edit_manuscript', 
   SUBMIT_MANUSCRIPT = 'submit_manuscript',
   DELETE_MANUSCRIPT = 'delete_manuscript',
   CREATE_CONVERSATION = 'create_conversation',
@@ -111,57 +288,27 @@ export enum Permission {
   MANAGE_USERS = 'manage_users'
 }
 
-export enum Role {
-  AUTHOR = 'AUTHOR',
-  REVIEWER = 'REVIEWER',
-  EDITOR = 'EDITOR',
-  ADMIN = 'ADMIN'
+// Legacy permission checking (deprecated)
+export function hasPermission(userRole: GlobalRole, permission: Permission): boolean {
+  // Map old permissions to new system
+  switch (permission) {
+    case Permission.MANAGE_SETTINGS:
+      return hasGlobalPermission(userRole, GlobalPermission.MANAGE_JOURNAL_SETTINGS);
+    case Permission.MANAGE_USERS:
+      return hasGlobalPermission(userRole, GlobalPermission.MANAGE_USERS);
+    case Permission.SUBMIT_MANUSCRIPT:
+      return hasGlobalPermission(userRole, GlobalPermission.SUBMIT_MANUSCRIPT);
+    case Permission.CREATE_CONVERSATION:
+      return hasGlobalPermission(userRole, GlobalPermission.CREATE_CONVERSATION);
+    default:
+      return false;
+  }
 }
 
-export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  [Role.AUTHOR]: [
-    Permission.READ_MANUSCRIPT,
-    Permission.EDIT_MANUSCRIPT,
-    Permission.SUBMIT_MANUSCRIPT,
-    Permission.CREATE_CONVERSATION
-  ],
-  [Role.REVIEWER]: [
-    Permission.READ_MANUSCRIPT,
-    Permission.CREATE_CONVERSATION
-  ],
-  [Role.EDITOR]: [
-    Permission.READ_MANUSCRIPT,
-    Permission.EDIT_MANUSCRIPT,
-    Permission.CREATE_CONVERSATION,
-    Permission.MODERATE_CONVERSATION,
-    Permission.ASSIGN_REVIEWERS,
-    Permission.MAKE_EDITORIAL_DECISIONS
-  ],
-  [Role.ADMIN]: [
-    Permission.READ_MANUSCRIPT,
-    Permission.EDIT_MANUSCRIPT,
-    Permission.SUBMIT_MANUSCRIPT,
-    Permission.DELETE_MANUSCRIPT,
-    Permission.CREATE_CONVERSATION,
-    Permission.MODERATE_CONVERSATION,
-    Permission.ASSIGN_REVIEWERS,
-    Permission.MAKE_EDITORIAL_DECISIONS,
-    Permission.INSTALL_BOTS,
-    Permission.MANAGE_BOTS,
-    Permission.MANAGE_SETTINGS,
-    Permission.MANAGE_USERS
-  ]
-};
-
-export function hasPermission(userRole: Role, permission: Permission): boolean {
-  const rolePermissions = ROLE_PERMISSIONS[userRole];
-  return rolePermissions.includes(permission);
-}
-
-export function hasAnyPermission(userRole: Role, permissions: Permission[]): boolean {
+export function hasAnyPermission(userRole: GlobalRole, permissions: Permission[]): boolean {
   return permissions.some(permission => hasPermission(userRole, permission));
 }
 
-export function hasAllPermissions(userRole: Role, permissions: Permission[]): boolean {
+export function hasAllPermissions(userRole: GlobalRole, permissions: Permission[]): boolean {
   return permissions.every(permission => hasPermission(userRole, permission));
 }
