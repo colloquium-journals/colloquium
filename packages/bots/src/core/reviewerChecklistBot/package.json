@@ -1,0 +1,21 @@
+{
+  "name": "reviewer-checklist-bot",
+  "version": "1.0.0",
+  "description": "Reviewer checklist bot for systematic manuscript evaluation",
+  "main": "index.js",
+  "colloquium": {
+    "botId": "reviewer-checklist",
+    "apiVersion": "1.0.0",
+    "permissions": ["read_manuscript", "create_checklist"],
+    "isDefault": true,
+    "category": "quality",
+    "defaultConfig": {
+      "title": "Manuscript Review Checklist",
+      "criteria": []
+    }
+  },
+  "author": {
+    "name": "Colloquium Development Team"
+  },
+  "license": "MIT"
+}

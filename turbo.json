@@ -1,14 +1,19 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
-  "pipeline": {
+  "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "interruptible": true,
+      "env": ["PORT"]
+    },
+    "dev#@colloquium/api": {
+      "dependsOn": ["@colloquium/bots#build", "@colloquium/types#build"]
     },
     "lint": {
       "dependsOn": ["^lint"]

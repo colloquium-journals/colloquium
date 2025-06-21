@@ -141,14 +141,8 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
 
     setIsSubmitting(true);
     try {
-      // Process bot mentions in the content
-      let processedContent = content;
-      mentionedBots.forEach(bot => {
-        processedContent = processedContent.replace(
-          new RegExp(`@${bot.id}`, 'g'),
-          `@${bot.name}`
-        );
-      });
+      // Keep bot mentions as-is (using bot ID)
+      const processedContent = content;
 
       await onSubmit(processedContent, privacy);
       setContent('');
@@ -269,43 +263,43 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
                   <Text size="sm" fw={600}>Markdown Formatting</Text>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs">**bold**</Code>
+                    <Code>**bold**</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
                     <Text size="xs" fw={600}>bold</Text>
                   </Group>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs">*italic*</Code>
+                    <Code>*italic*</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
                     <Text size="xs" fs="italic">italic</Text>
                   </Group>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs">`code`</Code>
+                    <Code>`code`</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
-                    <Code size="xs">code</Code>
+                    <Code>code</Code>
                   </Group>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs"># Heading</Code>
+                    <Code># Heading</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
                     <Text size="sm" fw={600}>Heading</Text>
                   </Group>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs">- List item</Code>
+                    <Code>- List item</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
                     <Text size="xs">• List item</Text>
                   </Group>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs">[Link](url)</Code>
+                    <Code>[Link](url)</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
                     <Text size="xs" c="blue">Link</Text>
                   </Group>
                   
                   <Group gap="xs" align="flex-start">
-                    <Code size="xs">{'> Quote'}</Code>
+                    <Code>{'> Quote'}</Code>
                     <Text size="xs" c="dimmed">{'→'}</Text>
                     <Text size="xs" fs="italic" c="dimmed">Quote</Text>
                   </Group>
@@ -370,7 +364,7 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
             <Select
               size="xs"
               value={privacy}
-              onChange={setPrivacy}
+              onChange={(value) => value && setPrivacy(value)}
               data={privacyOptions.map(opt => ({
                 value: opt.value,
                 label: opt.label

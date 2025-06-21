@@ -37,6 +37,7 @@ export { formattingBot } from './core/formattingBot';
 export { plagiarismBot } from './core/plagiarismBot';
 export { editorialBot } from './core/editorialBot';
 export { referenceBot } from './core/referenceBot';
+export { ReviewerChecklistBot } from './core/reviewerChecklistBot';
 
 // Export types
 export * from '@colloquium/types';

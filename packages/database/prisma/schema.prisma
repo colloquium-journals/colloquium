@@ -32,6 +32,8 @@ model User {
   conversationParticipants ConversationParticipant[]
   actionEditorRole         ActionEditor[]            @relation("ActionEditorRole")
   assignedActionEditors    ActionEditor[]            @relation("ActionEditorAssigner")
+  checkboxStates           MessageCheckboxState[]
+  messageEdits             MessageEdit[]             @relation("MessageEdits")
 
   @@map("users")
 }
@@ -124,8 +126,6 @@ model ManuscriptFile {
 model Conversation {
   id           String           @id @default(cuid())
   title        String
-  type         ConversationType // EDITORIAL, REVIEW, PUBLIC, etc.
-  privacy      PrivacyLevel // PRIVATE, SEMI_PUBLIC, PUBLIC
   manuscriptId String
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -167,6 +167,7 @@ model Message {
   deleted        Boolean        @default(false)
   deletedAt      DateTime?
   editedAt       DateTime?
+  editHistory    MessageEdit[]
 
   // Relationships
   conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -174,6 +175,7 @@ model Message {
   parent        Message?       @relation("MessageThread", fields: [parentId], references: [id])
   replies       Message[]      @relation("MessageThread")
   botExecutions BotExecution[]
+  checkboxStates MessageCheckboxState[]
 
   @@map("messages")
 }
@@ -278,6 +280,39 @@ model BotExecution {
   @@map("bot_executions")
 }
 
+model MessageCheckboxState {
+  id         String   @id @default(cuid())
+  messageId  String
+  userId     String
+  checkboxId String   // Unique identifier for the checkbox within the message
+  checked    Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  // Relationships
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, checkboxId])
+  @@map("message_checkbox_states")
+}
+
+model MessageEdit {
+  id           String   @id @default(cuid())
+  messageId    String
+  editorId     String
+  originalContent String
+  newContent     String
+  reason       String?  // Optional reason for the edit
+  editedAt     DateTime @default(now())
+
+  // Relationships
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  editor  User    @relation("MessageEdits", fields: [editorId], references: [id])
+
+  @@map("message_edits")
+}
+
 model ActionEditor {
   id           String   @id @default(cuid())
   manuscriptId String
@@ -310,19 +345,7 @@ enum GlobalRole {
   BOT               // Bot accounts
 }
 
-enum ConversationType {
-  EDITORIAL // Editors only
-  REVIEW // Editors + assigned reviewers
-  SEMI_PUBLIC // + Authors
-  PUBLIC // + Community
-  AUTHOR_ONLY // Authors discussing among themselves
-}
 
-enum PrivacyLevel {
-  PRIVATE // Specific participants only
-  SEMI_PUBLIC // Journal members can see
-  PUBLIC // Anyone can see
-}
 
 enum ParticipantRole {
   OBSERVER

@@ -89,8 +89,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
   try {
     const { 
       manuscriptId,
-      type,
-      privacy,
+      search,
       page = '1',
       limit = '20'
     } = req.query;
@@ -102,38 +101,33 @@ router.get('/', optionalAuth, async (req, res, next) => {
     // Build where clause
     const where: any = {};
     if (manuscriptId) where.manuscriptId = manuscriptId as string;
-    if (type) where.type = type as string;
-    if (privacy) where.privacy = privacy as string;
-
-    // Filter conversations based on authentication and privacy
-    if (!req.user) {
-      // Unauthenticated users can only see PUBLIC conversations
-      where.privacy = 'PUBLIC';
-    } else {
-      // Authenticated users have more complex filtering rules
-      if (!privacy) { // Only apply automatic filtering if privacy filter isn't explicitly set
-        if (req.user.role === GlobalRole.ADMIN || req.user.role === GlobalRole.EDITOR_IN_CHIEF || req.user.role === GlobalRole.MANAGING_EDITOR) {
-          // Admins and editors can see all conversations (no additional filter)
-        } else {
-          // Authors and reviewers can see:
-          // 1. PUBLIC conversations
-          // 2. SEMI_PUBLIC conversations 
-          // 3. PRIVATE conversations they participate in
-          const userAccessiblePrivacyLevels = ['PUBLIC', 'SEMI_PUBLIC'];
-          
-          where.OR = [
-            { privacy: { in: userAccessiblePrivacyLevels } },
-            {
-              privacy: 'PRIVATE',
-              participants: {
-                some: {
-                  userId: req.user.id
-                }
-              }
+    
+    // Add search functionality
+    if (search && typeof search === 'string' && search.trim()) {
+      const searchTerm = search.trim();
+      where.OR = [
+        {
+          title: {
+            contains: searchTerm,
+            mode: 'insensitive'
+          }
+        },
+        {
+          manuscript: {
+            title: {
+              contains: searchTerm,
+              mode: 'insensitive'
             }
-          ];
+          }
+        },
+        {
+          manuscript: {
+            authors: {
+              hasSome: [searchTerm]
+            }
+          }
         }
-      }
+      ];
     }
 
     // Get conversations with related data
@@ -179,8 +173,6 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const formattedConversations = conversations.map(conv => ({
       id: conv.id,
       title: conv.title,
-      type: conv.type,
-      privacy: conv.privacy,
       manuscript: conv.manuscript,
       messageCount: conv._count.messages,
       participantCount: conv._count.participants,
@@ -279,8 +271,6 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     const formattedConversation = {
       id: conversation.id,
       title: conversation.title,
-      type: conversation.type,
-      privacy: conversation.privacy,
       manuscript: conversation.manuscript,
       participants: conversation.participants.map(p => ({
         id: p.id,

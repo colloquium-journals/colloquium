@@ -13,7 +13,9 @@ import {
   Textarea,
   Stack,
   Tooltip,
-  Divider
+  Divider,
+  Modal,
+  TextInput
 } from '@mantine/core';
 import { 
   IconDots, 
@@ -25,8 +27,11 @@ import {
   IconLock, 
   IconUsers, 
   IconShield,
-  IconInfoCircle
+  IconInfoCircle,
+  IconEdit,
+  IconHistory
 } from '@tabler/icons-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { MessageContent } from './MessageContent';
 import { UserProfileHover } from '../shared';
 
@@ -35,6 +40,7 @@ interface MessageData {
   content: string;
   privacy: string;
   author: {
+    id: string;
     name: string;
     email: string;
     role?: string;
@@ -44,20 +50,27 @@ interface MessageData {
     bio?: string;
   };
   createdAt: string;
+  editedAt?: string;
   isBot: boolean;
 }
 
 interface MessageCardProps {
   message: MessageData;
   onReply: (content: string) => void;
+  onEdit?: (messageId: string, content: string, reason?: string) => void;
   isReply?: boolean;
   conversationId: string;
 }
 
-export function MessageCard({ message, onReply, isReply = false, conversationId }: MessageCardProps) {
+export function MessageCard({ message, onReply, onEdit, isReply = false, conversationId }: MessageCardProps) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+  const [editReason, setEditReason] = useState('');
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const { user } = useAuth();
 
   const handleReply = async () => {
     if (!replyContent.trim()) return;
@@ -70,6 +83,38 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEdit = async () => {
+    if (!editContent.trim() || !onEdit) return;
+    
+    setIsEditSubmitting(true);
+    try {
+      await onEdit(message.id, editContent, editReason || undefined);
+      setShowEditModal(false);
+      setEditReason('');
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  // Check if user can edit this message
+  const canEdit = () => {
+    if (!user || message.isBot) return false;
+    
+    const isAuthor = user.id === message.author.id;
+    const isAdmin = user.role === 'ADMIN';
+    const isEditor = user.role === 'EDITOR_IN_CHIEF' || user.role === 'MANAGING_EDITOR';
+    
+    // Authors can edit within 24 hours, admins/editors anytime
+    if (isAdmin || isEditor) return true;
+    
+    if (isAuthor) {
+      const hoursSinceCreated = (Date.now() - new Date(message.createdAt).getTime()) / (1000 * 60 * 60);
+      return hoursSinceCreated <= 24;
+    }
+    
+    return false;
   };
 
   const getInitials = (name: string) => {
@@ -220,6 +265,11 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
               <Group gap="xs" align="center">
                 <Text size="xs" c="dimmed">
                   {formatTimestamp(message.createdAt)}
+                  {message.editedAt && (
+                    <Text size="xs" c="dimmed" component="span" ml="xs">
+                      (edited)
+                    </Text>
+                  )}
                 </Text>
               </Group>
             </div>
@@ -263,6 +313,28 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
                 >
                   Reply
                 </Menu.Item>
+                {canEdit() && (
+                  <Menu.Item 
+                    leftSection={<IconEdit size={14} />}
+                    onClick={() => {
+                      setEditContent(message.content);
+                      setShowEditModal(true);
+                    }}
+                  >
+                    Edit
+                  </Menu.Item>
+                )}
+                {message.editedAt && (
+                  <Menu.Item 
+                    leftSection={<IconHistory size={14} />}
+                    onClick={() => {
+                      // TODO: Show edit history modal
+                      console.log('Show edit history for message', message.id);
+                    }}
+                  >
+                    Edit History
+                  </Menu.Item>
+                )}
                 <Menu.Item 
                   leftSection={<IconFlag size={14} />}
                   color="red"
@@ -278,6 +350,7 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
         <MessageContent 
           content={message.content}
           conversationId={conversationId}
+          messageId={message.id}
           size="sm"
         />
 
@@ -319,6 +392,55 @@ export function MessageCard({ message, onReply, isReply = false, conversationId 
           </Stack>
         </Collapse>
       </Stack>
+
+      {/* Edit Modal */}
+      <Modal
+        opened={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Message"
+        size="lg"
+      >
+        <Stack gap="md">
+          <Textarea
+            label="Message Content"
+            placeholder="Edit your message..."
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            minRows={4}
+            autosize
+            required
+          />
+          
+          {user && (user.role === 'ADMIN' || user.role === 'EDITOR_IN_CHIEF' || user.role === 'MANAGING_EDITOR') && (
+            <TextInput
+              label="Edit Reason (Optional)"
+              placeholder="Reason for editing this message..."
+              value={editReason}
+              onChange={(e) => setEditReason(e.target.value)}
+            />
+          )}
+
+          <Group justify="flex-end">
+            <Button
+              variant="subtle"
+              onClick={() => {
+                setShowEditModal(false);
+                setEditContent(message.content);
+                setEditReason('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEdit}
+              loading={isEditSubmitting}
+              disabled={!editContent.trim() || editContent === message.content}
+            >
+              Save Changes
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </div>
   );
 }

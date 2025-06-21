@@ -8,19 +8,7 @@ export enum UserRole {
   ADMIN = 'ADMIN'
 }
 
-export enum ConversationType {
-  EDITORIAL = 'EDITORIAL',
-  REVIEW = 'REVIEW',
-  SEMI_PUBLIC = 'SEMI_PUBLIC',
-  PUBLIC = 'PUBLIC',
-  AUTHOR_ONLY = 'AUTHOR_ONLY'
-}
 
-export enum PrivacyLevel {
-  PRIVATE = 'PRIVATE',
-  SEMI_PUBLIC = 'SEMI_PUBLIC',
-  PUBLIC = 'PUBLIC'
-}
 
 export enum ManuscriptStatus {
   SUBMITTED = 'SUBMITTED',
@@ -97,8 +85,6 @@ export const manuscriptSubmissionSchema = z.object({
 
 export const conversationSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
-  type: z.enum(['EDITORIAL', 'REVIEW', 'SEMI_PUBLIC', 'PUBLIC', 'AUTHOR_ONLY']),
-  privacy: z.enum(['PRIVATE', 'SEMI_PUBLIC', 'PUBLIC']),
   participants: z.array(z.string()).optional()
 });
 

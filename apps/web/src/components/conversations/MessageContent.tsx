@@ -2,17 +2,24 @@ import { Text } from '@mantine/core';
 import { parseContentWithMentions, ContentChunk } from '../../lib/mentions';
 import { parseMarkdownWithMentions, MarkdownChunk } from '../../lib/markdown';
 import { MentionTooltip } from './MentionTooltip';
+import { InteractiveCheckbox } from '../shared/InteractiveCheckbox';
+import { useCheckboxStates } from '../../hooks/useCheckboxStates';
 import styles from './MarkdownContent.module.css';
 
 interface MessageContentProps {
   content: string;
   conversationId: string;
+  messageId: string;
   size?: string;
   style?: React.CSSProperties;
 }
 
-export function MessageContent({ content, conversationId, size = 'sm', style }: MessageContentProps) {
+export function MessageContent({ content, conversationId, messageId, size = 'sm', style }: MessageContentProps) {
   const chunks = parseMarkdownWithMentions(content);
+  
+  // Check if content has checkboxes and set up state management
+  const hasCheckboxes = chunks.some(chunk => chunk.type === 'interactive_checkbox');
+  const { isChecked, updateCheckboxState } = useCheckboxStates(hasCheckboxes ? [messageId] : []);
 
   return (
     <div 
@@ -26,7 +33,10 @@ export function MessageContent({ content, conversationId, size = 'sm', style }: 
         <MarkdownChunk 
           key={index} 
           chunk={chunk} 
-          conversationId={conversationId} 
+          conversationId={conversationId}
+          messageId={messageId}
+          isChecked={isChecked}
+          updateCheckboxState={updateCheckboxState}
         />
       ))}
     </div>
@@ -36,9 +46,12 @@ export function MessageContent({ content, conversationId, size = 'sm', style }: 
 interface MarkdownChunkProps {
   chunk: MarkdownChunk;
   conversationId: string;
+  messageId: string;
+  isChecked: (messageId: string, checkboxId: string) => boolean;
+  updateCheckboxState: (messageId: string, checkboxId: string, checked: boolean) => void;
 }
 
-function MarkdownChunk({ chunk, conversationId }: MarkdownChunkProps) {
+function MarkdownChunk({ chunk, conversationId, messageId, isChecked, updateCheckboxState }: MarkdownChunkProps) {
   if (chunk.type === 'markdown' && chunk.html) {
     // Check if this is truly block content (not just simple text wrapped in p tags)
     const hasRealBlockElements = /<(h[1-6]|div|ul|ol|li|blockquote|pre|table|tr|td|th)\b[^>]*>/i.test(chunk.html);
@@ -67,6 +80,21 @@ function MarkdownChunk({ chunk, conversationId }: MarkdownChunkProps) {
         />
       );
     }
+  }
+
+  if (chunk.type === 'interactive_checkbox' && chunk.checkboxId && chunk.checkboxLabel) {
+    return (
+      <div style={{ margin: '8px 0' }}>
+        <InteractiveCheckbox
+          messageId={messageId}
+          checkboxId={chunk.checkboxId}
+          label={chunk.checkboxLabel}
+          initialChecked={isChecked(messageId, chunk.checkboxId)}
+          required={chunk.isRequired}
+          onStateChange={(checked) => updateCheckboxState(messageId, chunk.checkboxId!, checked)}
+        />
+      </div>
+    );
   }
 
   if (chunk.type === 'mention' && chunk.mention) {

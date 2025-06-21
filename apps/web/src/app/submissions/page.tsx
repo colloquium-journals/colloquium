@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Title, 
   Grid, 
@@ -35,8 +35,6 @@ import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 interface Submission {
   id: string;
   title: string;
-  type: string;
-  privacy: string;
   manuscript: {
     id: string;
     title: string;
@@ -76,8 +74,7 @@ export default function SubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [privacyFilter, setPrivacyFilter] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const fetchSubmissions = async (page = 1) => {
     try {
@@ -87,8 +84,10 @@ export default function SubmissionsPage() {
         limit: pagination.limit.toString()
       });
 
-      if (typeFilter) params.append('type', typeFilter);
-      if (privacyFilter) params.append('privacy', privacyFilter);
+      if (debouncedSearch && debouncedSearch.trim()) {
+        params.append('search', debouncedSearch.trim());
+      }
+
 
       const response = await fetch(`http://localhost:4000/api/conversations?${params}`, {
         credentials: 'include'
@@ -110,31 +109,23 @@ export default function SubmissionsPage() {
     }
   };
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     fetchSubmissions();
-  }, [typeFilter, privacyFilter]);
+  }, [debouncedSearch]);
 
   const handlePageChange = (page: number) => {
     fetchSubmissions(page);
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'EDITORIAL': return 'blue';
-      case 'REVIEW': return 'orange';
-      case 'PUBLIC': return 'green';
-      default: return 'gray';
-    }
-  };
-
-  const getPrivacyColor = (privacy: string) => {
-    switch (privacy) {
-      case 'PRIVATE': return 'red';
-      case 'SEMI_PUBLIC': return 'yellow';
-      case 'PUBLIC': return 'green';
-      default: return 'gray';
-    }
-  };
 
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
@@ -191,9 +182,9 @@ export default function SubmissionsPage() {
       </Stack>
 
       {/* Filters */}
-      <Card shadow="sm" padding="lg" radius="md">
+      <Paper withBorder padding="lg" radius="md">
         <Grid>
-          <Grid.Col span={{ base: 12, md: 4 }}>
+          <Grid.Col span={12}>
             <TextInput
               placeholder="Search submissions..."
               leftSection={<IconSearch size={16} />}
@@ -201,36 +192,8 @@ export default function SubmissionsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 6, md: 4 }}>
-            <Select
-              label="Type"
-              placeholder="All types"
-              value={typeFilter}
-              onChange={(value) => setTypeFilter(value || '')}
-              data={[
-                { value: '', label: 'All Types' },
-                { value: 'EDITORIAL', label: 'Editorial' },
-                { value: 'REVIEW', label: 'Review' },
-                { value: 'PUBLIC', label: 'Public' }
-              ]}
-            />
-          </Grid.Col>
-          <Grid.Col span={{ base: 6, md: 4 }}>
-            <Select
-              label="Privacy"
-              placeholder="All privacy levels"
-              value={privacyFilter}
-              onChange={(value) => setPrivacyFilter(value || '')}
-              data={[
-                { value: '', label: 'All Privacy Levels' },
-                { value: 'PRIVATE', label: 'Private' },
-                { value: 'SEMI_PUBLIC', label: 'Semi-Public' },
-                { value: 'PUBLIC', label: 'Public' }
-              ]}
-            />
-          </Grid.Col>
         </Grid>
-      </Card>
+      </Paper>
 
       {/* Results Info */}
       <Group justify="space-between">
@@ -266,12 +229,6 @@ export default function SubmissionsPage() {
                       >
                         {submission.manuscript.title}
                       </Anchor>
-                      <Badge color={getTypeColor(submission.type)} variant="light" size="sm">
-                        {submission.type}
-                      </Badge>
-                      <Badge color={getPrivacyColor(submission.privacy)} variant="dot" size="sm">
-                        {submission.privacy}
-                      </Badge>
                     </Group>
                     
                     <Text size="sm" c="dimmed" lineClamp={1}>
@@ -303,8 +260,11 @@ export default function SubmissionsPage() {
                           submission.lastMessage.author.name.charAt(0)
                         )}
                       </Avatar>
-                      <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <Group gap="xs" align="center">
+                          <Text size="sm" c="dimmed">
+                            Last modified by
+                          </Text>
                           <Text size="sm" fw={500} lineClamp={1}>
                             {submission.lastMessage.author.name}
                           </Text>
@@ -316,14 +276,11 @@ export default function SubmissionsPage() {
                           <Group gap={4}>
                             <IconClock size={12} />
                             <Text size="xs" c="dimmed">
-                              {formatTimeAgo(submission.lastMessage.createdAt)}
+                              {formatTimeAgo(submission.updatedAt)}
                             </Text>
                           </Group>
                         </Group>
-                        <Text size="sm" c="dimmed" lineClamp={2}>
-                          {truncateText(submission.lastMessage.content, 200)}
-                        </Text>
-                      </Stack>
+                      </div>
                     </Group>
                   </>
                 )}

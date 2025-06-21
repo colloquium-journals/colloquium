@@ -17,9 +17,10 @@ import {
   Pagination,
   Anchor,
   Divider,
-  Button
+  Button,
+  Paper
 } from '@mantine/core';
-import { IconSearch, IconAlertCircle, IconCalendar, IconUsers, IconTag, IconUpload } from '@tabler/icons-react';
+import { IconSearch, IconAlertCircle, IconCalendar, IconUsers, IconTag, IconUpload, IconPencil } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 
@@ -31,7 +32,8 @@ interface Manuscript {
   keywords: string[];
   status: string;
   publishedAt: string;
-  conversationCount: number;
+  updatedAt: string;
+  lastModifiedBy: string;
   fileUrl?: string;
 }
 
@@ -160,7 +162,7 @@ export default function ManuscriptsPage() {
         </Group>
 
         {/* Search and Filters */}
-        <Card shadow="sm" padding="lg" radius="md">
+        <Paper withBorder padding="lg" radius="md">
           <form onSubmit={handleSearch}>
             <Grid>
               <Grid.Col span={{ base: 12, md: 6 }}>
@@ -196,7 +198,7 @@ export default function ManuscriptsPage() {
               </Grid.Col>
             </Grid>
           </form>
-        </Card>
+        </Paper>
 
         {/* Results Info */}
         <Group justify="space-between">
@@ -273,17 +275,19 @@ export default function ManuscriptsPage() {
                     <Divider />
 
                     {/* Footer */}
-                    <Group justify="space-between" align="center">
-                      <Group gap="xs">
-                        <IconCalendar size={14} />
-                        <Text size="xs" c="dimmed">
-                          {formatDate(manuscript.publishedAt)}
-                        </Text>
+                    <Stack gap="xs">
+                      <Group justify="space-between" align="center">
+                        <Group gap="xs">
+                          <IconCalendar size={14} />
+                          <Text size="xs" c="dimmed">
+                            {formatDate(manuscript.publishedAt)}
+                          </Text>
+                        </Group>
+                        <Badge color="green" variant="light" size="sm">
+                          Published
+                        </Badge>
                       </Group>
-                      <Badge color="green" variant="light" size="sm">
-                        Published
-                      </Badge>
-                    </Group>
+                    </Stack>
                   </Stack>
                 </Card>
               </Grid.Col>

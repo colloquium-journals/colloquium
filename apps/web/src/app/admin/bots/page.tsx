@@ -53,6 +53,7 @@ interface BotInstallation {
   category?: string;
   isEnabled: boolean;
   isDefault: boolean;
+  isRequired?: boolean;
   installedAt: string;
   updatedAt: string;
   packageName: string;
@@ -63,6 +64,11 @@ export default function BotManagementPage() {
   const [bots, setBots] = useState<BotInstallation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper function to check if a bot is required
+  const isRequiredBot = (botId: string) => {
+    return botId === 'editorial-bot';
+  };
   
   // Modal states
   const [installModalOpened, { open: openInstallModal, close: closeInstallModal }] = useDisclosure(false);
@@ -80,17 +86,6 @@ export default function BotManagementPage() {
   });
   const [configForm, setConfigForm] = useState('{}');
 
-  // Check if user is admin
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
-    return (
-      <Container size="md" py="xl">
-        <Alert icon={<IconAlertCircle size={16} />} color="red">
-          Admin access required to manage bots.
-        </Alert>
-      </Container>
-    );
-  }
-
   // Fetch installed bots
   const fetchBots = async () => {
     try {
@@ -104,7 +99,11 @@ export default function BotManagementPage() {
       }
 
       const data = await response.json();
-      setBots(data.data || []);
+      const botsWithRequiredFlag = (data.data || []).map((bot: BotInstallation) => ({
+        ...bot,
+        isRequired: isRequiredBot(bot.botId)
+      }));
+      setBots(botsWithRequiredFlag);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load bots');
     } finally {
@@ -115,6 +114,17 @@ export default function BotManagementPage() {
   useEffect(() => {
     fetchBots();
   }, []);
+
+  // Check if user is admin
+  if (!isAuthenticated || user?.role !== 'ADMIN') {
+    return (
+      <Container size="md" py="xl">
+        <Alert icon={<IconAlertCircle size={16} />} color="red">
+          Admin access required to manage bots.
+        </Alert>
+      </Container>
+    );
+  }
 
   // Install bot
   const handleInstallBot = async () => {
@@ -172,6 +182,16 @@ export default function BotManagementPage() {
 
   // Toggle bot enable/disable
   const handleToggleBot = async (botId: string, enable: boolean) => {
+    if (isRequiredBot(botId) && !enable) {
+      notifications.show({
+        title: 'Cannot Disable',
+        message: 'This bot is required for the platform and cannot be disabled.',
+        color: 'orange',
+        icon: <IconAlertCircle size={16} />
+      });
+      return;
+    }
+
     try {
       const endpoint = enable ? 'enable' : 'disable';
       const response = await fetch(`http://localhost:4000/api/bot-management/${botId}/${endpoint}`, {
@@ -203,6 +223,16 @@ export default function BotManagementPage() {
 
   // Uninstall bot
   const handleUninstallBot = async (botId: string) => {
+    if (isRequiredBot(botId)) {
+      notifications.show({
+        title: 'Cannot Uninstall',
+        message: 'This bot is required for the platform and cannot be uninstalled.',
+        color: 'orange',
+        icon: <IconAlertCircle size={16} />
+      });
+      return;
+    }
+    
     if (!confirm('Are you sure you want to uninstall this bot?')) return;
 
     try {
@@ -378,7 +408,6 @@ export default function BotManagementPage() {
                   <Table.Tr>
                     <Table.Th>Bot</Table.Th>
                     <Table.Th>Version</Table.Th>
-                    <Table.Th>Category</Table.Th>
                     <Table.Th>Status</Table.Th>
                     <Table.Th>Installed</Table.Th>
                     <Table.Th width={100}>Actions</Table.Th>
@@ -394,6 +423,9 @@ export default function BotManagementPage() {
                             {bot.isDefault && (
                               <Badge size="xs" color="blue">Default</Badge>
                             )}
+                            {bot.isRequired && (
+                              <Badge size="xs" color="red">Required</Badge>
+                            )}
                           </Group>
                           <Text size="xs" c="dimmed">{bot.description}</Text>
                           <Text size="xs" c="dimmed">by {bot.author.name}</Text>
@@ -403,13 +435,9 @@ export default function BotManagementPage() {
                         <Text size="sm">{bot.version}</Text>
                       </Table.Td>
                       <Table.Td>
-                        <Badge variant="light" color="gray">
-                          {bot.category || 'utility'}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
                         <Switch
                           checked={bot.isEnabled}
+                          disabled={bot.isRequired}
                           onChange={(event) => 
                             handleToggleBot(bot.botId, event.currentTarget.checked)
                           }
@@ -445,14 +473,18 @@ export default function BotManagementPage() {
                             >
                               Configure
                             </Menu.Item>
-                            <Menu.Divider />
-                            <Menu.Item
-                              leftSection={<IconTrash size={14} />}
-                              color="red"
-                              onClick={() => handleUninstallBot(bot.botId)}
-                            >
-                              Uninstall
-                            </Menu.Item>
+                            {!bot.isRequired && (
+                              <>
+                                <Menu.Divider />
+                                <Menu.Item
+                                  leftSection={<IconTrash size={14} />}
+                                  color="red"
+                                  onClick={() => handleUninstallBot(bot.botId)}
+                                >
+                                  Uninstall
+                                </Menu.Item>
+                              </>
+                            )}
                           </Menu.Dropdown>
                         </Menu>
                       </Table.Td>

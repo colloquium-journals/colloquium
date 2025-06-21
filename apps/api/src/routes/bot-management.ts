@@ -7,6 +7,12 @@ import { BotInstallationSource, BotPluginError } from '@colloquium/bots/src/fram
 const router = express.Router();
 const botManager = new DatabaseBotManager();
 
+// Helper function to check if a bot is required
+const isRequiredBot = (botId: string): boolean => {
+  const requiredBots = ['editorial-bot'];
+  return requiredBots.includes(botId);
+};
+
 // Validation schemas
 const installBotSchema = z.object({
   source: z.object({
@@ -204,6 +210,16 @@ router.delete('/:botId', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
     
+    // Prevent uninstalling required bots
+    if (isRequiredBot(botId)) {
+      return res.status(400).json({
+        error: {
+          message: 'Cannot uninstall required system bot',
+          type: 'system_bot_protected'
+        }
+      });
+    }
+    
     await botManager.uninstall(botId);
     
     res.json({
@@ -320,6 +336,17 @@ router.post('/:botId/enable', authenticate, adminMiddleware, async (req, res) =>
 router.post('/:botId/disable', authenticate, adminMiddleware, async (req, res) => {
   try {
     const { botId } = req.params;
+    
+    // Prevent disabling required bots
+    if (isRequiredBot(botId)) {
+      return res.status(400).json({
+        error: {
+          message: 'Cannot disable required system bot',
+          type: 'system_bot_protected'
+        }
+      });
+    }
+    
     await botManager.disable(botId);
     
     res.json({

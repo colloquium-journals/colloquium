@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface UseSSEOptions {
   enabled?: boolean;
@@ -8,79 +8,146 @@ interface UseSSEOptions {
 export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
   const { enabled = true, onNewMessage } = options;
   const eventSourceRef = useRef<EventSource | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const onNewMessageRef = useRef(onNewMessage);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
+  // Keep callback reference up to date
   useEffect(() => {
-    if (!enabled || !conversationId) return;
+    onNewMessageRef.current = onNewMessage;
+  }, [onNewMessage]);
 
-    console.log(`📡 SSE: Connecting to conversation ${conversationId}`);
+  useEffect(() => {
+    if (!enabled || !conversationId) {
+      console.log('📡 SSE: Not connecting - enabled:', enabled, 'conversationId:', conversationId);
+      return;
+    }
+
+    // Avoid recreating connection if one already exists for this conversation
+    if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
+      console.log('📡 SSE: Connection already exists, skipping', {
+        url: eventSourceRef.current.url,
+        readyState: eventSourceRef.current.readyState
+      });
+      return;
+    }
+
+    // Use 127.0.0.1 instead of localhost to avoid potential DNS issues
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+    const sseUrl = `${baseUrl}/api/events/conversations/${conversationId}`;
+    console.log(`📡 SSE: Creating new connection to conversation ${conversationId}`);
+    console.log(`📡 SSE: URL: ${sseUrl}`);
     setConnectionStatus('connecting');
 
-    // Create EventSource connection
-    const eventSource = new EventSource(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/events/conversations/${conversationId}`,
-      { withCredentials: true }
-    );
-
-    eventSourceRef.current = eventSource;
-
-    eventSource.onopen = () => {
-      console.log('📡 SSE: Connected to server');
-      setIsConnected(true);
-      setConnectionStatus('connected');
-    };
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('📡 SSE: Received event:', data);
-
-        if (data.type === 'new-message' && onNewMessage) {
-          onNewMessage(data.message);
-        } else if (data.type === 'connected') {
-          console.log('📡 SSE: Successfully joined conversation');
-        } else if (data.type === 'heartbeat') {
-          // Heartbeat to keep connection alive
-        }
-      } catch (error) {
-        console.error('📡 SSE: Error parsing message:', error);
+    // Add a small delay to avoid React Strict Mode double execution issues
+    const timeoutId = setTimeout(() => {
+      // Double-check if connection still needed
+      if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
+        console.log('📡 SSE: Connection already exists after delay, aborting');
+        return;
       }
-    };
 
-    eventSource.onerror = (error) => {
-      console.error('📡 SSE: Connection error:', error);
-      setIsConnected(false);
-      setConnectionStatus('error');
-      
-      // EventSource will automatically try to reconnect
-      setTimeout(() => {
-        if (eventSource.readyState === EventSource.CONNECTING) {
+      console.log('📡 SSE: Creating EventSource with options:', {
+        url: sseUrl,
+        withCredentials: true,
+        timestamp: new Date().toISOString()
+      });
+
+      // Create EventSource connection
+      const eventSource = new EventSource(sseUrl, { withCredentials: true });
+      eventSourceRef.current = eventSource;
+
+      // Log initial state
+      console.log('📡 SSE: EventSource created, initial readyState:', eventSource.readyState);
+
+      eventSource.onopen = (event) => {
+        console.log('📡 SSE: Connected to server, readyState:', eventSource.readyState);
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+        }
+        setConnectionStatus('connected');
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📡 SSE: Received event:', data);
+
+          if (data.type === 'new-message' && onNewMessageRef.current) {
+            console.log('📡 SSE: Calling onNewMessage with:', data.message);
+            onNewMessageRef.current(data.message);
+          } else if (data.type === 'connected') {
+            console.log('📡 SSE: Successfully joined conversation');
+          } else if (data.type === 'heartbeat') {
+            console.log('📡 SSE: Heartbeat received');
+          }
+        } catch (error) {
+          console.error('📡 SSE: Error parsing message:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('📡 SSE: Connection error, readyState:', eventSource.readyState, 'error:', error);
+        console.error('📡 SSE: Error details:', {
+          readyState: eventSource.readyState,
+          url: eventSource.url,
+          withCredentials: true,
+          timestamp: new Date().toISOString()
+        });
+        
+        if (error.target) {
+          console.error('📡 SSE: Error target details:', {
+            readyState: (error.target as EventSource).readyState,
+            url: (error.target as EventSource).url
+          });
+        }
+        
+        setConnectionStatus('error');
+        
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.error('📡 SSE: Connection was closed by server (possibly auth/network issue)');
+        } else if (eventSource.readyState === EventSource.CONNECTING) {
+          console.log('📡 SSE: EventSource is reconnecting automatically');
           setConnectionStatus('connecting');
         }
-      }, 1000);
-    };
+      };
+
+      // Add a timeout to detect if connection is stuck
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (eventSource.readyState === EventSource.CONNECTING) {
+          console.error('📡 SSE: Connection timeout - stuck in CONNECTING state');
+          console.error('📡 SSE: This might indicate a network or CORS issue');
+        }
+      }, 10000); // 10 second timeout
+
+    }, 100); // 100ms delay
 
     return () => {
-      console.log('📡 SSE: Closing connection');
-      eventSource.close();
-      eventSourceRef.current = null;
-      setIsConnected(false);
-      setConnectionStatus('disconnected');
+      console.log('📡 SSE: Cleaning up effect');
+      clearTimeout(timeoutId);
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+      }
+      
+      if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
+        console.log('📡 SSE: Closing existing connection, readyState:', eventSourceRef.current.readyState);
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+        setConnectionStatus('disconnected');
+      }
     };
-  }, [enabled, conversationId, onNewMessage]);
+  }, [enabled, conversationId]);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
-      setIsConnected(false);
       setConnectionStatus('disconnected');
     }
-  };
+  }, []);
 
   return {
-    isConnected,
+    isConnected: connectionStatus === 'connected',
     connectionStatus,
     disconnect
   };

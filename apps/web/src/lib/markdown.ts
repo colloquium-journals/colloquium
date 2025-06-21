@@ -2,10 +2,13 @@ import { marked } from 'marked';
 import { parseMentions, Mention } from './mentions';
 
 export interface MarkdownChunk {
-  type: 'markdown' | 'mention';
+  type: 'markdown' | 'mention' | 'interactive_checkbox';
   content: string;
   mention?: Mention;
   html?: string;
+  checkboxId?: string;
+  checkboxLabel?: string;
+  isRequired?: boolean;
 }
 
 // Configure marked with academic-friendly options
@@ -22,6 +25,52 @@ marked.use({
     }
   }
 });
+
+/**
+ * Parse interactive checkboxes from content
+ * Looks for patterns like: - [ ] Some text *(required)*
+ */
+function parseInteractiveCheckboxes(content: string): Array<{
+  startIndex: number;
+  endIndex: number;
+  checkboxId: string;
+  label: string;
+  isRequired: boolean;
+}> {
+  const checkboxes: Array<{
+    startIndex: number;
+    endIndex: number;
+    checkboxId: string;
+    label: string;
+    isRequired: boolean;
+  }> = [];
+
+  // Regex to match checkbox patterns with optional (required) indicator
+  const checkboxRegex = /^(\s*)-\s*\[\s*\]\s*(.+?)(\s*\*\(required\)\*)?$/gm;
+  let match;
+  let checkboxIndex = 0;
+
+  while ((match = checkboxRegex.exec(content)) !== null) {
+    const fullMatch = match[0];
+    const label = match[2].trim();
+    const isRequired = !!match[3];
+    
+    // Generate a unique checkbox ID based on content and position
+    const checkboxId = `checkbox-${checkboxIndex}-${label.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '-')}`;
+    
+    checkboxes.push({
+      startIndex: match.index,
+      endIndex: match.index + fullMatch.length,
+      checkboxId,
+      label,
+      isRequired
+    });
+    
+    checkboxIndex++;
+  }
+
+  return checkboxes;
+}
 
 /**
  * Find code blocks and inline code to exclude from mention parsing
@@ -52,11 +101,11 @@ function findCodeRanges(content: string): Array<{start: number, end: number}> {
 }
 
 /**
- * Parse content that may contain both markdown and mentions
- * This preserves mentions while allowing markdown formatting around them
+ * Parse content that may contain both markdown, mentions, and interactive checkboxes
+ * This preserves mentions and checkboxes while allowing markdown formatting around them
  */
 export function parseMarkdownWithMentions(content: string): MarkdownChunk[] {
-  // First, find code ranges to exclude from mention parsing
+  // First, find code ranges to exclude from mention and checkbox parsing
   const codeRanges = findCodeRanges(content);
   
   // Find mentions, but exclude those inside code blocks
@@ -65,9 +114,22 @@ export function parseMarkdownWithMentions(content: string): MarkdownChunk[] {
       mention.startIndex >= range.start && mention.endIndex <= range.end
     );
   });
+
+  // Find interactive checkboxes, but exclude those inside code blocks
+  const checkboxes = parseInteractiveCheckboxes(content).filter(checkbox => {
+    return !codeRanges.some(range => 
+      checkbox.startIndex >= range.start && checkbox.endIndex <= range.end
+    );
+  });
   
-  if (mentions.length === 0) {
-    // No mentions, just parse as markdown
+  // Combine mentions and checkboxes into a single sorted array of interactive elements
+  const interactiveElements = [
+    ...mentions.map(m => ({ ...m, type: 'mention' as const })),
+    ...checkboxes.map(c => ({ ...c, type: 'checkbox' as const }))
+  ].sort((a, b) => a.startIndex - b.startIndex);
+  
+  if (interactiveElements.length === 0) {
+    // No interactive elements, just parse as markdown
     return [{
       type: 'markdown',
       content,
@@ -78,13 +140,10 @@ export function parseMarkdownWithMentions(content: string): MarkdownChunk[] {
   const chunks: MarkdownChunk[] = [];
   let lastIndex = 0;
 
-  // Sort mentions by start index
-  mentions.sort((a, b) => a.startIndex - b.startIndex);
-
-  for (const mention of mentions) {
-    // Add markdown content before the mention
-    if (mention.startIndex > lastIndex) {
-      const markdownContent = content.substring(lastIndex, mention.startIndex);
+  for (const element of interactiveElements) {
+    // Add markdown content before the interactive element
+    if (element.startIndex > lastIndex) {
+      const markdownContent = content.substring(lastIndex, element.startIndex);
       if (markdownContent.trim()) {
         chunks.push({
           type: 'markdown',
@@ -94,17 +153,33 @@ export function parseMarkdownWithMentions(content: string): MarkdownChunk[] {
       }
     }
 
-    // Add the mention chunk (not processed as markdown)
-    chunks.push({
-      type: 'mention',
-      content: mention.name,
-      mention
-    });
+    // Add the interactive element chunk
+    if (element.type === 'mention') {
+      const mention = mentions.find(m => m.startIndex === element.startIndex);
+      if (mention) {
+        chunks.push({
+          type: 'mention',
+          content: mention.name,
+          mention
+        });
+      }
+    } else if (element.type === 'checkbox') {
+      const checkbox = checkboxes.find(c => c.startIndex === element.startIndex);
+      if (checkbox) {
+        chunks.push({
+          type: 'interactive_checkbox',
+          content: checkbox.label,
+          checkboxId: checkbox.checkboxId,
+          checkboxLabel: checkbox.label,
+          isRequired: checkbox.isRequired
+        });
+      }
+    }
 
-    lastIndex = mention.endIndex;
+    lastIndex = element.endIndex;
   }
 
-  // Add remaining content after the last mention
+  // Add remaining content after the last interactive element
   if (lastIndex < content.length) {
     const markdownContent = content.substring(lastIndex);
     if (markdownContent.trim()) {

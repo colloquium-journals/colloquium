@@ -5,8 +5,10 @@ const nextConfig = {
   },
   transpilePackages: ['@colloquium/types', '@colloquium/ui', '@colloquium/auth'],
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000',
   },
+  // Temporarily disable React Strict Mode for debugging SSE
+  reactStrictMode: false,
 };
 
 module.exports = nextConfig;

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug SSE Connection</title>
+</head>
+<body>
+    <h1>Debug SSE Connection</h1>
+    <div id="status">Initializing...</div>
+    <div id="log"></div>
+
+    <script>
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+
+        function addLog(message) {
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `<div>[${time}] ${message}</div>`;
+            console.log(`[${time}] ${message}`);
+        }
+
+        function testSSE() {
+            addLog('Starting SSE connection test...');
+            status.textContent = 'Connecting...';
+
+            // Test conversation ID (replace with a real one from your app)
+            const conversationId = 'cmbz728st0018u5jw5fr31q18';
+            const url = `http://localhost:4000/api/events/conversations/${conversationId}`;
+            
+            addLog(`Connecting to: ${url}`);
+
+            const eventSource = new EventSource(url, {
+                withCredentials: true
+            });
+
+            eventSource.onopen = function(event) {
+                addLog('✅ SSE connection opened successfully');
+                status.textContent = 'Connected';
+                status.style.color = 'green';
+            };
+
+            eventSource.onmessage = function(event) {
+                addLog(`📨 Received SSE message: ${event.data}`);
+                try {
+                    const data = JSON.parse(event.data);
+                    addLog(`📋 Parsed data: ${JSON.stringify(data, null, 2)}`);
+                } catch (e) {
+                    addLog(`❌ Failed to parse JSON: ${e.message}`);
+                }
+            };
+
+            eventSource.onerror = function(event) {
+                addLog(`❌ SSE connection error. ReadyState: ${eventSource.readyState}`);
+                status.textContent = 'Error';
+                status.style.color = 'red';
+                
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    addLog('🔌 Connection was closed');
+                } else if (eventSource.readyState === EventSource.CONNECTING) {
+                    addLog('🔄 Connection is reconnecting...');
+                    status.textContent = 'Reconnecting...';
+                    status.style.color = 'orange';
+                }
+            };
+
+            // Test sending a message after 5 seconds
+            setTimeout(() => {
+                addLog('🧪 Testing message broadcast...');
+                fetch(`http://localhost:4000/api/conversations/${conversationId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        content: 'Test SSE message from debug script',
+                        privacy: 'AUTHOR_VISIBLE'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    addLog('✅ Test message sent successfully');
+                })
+                .catch(error => {
+                    addLog(`❌ Failed to send test message: ${error.message}`);
+                });
+            }, 5000);
+        }
+
+        // Start the test
+        testSSE();
+    </script>
+</body>
+</html>

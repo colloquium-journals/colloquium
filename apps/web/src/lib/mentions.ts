@@ -14,10 +14,10 @@ export function parseMentions(content: string): Mention[] {
   const mentions: Mention[] = [];
   
   // Pattern to match @mentions - more precise matching
-  // First try to match bot patterns like @editorial-bot and @Editorial Bot
-  const botRegex = /@([\w-]*bot\b|editorial-bot|plagiarism-bot|statistics-bot|formatting-bot|Editorial\s+Bot|Plagiarism\s+Bot|Statistics\s+Bot|Formatting\s+Bot)/gi;
+  // Match various bot patterns including kebab-case IDs and display names
+  const botRegex = /@(reviewer-checklist|plagiarism-checker|statistics-reviewer|editorial-bot|plagiarism-bot|statistics-bot|formatting-bot|[\w-]*bot(?:\b|$)|[\w-]*checker(?:\b|$)|[\w-]*reviewer(?:\b|$)|Editorial\s+Bot|Plagiarism\s+Bot|Statistics\s+Bot|Formatting\s+Bot|Reviewer\s+Checklist|Plagiarism\s+Checker|Statistics\s+Reviewer)/gi;
   
-  let match;
+  let match: RegExpExecArray | null;
   while ((match = botRegex.exec(content)) !== null) {
     const fullMatch = match[0]; // The full @mention
     const name = match[1].trim(); // The name part without @
@@ -151,8 +151,18 @@ export const BOT_INFO: Record<string, { displayName: string; description: string
     description: 'Checks manuscripts for potential plagiarism and citation issues',
     role: 'Content Reviewer'
   },
+  'plagiarism-checker': {
+    displayName: 'Plagiarism Checker',
+    description: 'Checks manuscripts for potential plagiarism and citation issues',
+    role: 'Content Reviewer'
+  },
   'statistics-bot': {
     displayName: 'Statistics Bot',
+    description: 'Reviews statistical analysis and methodology in manuscripts',
+    role: 'Statistical Reviewer'
+  },
+  'statistics-reviewer': {
+    displayName: 'Statistics Reviewer',
     description: 'Reviews statistical analysis and methodology in manuscripts',
     role: 'Statistical Reviewer'
   },
@@ -160,5 +170,10 @@ export const BOT_INFO: Record<string, { displayName: string; description: string
     displayName: 'Formatting Bot',
     description: 'Checks manuscript formatting and style guidelines',
     role: 'Style Checker'
+  },
+  'reviewer-checklist': {
+    displayName: 'Reviewer Checklist',
+    description: 'Provides structured review checklists for manuscript evaluation',
+    role: 'Review Assistant'
   }
 };

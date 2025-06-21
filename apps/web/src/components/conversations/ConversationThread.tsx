@@ -16,7 +16,7 @@ interface ConversationData {
   manuscript: {
     title: string;
     authors: string[];
-  };
+  } | null;
   messages: MessageData[];
 }
 
@@ -25,6 +25,7 @@ interface MessageData {
   content: string;
   privacy: string;
   author: {
+    id: string;
     name: string;
     email: string;
     role?: string;
@@ -34,6 +35,7 @@ interface MessageData {
     bio?: string;
   };
   createdAt: string;
+  editedAt?: string;
   isBot: boolean;
   parentId?: string;
 }
@@ -49,17 +51,34 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
   // Handle real-time messages
   const handleNewMessage = useCallback((newMessage: MessageData) => {
+    console.log('🎯 ConversationThread: Received new message via SSE:', newMessage);
+    console.log('🎯 ConversationThread: Message details:', {
+      id: newMessage.id,
+      content: newMessage.content,
+      author: newMessage.author
+    });
+    
     setConversation(prev => {
-      if (!prev) return prev;
+      if (!prev) {
+        console.log('🎯 ConversationThread: No conversation state, skipping message');
+        return prev;
+      }
       
       // Check if message already exists (avoid duplicates)
       const messageExists = prev.messages.some(msg => msg.id === newMessage.id);
-      if (messageExists) return prev;
+      if (messageExists) {
+        console.log('🎯 ConversationThread: Message already exists, skipping');
+        return prev;
+      }
 
-      return {
+      console.log('🎯 ConversationThread: Adding new message to conversation');
+      console.log('🎯 ConversationThread: Current message count:', prev.messages.length);
+      const updatedConversation = {
         ...prev,
         messages: [...prev.messages, newMessage]
       };
+      console.log('🎯 ConversationThread: New message count:', updatedConversation.messages.length);
+      return updatedConversation;
     });
   }, []);
 
@@ -68,6 +87,16 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     enabled: !!conversationId,
     onNewMessage: handleNewMessage
   });
+
+  // Log SSE connection status
+  useEffect(() => {
+    console.log('🔌 ConversationThread: SSE Status Update:', {
+      conversationId,
+      isConnected,
+      connectionStatus,
+      hasCallback: !!handleNewMessage
+    });
+  }, [conversationId, isConnected, connectionStatus, handleNewMessage]);
 
   // Mock data - will be replaced with API call
   useEffect(() => {
@@ -91,11 +120,11 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
           title: data.title,
           type: data.type,
           privacy: data.privacy,
-          manuscript: {
+          manuscript: data.manuscript ? {
             title: data.manuscript.title,
             authors: data.manuscript.authors
-          },
-          messages: data.messages
+          } : null,
+          messages: data.messages || []
         };
         
         setConversation(formattedConversation);
@@ -143,8 +172,9 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       const result = await response.json();
       console.log('Message posted successfully:', result); // Debug log
       
-      // TEMPORARY FIX: Add message immediately to local state while debugging SSE
-      if (result.data) {
+      // Add user message immediately to local state for instant feedback
+      // Bot responses will still come via SSE
+      if (result.data && !result.data.isBot) {
         setConversation(prev => {
           if (!prev) return prev;
           
@@ -158,11 +188,58 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
           };
         });
       }
-      
-      // Note: The message should also be received via SSE and added through handleNewMessage
-      // If you see duplicate messages, the SSE is working and this fix can be removed
     } catch (err) {
       console.error('Error posting message:', err);
+      // Could show a toast notification here
+    }
+  };
+
+  const handleEditMessage = async (messageId: string, content: string, reason?: string) => {
+    if (!conversation) return;
+
+    try {
+      console.log('Editing message:', { messageId, content, reason }); // Debug log
+      
+      const response = await fetch(`http://localhost:4000/api/messages/${messageId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          content,
+          reason
+        })
+      });
+
+      console.log('Edit response status:', response.status); // Debug log
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Edit API Error:', errorData); // Debug log
+        throw new Error(errorData.error?.message || 'Failed to edit message');
+      }
+
+      const result = await response.json();
+      console.log('Message edited successfully:', result); // Debug log
+      
+      // Update the message in local state
+      if (result.data) {
+        setConversation(prev => {
+          if (!prev) return prev;
+          
+          return {
+            ...prev,
+            messages: prev.messages.map(msg => 
+              msg.id === messageId 
+                ? { ...msg, content, editedAt: result.data.editedAt }
+                : msg
+            )
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Error editing message:', err);
       // Could show a toast notification here
     }
   };
@@ -186,30 +263,37 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     );
   }
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'EDITORIAL': return 'blue';
-      case 'REVIEW': return 'orange';
-      case 'PUBLIC': return 'green';
-      default: return 'gray';
-    }
-  };
-
-  const getPrivacyColor = (privacy: string) => {
-    switch (privacy) {
-      case 'PRIVATE': return 'red';
-      case 'SEMI_PUBLIC': return 'yellow';
-      case 'PUBLIC': return 'green';
-      default: return 'gray';
-    }
-  };
 
   return (
     <Stack gap="lg">
+      {/* SSE Connection Status Indicator */}
+      <Group justify="flex-end" gap="xs">
+        <Text size="xs" c="dimmed">
+          Real-time: 
+        </Text>
+        {connectionStatus === 'connected' ? (
+          <Badge color="green" size="sm" variant="light">
+            <IconWifi size={12} style={{ marginRight: 4 }} />
+            Connected
+          </Badge>
+        ) : connectionStatus === 'connecting' ? (
+          <Badge color="yellow" size="sm" variant="light">
+            <IconLoader size={12} style={{ marginRight: 4 }} />
+            Connecting...
+          </Badge>
+        ) : (
+          <Badge color="red" size="sm" variant="light">
+            <IconWifiOff size={12} style={{ marginRight: 4 }} />
+            Disconnected
+          </Badge>
+        )}
+      </Group>
+
       {/* Message Thread */}
       <MessageThread 
         messages={conversation.messages}
         onReply={(messageId, content) => handlePostMessage(content, messageId)}
+        onEdit={handleEditMessage}
         conversationId={conversationId}
       />
 

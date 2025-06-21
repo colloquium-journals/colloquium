@@ -8,6 +8,7 @@ interface MessageData {
   content: string;
   privacy: string;
   author: {
+    id: string;
     name: string;
     email: string;
     role?: string;
@@ -17,6 +18,7 @@ interface MessageData {
     bio?: string;
   };
   createdAt: string;
+  editedAt?: string;
   isBot: boolean;
   parentId?: string;
 }
@@ -24,10 +26,11 @@ interface MessageData {
 interface MessageThreadProps {
   messages: MessageData[];
   onReply: (messageId: string, content: string) => void;
+  onEdit: (messageId: string, content: string, reason?: string) => void;
   conversationId: string;
 }
 
-export function MessageThread({ messages, onReply, conversationId }: MessageThreadProps) {
+export function MessageThread({ messages, onReply, onEdit, conversationId }: MessageThreadProps) {
   // Build a tree structure for threaded messages
   const messageMap = new Map<string, MessageData>();
   const children = new Map<string, MessageData[]>();
@@ -65,6 +68,7 @@ export function MessageThread({ messages, onReply, conversationId }: MessageThre
         <MessageCard
           message={message}
           onReply={(content) => onReply(message.id, content)}
+          onEdit={(messageId, content, reason) => onEdit(messageId, content, reason)}
           isReply={depth > 0}
           conversationId={conversationId}
         />

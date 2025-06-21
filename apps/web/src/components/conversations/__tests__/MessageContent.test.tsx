@@ -8,6 +8,19 @@ jest.mock('../MentionTooltip', () => ({
   MentionTooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
+// Mock the InteractiveCheckbox component
+jest.mock('../shared/InteractiveCheckbox', () => ({
+  InteractiveCheckbox: ({ label }: { label: string }) => <div data-testid="interactive-checkbox">{label}</div>
+}));
+
+// Mock the useCheckboxStates hook
+jest.mock('../../hooks/useCheckboxStates', () => ({
+  useCheckboxStates: () => ({
+    isChecked: jest.fn(() => false),
+    updateCheckboxState: jest.fn()
+  })
+}));
+
 const renderWithProvider = (component: React.ReactElement) => {
   return render(
     <MantineProvider>
@@ -18,7 +31,8 @@ const renderWithProvider = (component: React.ReactElement) => {
 
 describe('MessageContent', () => {
   const defaultProps = {
-    conversationId: 'test-conversation-id'
+    conversationId: 'test-conversation-id',
+    messageId: 'test-message-id'
   };
 
   describe('Basic Text Rendering', () => {
