@@ -41,6 +41,20 @@ process.env.NEXT_PUBLIC_API_URL = 'http://localhost:4000';
 
 beforeAll(() => {
   console.log('🧪 Setting up Web test environment');
+  
+  // Mock ResizeObserver for Mantine components
+  global.ResizeObserver = jest.fn().mockImplementation(() => ({
+    observe: jest.fn(),
+    unobserve: jest.fn(),
+    disconnect: jest.fn(),
+  }));
+  
+  // Mock IntersectionObserver for Mantine components
+  global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+    observe: jest.fn(),
+    unobserve: jest.fn(),
+    disconnect: jest.fn(),
+  }));
 });
 
 afterAll(() => {

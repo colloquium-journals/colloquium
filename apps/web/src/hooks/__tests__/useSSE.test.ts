@@ -15,7 +15,7 @@ class MockEventSource {
 
   constructor(url: string, options?: EventSourceInit) {
     this.url = url;
-    // Simulate async connection
+    // Simulate async connection with fake timers
     setTimeout(() => {
       this.readyState = MockEventSource.OPEN;
       if (this.onopen) {
@@ -60,11 +60,14 @@ describe('useSSE Hook', () => {
   beforeEach(() => {
     mockEventSources.length = 0;
     jest.clearAllMocks();
+    // Suppress console logs during tests to reduce noise
+    jest.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(() => {
     // Clean up any open connections
     mockEventSources.forEach(es => es.close());
+    jest.restoreAllMocks();
   });
 
   it('should establish SSE connection when enabled and conversationId provided', async () => {
@@ -74,6 +77,11 @@ describe('useSSE Hook', () => {
       enabled: true,
       onNewMessage: mockOnNewMessage
     }));
+
+    // Wait for the hook's timeout to trigger (100ms + buffer)
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150));
+    });
 
     expect(global.EventSource).toHaveBeenCalledWith(
       'http://localhost:4000/api/events/conversations/conversation-123',
@@ -109,9 +117,9 @@ describe('useSSE Hook', () => {
     expect(result.current.connectionStatus).toBe('connecting');
     expect(result.current.isConnected).toBe(false);
 
-    // Wait for connection to open
+    // Wait for hook timeout and connection to establish
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     expect(result.current.connectionStatus).toBe('connected');
@@ -131,9 +139,9 @@ describe('useSSE Hook', () => {
       onNewMessage: mockOnNewMessage
     }));
 
-    // Wait for connection to establish
+    // Fast-forward timers to establish connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     // Simulate receiving a new message
@@ -155,9 +163,9 @@ describe('useSSE Hook', () => {
       onNewMessage: mockOnNewMessage
     }));
 
-    // Wait for connection to establish
+    // Fast-forward timers to establish connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     // Simulate receiving heartbeat and connected events
@@ -174,9 +182,9 @@ describe('useSSE Hook', () => {
       enabled: true
     }));
 
-    // Wait for initial connection
+    // Wait for initial connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     // Simulate connection error
@@ -193,9 +201,9 @@ describe('useSSE Hook', () => {
       enabled: true
     }));
 
-    // Wait for connection to establish
+    // Fast-forward timers to establish connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     const eventSource = mockEventSources[0];
@@ -219,9 +227,9 @@ describe('useSSE Hook', () => {
       { initialProps: { onNewMessage: mockOnNewMessage1 } }
     );
 
-    // Wait for initial connection
+    // Wait for initial connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     expect(mockEventSources).toHaveLength(1);
@@ -255,9 +263,9 @@ describe('useSSE Hook', () => {
       onNewMessage: mockOnNewMessage
     }));
 
-    // Wait for connection to establish
+    // Fast-forward timers to establish connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     // Simulate receiving malformed JSON
@@ -279,9 +287,9 @@ describe('useSSE Hook', () => {
       enabled: true
     }));
 
-    // Wait for initial connection
+    // Wait for initial connection and open event
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise(resolve => setTimeout(resolve, 150));
     });
 
     expect(mockEventSources).toHaveLength(1);

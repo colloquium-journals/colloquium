@@ -25,15 +25,21 @@ function startNextDev() {
   nextProcess.on('close', (code) => {
     if (code !== null && code !== 0) {
       console.log(`⚠️  Next.js dev server exited with code ${code}`);
+      process.exit(code);
     } else {
       console.log('✅ Next.js dev server closed cleanly');
+      process.exit(0);
     }
-    process.exit(0);
   });
 }
 
+let isShuttingDown = false;
+
 // Graceful shutdown
 function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  
   console.log(`\n${signal} received. Shutting down Next.js dev server...`);
   
   if (nextProcess) {
@@ -45,7 +51,7 @@ function gracefulShutdown(signal) {
         console.log('Force killing Next.js process...');
         nextProcess.kill('SIGKILL');
       }
-      process.exit(0);
+      process.exit(1);
     }, 3000);
   } else {
     process.exit(0);

@@ -14,8 +14,8 @@ export function parseMentions(content: string): Mention[] {
   const mentions: Mention[] = [];
   
   // Pattern to match @mentions - more precise matching
-  // Match various bot patterns including kebab-case IDs and display names
-  const botRegex = /@(reviewer-checklist|plagiarism-checker|statistics-reviewer|editorial-bot|plagiarism-bot|statistics-bot|formatting-bot|[\w-]*bot(?:\b|$)|[\w-]*checker(?:\b|$)|[\w-]*reviewer(?:\b|$)|Editorial\s+Bot|Plagiarism\s+Bot|Statistics\s+Bot|Formatting\s+Bot|Reviewer\s+Checklist|Plagiarism\s+Checker|Statistics\s+Reviewer)/gi;
+  // Match actual bot IDs from the system: editorial-bot, plagiarism-checker, reference-bot, reviewer-checklist
+  const botRegex = /@(editorial-bot|plagiarism-checker|reference-bot|reviewer-checklist|[\w-]*bot(?:\b|$)|[\w-]*checker(?:\b|$)|[\w-]*reviewer(?:\b|$)|Editorial\s+Bot|Plagiarism\s+Checker|Reference\s+Bot|Reviewer\s+Checklist)/gi;
   
   let match: RegExpExecArray | null;
   while ((match = botRegex.exec(content)) !== null) {
@@ -34,8 +34,8 @@ export function parseMentions(content: string): Mention[] {
   // Reset regex
   botRegex.lastIndex = 0;
   
-  // Then try to match user names like @John Smith (2-3 words max)
-  const userRegex = /@([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})(?=\s|$|[.,!?;:])/g;
+  // Then try to match user names like @John Smith or @John Smith (email@domain.com)
+  const userRegex = /@([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}(?:\s+\([^)]+\))?)(?=\s|$|[.,!?;:])/g;
   
   while ((match = userRegex.exec(content)) !== null) {
     const fullMatch = match[0]; // The full @mention
@@ -67,8 +67,10 @@ export function parseMentions(content: string): Mention[] {
  * Generate a consistent ID for a mention name
  */
 function generateMentionId(name: string): string {
+  // For disambiguated names like "John Smith (email@domain.com)", extract just the display name
+  const displayName = name.replace(/\s+\([^)]+\)$/, '');
   // Convert to lowercase and replace spaces with hyphens for consistent ID format
-  return name.toLowerCase().replace(/\s+/g, '-');
+  return displayName.toLowerCase().replace(/\s+/g, '-');
 }
 
 /**
@@ -143,37 +145,22 @@ export function parseContentWithMentions(content: string): ContentChunk[] {
 export const BOT_INFO: Record<string, { displayName: string; description: string; role: string }> = {
   'editorial-bot': {
     displayName: 'Editorial Bot',
-    description: 'Assists with manuscript editorial workflows and review processes',
+    description: 'Assists with manuscript editorial workflows, status updates, and reviewer assignments',
     role: 'Editorial Assistant'
-  },
-  'plagiarism-bot': {
-    displayName: 'Plagiarism Bot', 
-    description: 'Checks manuscripts for potential plagiarism and citation issues',
-    role: 'Content Reviewer'
   },
   'plagiarism-checker': {
     displayName: 'Plagiarism Checker',
-    description: 'Checks manuscripts for potential plagiarism and citation issues',
+    description: 'Advanced plagiarism detection using multiple academic databases and AI algorithms',
     role: 'Content Reviewer'
   },
-  'statistics-bot': {
-    displayName: 'Statistics Bot',
-    description: 'Reviews statistical analysis and methodology in manuscripts',
-    role: 'Statistical Reviewer'
-  },
-  'statistics-reviewer': {
-    displayName: 'Statistics Reviewer',
-    description: 'Reviews statistical analysis and methodology in manuscripts',
-    role: 'Statistical Reviewer'
-  },
-  'formatting-bot': {
-    displayName: 'Formatting Bot',
-    description: 'Checks manuscript formatting and style guidelines',
-    role: 'Style Checker'
+  'reference-bot': {
+    displayName: 'Reference Bot',
+    description: 'Validates references and checks DOI availability and correctness',
+    role: 'Reference Validator'
   },
   'reviewer-checklist': {
     displayName: 'Reviewer Checklist',
-    description: 'Provides structured review checklists for manuscript evaluation',
+    description: 'Generates customizable checklists for manuscript reviewers',
     role: 'Review Assistant'
   }
 };

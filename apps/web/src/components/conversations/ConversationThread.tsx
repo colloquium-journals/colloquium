@@ -300,7 +300,8 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       {/* Message Composer */}
       <MessageComposer 
         onSubmit={(content, privacy) => handlePostMessage(content, undefined, privacy)}
-        placeholder="Write your message... Use @bot-name to mention bots"
+        placeholder="Write your message... Type @ to mention users and bots"
+        conversationId={conversationId}
       />
     </Stack>
   );

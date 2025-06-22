@@ -18,6 +18,9 @@ import {
 } from '@mantine/core';
 import { IconSend, IconAt, IconX, IconLock, IconEye, IconUsers, IconShield, IconMarkdown, IconHelp } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { MentionSuggest } from '@/components/shared/MentionSuggest';
+import { useMentionSuggestions } from '@/hooks/useMentionSuggestions';
+import { useMentionInput } from '@/hooks/useMentionInput';
 
 interface Bot {
   id: string;
@@ -32,6 +35,7 @@ interface MessageComposerProps {
   onSubmit: (content: string, privacy?: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  conversationId?: string;
 }
 
 // Bot colors for UI consistency
@@ -85,7 +89,7 @@ function getDefaultPrivacy(userRole: string | undefined): string {
   }
 }
 
-export function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false }: MessageComposerProps) {
+export function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false, conversationId }: MessageComposerProps) {
   const { user } = useAuth();
   const [content, setContent] = useState('');
   const [mentionedBots, setMentionedBots] = useState<Bot[]>([]);
@@ -96,6 +100,26 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
   const [loadingBots, setLoadingBots] = useState(false);
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mention functionality
+  const { allSuggestions, getFilteredSuggestions } = useMentionSuggestions({
+    conversationId: conversationId || '',
+    availableBots
+  });
+
+  const {
+    mentionState,
+    handleTextChange,
+    handleKeyDown,
+    handleSelectSuggestion,
+    handleCloseSuggestions
+  } = useMentionInput({
+    textareaRef,
+    value: content,
+    onChange: setContent,
+    suggestions: allSuggestions
+  });
+
 
   // Fetch available bots
   useEffect(() => {
@@ -110,7 +134,6 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
 
         if (response.ok) {
           const data = await response.json();
-          // console.log('Fetched bots:', data); // Debug log
           const enabledBots = data.bots
             .filter((bot: any) => bot.isInstalled && bot.isEnabled)
             .map((bot: any, index: number) => ({
@@ -121,7 +144,6 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
               isInstalled: bot.isInstalled,
               isEnabled: bot.isEnabled
             }));
-          // console.log('Enabled bots:', enabledBots); // Debug log
           setAvailableBots(enabledBots);
         } else {
           console.error('Failed to fetch bots:', response.status, response.statusText);
@@ -153,6 +175,11 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
   };
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
+    // Let mention input handle navigation first
+    if (handleKeyDown(event)) {
+      return;
+    }
+    
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       handleSubmit();
@@ -225,17 +252,30 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
 
         {/* Message Input */}
         <Stack gap="xs">
-          <Textarea
-            ref={textareaRef}
-            placeholder={placeholder}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onKeyDown={handleKeyPress}
-            minRows={3}
-            autosize
-            maxRows={8}
-            disabled={disabled}
-          />
+          <div style={{ position: 'relative' }}>
+            <Textarea
+              ref={textareaRef}
+              placeholder={placeholder}
+              value={content}
+              onChange={(e) => handleTextChange(e.target.value)}
+              onKeyDown={handleKeyPress}
+              minRows={3}
+              autosize
+              maxRows={8}
+              disabled={disabled}
+            />
+            
+            {/* Mention Suggestions */}
+            <MentionSuggest
+              suggestions={mentionState.filteredSuggestions}
+              isVisible={mentionState.isActive}
+              position={mentionState.position}
+              selectedIndex={mentionState.selectedIndex}
+              onSelect={handleSelectSuggestion}
+              onClose={handleCloseSuggestions}
+            />
+            
+          </div>
           
           {/* Formatting Help */}
           <Group justify="flex-end">

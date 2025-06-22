@@ -83,13 +83,17 @@ function MarkdownChunk({ chunk, conversationId, messageId, isChecked, updateChec
   }
 
   if (chunk.type === 'interactive_checkbox' && chunk.checkboxId && chunk.checkboxLabel) {
+    // Use stored state if available, otherwise fall back to markdown parsed state
+    const storedState = isChecked(messageId, chunk.checkboxId);
+    const initialState = storedState !== undefined ? storedState : (chunk.isChecked || false);
+    
     return (
       <div style={{ margin: '8px 0' }}>
         <InteractiveCheckbox
           messageId={messageId}
           checkboxId={chunk.checkboxId}
           label={chunk.checkboxLabel}
-          initialChecked={isChecked(messageId, chunk.checkboxId)}
+          initialChecked={initialState}
           required={chunk.isRequired}
           onStateChange={(checked) => updateCheckboxState(messageId, chunk.checkboxId!, checked)}
         />

@@ -140,6 +140,7 @@ export function broadcastToConversation(conversationId: string, eventData: any) 
   conversationConnections.forEach((connection) => {
     try {
       connection.write(`data: ${data}\n\n`);
+      connection.flush(); // Force flush the data
     } catch (error) {
       console.error('📡 SSE: Failed to write to connection:', error);
       deadConnections.push(connection);

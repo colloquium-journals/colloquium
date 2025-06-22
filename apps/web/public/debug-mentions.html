@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug @Mentions System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        .bot-item { padding: 5px; margin: 5px 0; border-left: 3px solid #007bff; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { margin: 5px; padding: 8px 15px; }
+        .mention { background: #e3f2fd; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>@Mentions System Debugging</h1>
+    
+    <div class="section">
+        <h2>1. Test Bots API</h2>
+        <button onclick="testBotsAPI()">Fetch Bots</button>
+        <div id="bots-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Test Conversation API (Replace with actual conversation ID)</h2>
+        <input type="text" id="conversation-id" placeholder="Enter conversation ID" style="width: 300px;">
+        <button onclick="testConversationAPI()">Fetch Conversation</button>
+        <div id="conversation-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Test Mention Parsing</h2>
+        <textarea id="test-text" rows="3" cols="60" placeholder="Enter text with @mentions...">@editorial-bot please review this manuscript</textarea>
+        <br>
+        <button onclick="testMentionParsing()">Parse Mentions</button>
+        <div id="parsing-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Test Auto-complete Simulation</h2>
+        <input type="text" id="mention-query" placeholder="Start typing after @..." style="width: 300px;">
+        <button onclick="testAutoComplete()">Test Auto-complete</button>
+        <div id="autocomplete-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>5. Authentication Test</h2>
+        <button onclick="testAuth()">Check Authentication</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <script>
+        let cachedBots = [];
+        let cachedParticipants = [];
+        
+        async function testBotsAPI() {
+            const resultDiv = document.getElementById('bots-result');
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch('http://localhost:4000/api/bots', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                cachedBots = data.bots || [];
+                
+                resultDiv.innerHTML = `
+                    <div class="success">✓ Successfully fetched ${cachedBots.length} bots</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                // Show enabled bots specifically
+                const enabledBots = cachedBots.filter(bot => bot.isInstalled && bot.isEnabled);
+                if (enabledBots.length > 0) {
+                    resultDiv.innerHTML += `
+                        <div><strong>Enabled Bots (${enabledBots.length}):</strong></div>
+                        ${enabledBots.map(bot => `
+                            <div class="bot-item">
+                                <strong>@${bot.id}</strong> - ${bot.name}<br>
+                                <small>${bot.description}</small>
+                            </div>
+                        `).join('')}
+                    `;
+                } else {
+                    resultDiv.innerHTML += '<div class="error">⚠ No enabled bots found</div>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+                console.error('Bots API Error:', error);
+            }
+        }
+        
+        async function testConversationAPI() {
+            const conversationId = document.getElementById('conversation-id').value.trim();
+            const resultDiv = document.getElementById('conversation-result');
+            
+            if (!conversationId) {
+                resultDiv.innerHTML = '<div class="error">Please enter a conversation ID</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Loading...';
+            
+            try {
+                const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                cachedParticipants = data.participants || [];
+                
+                resultDiv.innerHTML = `
+                    <div class="success">✓ Successfully fetched conversation data</div>
+                    <div><strong>Participants (${cachedParticipants.length}):</strong></div>
+                    ${cachedParticipants.map(p => `
+                        <div class="bot-item">
+                            <strong>@${p.user.id}</strong> - ${p.user.name || p.user.email}<br>
+                            <small>Role: ${p.user.role}</small>
+                        </div>
+                    `).join('')}
+                    <details>
+                        <summary>Full Response</summary>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">✗ Error: ${error.message}</div>`;
+                console.error('Conversation API Error:', error);
+            }
+        }
+        
+        function testMentionParsing() {
+            const text = document.getElementById('test-text').value;
+            const resultDiv = document.getElementById('parsing-result');
+            
+            // Copy the mention parsing logic from the frontend
+            const mentions = parseMentions(text);
+            
+            resultDiv.innerHTML = `
+                <div><strong>Found ${mentions.length} mentions:</strong></div>
+                ${mentions.map(mention => `
+                    <div class="mention">
+                        <strong>${mention.name}</strong> (ID: ${mention.id}, Bot: ${mention.isBot}, Position: ${mention.startIndex}-${mention.endIndex})
+                    </div>
+                `).join('')}
+                <pre>${JSON.stringify(mentions, null, 2)}</pre>
+            `;
+        }
+        
+        function testAutoComplete() {
+            const query = document.getElementById('mention-query').value;
+            const resultDiv = document.getElementById('autocomplete-result');
+            
+            // Simulate the mention suggestions logic
+            const suggestions = [];
+            
+            // Add bot suggestions
+            cachedBots.filter(bot => bot.isInstalled && bot.isEnabled).forEach(bot => {
+                suggestions.push({
+                    id: bot.id,
+                    name: bot.name,
+                    displayName: bot.name,
+                    type: 'bot',
+                    description: bot.description,
+                    color: 'blue'
+                });
+            });
+            
+            // Add user suggestions
+            cachedParticipants.forEach(p => {
+                suggestions.push({
+                    id: p.user.id,
+                    name: p.user.name || p.user.email,
+                    displayName: p.user.name || p.user.email,
+                    type: 'user',
+                    description: `${p.user.role} • ${p.user.email}`
+                });
+            });
+            
+            // Filter based on query
+            const filtered = query ? suggestions.filter(s => 
+                s.name.toLowerCase().includes(query.toLowerCase()) ||
+                s.displayName.toLowerCase().includes(query.toLowerCase()) ||
+                s.id.toLowerCase().includes(query.toLowerCase())
+            ) : suggestions;
+            
+            resultDiv.innerHTML = `
+                <div><strong>Auto-complete suggestions for "${query}" (${filtered.length}/${suggestions.length}):</strong></div>
+                ${filtered.map(suggestion => `
+                    <div class="bot-item">
+                        <strong>@${suggestion.id}</strong> - ${suggestion.displayName} (${suggestion.type})<br>
+                        <small>${suggestion.description || 'No description'}</small>
+                    </div>
+                `).join('')}
+            `;
+        }
+        
+        // Copy the mention parsing function from the frontend
+        function parseMentions(content) {
+            const mentions = [];
+            
+            // Bot regex from the frontend
+            const botRegex = /@(reviewer-checklist|plagiarism-checker|statistics-reviewer|editorial-bot|plagiarism-bot|statistics-bot|formatting-bot|[\w-]*bot(?:\b|$)|[\w-]*checker(?:\b|$)|[\w-]*reviewer(?:\b|$)|Editorial\s+Bot|Plagiarism\s+Bot|Statistics\s+Bot|Formatting\s+Bot|Reviewer\s+Checklist|Plagiarism\s+Checker|Statistics\s+Reviewer)/gi;
+            
+            let match;
+            while ((match = botRegex.exec(content)) !== null) {
+                const fullMatch = match[0];
+                const name = match[1].trim();
+                
+                mentions.push({
+                    id: generateMentionId(name),
+                    name: fullMatch,
+                    startIndex: match.index,
+                    endIndex: match.index + fullMatch.length,
+                    isBot: true
+                });
+            }
+            
+            // Reset regex
+            botRegex.lastIndex = 0;
+            
+            // User regex from the frontend
+            const userRegex = /@([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})(?=\s|$|[.,!?;:])/g;
+            
+            while ((match = userRegex.exec(content)) !== null) {
+                const fullMatch = match[0];
+                const name = match[1].trim();
+                
+                // Skip if overlaps with bot mention
+                const overlaps = mentions.some(existing => 
+                    match.index >= existing.startIndex && match.index < existing.endIndex
+                );
+                
+                if (!overlaps) {
+                    mentions.push({
+                        id: generateMentionId(name),
+                        name: fullMatch,
+                        startIndex: match.index,
+                        endIndex: match.index + fullMatch.length,
+                        isBot: false
+                    });
+                }
+            }
+            
+            return mentions.sort((a, b) => a.startIndex - b.startIndex);
+        }
+        
+        function generateMentionId(name) {
+            return name.toLowerCase().replace(/\s+/g, '-');
+        }
+        
+        async function testAuth() {
+            const resultDiv = document.getElementById('auth-result');
+            resultDiv.innerHTML = 'Checking authentication...';
+            
+            try {
+                // Test if we can access a protected endpoint
+                const response = await fetch('http://localhost:4000/api/auth/me', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="success">✓ Authenticated as ${user.name || user.email}</div>
+                        <pre>${JSON.stringify(user, null, 2)}</pre>
+                    `;
+                } else if (response.status === 401) {
+                    resultDiv.innerHTML = `
+                        <div class="error">✗ Not authenticated (${response.status})</div>
+                        <p>You need to log in to use @mention functionality.</p>
+                        <p>Try visiting <a href="/auth/login" target="_blank">the login page</a></p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">✗ Auth check failed (${response.status})</div>
+                        <pre>${await response.text()}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">✗ Auth Error: ${error.message}</div>`;
+                console.error('Auth Error:', error);
+            }
+        }
+
+        // Auto-test on page load
+        window.onload = function() {
+            console.log('Debug page loaded. Testing auth and bots API...');
+            testAuth();
+            testBotsAPI();
+        };
+    </script>
+</body>
+</html>

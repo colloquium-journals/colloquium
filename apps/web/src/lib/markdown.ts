@@ -9,6 +9,7 @@ export interface MarkdownChunk {
   checkboxId?: string;
   checkboxLabel?: string;
   isRequired?: boolean;
+  isChecked?: boolean;
 }
 
 // Configure marked with academic-friendly options
@@ -28,7 +29,11 @@ marked.use({
 
 /**
  * Parse interactive checkboxes from content
- * Looks for patterns like: - [ ] Some text *(required)*
+ * Looks for patterns like: 
+ * - [ ] Some text (unchecked)
+ * - [x] Some text (checked)
+ * - [X] Some text (checked)
+ * With optional *(required)* indicator
  */
 function parseInteractiveCheckboxes(content: string): Array<{
   startIndex: number;
@@ -36,6 +41,7 @@ function parseInteractiveCheckboxes(content: string): Array<{
   checkboxId: string;
   label: string;
   isRequired: boolean;
+  isChecked: boolean;
 }> {
   const checkboxes: Array<{
     startIndex: number;
@@ -43,17 +49,21 @@ function parseInteractiveCheckboxes(content: string): Array<{
     checkboxId: string;
     label: string;
     isRequired: boolean;
+    isChecked: boolean;
   }> = [];
 
   // Regex to match checkbox patterns with optional (required) indicator
-  const checkboxRegex = /^(\s*)-\s*\[\s*\]\s*(.+?)(\s*\*\(required\)\*)?$/gm;
+  // Matches: - [ ] text, - [x] text, - [X] text
+  const checkboxRegex = /^(\s*)-\s*\[([xX\s]?)\]\s*(.+?)(\s*\*\(required\)\*)?$/gm;
   let match;
   let checkboxIndex = 0;
 
   while ((match = checkboxRegex.exec(content)) !== null) {
     const fullMatch = match[0];
-    const label = match[2].trim();
-    const isRequired = !!match[3];
+    const checkState = match[2].trim();
+    const label = match[3].trim();
+    const isRequired = !!match[4];
+    const isChecked = checkState.toLowerCase() === 'x';
     
     // Generate a unique checkbox ID based on content and position
     const checkboxId = `checkbox-${checkboxIndex}-${label.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '-')}`;
@@ -63,7 +73,8 @@ function parseInteractiveCheckboxes(content: string): Array<{
       endIndex: match.index + fullMatch.length,
       checkboxId,
       label,
-      isRequired
+      isRequired,
+      isChecked
     });
     
     checkboxIndex++;
@@ -171,7 +182,8 @@ export function parseMarkdownWithMentions(content: string): MarkdownChunk[] {
           content: checkbox.label,
           checkboxId: checkbox.checkboxId,
           checkboxLabel: checkbox.label,
-          isRequired: checkbox.isRequired
+          isRequired: checkbox.isRequired,
+          isChecked: checkbox.isChecked
         });
       }
     }

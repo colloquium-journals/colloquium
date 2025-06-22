@@ -87,7 +87,6 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/orcid', orcidRoutes);
 app.use('/api/reviewers', reviewersRoutes);
 app.use('/api/checkbox-states', checkboxStatesRoutes);
-app.use('/api/messages', checkboxStatesRoutes);
 
 // Error handling middleware
 app.use(notFound);

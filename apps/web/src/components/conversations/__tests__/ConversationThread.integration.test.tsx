@@ -33,6 +33,20 @@ jest.mock('../../../contexts/AuthContext', () => ({
     logout: jest.fn(),
     refreshUser: jest.fn(),
     isAuthenticated: true
+  }),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
+}));
+
+// Mock InteractiveCheckbox
+jest.mock('../../shared/InteractiveCheckbox', () => ({
+  InteractiveCheckbox: ({ label }: { label: string }) => <div data-testid="interactive-checkbox">{label}</div>
+}));
+
+// Mock useCheckboxStates hook
+jest.mock('../../../hooks/useCheckboxStates', () => ({
+  useCheckboxStates: () => ({
+    isChecked: jest.fn(() => false),
+    updateCheckboxState: jest.fn()
   })
 }));
 
@@ -191,7 +205,7 @@ describe('ConversationThread Real-time Message Flow', () => {
     });
 
     // Find the message composer textarea and submit button
-    const textarea = screen.getByRole('textbox');
+    const textarea = screen.getByPlaceholderText(/write your message/i);
     const submitButton = screen.getByRole('button', { name: /send/i });
 
     // Type and submit a new message
@@ -340,11 +354,17 @@ describe('ConversationThread Real-time Message Flow', () => {
     });
 
     // User should still be able to post messages even with SSE error
-    const textarea = screen.getByRole('textbox');
+    const textarea = screen.getByPlaceholderText(/write your message/i);
     const submitButton = screen.getByRole('button', { name: /send/i });
 
     expect(textarea).toBeEnabled();
-    expect(submitButton).toBeEnabled();
+    
+    // Type a message to enable the submit button
+    fireEvent.change(textarea, { target: { value: 'Test message with SSE error' } });
+    
+    await waitFor(() => {
+      expect(submitButton).toBeEnabled();
+    });
   });
 
   it('should handle bot mentions correctly in message flow', async () => {
@@ -407,7 +427,7 @@ describe('ConversationThread Real-time Message Flow', () => {
     });
 
     // Type a bot mention
-    const textarea = screen.getByRole('textbox');
+    const textarea = screen.getByPlaceholderText(/write your message/i);
     const submitButton = screen.getByRole('button', { name: /send/i });
 
     fireEvent.change(textarea, { target: { value: '@editorial-bot help' } });
