@@ -56,6 +56,10 @@ export class BotActionProcessor {
         await this.handleSubmitReview(action.data, context);
         break;
       
+      case 'MAKE_EDITORIAL_DECISION':
+        await this.handleMakeEditorialDecision(action.data, context);
+        break;
+      
       default:
         console.warn(`Unknown bot action type: ${action.type}`);
     }
@@ -432,6 +436,260 @@ Decline: ${invitationUrl}?action=decline
 
     console.log(`Review submitted for assignment ${assignmentId} via bot`);
   }
+
+  private async handleMakeEditorialDecision(data: any, context: ActionContext): Promise<void> {
+    const { decision, status, revisionType } = data;
+    const { manuscriptId, userId, conversationId } = context;
+
+    // Get manuscript with all related data
+    const manuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId },
+      include: {
+        authorRelations: {
+          include: { user: true }
+        },
+        reviews: {
+          include: {
+            reviewer: true
+          },
+          where: {
+            status: 'COMPLETED'
+          }
+        }
+      }
+    });
+
+    if (!manuscript) {
+      throw new Error(`Manuscript ${manuscriptId} not found`);
+    }
+
+    // Update manuscript status
+    const updatedManuscript = await prisma.manuscript.update({
+      where: { id: manuscriptId },
+      data: {
+        status,
+        updatedAt: new Date(),
+        // Set publishedAt if accepted
+        ...(status === 'ACCEPTED' && { publishedAt: new Date() })
+      }
+    });
+
+    // Create decision message in editorial conversation
+    const editorialConversation = await prisma.conversation.findFirst({
+      where: {
+        manuscriptId,
+        type: 'EDITORIAL'
+      }
+    });
+
+    if (editorialConversation) {
+      let decisionMessage = `⚖️ **Editorial Decision: ${decision.replace('_', ' ').toUpperCase()}**\n\n`;
+      decisionMessage += `**Manuscript:** ${manuscript.title}\n`;
+      decisionMessage += `**Decision Date:** ${new Date().toLocaleString()}\n`;
+      
+      if (reason) {
+        decisionMessage += `**Reason:** ${reason}\n`;
+      }
+      
+      if (revisionType) {
+        decisionMessage += `**Revision Type:** ${revisionType.toUpperCase()}\n`;
+      }
+
+      // Add review summary
+      if (manuscript.reviews.length > 0) {
+        decisionMessage += `\n**Review Summary:**\n`;
+        decisionMessage += `- ${manuscript.reviews.length} review(s) completed\n`;
+        
+        const recommendations = manuscript.reviews.reduce((acc, review) => {
+          const rec = review.metadata?.recommendation || 'unknown';
+          acc[rec] = (acc[rec] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        
+        Object.entries(recommendations).forEach(([rec, count]) => {
+          decisionMessage += `- ${rec}: ${count}\n`;
+        });
+      }
+
+      await prisma.message.create({
+        data: {
+          content: decisionMessage,
+          conversationId: editorialConversation.id,
+          authorId: userId,
+          privacy: 'EDITOR_ONLY',
+          isBot: true,
+          metadata: {
+            type: 'editorial_decision',
+            decision,
+            previousStatus: manuscript.status,
+            newStatus: status,
+            revisionType,
+            via: 'bot'
+          }
+        }
+      });
+    }
+
+    // Automatically send notification emails to authors
+    const authorEmails = manuscript.authorRelations.map(ar => ar.user.email);
+    for (const email of authorEmails) {
+      try {
+        await this.sendDecisionEmail(email, manuscript, decision, conversationId);
+      } catch (emailError) {
+        console.error(`Failed to send decision email to ${email}:`, emailError);
+      }
+    }
+
+    // If revision requested, create author conversation
+    if (status === 'REVISION_REQUESTED') {
+      await this.createRevisionConversation(manuscriptId, userId, revisionType);
+    }
+
+    console.log(`Editorial decision '${decision}' made for manuscript ${manuscriptId} via bot`);
+  }
+
+  private async sendDecisionEmail(email: string, manuscript: any, decision: string, conversationId: string): Promise<void> {
+    const decisionLabels = {
+      'accept': 'Accepted',
+      'minor_revision': 'Minor Revisions Required',
+      'major_revision': 'Major Revisions Required',
+      'reject': 'Rejected'
+    };
+
+    const decisionLabel = decisionLabels[decision] || decision;
+    const isPositive = decision === 'accept';
+    const isRevision = decision.includes('revision');
+    
+    const subject = `Editorial Decision: ${manuscript.title} - ${decisionLabel}`;
+    
+    const htmlContent = `
+      <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <h1 style="color: ${isPositive ? '#16a34a' : isRevision ? '#d97706' : '#dc2626'}; margin-bottom: 24px;">
+          Editorial Decision: ${decisionLabel}
+        </h1>
+        
+        <div style="background-color: #f9fafb; padding: 20px; margin: 24px 0; border-radius: 6px;">
+          <h2 style="margin-top: 0; color: #374151;">${manuscript.title}</h2>
+          <p><strong>Decision:</strong> ${decisionLabel}</p>
+          <p><strong>Decision Date:</strong> ${new Date().toLocaleDateString()}</p>
+        </div>
+        
+        
+          <div style="margin: 24px 0;">
+            <p>Please check the manuscript conversation for any additional feedback from the editorial team.</p>
+            <p><a href="${process.env.FRONTEND_URL}/conversations/${conversationId}" style="color: #2563eb;">View Conversation</a></p>
+          </div>
+        
+        
+        ${isRevision ? `
+          <div style="background-color: #fef3c7; padding: 16px; margin: 24px 0; border-radius: 6px; border-left: 4px solid #f59e0b;">
+            <h3 style="margin-top: 0; color: #92400e;">Next Steps</h3>
+            <p>Please address the reviewer comments and submit a revised version of your manuscript. You can access the review conversation and submit your revision through the platform.</p>
+          </div>
+        ` : ''}
+        
+        ${isPositive ? `
+          <div style="background-color: #d1fae5; padding: 16px; margin: 24px 0; border-radius: 6px; border-left: 4px solid #10b981;">
+            <h3 style="margin-top: 0; color: #065f46;">Congratulations!</h3>
+            <p>Your manuscript has been accepted for publication. Our editorial team will be in touch regarding the next steps in the publication process.</p>
+          </div>
+        ` : ''}
+        
+        <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+          This decision was processed via Editorial Bot automation.
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+      to: email,
+      subject,
+      html: htmlContent,
+      text: `
+Editorial Decision: ${decisionLabel}
+
+Manuscript: ${manuscript.title}
+Decision: ${decisionLabel}
+Date: ${new Date().toLocaleDateString()}
+
+Please check the manuscript conversation for additional details.
+View at: ${process.env.FRONTEND_URL}/conversations/${conversationId}
+
+${isRevision ? 'Please address the reviewer comments and submit a revised version.\n' : ''}
+${isPositive ? 'Congratulations! Your manuscript has been accepted for publication.\n' : ''}
+      `
+    });
+  }
+
+  private async createRevisionConversation(manuscriptId: string, editorId: string, revisionType?: string): Promise<void> {
+    // Check if revision conversation already exists
+    const existingConversation = await prisma.conversation.findFirst({
+      where: {
+        manuscriptId,
+        title: { contains: 'Revision' }
+      }
+    });
+
+    if (existingConversation) {
+      return; // Don't create duplicate revision conversations
+    }
+
+    // Create revision conversation
+    const conversation = await prisma.conversation.create({
+      data: {
+        title: `${revisionType || 'Manuscript'} Revision Discussion`,
+        type: 'SEMI_PUBLIC',
+        privacy: 'AUTHOR_VISIBLE',
+        manuscriptId
+      }
+    });
+
+    // Add editor as moderator
+    await prisma.conversationParticipant.create({
+      data: {
+        conversationId: conversation.id,
+        userId: editorId,
+        role: 'MODERATOR'
+      }
+    });
+
+    // Add authors as participants
+    const manuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId },
+      include: {
+        authorRelations: true
+      }
+    });
+
+    if (manuscript) {
+      for (const authorRel of manuscript.authorRelations) {
+        await prisma.conversationParticipant.create({
+          data: {
+            conversationId: conversation.id,
+            userId: authorRel.userId,
+            role: 'PARTICIPANT'
+          }
+        });
+      }
+    }
+
+    // Create initial message
+    await prisma.message.create({
+      data: {
+        content: `📝 **Revision Discussion Created**\n\nThis conversation is for discussing the ${revisionType || 'manuscript'} revisions. Please use this space to:\n\n- Address reviewer comments\n- Discuss specific changes\n- Ask questions about the revision requirements\n\nUse @editorial-bot commands to update manuscript status when revisions are complete.`,
+        conversationId: conversation.id,
+        authorId: editorId,
+        privacy: 'AUTHOR_VISIBLE',
+        isBot: true,
+        metadata: {
+          type: 'revision_conversation_created',
+          revisionType
+        }
+      }
+    });
+  }
+
 }
 
 export const botActionProcessor = new BotActionProcessor();

@@ -339,6 +339,80 @@ const respondCommand: BotCommand = {
   }
 };
 
+const decisionCommand: BotCommand = {
+  name: 'decision',
+  description: 'Make an editorial decision on a manuscript',
+  usage: '@editorial-bot decision <decision>',
+  parameters: [
+    {
+      name: 'decision',
+      description: 'Editorial decision to make',
+      type: 'enum',
+      required: true,
+      enumValues: ['accept', 'minor_revision', 'major_revision', 'reject'],
+      examples: ['accept', 'minor_revision', 'major_revision', 'reject']
+    }
+  ],
+  examples: [
+    '@editorial-bot decision accept',
+    '@editorial-bot decision minor_revision',
+    '@editorial-bot decision reject'
+  ],
+  permissions: ['make_editorial_decision'],
+  async execute(params, context) {
+    const { decision } = params;
+    const { manuscriptId } = context;
+
+    // Map decision to manuscript status
+    const statusMap = {
+      'accept': 'ACCEPTED',
+      'minor_revision': 'REVISION_REQUESTED',
+      'major_revision': 'REVISION_REQUESTED',
+      'reject': 'REJECTED'
+    };
+
+    const newStatus = statusMap[decision];
+    const isRevision = decision.includes('revision');
+    const revisionType = isRevision ? decision.replace('_', ' ') : null;
+
+    let message = `⚖️ **Editorial Decision: ${decision.replace('_', ' ').toUpperCase()}**\n\n`;
+    message += `**New Status:** ${newStatus.replace('_', ' ')}\n`;
+    message += `**Decision Date:** ${new Date().toLocaleString()}\n\n`;
+
+    // Add decision-specific messaging
+    switch (decision) {
+      case 'accept':
+        message += `🎉 **Manuscript Accepted for Publication**\n`;
+        message += `Authors will be automatically notified.`;
+        break;
+      case 'minor_revision':
+        message += `📝 **Minor Revisions Required**\n`;
+        message += `Authors will be notified to submit revisions.`;
+        break;
+      case 'major_revision':
+        message += `🔄 **Major Revisions Required**\n`;
+        message += `Authors will be notified to submit substantial revisions.`;
+        break;
+      case 'reject':
+        message += `❌ **Manuscript Rejected**\n`;
+        message += `Authors will be notified of the decision.`;
+        break;
+    }
+
+    return {
+      messages: [{ content: message }],
+      actions: [{
+        type: 'MAKE_EDITORIAL_DECISION',
+        data: { 
+          decision, 
+          status: newStatus, 
+          revisionType 
+        }
+      }]
+    };
+  }
+};
+
 const submitCommand: BotCommand = {
   name: 'submit',
   description: 'Submit a review for a manuscript',
@@ -422,21 +496,23 @@ const submitCommand: BotCommand = {
 };
 
 // Define the editorial bot
+
 export const editorialBot: CommandBot = {
   id: 'editorial-bot',
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, and reviewer assignments',
-  version: '2.1.0',
-  commands: [statusCommand, assignCommand, summaryCommand, respondCommand, submitCommand, helpCommand],
-  keywords: ['editorial decision', 'review status', 'assign reviewer', 'manuscript status'],
+  version: '2.2.0',
+  commands: [statusCommand, assignCommand, summaryCommand, decisionCommand, respondCommand, submitCommand, helpCommand],
+  keywords: ['editorial decision', 'review status', 'assign reviewer', 'manuscript status', 'make decision'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
-  permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers'],
+  permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {
     overview: 'The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.',
     quickStart: 'Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot status <status> and @editorial-bot assign <reviewers>',
     examples: [
       '@editorial-bot status UNDER_REVIEW reason="Initial review passed"',
       '@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org deadline="2024-02-15"',
+      '@editorial-bot decision accept',
       '@editorial-bot summary format="detailed"'
     ]
   }

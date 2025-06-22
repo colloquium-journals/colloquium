@@ -155,7 +155,7 @@ export interface BotAttachment {
 }
 
 export interface BotAction {
-  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW';
+  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION';
   data: Record<string, any>;
 }
 
@@ -174,6 +174,7 @@ export enum BotPermission {
   WRITE_MESSAGES = 'write_messages',
   UPDATE_MANUSCRIPT = 'update_manuscript',
   ASSIGN_REVIEWERS = 'assign_reviewers',
+  MAKE_EDITORIAL_DECISION = 'make_editorial_decision',
 }
 
 export interface Bot {
