@@ -1,7 +1,6 @@
 import * as BotsPackage from '@colloquium/bots';
 import { prisma } from '@colloquium/database';
 import { DatabaseBotManager } from '@colloquium/bots';
-import path from 'path';
 
 // Export the bot executor for use in other parts of the application
 export const botExecutor = new BotsPackage.BotExecutor();
@@ -33,61 +32,11 @@ async function ensureBotUser(botId: string, botName: string): Promise<string> {
 
 // Initialize and register all bots
 export async function initializeBots() {
-  // console.log('Initializing command-based bot system...');
-  
-  const { editorialBot, plagiarismBot, referenceBot, ReviewerChecklistBot } = BotsPackage;
-  
-  // Initialize reviewer checklist bot
-  const reviewerChecklistBot = new ReviewerChecklistBot();
-
-  // Create bot users in database
-  const editorialBotUserId = await ensureBotUser(editorialBot.id, editorialBot.name);
-  const plagiarismBotUserId = await ensureBotUser(plagiarismBot.id, plagiarismBot.name);
-  const referenceBotUserId = await ensureBotUser(referenceBot.id, referenceBot.name);
-  const reviewerChecklistBotUserId = await ensureBotUser(reviewerChecklistBot.id, reviewerChecklistBot.name);
-
-  // Store bot user IDs for later use
-  botExecutor.setBotUserId(editorialBot.id, editorialBotUserId);
-  botExecutor.setBotUserId(plagiarismBot.id, plagiarismBotUserId);
-  botExecutor.setBotUserId(referenceBot.id, referenceBotUserId);
-  botExecutor.setBotUserId(reviewerChecklistBot.id, reviewerChecklistBotUserId);
-
-  // Register command-based bots
-  botExecutor.registerCommandBot(editorialBot);
-  botExecutor.registerCommandBot(plagiarismBot);
-  botExecutor.registerCommandBot(referenceBot);
-  botExecutor.registerCommandBot(reviewerChecklistBot);
-
-  // Install command-based bots to bot executor
-  try {
-    botExecutor.installBot(editorialBot.id, {
-      autoStatusUpdates: true,
-      notifyAuthors: true
-    });
-
-    botExecutor.installBot(plagiarismBot.id, {
-      defaultThreshold: 0.15,
-      enabledDatabases: ['crossref', 'pubmed', 'arxiv']
-    });
-
-    botExecutor.installBot(referenceBot.id, {
-      defaultTimeout: 30,
-      includeMissingDoiReferences: true
-    });
-
-    botExecutor.installBot(reviewerChecklistBot.id, {
-      title: 'Manuscript Review Checklist',
-      criteria: [] // Will use default criteria if empty
-    });
-
-    // console.log('✅ Command-based bots installed successfully');
-  } catch (error) {
-    console.error('❌ Failed to install command-based bots:', error);
-  }
+  console.log('🤖 Initializing bots...');
 
   // Ensure required system bots are installed in the database
   const installedBots = await botManager.list();
-  const requiredBots = ['editorial-bot', 'plagiarism-bot', 'reference-bot', 'reviewer-checklist'];
+  const requiredBots = ['editorial-bot', 'reference-bot', 'reviewer-checklist'];
   
   // Check if any required bots are missing
   const missingRequiredBots = requiredBots.filter(
@@ -131,6 +80,16 @@ export async function initializeBots() {
         console.error('❌ Failed to install default bots:', error);
       }
     }
+  }
+
+  // Load all installed bots into the BotExecutor
+  console.log('🔄 Loading installed bots into executor...');
+  try {
+    await botManager.reloadAllBots();
+    const loadedBots = botExecutor.getCommandBots();
+    console.log(`✅ Loaded ${loadedBots.length} bot(s) into executor`);
+  } catch (error) {
+    console.error('❌ Failed to load installed bots:', error);
   }
 
   // console.log('Bot system initialized');

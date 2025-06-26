@@ -7,7 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "predev": "./scripts/cleanup-dev.sh",
+    "dev": "turbo run dev --concurrency=15",
+    "dev:clean": "./scripts/cleanup-dev.sh && npm run dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
@@ -20,7 +22,8 @@
     "db:clear": "./scripts/reset-db.sh --no-seed --force",
     "app:reset": "./scripts/reset-app.sh",
     "app:reset-quick": "./scripts/reset-app.sh --quick --force",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "cleanup": "./scripts/cleanup-dev.sh"
   },
   "devDependencies": {
     "@types/node": "^20.8.0",

@@ -60,6 +60,10 @@ export class BotActionProcessor {
         await this.handleMakeEditorialDecision(action.data, context);
         break;
       
+      case 'ASSIGN_ACTION_EDITOR':
+        await this.handleAssignActionEditor(action.data, context);
+        break;
+      
       default:
         console.warn(`Unknown bot action type: ${action.type}`);
     }
@@ -215,9 +219,28 @@ Decline: ${invitationUrl}?action=decline
     const { manuscriptId } = context;
 
     // Validate the status
-    const validStatuses = ['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'REVISED', 'ACCEPTED', 'REJECTED', 'PUBLISHED'];
+    const validStatuses = ['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'REVISED', 'ACCEPTED', 'REJECTED', 'PUBLISHED', 'RETRACTED'];
     if (!validStatuses.includes(status)) {
       throw new Error(`Invalid manuscript status: ${status}`);
+    }
+
+    // Get current manuscript to check state transitions
+    const currentManuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId },
+      select: { status: true }
+    });
+
+    if (!currentManuscript) {
+      throw new Error(`Manuscript ${manuscriptId} not found`);
+    }
+
+    // Validate state transitions
+    if (status === 'PUBLISHED' && currentManuscript.status !== 'ACCEPTED') {
+      throw new Error(`Cannot publish manuscript. Manuscripts can only be published from ACCEPTED status, but current status is ${currentManuscript.status}`);
+    }
+    
+    if (status === 'RETRACTED' && currentManuscript.status !== 'PUBLISHED') {
+      throw new Error(`Cannot retract manuscript. Manuscripts can only be retracted from PUBLISHED status, but current status is ${currentManuscript.status}`);
     }
 
     // Update the manuscript status
@@ -402,7 +425,7 @@ Decline: ${invitationUrl}?action=decline
           content: `📝 **Review Submitted via Bot**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n\n**Recommendation:** ${recommendation}\n\n**Review:**\n${reviewContent}${score ? `\n\n**Score:** ${score}/10` : ''}`,
           conversationId: reviewConversation.id,
           authorId: userId,
-          privacy: 'AUTHOR_VISIBLE',
+          privacy: 'PUBLIC',
           isBot: true,
           metadata: {
             type: 'review_submission',
@@ -487,9 +510,6 @@ Decline: ${invitationUrl}?action=decline
       decisionMessage += `**Manuscript:** ${manuscript.title}\n`;
       decisionMessage += `**Decision Date:** ${new Date().toLocaleString()}\n`;
       
-      if (reason) {
-        decisionMessage += `**Reason:** ${reason}\n`;
-      }
       
       if (revisionType) {
         decisionMessage += `**Revision Type:** ${revisionType.toUpperCase()}\n`;
@@ -501,7 +521,7 @@ Decline: ${invitationUrl}?action=decline
         decisionMessage += `- ${manuscript.reviews.length} review(s) completed\n`;
         
         const recommendations = manuscript.reviews.reduce((acc, review) => {
-          const rec = review.metadata?.recommendation || 'unknown';
+          const rec = (review as any).metadata?.recommendation || 'unknown';
           acc[rec] = (acc[rec] || 0) + 1;
           return acc;
         }, {} as Record<string, number>);
@@ -549,7 +569,7 @@ Decline: ${invitationUrl}?action=decline
   }
 
   private async sendDecisionEmail(email: string, manuscript: any, decision: string, conversationId: string): Promise<void> {
-    const decisionLabels = {
+    const decisionLabels: Record<string, string> = {
       'accept': 'Accepted',
       'minor_revision': 'Minor Revisions Required',
       'major_revision': 'Major Revisions Required',
@@ -640,7 +660,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
       data: {
         title: `${revisionType || 'Manuscript'} Revision Discussion`,
         type: 'SEMI_PUBLIC',
-        privacy: 'AUTHOR_VISIBLE',
+        privacy: 'PUBLIC',
         manuscriptId
       }
     });
@@ -680,7 +700,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
         content: `📝 **Revision Discussion Created**\n\nThis conversation is for discussing the ${revisionType || 'manuscript'} revisions. Please use this space to:\n\n- Address reviewer comments\n- Discuss specific changes\n- Ask questions about the revision requirements\n\nUse @editorial-bot commands to update manuscript status when revisions are complete.`,
         conversationId: conversation.id,
         authorId: editorId,
-        privacy: 'AUTHOR_VISIBLE',
+        privacy: 'PUBLIC',
         isBot: true,
         metadata: {
           type: 'revision_conversation_created',
@@ -688,6 +708,181 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
         }
       }
     });
+  }
+
+  private async handleAssignActionEditor(data: any, context: ActionContext): Promise<void> {
+    const { editor, customMessage, assignedBy } = data;
+    const { manuscriptId } = context;
+
+    // Remove @ symbol to get username for lookup
+    const username = editor.replace('@', '');
+
+    // Find user by name
+    const user = await prisma.user.findFirst({
+      where: { name: username },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      }
+    });
+
+    if (!user) {
+      throw new Error(`User ${editor} not found`);
+    }
+
+    // Verify manuscript exists
+    const manuscript = await prisma.manuscript.findUnique({
+      where: { id: manuscriptId },
+      include: {
+        actionEditor: {
+          include: {
+            editor: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!manuscript) {
+      throw new Error(`Manuscript ${manuscriptId} not found`);
+    }
+
+    // Check if action editor already assigned
+    if (manuscript.actionEditor) {
+      // Update existing assignment
+      const updatedAssignment = await prisma.actionEditor.update({
+        where: { manuscriptId },
+        data: {
+          editorId: user.id,
+          assignedAt: new Date()
+        },
+        include: {
+          editor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          }
+        }
+      });
+
+      console.log(`Action editor updated for manuscript ${manuscriptId}: ${user.name} (was ${manuscript.actionEditor.editor.name})`);
+    } else {
+      // Create new assignment
+      const newAssignment = await prisma.actionEditor.create({
+        data: {
+          manuscriptId,
+          editorId: user.id,
+          assignedAt: new Date()
+        },
+        include: {
+          editor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          }
+        }
+      });
+
+      console.log(`Action editor assigned for manuscript ${manuscriptId}: ${user.name}`);
+    }
+
+    // Create notification message in editorial conversation
+    const editorialConversation = await prisma.conversation.findFirst({
+      where: {
+        manuscriptId,
+        type: 'EDITORIAL'
+      }
+    });
+
+    if (editorialConversation) {
+      let notificationMessage = `👤 **Action Editor Assignment via Bot**\n\n`;
+      notificationMessage += `**Assigned Editor:** ${user.name} (@${user.name})\n`;
+      notificationMessage += `**Email:** ${user.email}\n`;
+      
+      if (customMessage) {
+        notificationMessage += `**Message:** ${customMessage}\n`;
+      }
+      
+      notificationMessage += `**Assigned:** ${new Date().toLocaleString()}\n`;
+
+      await prisma.message.create({
+        data: {
+          content: notificationMessage,
+          conversationId: editorialConversation.id,
+          authorId: assignedBy || context.userId,
+          privacy: 'EDITOR_ONLY',
+          isBot: true,
+          metadata: {
+            type: 'action_editor_assignment',
+            editorId: user.id,
+            assignedEditor: user.name,
+            via: 'bot'
+          }
+        }
+      });
+    }
+
+    // Send notification email to the assigned editor
+    try {
+      await transporter.sendMail({
+        from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+        to: user.email,
+        subject: `Action Editor Assignment: ${manuscript.title}`,
+        html: `
+          <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <h1 style="color: #2563eb; margin-bottom: 24px;">Action Editor Assignment</h1>
+            <p>You have been assigned as the action editor for:</p>
+            <h2 style="margin: 16px 0;">${manuscript.title}</h2>
+            
+            ${customMessage ? `
+              <div style="background-color: #f9fafb; padding: 16px; margin: 24px 0; border-radius: 6px;">
+                <h3 style="margin-top: 0;">Message from Assigning Editor:</h3>
+                <p style="margin-bottom: 0;">${customMessage}</p>
+              </div>
+            ` : ''}
+            
+            <p><strong>Assignment Date:</strong> ${new Date().toLocaleDateString()}</p>
+            
+            <div style="margin: 32px 0;">
+              <a href="${process.env.FRONTEND_URL}/manuscripts/${manuscriptId}" 
+                 style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                View Manuscript
+              </a>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px;">
+              Assignment made via Editorial Bot automation.
+            </p>
+          </div>
+        `,
+        text: `
+Action Editor Assignment
+
+You have been assigned as the action editor for: ${manuscript.title}
+
+${customMessage ? `Message from Assigning Editor: ${customMessage}\n\n` : ''}
+
+Assignment Date: ${new Date().toLocaleDateString()}
+
+View manuscript: ${process.env.FRONTEND_URL}/manuscripts/${manuscriptId}
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send action editor assignment email:', emailError);
+    }
   }
 
 }

@@ -40,13 +40,13 @@ export function MobileNav({ opened, onClose }: MobileNavProps) {
 
   const navigationItems: NavigationItem[] = [
     {
-      label: 'Dashboard',
-      href: '/dashboard',
+      label: 'Home',
+      href: '/',
       icon: <IconHome size={20} />
     },
     {
-      label: 'Manuscripts',
-      href: '/manuscripts',
+      label: 'Articles',
+      href: '/articles',
       icon: <IconFileText size={20} />
     },
     {
@@ -59,8 +59,8 @@ export function MobileNav({ opened, onClose }: MobileNavProps) {
 
   const quickActions: NavigationItem[] = [
     {
-      label: 'Submit Manuscript',
-      href: '/manuscripts/submit',
+      label: 'Submit Article',
+      href: '/articles/submit',
       icon: <IconPlus size={20} />
     },
     {

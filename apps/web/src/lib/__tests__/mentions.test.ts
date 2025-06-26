@@ -2,7 +2,7 @@ import { parseMentions, parseContentWithMentions } from '../mentions';
 
 describe('Mention Parsing', () => {
   it('should parse bot mentions correctly', () => {
-    const content = '@editorial-bot please review this manuscript';
+    const content = '@editorial-bot please review this article';
     const mentions = parseMentions(content);
     
     expect(mentions).toHaveLength(1);

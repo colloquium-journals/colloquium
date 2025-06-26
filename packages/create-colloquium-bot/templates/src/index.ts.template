@@ -1,41 +1,5 @@
-import { BotContext, BotResponse } from '@colloquium/types';
+import { BotContext, BotResponse, CommandBot, BotCommand } from '@colloquium/types';
 import { z } from 'zod';
-
-// Bot command interface
-interface BotCommand {
-  name: string;
-  description: string;
-  usage: string;
-  parameters: Array<{
-    name: string;
-    description: string;
-    type: string;
-    required: boolean;
-    defaultValue?: any;
-    validation?: z.ZodSchema<any>;
-    examples?: string[];
-  }>;
-  examples: string[];
-  permissions: string[];
-  execute(params: Record<string, any>, context: BotContext): Promise<BotResponse>;
-}
-
-// Command bot interface
-interface CommandBot {
-  id: string;
-  name: string;
-  description: string;
-  version: string;
-  commands: BotCommand[];
-  keywords: string[];
-  triggers: string[];
-  permissions: string[];
-  help: {
-    overview: string;
-    quickStart: string;
-    examples: string[];
-  };
-}
 
 // Main command implementation
 const analyzeCommand: BotCommand = {
@@ -211,7 +175,24 @@ export const {{BOT_CLASS_NAME}}Bot: CommandBot = {
       '@{{BOT_NAME}} analyze',
       '@{{BOT_NAME}} analyze mode=detailed includeMetadata=true'
     ]
-  }
+  },
+  customHelpSections: [
+    {
+      title: '🚀 Getting Started',
+      content: 'This bot analyzes manuscripts and provides detailed feedback. Start with the basic `analyze` command to see what issues might need attention.',
+      position: 'before'
+    },
+    {
+      title: '⚙️ Configuration',
+      content: 'Configure analysis sensitivity, default modes, and notification preferences through the bot settings in your admin panel.',
+      position: 'after'
+    },
+    {
+      title: 'ℹ️ Support',
+      content: 'For questions about analysis results or bot configuration, contact your journal administrators.',
+      position: 'after'
+    }
+  ]
 };
 
 // Bot plugin manifest

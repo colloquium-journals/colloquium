@@ -1,4 +1,4 @@
-import { prisma } from "@colloquium/database";
+import { prisma } from "@colloquium/database/src";
 import {
   BotManager,
   BotInstallation,
@@ -70,6 +70,7 @@ export class DatabaseBotManager implements BotManager {
           author: manifest.author.name,
           isPublic: true,
           configSchema: this.generateConfigSchema(bot),
+          supportsFileUploads: bot.supportsFileUploads || false,
           permissions: {
             create: bot.permissions.map((permission) => ({
               permission,
@@ -82,6 +83,7 @@ export class DatabaseBotManager implements BotManager {
           description: bot.description,
           version: bot.version,
           author: manifest.author.name,
+          supportsFileUploads: bot.supportsFileUploads || false,
           updatedAt: new Date(),
         },
       });
@@ -356,36 +358,38 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../dist/core/editorialBot"),
+              path: path.resolve(__dirname, "../../../editorial-bot"),
             },
             config: { autoStatusUpdates: true, notifyAuthors: true },
           },
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../dist/core/plagiarismBot"),
-            },
-            config: {
-              defaultThreshold: 0.15,
-              enabledDatabases: ["crossref", "pubmed", "arxiv"],
-            },
-          },
-          {
-            source: {
-              type: "local" as const,
-              path: path.resolve(__dirname, "../../dist/core/referenceBot"),
+              path: path.resolve(__dirname, "../../../reference-bot"),
             },
             config: { defaultTimeout: 30, includeMissingDoiReferences: true },
           },
           {
             source: {
               type: "local" as const,
-              path: path.resolve(
-                __dirname,
-                "../../dist/core/reviewerChecklistBot"
-              ),
+              path: path.resolve(__dirname, "../../../markdown-renderer-bot"),
             },
-            config: { title: "Manuscript Review Checklist", criteria: [] },
+            config: { 
+              defaultTemplate: "academic-standard",
+              customTemplates: {},
+              enablePdfGeneration: true,
+              maxFileSize: "50MB"
+            },
+          },
+          {
+            source: {
+              type: "local" as const,
+              path: path.resolve(__dirname, "../../../reviewer-checklist-bot"),
+            },
+            config: { 
+              title: "Manuscript Review Checklist",
+              criteria: []
+            },
           },
         ]
       : [
@@ -399,16 +403,6 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "npm" as const,
-              packageName: "@colloquium/plagiarism-bot",
-            },
-            config: {
-              defaultThreshold: 0.15,
-              enabledDatabases: ["crossref", "pubmed", "arxiv"],
-            },
-          },
-          {
-            source: {
-              type: "npm" as const,
               packageName: "@colloquium/reference-bot",
             },
             config: { defaultTimeout: 30, includeMissingDoiReferences: true },
@@ -416,9 +410,24 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "npm" as const,
+              packageName: "@colloquium/markdown-renderer-bot",
+            },
+            config: { 
+              defaultTemplate: "academic-standard",
+              customTemplates: {},
+              enablePdfGeneration: true,
+              maxFileSize: "50MB"
+            },
+          },
+          {
+            source: {
+              type: "npm" as const,
               packageName: "@colloquium/reviewer-checklist-bot",
             },
-            config: { title: "Manuscript Review Checklist", criteria: [] },
+            config: { 
+              title: "Manuscript Review Checklist",
+              criteria: []
+            },
           },
         ];
 
@@ -539,7 +548,114 @@ export class DatabaseBotManager implements BotManager {
         apiVersion: "1.0.0",
         permissions: bot.permissions?.map((p: any) => p.permission) || [],
         isDefault: false,
+        supportsFileUploads: bot.supportsFileUploads || false,
       },
     };
+  }
+
+  async getBotHelp(botId: string): Promise<string | null> {
+    try {
+      // First check if bot is installed
+      const installation = await this.get(botId);
+      if (!installation) {
+        return null;
+      }
+
+      // Try to get help from the bot executor first (if bot is loaded)
+      const helpFromExecutor = this.botExecutor.getBotHelp(botId);
+      if (helpFromExecutor) {
+        return helpFromExecutor;
+      }
+
+      // If not available from executor, load the bot temporarily to get help
+      const isDevelopment = process.env.NODE_ENV !== "production";
+      let source: BotInstallationSource;
+      
+      if (isDevelopment) {
+        const folderName = botId.endsWith('-bot') ? botId : `${botId}-bot`;
+        source = {
+          type: "local",
+          path: path.resolve(__dirname, `../../../${folderName}`)
+        };
+      } else {
+        source = {
+          type: "npm",
+          packageName: installation.packageName
+        };
+      }
+
+      // Load the plugin temporarily
+      const plugin = await this.pluginLoader.load(source);
+      if (!plugin || !plugin.bot) {
+        return null;
+      }
+
+      // Generate help using the command parser
+      const { commandParser } = await import('./commands');
+      commandParser.registerBot(plugin.bot);
+      return commandParser.generateBotHelp(plugin.bot.id);
+    } catch (error) {
+      console.error(`Failed to get help for bot ${botId}:`, error);
+      return null;
+    }
+  }
+
+  async reloadAllBots(): Promise<void> {
+    console.log('🔄 Reloading all installed bots...');
+    
+    // Get all installed bots from database
+    const installations = await this.list();
+    
+    for (const installation of installations) {
+      if (!installation.isEnabled) {
+        continue; // Skip disabled bots
+      }
+      
+      try {
+        // Reconstruct source based on environment
+        const isDevelopment = process.env.NODE_ENV !== "production";
+        const botId = installation.manifest.colloquium.botId;
+        
+        let source: BotInstallationSource;
+        
+        if (isDevelopment) {
+          // In development, use local paths - correct the botId to match folder names
+          const folderName = botId.endsWith('-bot') ? botId : `${botId}-bot`;
+          source = {
+            type: "local",
+            path: path.resolve(__dirname, `../../../${folderName}`)
+          };
+        } else {
+          // In production, use npm packages
+          source = {
+            type: "npm",
+            packageName: installation.packageName
+          };
+        }
+        
+        // Load the plugin
+        const plugin = await this.pluginLoader.load(source);
+        
+        if (plugin && plugin.bot) {
+          // Register with executor
+          this.botExecutor.registerCommandBot(plugin.bot);
+          this.botExecutor.installBot(plugin.bot.id, installation.config);
+          
+          // Ensure bot user exists (create user ID mapping)
+          const botEmail = `${plugin.bot.id}@colloquium.bot`;
+          let botUser = await prisma.user.findUnique({
+            where: { email: botEmail }
+          });
+          
+          if (botUser) {
+            this.botExecutor.setBotUserId(plugin.bot.id, botUser.id);
+          }
+          
+          // console.log(`✅ Reloaded bot: ${plugin.bot.name}`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to reload bot ${installation.manifest?.colloquium?.botId}:`, error);
+      }
+    }
   }
 }

@@ -57,7 +57,7 @@ describe('useMentionSuggestions', () => {
 
     expect(result.current.allSuggestions).toEqual(mockBots.map(bot => ({
       id: bot.id,
-      name: bot.name,
+      name: bot.id,
       displayName: bot.name,
       type: 'bot',
       description: bot.description,
@@ -106,7 +106,7 @@ describe('useMentionSuggestions', () => {
     expect(suggestions.filter(s => s.type === 'bot')).toEqual([
       {
         id: 'editorial-bot',
-        name: 'Editorial Bot',
+        name: 'editorial-bot',
         displayName: 'Editorial Bot',
         type: 'bot',
         description: 'Assists with editorial workflows',
@@ -114,7 +114,7 @@ describe('useMentionSuggestions', () => {
       },
       {
         id: 'plagiarism-checker',
-        name: 'Plagiarism Checker',
+        name: 'plagiarism-checker',
         displayName: 'Plagiarism Checker',
         type: 'bot',
         description: 'Checks for plagiarism',
@@ -174,7 +174,7 @@ describe('useMentionSuggestions', () => {
     // Test filtering by bot name
     const editorialSuggestions = result.current.getFilteredSuggestions('editorial');
     expect(editorialSuggestions).toHaveLength(1);
-    expect(editorialSuggestions[0].name).toBe('Editorial Bot');
+    expect(editorialSuggestions[0].name).toBe('editorial-bot');
 
     // Test filtering by bot ID
     const plagiarismSuggestions = result.current.getFilteredSuggestions('plagiarism-checker');

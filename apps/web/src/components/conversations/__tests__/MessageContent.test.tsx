@@ -8,18 +8,7 @@ jest.mock('../MentionTooltip', () => ({
   MentionTooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
-// Mock the InteractiveCheckbox component
-jest.mock('../../shared/InteractiveCheckbox', () => ({
-  InteractiveCheckbox: ({ label }: { label: string }) => <div data-testid="interactive-checkbox">{label}</div>
-}));
-
-// Mock the useCheckboxStates hook
-jest.mock('../../../hooks/useCheckboxStates', () => ({
-  useCheckboxStates: () => ({
-    isChecked: jest.fn(() => false),
-    updateCheckboxState: jest.fn()
-  })
-}));
+// Interactive checkboxes are now handled by built-in markdown rendering
 
 const renderWithProvider = (component: React.ReactElement) => {
   return render(
@@ -219,7 +208,7 @@ describe('MessageContent', () => {
     it('should handle complex content with headers, mentions, and formatting', () => {
       const complexContent = `# Review Request
 
-@editorial-bot please review this manuscript with the following criteria:
+@editorial-bot please review this article with the following criteria:
 
 - **Statistical analysis** accuracy
 - *Methodology* completeness  

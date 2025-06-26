@@ -60,8 +60,8 @@ describe('Reviewer Management API', () => {
   describe('GET /api/reviewers/search', () => {
     it('should search for potential reviewers', async () => {
       const mockReviewers = [
-        createMockUser({ id: 'reviewer-1', name: 'Dr. Smith', email: 'smith@university.edu' }),
-        createMockUser({ id: 'reviewer-2', name: 'Dr. Jones', email: 'jones@institute.org' })
+        createMockUser({ id: 'reviewer-1', name: 'Smith', email: 'smith@university.edu' }),
+        createMockUser({ id: 'reviewer-2', name: 'Jones', email: 'jones@institute.org' })
       ];
 
       prisma.user.findMany.mockResolvedValue(mockReviewers);
@@ -71,7 +71,7 @@ describe('Reviewer Management API', () => {
         .get('/api/reviewers/search')
         .set('Cookie', [`auth-token=${editorToken}`])
         .query({
-          query: 'Dr.',
+          query: 'Smith',
           manuscriptId: mockManuscript.id,
           excludeConflicts: 'true',
           limit: '10'
@@ -82,7 +82,7 @@ describe('Reviewer Management API', () => {
       expect(response.body.reviewers[0]).toEqual(
         expect.objectContaining({
           id: 'reviewer-1',
-          name: 'Dr. Smith',
+          name: 'Smith',
           email: 'smith@university.edu'
         })
       );
@@ -118,7 +118,7 @@ describe('Reviewer Management API', () => {
         .get('/api/reviewers/search')
         .set('Cookie', [`auth-token=${authorToken}`])
         .query({
-          query: 'Dr.'
+          query: 'Smith'
         });
 
       expect(response.status).toBe(403);
@@ -295,13 +295,13 @@ describe('Reviewer Management API', () => {
           id: 'assignment-1',
           status: 'ACCEPTED',
           assignedAt: new Date(),
-          reviewer: createMockUser({ name: 'Dr. Smith' })
+          reviewer: createMockUser({ name: 'Smith' })
         },
         {
           id: 'assignment-2',
           status: 'PENDING',
           assignedAt: new Date(),
-          reviewer: createMockUser({ name: 'Dr. Jones' })
+          reviewer: createMockUser({ name: 'Jones' })
         }
       ];
 

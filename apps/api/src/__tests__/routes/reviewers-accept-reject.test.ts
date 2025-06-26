@@ -29,7 +29,6 @@ const createTestManuscript = async (authorId: string) => {
       title: 'Test Manuscript',
       abstract: 'Test abstract for manuscript',
       content: 'Test content',
-      manuscriptType: 'RESEARCH_ARTICLE',
       status: 'SUBMITTED'
     }
   });
@@ -38,7 +37,7 @@ const createTestManuscript = async (authorId: string) => {
     data: {
       manuscriptId: manuscript.id,
       userId: authorId,
-      isPrimary: true,
+      isCorresponding: true,
       name: 'Test Author',
       email: 'author@test.com'
     }

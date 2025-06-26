@@ -6,14 +6,14 @@ import { MentionSuggest, MentionSuggestion } from '../MentionSuggest';
 const mockSuggestions: MentionSuggestion[] = [
   {
     id: 'user1',
-    name: 'John Doe',
+    name: 'user1',
     displayName: 'John Doe',
     type: 'user',
     description: 'AUTHOR • john@example.com'
   },
   {
     id: 'editorial-bot',
-    name: 'Editorial Bot',
+    name: 'editorial-bot',
     displayName: 'Editorial Bot',
     type: 'bot',
     description: 'Assists with editorial workflows',
@@ -21,7 +21,7 @@ const mockSuggestions: MentionSuggestion[] = [
   },
   {
     id: 'user2',
-    name: 'Jane Smith',
+    name: 'user2',
     displayName: 'Jane Smith',
     type: 'user',
     description: 'REVIEWER • jane@example.com'
@@ -131,7 +131,7 @@ describe('MentionSuggest', () => {
       position: { top: 200, left: 100 }
     });
     
-    const popup = container.querySelector('[style*="position: absolute"]');
+    const popup = container.querySelector('[style*="position: fixed"]');
     expect(popup).toHaveStyle({
       top: '200px',
       left: '100px'
@@ -142,7 +142,7 @@ describe('MentionSuggest', () => {
     const suggestionsWithoutDesc: MentionSuggestion[] = [
       {
         id: 'user1',
-        name: 'John Doe',
+        name: 'user1',
         displayName: 'John Doe',
         type: 'user'
       }
@@ -188,7 +188,7 @@ describe('MentionSuggest', () => {
   it('should apply correct styling for popup', () => {
     const { container } = renderWithMantine();
     
-    const popup = container.querySelector('[style*="position: absolute"]');
+    const popup = container.querySelector('[style*="position: fixed"]');
     expect(popup).toHaveStyle({
       zIndex: '1000',
       maxWidth: '320px',

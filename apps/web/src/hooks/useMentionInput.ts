@@ -169,12 +169,12 @@ export function useMentionInput({ textareaRef, value, onChange, suggestions }: U
     
     const beforeMention = value.substring(0, mentionState.startPos);
     const afterCursor = value.substring(textareaRef.current.selectionStart || 0);
-    const newValue = `${beforeMention}@${suggestion.id} ${afterCursor}`;
+    const newValue = `${beforeMention}@${suggestion.name} ${afterCursor}`;
     
     onChange(newValue);
     
     // Set cursor position after the mention
-    const newCursorPos = mentionState.startPos + suggestion.id.length + 2; // +2 for @ and space
+    const newCursorPos = mentionState.startPos + suggestion.name.length + 2; // +2 for @ and space
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();

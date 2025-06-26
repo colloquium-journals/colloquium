@@ -1,5 +1,5 @@
-import { BotContext, BotResponse, BotTrigger } from '@colloquium/types';
-import { CommandBot, CommandParser, ParsedCommand } from './commands';
+import { BotContext, BotResponse, BotTrigger, CommandBot, ParsedCommand } from '@colloquium/types';
+import { CommandParser } from './commands';
 
 export class BotExecutor {
   private commandBots: Map<string, CommandBot> = new Map();
@@ -167,6 +167,15 @@ export class BotExecutor {
 
   getCommandParser(): CommandParser {
     return this.commandParser;
+  }
+
+  getBotHelp(botId: string): string | null {
+    const bot = this.commandBots.get(botId);
+    if (!bot) {
+      return null;
+    }
+    
+    return this.commandParser.generateBotHelp(botId);
   }
 
   private generateUnrecognizedCommandResponse(bot: CommandBot, unrecognizedCommand: string): BotResponse {

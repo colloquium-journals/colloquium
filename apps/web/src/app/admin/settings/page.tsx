@@ -20,7 +20,17 @@ import {
   Select,
   NumberInput,
   ColorInput,
-  Tabs
+  Tabs,
+  Badge,
+  Modal,
+  Table,
+  ActionIcon,
+  Menu,
+  JsonInput,
+  List,
+  ThemeIcon,
+  Box,
+  Progress
 } from '@mantine/core';
 import {
   IconSettings,
@@ -32,9 +42,75 @@ import {
   IconUsers,
   IconMail,
   IconWorld,
-  IconShield
+  IconShield,
+  IconRobot,
+  IconPlus,
+  IconRefresh,
+  IconPower,
+  IconDots,
+  IconTrash,
+  IconDownload,
+  IconCode,
+  IconFile,
+  IconUpload,
+  IconFileText,
+  IconX,
+  IconEdit
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
+import { useDisclosure } from '@mantine/hooks';
+
+interface BotInstallation {
+  id: string;
+  botId: string;
+  name: string;
+  version: string;
+  description: string;
+  author: {
+    name: string;
+    email?: string;
+  };
+  category?: string;
+  isEnabled: boolean;
+  isDefault: boolean;
+  isRequired?: boolean;
+  installedAt: string;
+  updatedAt: string;
+  packageName: string;
+  supportsFileUploads?: boolean;
+}
+
+interface BotConfigFile {
+  id: string;
+  filename: string;
+  description?: string;
+  mimetype: string;
+  size: number;
+  checksum: string;
+  uploadedAt: string;
+  updatedAt: string;
+  uploadedBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  downloadUrl: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  role: 'ADMIN' | 'EDITOR_IN_CHIEF' | 'USER';
+  orcidId?: string;
+  affiliation?: string;
+  createdAt: string;
+  _count?: {
+    authoredManuscripts: number;
+    reviewAssignments: number;
+    authoredMessages: number;
+  };
+}
 
 interface JournalSettings {
   // Basic Information
@@ -113,18 +189,47 @@ export default function JournalSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('basic');
+  const [activeTab, setActiveTab] = useState<string | null>('basic');
 
-  // Check if user is admin
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
-    return (
-      <Container size="md" py="xl">
-        <Alert icon={<IconAlertCircle size={16} />} color="red">
-          Admin access required to manage journal settings.
-        </Alert>
-      </Container>
-    );
-  }
+  // Bot management state
+  const [bots, setBots] = useState<BotInstallation[]>([]);
+  const [botsLoading, setBotsLoading] = useState(false);
+  const [botsError, setBotsError] = useState<string | null>(null);
+  
+  // Modal states
+  const [installModalOpened, { open: openInstallModal, close: closeInstallModal }] = useDisclosure(false);
+  const [configModalOpened, { open: openConfigModal, close: closeConfigModal }] = useDisclosure(false);
+  const [helpModalOpened, { open: openHelpModal, close: closeHelpModal }] = useDisclosure(false);
+  const [selectedBot, setSelectedBot] = useState<BotInstallation | null>(null);
+  const [botHelpContent, setBotHelpContent] = useState<string>('');
+  
+  // Form states
+  const [installForm, setInstallForm] = useState({
+    type: 'npm' as 'npm' | 'git' | 'local' | 'url',
+    packageName: '',
+    version: '',
+    url: '',
+    path: '',
+    ref: ''
+  });
+  const [configForm, setConfigForm] = useState('{}');
+  
+  // File configuration states
+  const [botFiles, setBotFiles] = useState<BotConfigFile[]>([]);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [fileDescription, setFileDescription] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [botConfigTab, setBotConfigTab] = useState<string | null>('config');
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
+  const [editingFileName, setEditingFileName] = useState('');
+
+  // User management state
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch settings
   const fetchSettings = async () => {
@@ -150,6 +255,87 @@ export default function JournalSettingsPage() {
   useEffect(() => {
     fetchSettings();
   }, []);
+
+  // Helper function to check if a bot is required
+  const isRequiredBot = (botId: string) => {
+    return botId === 'editorial-bot';
+  };
+
+  // Fetch installed bots
+  const fetchBots = async () => {
+    try {
+      setBotsLoading(true);
+      const response = await fetch('http://localhost:4000/api/bot-management', {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bots');
+      }
+
+      const data = await response.json();
+      const botsWithRequiredFlag = (data.data || []).map((bot: BotInstallation) => ({
+        ...bot,
+        isRequired: isRequiredBot(bot.botId)
+      }));
+      setBots(botsWithRequiredFlag);
+    } catch (err) {
+      setBotsError(err instanceof Error ? err.message : 'Failed to load bots');
+    } finally {
+      setBotsLoading(false);
+    }
+  };
+
+  // Fetch bots when switching to bots tab
+  useEffect(() => {
+    if (activeTab === 'bots') {
+      fetchBots();
+    }
+  }, [activeTab]);
+
+  // Fetch users with role filtering
+  const fetchUsers = async () => {
+    try {
+      setUsersLoading(true);
+      setUsersError(null);
+      
+      const params = new URLSearchParams();
+      if (roleFilter !== 'all') {
+        params.set('role', roleFilter);
+      }
+      if (searchTerm.trim()) {
+        params.set('search', searchTerm.trim());
+      }
+      
+      const response = await fetch(`http://localhost:4000/api/users?${params.toString()}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+
+      const data = await response.json();
+      // Filter out any bot-like users (emails ending with @colloquium.ai or containing "bot")
+      const filteredUsers = (data.users || []).filter((user: User) => 
+        !user.email.endsWith('@colloquium.ai') && 
+        !user.email.toLowerCase().includes('bot') &&
+        !user.name?.toLowerCase().includes('bot')
+      );
+      setUsers(filteredUsers);
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to load users');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  // Fetch users when switching to users tab or when filters change
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab, roleFilter, searchTerm]);
 
   // Save settings
   const handleSaveSettings = async () => {
@@ -183,6 +369,442 @@ export default function JournalSettingsPage() {
       setSaving(false);
     }
   };
+
+  // Install bot
+  const handleInstallBot = async () => {
+    try {
+      const source: any = { type: installForm.type };
+      
+      if (installForm.type === 'npm') {
+        source.packageName = installForm.packageName;
+        if (installForm.version) source.version = installForm.version;
+      } else if (installForm.type === 'git' || installForm.type === 'url') {
+        source.url = installForm.url;
+        if (installForm.ref) source.ref = installForm.ref;
+      } else if (installForm.type === 'local') {
+        source.path = installForm.path;
+      }
+
+      const response = await fetch('http://localhost:4000/api/bot-management/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ source })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to install bot');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'Bot installed successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      closeInstallModal();
+      setInstallForm({
+        type: 'npm',
+        packageName: '',
+        version: '',
+        url: '',
+        path: '',
+        ref: ''
+      });
+      await fetchBots();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to install bot',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Toggle bot enable/disable
+  const handleToggleBot = async (botId: string, enable: boolean) => {
+    if (isRequiredBot(botId) && !enable) {
+      notifications.show({
+        title: 'Cannot Disable',
+        message: 'This bot is required for the platform and cannot be disabled.',
+        color: 'orange',
+        icon: <IconAlertCircle size={16} />
+      });
+      return;
+    }
+
+    try {
+      const endpoint = enable ? 'enable' : 'disable';
+      const response = await fetch(`http://localhost:4000/api/bot-management/${botId}/${endpoint}`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${enable ? 'enable' : 'disable'} bot`);
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: `Bot ${enable ? 'enabled' : 'disabled'} successfully`,
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      await fetchBots();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to update bot',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Uninstall bot
+  const handleUninstallBot = async (botId: string) => {
+    if (isRequiredBot(botId)) {
+      notifications.show({
+        title: 'Cannot Uninstall',
+        message: 'This bot is required for the platform and cannot be uninstalled.',
+        color: 'orange',
+        icon: <IconAlertCircle size={16} />
+      });
+      return;
+    }
+    
+    if (!confirm('Are you sure you want to uninstall this bot?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/bot-management/${botId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to uninstall bot');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'Bot uninstalled successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      await fetchBots();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to uninstall bot',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Fetch bot files
+  const fetchBotFiles = async (botId: string) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/bot-config-files/${botId}/files`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bot files');
+      }
+
+      const data = await response.json();
+      setBotFiles(data.files || []);
+    } catch (err) {
+      console.error('Error fetching bot files:', err);
+      setBotFiles([]);
+    }
+  };
+
+  // Upload file
+  const handleFileUpload = async () => {
+    if (!selectedBot || !fileToUpload) return;
+
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+      if (fileDescription) {
+        formData.append('description', fileDescription);
+      }
+
+      // Simulate progress (in real implementation, you'd use XMLHttpRequest for actual progress)
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 100);
+
+      const response = await fetch(`http://localhost:4000/api/bot-config-files/${selectedBot.botId}/files`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload file');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'File uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      // Reset form
+      setFileToUpload(null);
+      setFileDescription('');
+      
+      // Refresh files list
+      await fetchBotFiles(selectedBot.botId);
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to upload file',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Rename file
+  const handleRenameFile = async (fileId: string, newFilename: string) => {
+    if (!selectedBot || !newFilename.trim()) return;
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ filename: newFilename.trim() })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to rename file');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'File renamed successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      // Reset editing state
+      setEditingFileId(null);
+      setEditingFileName('');
+      
+      // Refresh files list
+      await fetchBotFiles(selectedBot.botId);
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to rename file',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Delete file
+  const handleDeleteFile = async (fileId: string) => {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete file');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'File deleted successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      // Refresh files list
+      if (selectedBot) {
+        await fetchBotFiles(selectedBot.botId);
+      }
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to delete file',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Configure bot
+  const handleConfigureBot = async () => {
+    if (!selectedBot) return;
+
+    try {
+      const config = JSON.parse(configForm);
+      
+      const response = await fetch(`http://localhost:4000/api/bot-management/${selectedBot.botId}/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ config })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update bot configuration');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'Bot configuration updated successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      closeConfigModal();
+      await fetchBots();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to update configuration',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Fetch bot help
+  const handleViewBotHelp = async (bot: BotInstallation) => {
+    try {
+      setSelectedBot(bot);
+      setBotHelpContent('Loading help content...');
+      openHelpModal();
+
+      const response = await fetch(`http://localhost:4000/api/bot-management/${bot.botId}/help`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bot help');
+      }
+
+      const data = await response.json();
+      setBotHelpContent(data.data.helpContent);
+    } catch (err) {
+      setBotHelpContent('Failed to load help content. Please try again.');
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to load bot help',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Install default bots
+  const handleInstallDefaults = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/api/bot-management/install-defaults', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to install default bots');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'Default bots installed successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      await fetchBots();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to install default bots',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+  // Change user role
+  const handleChangeUserRole = async (userId: string, newRole: 'ADMIN' | 'EDITOR' | 'USER') => {
+    try {
+      // Map frontend roles to backend roles
+      const roleMapping = {
+        'ADMIN': 'ADMIN',
+        'EDITOR': 'EDITOR', 
+        'USER': 'AUTHOR'
+      };
+      
+      const response = await fetch(`http://localhost:4000/api/users/${userId}/role`, {
+        method: 'POST', // The API uses POST, not PUT
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ role: roleMapping[newRole] })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update user role');
+      }
+
+      notifications.show({
+        title: 'Success',
+        message: 'User role updated successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      await fetchUsers();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to update user role',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
+
+  // Check if user is admin
+  if (!isAuthenticated || user?.role !== 'ADMIN') {
+    return (
+      <Container size="md" py="xl">
+        <Alert icon={<IconAlertCircle size={16} />} color="red">
+          Admin access required to manage journal settings.
+        </Alert>
+      </Container>
+    );
+  }
 
   if (loading) {
     return (
@@ -242,6 +864,12 @@ export default function JournalSettingsPage() {
             </Tabs.Tab>
             <Tabs.Tab value="advanced" leftSection={<IconShield size={16} />}>
               Advanced
+            </Tabs.Tab>
+            <Tabs.Tab value="bots" leftSection={<IconRobot size={16} />}>
+              Bots
+            </Tabs.Tab>
+            <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
+              Users
             </Tabs.Tab>
           </Tabs.List>
 
@@ -363,7 +991,7 @@ export default function JournalSettingsPage() {
                 <NumberInput
                   label="Maximum File Size (MB)"
                   value={settings.maxFileSize}
-                  onChange={(value) => setSettings({ ...settings, maxFileSize: value || 50 })}
+                  onChange={(value) => setSettings({ ...settings, maxFileSize: Number(value) || 50 })}
                   min={1}
                   max={500}
                 />
@@ -380,7 +1008,7 @@ export default function JournalSettingsPage() {
                 <NumberInput
                   label="Default Review Period (days)"
                   value={settings.defaultReviewPeriod}
-                  onChange={(value) => setSettings({ ...settings, defaultReviewPeriod: value || 30 })}
+                  onChange={(value) => setSettings({ ...settings, defaultReviewPeriod: Number(value) || 30 })}
                   min={7}
                   max={365}
                 />
@@ -476,7 +1104,7 @@ export default function JournalSettingsPage() {
                         label="SMTP Port"
                         placeholder="587"
                         value={settings.smtpPort || 587}
-                        onChange={(value) => setSettings({ ...settings, smtpPort: value || 587 })}
+                        onChange={(value) => setSettings({ ...settings, smtpPort: Number(value) || 587 })}
                       />
                     </Group>
 
@@ -534,7 +1162,699 @@ export default function JournalSettingsPage() {
               </Stack>
             </Card>
           </Tabs.Panel>
+
+          {/* Bots Tab */}
+          <Tabs.Panel value="bots">
+            <Card shadow="sm" padding="lg" radius="md" mt="md">
+              <Stack gap="xl">
+                {/* Header */}
+                <Group justify="space-between" align="flex-start">
+                  <Stack gap="xs">
+                    <Title order={3}>Bot Management</Title>
+                    <Text c="dimmed">
+                      Install and manage bots for your journal
+                    </Text>
+                  </Stack>
+                  <Group>
+                    <Button
+                      variant="outline"
+                      leftSection={<IconDownload size={16} />}
+                      onClick={handleInstallDefaults}
+                    >
+                      Install Defaults
+                    </Button>
+                    <Button
+                      leftSection={<IconPlus size={16} />}
+                      onClick={openInstallModal}
+                    >
+                      Install Bot
+                    </Button>
+                  </Group>
+                </Group>
+
+                {/* Error display */}
+                {botsError && (
+                  <Alert icon={<IconAlertCircle size={16} />} color="red">
+                    {botsError}
+                  </Alert>
+                )}
+
+                {/* Bots table */}
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Title order={4}>Installed Bots ({bots.length})</Title>
+                    <ActionIcon
+                      variant="subtle"
+                      size="lg"
+                      onClick={fetchBots}
+                      loading={botsLoading}
+                    >
+                      <IconRefresh size={16} />
+                    </ActionIcon>
+                  </Group>
+
+                  {botsLoading ? (
+                    <Stack align="center" gap="md" py="xl">
+                      <Loader size="lg" />
+                      <Text>Loading bots...</Text>
+                    </Stack>
+                  ) : bots.length === 0 ? (
+                    <Stack align="center" gap="md" py="xl">
+                      <IconRobot size={48} color="gray" />
+                      <Text c="dimmed">No bots installed</Text>
+                      <Button
+                        variant="light"
+                        leftSection={<IconPlus size={16} />}
+                        onClick={openInstallModal}
+                      >
+                        Install Your First Bot
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Table>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Bot</Table.Th>
+                          <Table.Th>Version</Table.Th>
+                          <Table.Th>Status</Table.Th>
+                          <Table.Th>Installed</Table.Th>
+                          <Table.Th style={{width: 100}}>Actions</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {bots.map((bot) => (
+                          <Table.Tr key={bot.id}>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                <Group gap="xs">
+                                  <Text fw={500}>{bot.name}</Text>
+                                  {bot.isDefault && (
+                                    <Badge size="xs" color="blue">Default</Badge>
+                                  )}
+                                  {bot.isRequired && (
+                                    <Badge size="xs" color="red">Required</Badge>
+                                  )}
+                                </Group>
+                                <Text size="xs" c="dimmed">{bot.description}</Text>
+                                <Text size="xs" c="dimmed">by {bot.author.name}</Text>
+                              </Stack>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">{bot.version}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Switch
+                                checked={bot.isEnabled}
+                                disabled={bot.isRequired}
+                                onChange={(event) => 
+                                  handleToggleBot(bot.botId, event.currentTarget.checked)
+                                }
+                                thumbIcon={
+                                  bot.isEnabled ? (
+                                    <IconPower size={12} color="white" />
+                                  ) : (
+                                    <IconPower size={12} color="gray" />
+                                  )
+                                }
+                              />
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="xs" c="dimmed">
+                                {new Date(bot.installedAt).toLocaleDateString()}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Menu shadow="md" width={200}>
+                                <Menu.Target>
+                                  <ActionIcon variant="subtle">
+                                    <IconDots size={16} />
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Item
+                                    leftSection={<IconSettings size={14} />}
+                                    onClick={async () => {
+                                      setSelectedBot(bot);
+                                      setConfigForm('{}');
+                                      setBotConfigTab('config');
+                                      await fetchBotFiles(bot.botId);
+                                      openConfigModal();
+                                    }}
+                                  >
+                                    Configure
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    leftSection={<IconFileText size={14} />}
+                                    onClick={() => handleViewBotHelp(bot)}
+                                  >
+                                    View Help
+                                  </Menu.Item>
+                                  {!bot.isRequired && (
+                                    <>
+                                      <Menu.Divider />
+                                      <Menu.Item
+                                        leftSection={<IconTrash size={14} />}
+                                        color="red"
+                                        onClick={() => handleUninstallBot(bot.botId)}
+                                      >
+                                        Uninstall
+                                      </Menu.Item>
+                                    </>
+                                  )}
+                                </Menu.Dropdown>
+                              </Menu>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  )}
+                </Stack>
+              </Stack>
+            </Card>
+          </Tabs.Panel>
+
+          {/* Users Tab */}
+          <Tabs.Panel value="users">
+            <Card shadow="sm" padding="lg" radius="md" mt="md">
+              <Stack gap="xl">
+                {/* Header */}
+                <Group justify="space-between" align="flex-start">
+                  <Stack gap="xs">
+                    <Title order={3}>User Management</Title>
+                    <Text c="dimmed">
+                      Manage users, roles, and permissions
+                    </Text>
+                  </Stack>
+                  <Group>
+                    <TextInput
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      leftSection={<IconUsers size={16} />}
+                      style={{ width: 200 }}
+                    />
+                    <Select
+                      placeholder="Filter by role"
+                      value={roleFilter}
+                      onChange={(value) => setRoleFilter(value || 'all')}
+                      data={[
+                        { value: 'all', label: 'All Users' },
+                        { value: 'ADMIN', label: 'Admins' },
+                        { value: 'EDITOR_IN_CHIEF', label: 'Editors' },
+                        { value: 'USER', label: 'Users' }
+                      ]}
+                      style={{ width: 150 }}
+                    />
+                    <ActionIcon
+                      variant="subtle"
+                      size="lg"
+                      onClick={fetchUsers}
+                      loading={usersLoading}
+                    >
+                      <IconRefresh size={16} />
+                    </ActionIcon>
+                  </Group>
+                </Group>
+
+                {/* Error display */}
+                {usersError && (
+                  <Alert icon={<IconAlertCircle size={16} />} color="red">
+                    {usersError}
+                  </Alert>
+                )}
+
+                {/* Users table */}
+                <Stack gap="md">
+                  <Group justify="space-between">
+                    <Title order={4}>
+                      Users ({users.length})
+                      {roleFilter !== 'all' && (
+                        <Badge ml="xs" size="sm" variant="light">
+                          {roleFilter === 'EDITOR_IN_CHIEF' ? 'Editors' : `${roleFilter}s`}
+                        </Badge>
+                      )}
+                    </Title>
+                  </Group>
+
+                  {usersLoading ? (
+                    <Stack align="center" gap="md" py="xl">
+                      <Loader size="lg" />
+                      <Text>Loading users...</Text>
+                    </Stack>
+                  ) : users.length === 0 ? (
+                    <Stack align="center" gap="md" py="xl">
+                      <IconUsers size={48} color="gray" />
+                      <Text c="dimmed">
+                        {searchTerm || roleFilter !== 'all' ? 'No users found matching your criteria' : 'No users found'}
+                      </Text>
+                    </Stack>
+                  ) : (
+                    <Table>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>User</Table.Th>
+                          <Table.Th>Role</Table.Th>
+                          <Table.Th>Manuscripts</Table.Th>
+                          <Table.Th>Reviews</Table.Th>
+                          <Table.Th style={{width: 100}}>Actions</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {users.map((usr) => (
+                          <Table.Tr key={usr.id}>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                <Text fw={500}>{usr.name || usr.email}</Text>
+                                {usr.name && (
+                                  <Text size="xs" c="dimmed">{usr.email}</Text>
+                                )}
+                                {usr.affiliation && (
+                                  <Text size="xs" c="dimmed">{usr.affiliation}</Text>
+                                )}
+                                {usr.orcidId && (
+                                  <Text size="xs" c="dimmed">ORCID: {usr.orcidId}</Text>
+                                )}
+                              </Stack>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge 
+                                color={
+                                  usr.role === 'ADMIN' ? 'red' : 
+                                  usr.role === 'EDITOR_IN_CHIEF' ? 'blue' : 'gray'
+                                }
+                                variant="light"
+                              >
+                                {usr.role === 'EDITOR_IN_CHIEF' ? 'EDITOR' : usr.role}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                {usr._count?.authoredManuscripts || 0}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                {usr._count?.reviewAssignments || 0}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Menu shadow="md" width={200}>
+                                <Menu.Target>
+                                  <ActionIcon variant="subtle">
+                                    <IconDots size={16} />
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Label>Role Management</Menu.Label>
+                                  {usr.role === 'USER' && (
+                                    <>
+                                      <Menu.Item
+                                        onClick={() => handleChangeUserRole(usr.id, 'ADMIN')}
+                                      >
+                                        Make Admin
+                                      </Menu.Item>
+                                      <Menu.Item
+                                        onClick={() => handleChangeUserRole(usr.id, 'EDITOR')}
+                                      >
+                                        Make Editor
+                                      </Menu.Item>
+                                    </>
+                                  )}
+                                  {usr.role === 'ADMIN' && (
+                                    <Menu.Item
+                                      onClick={() => handleChangeUserRole(usr.id, 'USER')}
+                                      color="orange"
+                                    >
+                                      Remove Admin Role
+                                    </Menu.Item>
+                                  )}
+                                  {usr.role === 'EDITOR_IN_CHIEF' && (
+                                    <Menu.Item
+                                      onClick={() => handleChangeUserRole(usr.id, 'USER')}
+                                      color="orange"
+                                    >
+                                      Remove Editor Role
+                                    </Menu.Item>
+                                  )}
+                                </Menu.Dropdown>
+                              </Menu>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  )}
+                </Stack>
+              </Stack>
+            </Card>
+          </Tabs.Panel>
         </Tabs>
+
+        {/* Install Bot Modal */}
+        <Modal
+          opened={installModalOpened}
+          onClose={closeInstallModal}
+          title="Install Bot"
+          size="md"
+        >
+          <Stack gap="md">
+            <Select
+              label="Installation Source"
+              value={installForm.type}
+              onChange={(value) => setInstallForm({ ...installForm, type: value as any })}
+              data={[
+                { value: 'npm', label: 'npm Package' },
+                { value: 'git', label: 'Git Repository' },
+                { value: 'url', label: 'URL (tar.gz)' },
+                { value: 'local', label: 'Local Path' }
+              ]}
+            />
+
+            {installForm.type === 'npm' && (
+              <>
+                <TextInput
+                  label="Package Name"
+                  placeholder="@colloquium/my-bot"
+                  value={installForm.packageName}
+                  onChange={(e) => setInstallForm({ ...installForm, packageName: e.target.value })}
+                  required
+                />
+                <TextInput
+                  label="Version (optional)"
+                  placeholder="1.0.0"
+                  value={installForm.version}
+                  onChange={(e) => setInstallForm({ ...installForm, version: e.target.value })}
+                />
+              </>
+            )}
+
+            {(installForm.type === 'git' || installForm.type === 'url') && (
+              <>
+                <TextInput
+                  label="URL"
+                  placeholder="https://github.com/user/bot.git"
+                  value={installForm.url}
+                  onChange={(e) => setInstallForm({ ...installForm, url: e.target.value })}
+                  required
+                />
+                {installForm.type === 'git' && (
+                  <TextInput
+                    label="Branch/Tag (optional)"
+                    placeholder="main"
+                    value={installForm.ref}
+                    onChange={(e) => setInstallForm({ ...installForm, ref: e.target.value })}
+                  />
+                )}
+              </>
+            )}
+
+            {installForm.type === 'local' && (
+              <TextInput
+                label="Local Path"
+                placeholder="/path/to/bot"
+                value={installForm.path}
+                onChange={(e) => setInstallForm({ ...installForm, path: e.target.value })}
+                required
+              />
+            )}
+
+            <Group justify="flex-end" gap="xs">
+              <Button variant="outline" onClick={closeInstallModal}>
+                Cancel
+              </Button>
+              <Button onClick={handleInstallBot}>
+                Install
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
+
+        {/* Configure Bot Modal */}
+        <Modal
+          opened={configModalOpened}
+          onClose={closeConfigModal}
+          title={`Configure ${selectedBot?.name}`}
+          size="calc(100vw - 3rem)"
+          styles={{
+            content: {
+              height: 'calc(100vh - 8rem)',
+              maxHeight: 'calc(100vh - 8rem)'
+            },
+            body: {
+              height: 'calc(100vh - 12rem)',
+              display: 'flex',
+              flexDirection: 'column'
+            }
+          }}
+        >
+          <Tabs value={botConfigTab} onChange={setBotConfigTab} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Tabs.List>
+              <Tabs.Tab value="config" leftSection={<IconCode size={16} />}>
+                Configuration
+              </Tabs.Tab>
+              {selectedBot?.supportsFileUploads && (
+                <Tabs.Tab value="files" leftSection={<IconFile size={16} />}>
+                  Files ({botFiles.length})
+                </Tabs.Tab>
+              )}
+            </Tabs.List>
+
+            <Tabs.Panel value="config" pt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Stack gap="md" style={{ height: '100%' }}>
+                <Text size="sm" c="dimmed">
+                  Update the configuration for {selectedBot?.name}. Configuration must be valid JSON.
+                </Text>
+                
+                <JsonInput
+                  label="Configuration"
+                  placeholder={'{\n  "key": "value"\n}'}
+                  value={configForm}
+                  onChange={setConfigForm}
+                  minRows={15}
+                  maxRows={30}
+                  validationError="Invalid JSON"
+                  style={{ flex: 1 }}
+                  styles={{
+                    input: {
+                      minHeight: '400px',
+                      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                      fontSize: '14px',
+                      lineHeight: '1.5'
+                    }
+                  }}
+                />
+
+                <Group justify="flex-end" gap="xs">
+                  <Button variant="outline" onClick={closeConfigModal}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleConfigureBot}>
+                    Save Configuration
+                  </Button>
+                </Group>
+              </Stack>
+            </Tabs.Panel>
+
+            {selectedBot?.supportsFileUploads && (
+              <Tabs.Panel value="files" pt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Stack gap="md" style={{ height: '100%' }}>
+                  <Text size="sm" c="dimmed">
+                    Upload and manage configuration files for {selectedBot?.name}.
+                  </Text>
+
+                {/* File Upload Section */}
+                <Card withBorder p="md">
+                  <Stack gap="md">
+                    <Title order={5}>Upload New File</Title>
+                    
+                    <FileInput
+                      label="Select File"
+                      placeholder="Choose a file to upload"
+                      value={fileToUpload}
+                      onChange={setFileToUpload}
+                      leftSection={<IconUpload size={16} />}
+                      accept=".html,.css,.js,.json,.png,.jpg,.jpeg,.gif,.svg,.txt"
+                    />
+
+                    <TextInput
+                      label="Description (optional)"
+                      placeholder="File description"
+                      value={fileDescription}
+                      onChange={(e) => setFileDescription(e.target.value)}
+                    />
+
+                    {isUploading && (
+                      <Box>
+                        <Text size="sm" mb="xs">Uploading...</Text>
+                        <Progress value={uploadProgress} />
+                      </Box>
+                    )}
+
+                    <Group justify="flex-end">
+                      <Button
+                        onClick={handleFileUpload}
+                        disabled={!fileToUpload || isUploading}
+                        loading={isUploading}
+                        leftSection={<IconUpload size={16} />}
+                      >
+                        Upload File
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Card>
+
+                {/* Files List */}
+                <Card withBorder p="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Stack gap="md" style={{ height: '100%' }}>
+                    <Title order={5}>Uploaded Files</Title>
+                    
+                    {botFiles.length === 0 ? (
+                      <Text size="sm" c="dimmed" ta="center" py="xl">
+                        No files uploaded yet
+                      </Text>
+                    ) : (
+                      <Box style={{ flex: 1, overflowY: 'auto', maxHeight: '300px' }}>
+                        <List spacing="sm">
+                        {botFiles.map((file) => (
+                          <List.Item
+                            key={file.id}
+                            icon={
+                              <ThemeIcon size={24} radius="xl" variant="light">
+                                <IconFileText size={14} />
+                              </ThemeIcon>
+                            }
+                          >
+                            <Group justify="space-between" align="flex-start">
+                              <Stack gap={2}>
+                                {editingFileId === file.id ? (
+                                  <Group gap="xs">
+                                    <TextInput
+                                      size="xs"
+                                      value={editingFileName}
+                                      onChange={(e) => setEditingFileName(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleRenameFile(file.id, editingFileName);
+                                        } else if (e.key === 'Escape') {
+                                          setEditingFileId(null);
+                                          setEditingFileName('');
+                                        }
+                                      }}
+                                      autoFocus
+                                    />
+                                    <ActionIcon
+                                      size="sm"
+                                      variant="subtle"
+                                      color="green"
+                                      onClick={() => handleRenameFile(file.id, editingFileName)}
+                                    >
+                                      <IconDeviceFloppy size={12} />
+                                    </ActionIcon>
+                                    <ActionIcon
+                                      size="sm"
+                                      variant="subtle"
+                                      color="gray"
+                                      onClick={() => {
+                                        setEditingFileId(null);
+                                        setEditingFileName('');
+                                      }}
+                                    >
+                                      <IconX size={12} />
+                                    </ActionIcon>
+                                  </Group>
+                                ) : (
+                                  <Text fw={500}>{file.filename}</Text>
+                                )}
+                                {file.description && (
+                                  <Text size="xs" c="dimmed">
+                                    {file.description}
+                                  </Text>
+                                )}
+                                <Text size="xs" c="dimmed">
+                                  {(file.size / 1024).toFixed(1)} KB • {file.mimetype} • 
+                                  Uploaded {new Date(file.uploadedAt).toLocaleDateString()}
+                                </Text>
+                              </Stack>
+                              {editingFileId !== file.id && (
+                                <Group gap="xs">
+                                  <Button
+                                    size="xs"
+                                    variant="subtle"
+                                    component="a"
+                                    href={`http://localhost:4000${file.downloadUrl}`}
+                                    target="_blank"
+                                    leftSection={<IconDownload size={12} />}
+                                  >
+                                    Download
+                                  </Button>
+                                  <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="blue"
+                                    onClick={() => {
+                                      setEditingFileId(file.id);
+                                      setEditingFileName(file.filename);
+                                    }}
+                                  >
+                                    <IconEdit size={12} />
+                                  </ActionIcon>
+                                  <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="red"
+                                    onClick={() => handleDeleteFile(file.id)}
+                                  >
+                                    <IconX size={12} />
+                                  </ActionIcon>
+                                </Group>
+                              )}
+                            </Group>
+                          </List.Item>
+                        ))}
+                        </List>
+                      </Box>
+                    )}
+                  </Stack>
+                </Card>
+              </Stack>
+            </Tabs.Panel>
+            )}
+          </Tabs>
+        </Modal>
+
+        {/* Help Modal */}
+        <Modal
+          opened={helpModalOpened}
+          onClose={closeHelpModal}
+          title={`Help: ${selectedBot?.name}`}
+          size="calc(100vw - 3rem)"
+          styles={{
+            content: {
+              height: 'calc(100vh - 8rem)',
+              maxHeight: 'calc(100vh - 8rem)'
+            },
+            body: {
+              height: 'calc(100vh - 12rem)',
+              display: 'flex',
+              flexDirection: 'column'
+            }
+          }}
+        >
+          <Box style={{ height: '100%', overflow: 'auto' }}>
+            <Text 
+              component="pre"
+              style={{ 
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'inherit',
+                lineHeight: 1.6,
+                fontSize: '14px'
+              }}
+            >
+              {botHelpContent}
+            </Text>
+          </Box>
+        </Modal>
       </Stack>
     </Container>
   );

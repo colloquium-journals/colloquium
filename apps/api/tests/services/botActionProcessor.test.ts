@@ -275,6 +275,7 @@ describe('BotActionProcessor', () => {
         authorRelations: []
       };
 
+      prisma.manuscript.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
       prisma.manuscript.update.mockResolvedValue({
         ...mockManuscript,
         status: 'ACCEPTED'
@@ -298,6 +299,123 @@ describe('BotActionProcessor', () => {
           isBot: true
         })
       });
+    });
+
+    it('should allow publishing from ACCEPTED status', async () => {
+      const action: BotAction = {
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { 
+          status: 'PUBLISHED', 
+          reason: 'Ready for publication' 
+        }
+      };
+
+      const mockManuscript = {
+        id: 'manuscript-123',
+        status: 'ACCEPTED',
+        authorRelations: []
+      };
+
+      prisma.manuscript.findUnique.mockResolvedValue({ status: 'ACCEPTED' });
+      prisma.manuscript.update.mockResolvedValue({
+        ...mockManuscript,
+        status: 'PUBLISHED'
+      });
+
+      await processor.processActions([action], mockContext);
+
+      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+        where: { id: mockContext.manuscriptId },
+        data: {
+          status: 'PUBLISHED',
+          updatedAt: expect.any(Date)
+        },
+        include: { authorRelations: { include: { user: true } } }
+      });
+    });
+
+    it('should reject publishing from non-ACCEPTED status', async () => {
+      const action: BotAction = {
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { status: 'PUBLISHED' }
+      };
+
+      prisma.manuscript.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
+
+      await expect(processor.processActions([action], mockContext)).resolves.not.toThrow();
+      
+      // Should not update manuscript due to validation error
+      expect(prisma.manuscript.update).not.toHaveBeenCalled();
+    });
+
+    it('should allow REJECTED status from any state', async () => {
+      const action: BotAction = {
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { 
+          status: 'REJECTED', 
+          reason: 'Insufficient methodology' 
+        }
+      };
+
+      prisma.manuscript.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
+      prisma.manuscript.update.mockResolvedValue({
+        id: 'manuscript-123',
+        status: 'REJECTED',
+        authorRelations: []
+      });
+
+      await processor.processActions([action], mockContext);
+
+      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+        where: { id: mockContext.manuscriptId },
+        data: {
+          status: 'REJECTED',
+          updatedAt: expect.any(Date)
+        },
+        include: { authorRelations: { include: { user: true } } }
+      });
+    });
+
+    it('should allow retracting from PUBLISHED status', async () => {
+      const action: BotAction = {
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { 
+          status: 'RETRACTED', 
+          reason: 'Data integrity issues' 
+        }
+      };
+
+      prisma.manuscript.findUnique.mockResolvedValue({ status: 'PUBLISHED' });
+      prisma.manuscript.update.mockResolvedValue({
+        id: 'manuscript-123',
+        status: 'RETRACTED',
+        authorRelations: []
+      });
+
+      await processor.processActions([action], mockContext);
+
+      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+        where: { id: mockContext.manuscriptId },
+        data: {
+          status: 'RETRACTED',
+          updatedAt: expect.any(Date)
+        },
+        include: { authorRelations: { include: { user: true } } }
+      });
+    });
+
+    it('should reject retracting from non-PUBLISHED status', async () => {
+      const action: BotAction = {
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { status: 'RETRACTED' }
+      };
+
+      prisma.manuscript.findUnique.mockResolvedValue({ status: 'ACCEPTED' });
+
+      await expect(processor.processActions([action], mockContext)).resolves.not.toThrow();
+      
+      // Should not update manuscript due to validation error
+      expect(prisma.manuscript.update).not.toHaveBeenCalled();
     });
 
     it('should reject invalid status', async () => {

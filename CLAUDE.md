@@ -27,7 +27,10 @@ packages/
 ├── types/        # Shared TypeScript interfaces
 ├── ui/           # Shared React components
 ├── auth/         # Authentication utilities
-├── bots/         # Bot framework and core bots
+├── bots/         # Bot framework 
+├── editorial-bot/      # bot for editorial tasks
+├── reference-bot/     # bot for reference checking
+├── reviewer-checklist-bot/ # bot for generating reviewer checklists
 └── config/       # Shared configuration
 ```
 

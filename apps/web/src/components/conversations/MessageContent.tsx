@@ -1,9 +1,8 @@
 import { Text } from '@mantine/core';
 import { parseContentWithMentions, ContentChunk } from '../../lib/mentions';
-import { parseMarkdownWithMentions, MarkdownChunk } from '../../lib/markdown';
+import { parseMarkdownWithMentions, type MarkdownChunk } from '../../lib/markdown';
 import { MentionTooltip } from './MentionTooltip';
-import { InteractiveCheckbox } from '../shared/InteractiveCheckbox';
-import { useCheckboxStates } from '../../hooks/useCheckboxStates';
+// TODO: InteractiveCheckbox and useCheckboxStates removed - using built-in markdown checkboxes instead
 import styles from './MarkdownContent.module.css';
 
 interface MessageContentProps {
@@ -17,10 +16,6 @@ interface MessageContentProps {
 export function MessageContent({ content, conversationId, messageId, size = 'sm', style }: MessageContentProps) {
   const chunks = parseMarkdownWithMentions(content);
   
-  // Check if content has checkboxes and set up state management
-  const hasCheckboxes = chunks.some(chunk => chunk.type === 'interactive_checkbox');
-  const { isChecked, updateCheckboxState } = useCheckboxStates(hasCheckboxes ? [messageId] : []);
-
   return (
     <div 
       style={{
@@ -35,8 +30,6 @@ export function MessageContent({ content, conversationId, messageId, size = 'sm'
           chunk={chunk} 
           conversationId={conversationId}
           messageId={messageId}
-          isChecked={isChecked}
-          updateCheckboxState={updateCheckboxState}
         />
       ))}
     </div>
@@ -47,11 +40,9 @@ interface MarkdownChunkProps {
   chunk: MarkdownChunk;
   conversationId: string;
   messageId: string;
-  isChecked: (messageId: string, checkboxId: string) => boolean;
-  updateCheckboxState: (messageId: string, checkboxId: string, checked: boolean) => void;
 }
 
-function MarkdownChunk({ chunk, conversationId, messageId, isChecked, updateCheckboxState }: MarkdownChunkProps) {
+function MarkdownChunk({ chunk, conversationId, messageId }: MarkdownChunkProps) {
   if (chunk.type === 'markdown' && chunk.html) {
     // Check if this is truly block content (not just simple text wrapped in p tags)
     const hasRealBlockElements = /<(h[1-6]|div|ul|ol|li|blockquote|pre|table|tr|td|th)\b[^>]*>/i.test(chunk.html);
@@ -82,24 +73,8 @@ function MarkdownChunk({ chunk, conversationId, messageId, isChecked, updateChec
     }
   }
 
-  if (chunk.type === 'interactive_checkbox' && chunk.checkboxId && chunk.checkboxLabel) {
-    // Use stored state if available, otherwise fall back to markdown parsed state
-    const storedState = isChecked(messageId, chunk.checkboxId);
-    const initialState = storedState !== undefined ? storedState : (chunk.isChecked || false);
-    
-    return (
-      <div style={{ margin: '8px 0' }}>
-        <InteractiveCheckbox
-          messageId={messageId}
-          checkboxId={chunk.checkboxId}
-          label={chunk.checkboxLabel}
-          initialChecked={initialState}
-          required={chunk.isRequired}
-          onStateChange={(checked) => updateCheckboxState(messageId, chunk.checkboxId!, checked)}
-        />
-      </div>
-    );
-  }
+  // Interactive checkboxes are now handled by built-in markdown rendering
+  // The checkbox state is stored in the message content itself when edited
 
   if (chunk.type === 'mention' && chunk.mention) {
     return (

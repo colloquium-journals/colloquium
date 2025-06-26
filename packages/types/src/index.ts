@@ -34,6 +34,20 @@ export enum ParticipantRole {
   MODERATOR = 'MODERATOR'
 }
 
+export enum ConversationType {
+  EDITORIAL = 'EDITORIAL',
+  REVIEW = 'REVIEW',
+  SEMI_PUBLIC = 'SEMI_PUBLIC',
+  PUBLIC = 'PUBLIC',
+  AUTHOR_ONLY = 'AUTHOR_ONLY'
+}
+
+export enum PrivacyLevel {
+  PRIVATE = 'PRIVATE',
+  SEMI_PUBLIC = 'SEMI_PUBLIC',
+  PUBLIC = 'PUBLIC'
+}
+
 // API Response types
 export interface ApiResponse<T = any> {
   data?: T;
@@ -85,6 +99,8 @@ export const manuscriptSubmissionSchema = z.object({
 
 export const conversationSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
+  type: z.nativeEnum(ConversationType),
+  privacy: z.nativeEnum(PrivacyLevel),
   participants: z.array(z.string()).optional()
 });
 
@@ -155,7 +171,7 @@ export interface BotAttachment {
 }
 
 export interface BotAction {
-  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION';
+  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION' | 'ASSIGN_ACTION_EDITOR';
   data: Record<string, any>;
 }
 
@@ -184,7 +200,63 @@ export interface Bot {
   version: string;
   triggers: BotTrigger[];
   permissions: BotPermission[];
+  supportsFileUploads?: boolean;
   execute: (context: BotContext) => Promise<BotResponse>;
+}
+
+// Command framework types
+export interface BotCommandParameter {
+  name: string;
+  description: string;
+  type: 'string' | 'number' | 'boolean' | 'array' | 'enum';
+  required: boolean;
+  defaultValue?: any;
+  enumValues?: string[];
+  validation?: z.ZodSchema;
+  examples?: string[];
+}
+
+export interface BotCommand {
+  name: string;
+  description: string;
+  usage: string;
+  parameters: BotCommandParameter[];
+  examples: string[];
+  permissions: string[];
+  help?: string; // Optional detailed help content for this specific command
+  execute: (params: Record<string, any>, context: any) => Promise<any>;
+}
+
+export interface BotCustomHelpSection {
+  title: string;
+  content: string;
+  position: 'before' | 'after';
+}
+
+export interface CommandBot {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  commands: BotCommand[];
+  keywords: string[];
+  triggers: string[];
+  permissions: string[];
+  supportsFileUploads?: boolean;
+  help: {
+    overview: string;
+    quickStart: string;
+    examples: string[];
+  };
+  customHelpSections?: BotCustomHelpSection[]; // Optional custom sections for main help
+}
+
+export interface ParsedCommand {
+  botId: string;
+  command: string;
+  parameters: Record<string, any>;
+  rawText: string;
+  isUnrecognized?: boolean;
 }
 
 // Type helpers

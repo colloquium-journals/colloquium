@@ -1,15 +1,28 @@
 #!/usr/bin/env node
 
 /**
- * Custom Next.js dev server wrapper that handles graceful shutdown
+ * Custom Next.js dev server wrapper that handles graceful shutdown and port cleanup
  */
 
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 
 let nextProcess = null;
 
+// Clean up port 3000 before starting
+function cleanupPort() {
+  return new Promise((resolve) => {
+    exec('lsof -ti:3000 | xargs kill -9 2>/dev/null', (error) => {
+      // Ignore errors - port might already be free
+      resolve();
+    });
+  });
+}
+
 // Start Next.js dev server
-function startNextDev() {
+async function startNextDev() {
+  console.log('🧹 Cleaning up port 3000...');
+  await cleanupPort();
+  
   console.log('🚀 Starting Next.js development server...');
   
   nextProcess = spawn('npx', ['next', 'dev'], {

@@ -90,6 +90,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const { 
       manuscriptId,
       search,
+      manuscriptStatus,
       page = '1',
       limit = '20'
     } = req.query;
@@ -102,6 +103,22 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const where: any = {};
     if (manuscriptId) where.manuscriptId = manuscriptId as string;
     
+    // Initialize manuscript filter object
+    let manuscriptFilter: any = {};
+    
+    // Filter by manuscript status
+    if (manuscriptStatus === 'active') {
+      // Show only manuscripts in review process
+      manuscriptFilter.status = {
+        in: ['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'REVISED', 'ACCEPTED']
+      };
+    } else if (manuscriptStatus === 'completed') {
+      // Show only completed manuscripts
+      manuscriptFilter.status = {
+        in: ['PUBLISHED', 'REJECTED', 'RETRACTED']
+      };
+    }
+    
     // Add search functionality
     if (search && typeof search === 'string' && search.trim()) {
       const searchTerm = search.trim();
@@ -110,24 +127,30 @@ router.get('/', optionalAuth, async (req, res, next) => {
           title: {
             contains: searchTerm,
             mode: 'insensitive'
-          }
+          },
+          ...(Object.keys(manuscriptFilter).length > 0 && { manuscript: manuscriptFilter })
         },
         {
           manuscript: {
             title: {
               contains: searchTerm,
               mode: 'insensitive'
-            }
+            },
+            ...manuscriptFilter
           }
         },
         {
           manuscript: {
             authors: {
               hasSome: [searchTerm]
-            }
+            },
+            ...manuscriptFilter
           }
         }
       ];
+    } else if (Object.keys(manuscriptFilter).length > 0) {
+      // Apply manuscript filter when no search term
+      where.manuscript = manuscriptFilter;
     }
 
     // Get conversations with related data
@@ -142,7 +165,8 @@ router.get('/', optionalAuth, async (req, res, next) => {
             select: {
               id: true,
               title: true,
-              authors: true
+              authors: true,
+              status: true
             }
           },
           _count: {

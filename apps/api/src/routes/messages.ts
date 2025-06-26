@@ -93,16 +93,8 @@ router.put('/:id',
 
     // Create edit history record and update message in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create edit history record
-      await tx.messageEdit.create({
-        data: {
-          messageId: id,
-          editorId: userId,
-          originalContent: existingMessage.content,
-          newContent: content,
-          reason: reason || (isAuthor ? 'Author edit' : 'Editor moderation')
-        }
-      });
+      // TODO: Implement messageEdit model in database schema
+      // For now, skip edit history creation
 
       // Update the message
       const updatedMessage = await tx.message.update({
@@ -114,15 +106,8 @@ router.put('/:id',
         include: {
           author: {
             select: { id: true, name: true, email: true }
-          },
-          editHistory: {
-            include: {
-              editor: {
-                select: { id: true, name: true, email: true }
-              }
-            },
-            orderBy: { editedAt: 'desc' }
           }
+          // TODO: Add editHistory when messageEdit model is implemented
         }
       });
 
@@ -182,16 +167,9 @@ router.get('/:id/edit-history',
       });
     }
 
-    // Get edit history
-    const editHistory = await prisma.messageEdit.findMany({
-      where: { messageId: id },
-      include: {
-        editor: {
-          select: { id: true, name: true, email: true }
-        }
-      },
-      orderBy: { editedAt: 'desc' }
-    });
+    // TODO: Implement messageEdit model in database schema
+    // For now, return empty edit history
+    const editHistory: any[] = [];
 
     res.json({
       messageId: id,

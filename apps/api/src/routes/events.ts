@@ -42,7 +42,7 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
       console.log(`📡 SSE: Anonymous user connecting to conversation ${conversationId} (no auth token)`);
     }
   } catch (error) {
-    console.log(`📡 SSE: Auth failed for conversation ${conversationId}:`, error.message);
+    console.log(`📡 SSE: Auth failed for conversation ${conversationId}:`, (error as Error).message);
   }
 
   // Check if this is a proper EventSource request

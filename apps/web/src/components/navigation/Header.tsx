@@ -12,7 +12,6 @@ import {
   Text,
   UnstyledButton,
   rem,
-  Spotlight,
   ActionIcon,
   Badge,
   Divider
@@ -29,7 +28,7 @@ import {
   IconBell,
   IconChevronDown
 } from '@tabler/icons-react';
-import { useDisclosure, spotlight } from '@mantine/hooks';
+import { useDisclosure } from '@mantine/hooks';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -59,13 +58,13 @@ export function Header({ navOpened, toggleNav }: HeaderProps) {
 
   const navigationItems: NavigationItem[] = [
     {
-      label: 'Dashboard',
-      href: '/dashboard',
+      label: 'Home',
+      href: '/',
       icon: <IconHome size={16} />
     },
     {
-      label: 'Manuscripts',
-      href: '/manuscripts',
+      label: 'Articles',
+      href: '/articles',
       icon: <IconFileText size={16} />
     },
     {
@@ -99,18 +98,17 @@ export function Header({ navOpened, toggleNav }: HeaderProps) {
           
           {/* Logo */}
           <Group gap="xs">
-            <Title 
-              order={3} 
-              component={Link} 
-              href="/"
-              style={{ 
-                textDecoration: 'none',
-                color: 'var(--mantine-color-blue-6)',
-                cursor: 'pointer'
-              }}
-            >
-              Colloquium
-            </Title>
+            <Link href="/" style={{ textDecoration: 'none' }}>
+              <Title 
+                order={3} 
+                style={{ 
+                  color: 'var(--mantine-color-blue-6)',
+                  cursor: 'pointer'
+                }}
+              >
+                Colloquium
+              </Title>
+            </Link>
           </Group>
 
           {/* Desktop Navigation */}
@@ -142,7 +140,7 @@ export function Header({ navOpened, toggleNav }: HeaderProps) {
           <ActionIcon
             variant="subtle"
             size="lg"
-            onClick={() => spotlight.open()}
+            onClick={() => console.log('Search not implemented yet')}
             title="Search (Ctrl+K)"
           >
             <IconSearch size={18} />
@@ -156,7 +154,7 @@ export function Header({ navOpened, toggleNav }: HeaderProps) {
           {/* Quick Submit */}
           <Button
             component={Link}
-            href="/manuscripts/submit"
+            href="/articles/submit"
             leftSection={<IconPlus size={16} />}
             size="sm"
             visibleFrom="md"
@@ -216,9 +214,9 @@ export function Header({ navOpened, toggleNav }: HeaderProps) {
               <Menu.Item 
                 leftSection={<IconPlus size={14} />}
                 component={Link}
-                href="/manuscripts/submit"
+                href="/articles/submit"
               >
-                Submit Manuscript
+                Submit Article
               </Menu.Item>
               <Menu.Item 
                 leftSection={<IconMessage size={14} />}

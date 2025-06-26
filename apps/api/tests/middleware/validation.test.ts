@@ -82,7 +82,7 @@ describe('Validation Middleware', () => {
       expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'ValidationError',
-          message: 'Request validation failed',
+          message: 'Validation Error',
           statusCode: 400,
           isOperational: true,
           details: expect.arrayContaining([

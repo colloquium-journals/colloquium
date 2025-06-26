@@ -5,12 +5,16 @@ export { createBotContext } from './framework/context';
 // Export new command framework
 export { 
   CommandParser, 
-  commandParser,
-  type CommandBot,
-  type BotCommand,
-  type BotCommandParameter,
-  type ParsedCommand
+  commandParser
 } from './framework/commands';
+
+// Export types from @colloquium/types
+export type {
+  CommandBot,
+  BotCommand,
+  BotCommandParameter,
+  ParsedCommand
+} from '@colloquium/types';
 
 // Export plugin system
 export {
@@ -29,15 +33,13 @@ export {
 export { NodeBotPluginLoader } from './framework/pluginLoader';
 export { DatabaseBotManager } from './framework/botManager';
 
-// Export core bots (legacy)
-export { statisticsBot } from './core/statisticsBot';
-export { formattingBot } from './core/formattingBot';
+// All core bots have been moved to standalone packages:
+// - @colloquium/editorial-bot
+// - @colloquium/reference-bot  
+// - @colloquium/markdown-renderer-bot
+// - @colloquium/reviewer-checklist-bot
 
-// Export new command-based bots
-export { plagiarismBot } from './core/plagiarismBot';
-export { editorialBot } from './core/editorialBot';
-export { referenceBot } from './core/referenceBot';
-export { ReviewerChecklistBot } from './core/reviewerChecklistBot';
+// No legacy core bots remain
 
 // Export types
 export * from '@colloquium/types';

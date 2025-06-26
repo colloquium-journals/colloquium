@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CommandBot } from './commands';
+import { CommandBot } from '@colloquium/types';
 
 // Bot plugin manifest schema
 export const botPluginManifestSchema = z.object({
@@ -28,7 +28,8 @@ export const botPluginManifestSchema = z.object({
     defaultConfig: z.record(z.any()).optional(),
     isDefault: z.boolean().default(false), // Whether this bot should be installed by default
     category: z.enum(['editorial', 'analysis', 'formatting', 'quality', 'integration', 'utility']).optional(),
-    minColloquiumVersion: z.string().optional()
+    minColloquiumVersion: z.string().optional(),
+    supportsFileUploads: z.boolean().optional().default(false)
   })
 });
 
@@ -108,6 +109,7 @@ export interface BotManager {
   
   list(): Promise<BotInstallation[]>;
   get(botId: string): Promise<BotInstallation | null>;
+  getBotHelp(botId: string): Promise<string | null>;
   
   installDefaults(): Promise<BotInstallation[]>;
 }
@@ -200,6 +202,7 @@ export function createBotManifest(options: {
   permissions?: string[];
   license?: string;
   isDefault?: boolean;
+  supportsFileUploads?: boolean;
 }): BotPluginManifest {
   return {
     name: options.name,
@@ -213,7 +216,8 @@ export function createBotManifest(options: {
       apiVersion: '1.0.0',
       permissions: options.permissions || [],
       category: options.category,
-      isDefault: options.isDefault || false
+      isDefault: options.isDefault || false,
+      supportsFileUploads: options.supportsFileUploads || false
     }
   };
 }

@@ -65,7 +65,8 @@ router.get('/', authenticate, adminMiddleware, async (req, res) => {
         isDefault: installation.isDefault,
         installedAt: installation.installedAt,
         updatedAt: installation.updatedAt,
-        packageName: installation.packageName
+        packageName: installation.packageName,
+        supportsFileUploads: installation.manifest.colloquium.supportsFileUploads || false
       }))
     });
   } catch (error) {
@@ -416,6 +417,39 @@ router.put('/:botId/config', authenticate, adminMiddleware, async (req, res) => 
     res.status(500).json({
       error: {
         message: 'Failed to configure bot',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Get bot help
+router.get('/:botId/help', authenticate, adminMiddleware, async (req, res) => {
+  try {
+    const { botId } = req.params;
+    const helpContent = await botManager.getBotHelp(botId);
+    
+    if (!helpContent) {
+      return res.status(404).json({
+        error: {
+          message: 'Bot not found or help not available',
+          type: 'not_found'
+        }
+      });
+    }
+
+    res.json({
+      data: {
+        botId,
+        helpContent,
+        generatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error getting bot help:', error);
+    res.status(500).json({
+      error: {
+        message: 'Failed to get bot help',
         type: 'server_error'
       }
     });

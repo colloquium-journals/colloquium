@@ -1,4 +1,4 @@
-import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel } from '@prisma/client';
+import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel, MessagePrivacy } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -81,7 +81,7 @@ async function main() {
     update: {},
     create: {
       email: 'alice.researcher@university.edu',
-      name: 'Dr. Alice Researcher',
+      name: 'Alice Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0002-1825-0097',
       affiliation: 'University of Technology',
@@ -94,7 +94,7 @@ async function main() {
     update: {},
     create: {
       email: 'bob.scientist@research.org',
-      name: 'Prof. Bob Scientist',
+      name: 'Bob Scientist',
       role: GlobalRole.USER,
       orcidId: '0000-0003-4567-8901',
       affiliation: 'Research Institute of Advanced Studies',
@@ -107,16 +107,92 @@ async function main() {
     update: {},
     create: {
       email: 'charlie.academic@college.edu',
-      name: 'Dr. Charlie Academic',
+      name: 'Charlie Academic',
       role: GlobalRole.USER,
       affiliation: 'Liberal Arts College',
       bio: 'Professor of Information Science studying scholarly communication and open access publishing.'
     }
   });
 
+  // Create additional authors for testing multi-author manuscripts
+  const author5 = await prisma.user.upsert({
+    where: { email: 'diana.researcher@institute.org' },
+    update: {},
+    create: {
+      email: 'diana.researcher@institute.org',
+      name: 'Diana Researcher',
+      role: GlobalRole.USER,
+      orcidId: '0000-0004-5678-9012',
+      affiliation: 'International Research Institute',
+      bio: 'Senior Scientist specializing in computational biology and bioinformatics.'
+    }
+  });
+
+  const author6 = await prisma.user.upsert({
+    where: { email: 'edward.professor@university.ac.uk' },
+    update: {},
+    create: {
+      email: 'edward.professor@university.ac.uk',
+      name: 'Edward Mitchell',
+      role: GlobalRole.USER,
+      orcidId: '0000-0005-6789-0123',
+      affiliation: 'Cambridge University',
+      bio: 'Professor of Theoretical Physics and Mathematics.'
+    }
+  });
+
+  const author7 = await prisma.user.upsert({
+    where: { email: 'fiona.scientist@research.gov' },
+    update: {},
+    create: {
+      email: 'fiona.scientist@research.gov',
+      name: 'Fiona Chen',
+      role: GlobalRole.USER,
+      affiliation: 'National Science Foundation',
+      bio: 'Research Scientist in materials science and nanotechnology.'
+    }
+  });
+
+  const author8 = await prisma.user.upsert({
+    where: { email: 'george.analyst@tech.com' },
+    update: {},
+    create: {
+      email: 'george.analyst@tech.com',
+      name: 'George Williams',
+      role: GlobalRole.USER,
+      affiliation: 'TechCorp Research Division',
+      bio: 'Data Scientist and Machine Learning Engineer.'
+    }
+  });
+
+  const author9 = await prisma.user.upsert({
+    where: { email: 'helena.postdoc@university.de' },
+    update: {},
+    create: {
+      email: 'helena.postdoc@university.de',
+      name: 'Helena Schmidt',
+      role: GlobalRole.USER,
+      orcidId: '0000-0006-7890-1234',
+      affiliation: 'Max Planck Institute',
+      bio: 'Postdoctoral Researcher in quantum computing and cryptography.'
+    }
+  });
+
+  const author10 = await prisma.user.upsert({
+    where: { email: 'ivan.graduate@student.edu' },
+    update: {},
+    create: {
+      email: 'ivan.graduate@student.edu',
+      name: 'Ivan Rodriguez',
+      role: GlobalRole.USER,
+      affiliation: 'Stanford University',
+      bio: 'PhD Candidate in Artificial Intelligence and Machine Learning.'
+    }
+  });
+
   console.log('✅ Sample users created');
 
-  // Create sample manuscripts with different statuses
+  // Create sample manuscripts with different statuses and varying author counts
   const manuscripts = [
     {
       title: 'A Novel Approach to Academic Publishing: The Colloquium Platform',
@@ -152,7 +228,57 @@ async function main() {
       status: ManuscriptStatus.PUBLISHED,
       authors: [author4.id],
       keywords: ['digital transformation', 'academic libraries', 'scholarly communication', 'technology adoption'],
-      publishedAt: new Date('2024-01-15')
+      publishedAt: new Date('2024-01-15'),
+      doi: '10.1000/182'
+    },
+    // New manuscripts with varying author counts for UI testing
+    {
+      title: 'Large-Scale Collaborative Research in Computational Biology: A Multi-Institutional Study',
+      abstract: 'This comprehensive study presents findings from a large-scale collaborative effort involving multiple research institutions worldwide. We analyzed genomic data from over 100,000 samples to identify novel patterns in gene expression and regulatory networks, demonstrating the power of international scientific cooperation.',
+      status: ManuscriptStatus.PUBLISHED,
+      authors: [author2.id, author5.id, author6.id, author7.id, author8.id, author9.id, author10.id, authorUser.id],
+      keywords: ['computational biology', 'genomics', 'collaboration', 'big data', 'international cooperation', 'gene expression', 'regulatory networks'],
+      publishedAt: new Date('2024-02-20'),
+      doi: '10.1038/s41467-024-45892-3'
+    },
+    {
+      title: 'Quantum Computing Applications in Cryptographic Security: A Comprehensive Review',
+      abstract: 'An extensive review of quantum computing applications in modern cryptographic systems, examining both opportunities and threats posed by quantum algorithms to current security protocols.',
+      status: ManuscriptStatus.UNDER_REVIEW,
+      authors: [author9.id, author6.id, author7.id, author3.id],
+      keywords: ['quantum computing', 'cryptography', 'security', 'algorithms', 'quantum cryptography']
+    },
+    {
+      title: 'Interdisciplinary Approaches to Climate Change Modeling',
+      abstract: 'This paper presents novel interdisciplinary methodologies combining atmospheric science, computer modeling, and statistical analysis to improve accuracy in climate change predictions.',
+      status: ManuscriptStatus.PUBLISHED,
+      authors: [author8.id, author5.id, author10.id],
+      keywords: ['climate change', 'modeling', 'interdisciplinary research', 'atmospheric science', 'statistical analysis'],
+      publishedAt: new Date('2024-03-10'),
+      doi: '10.1007/s10584-024-03456-7'
+    },
+    {
+      title: 'Artificial Intelligence Ethics in Academic Research: Guidelines and Best Practices',
+      abstract: 'A comprehensive framework for ethical AI implementation in academic research, developed through extensive consultation with ethicists, computer scientists, and social scientists.',
+      status: ManuscriptStatus.ACCEPTED,
+      authors: [author2.id, author4.id, author8.id, author10.id, author6.id],
+      keywords: ['artificial intelligence', 'ethics', 'research guidelines', 'best practices', 'responsible AI', 'academic research']
+    },
+    {
+      title: 'Nanotechnology Applications in Medical Device Manufacturing',
+      abstract: 'This study explores cutting-edge applications of nanotechnology in medical device manufacturing, focusing on biocompatibility, precision engineering, and therapeutic applications.',
+      status: ManuscriptStatus.SUBMITTED,
+      authors: [author7.id, author5.id],
+      keywords: ['nanotechnology', 'medical devices', 'biocompatibility', 'manufacturing', 'therapeutics']
+    },
+    {
+      title: 'The Future of Open Access Publishing: Technological and Social Perspectives',
+      abstract: 'An analysis of emerging trends in open access publishing, examining both technological innovations and social factors that influence the adoption of open science practices.',
+      status: ManuscriptStatus.PUBLISHED,
+      authors: [author4.id, author2.id, author3.id, authorUser.id, author8.id, author10.id],
+      keywords: ['open access', 'publishing', 'open science', 'technology trends', 'social factors', 'scientific communication'],
+      publishedAt: new Date('2024-01-25'),
+      doi: '10.1371/journal.pone.0298765'
     }
   ];
 
@@ -169,7 +295,7 @@ async function main() {
           title: manuscriptData.title,
           abstract: manuscriptData.abstract,
           authors: manuscriptData.authors.map(authorId => {
-            const author = [authorUser, author2, author3, author4].find(u => u.id === authorId);
+            const author = [authorUser, author2, author3, author4, author5, author6, author7, author8, author9, author10].find(u => u.id === authorId);
             return author ? author.name : 'Unknown Author';
           }),
           content: `# ${manuscriptData.title}
@@ -241,6 +367,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           status: manuscriptData.status,
           keywords: manuscriptData.keywords,
           publishedAt: manuscriptData.publishedAt || null,
+          doi: manuscriptData.doi || null,
           authorRelations: {
             create: manuscriptData.authors.map((authorId, index) => ({
               userId: authorId,
@@ -261,7 +388,7 @@ This work demonstrates the potential for innovative approaches to academic publi
   // Create sample conversations for the manuscripts
   const conversations = [
     {
-      manuscriptIndex: 0, // Colloquium Platform paper
+      manuscriptIndex: 0, // Colloquium Platform paper (UNDER_REVIEW)
       title: 'Editorial Review Discussion',
       type: ConversationType.EDITORIAL,
       messages: [
@@ -280,7 +407,7 @@ This work demonstrates the potential for innovative approaches to academic publi
       ]
     },
     {
-      manuscriptIndex: 1, // ML in Peer Review paper  
+      manuscriptIndex: 1, // ML in Peer Review paper (SUBMITTED)
       title: 'Submission Review',
       type: ConversationType.REVIEW,
       messages: [
@@ -288,14 +415,10 @@ This work demonstrates the potential for innovative approaches to academic publi
           content: 'Thank you for your submission. We will begin the initial editorial review process.',
           authorId: editorUser.id
         },
-        {
-          content: '@plagiarism-bot check threshold=0.15 databases=crossref,pubmed,arxiv',
-          authorId: editorUser.id
-        }
       ]
     },
     {
-      manuscriptIndex: 2, // Blockchain paper
+      manuscriptIndex: 2, // Blockchain paper (REVISION_REQUESTED)
       title: 'Revision Requested',
       type: ConversationType.SEMI_PUBLIC,
       messages: [
@@ -306,6 +429,185 @@ This work demonstrates the potential for innovative approaches to academic publi
         {
           content: 'Thank you for the feedback. I will address these points in my revision. Could you clarify what specific aspects of scalability analysis you\'d like me to focus on?',
           authorId: author3.id
+        },
+        {
+          content: '@editorial-bot decision minor_revision reason="Needs additional technical details and comparisons"',
+          authorId: editorUser.id
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 3, // Open Science Platforms (ACCEPTED)
+      title: 'Editorial Decision Process',
+      type: ConversationType.SEMI_PUBLIC,
+      messages: [
+        {
+          content: 'The reviews have been completed for this manuscript. Both reviewers provided positive feedback with minor suggestions that have been addressed by the authors.',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Reviewer 1 praised the comprehensive analysis and clear writing. Reviewer 2 noted the innovative approach to measuring collaboration patterns.',
+          authorId: adminUser.id
+        },
+        {
+          content: 'Thank you for the thorough review process. We\'ve addressed all reviewer comments and are grateful for the constructive feedback.',
+          authorId: author4.id
+        },
+        {
+          content: '@editorial-bot decision accept reason="Strong reviews, innovative methodology, and comprehensive analysis of open science platforms"',
+          authorId: editorUser.id
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 4, // Digital Transformation (PUBLISHED)
+      title: 'Complete Editorial Workflow',
+      type: ConversationType.SEMI_PUBLIC,
+      messages: [
+        {
+          content: 'Initial submission received. This case study on digital transformation in academic libraries presents valuable insights for the field.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot assign reviewer1@library.edu,reviewer2@university.org deadline="2024-01-10" message="Please review this case study on library digital transformation"',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Reviews are now complete. Both reviewers commend the thorough analysis and practical implications. The case study methodology is sound and the findings are significant.',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Reviewer feedback summary:\n- Excellent documentation of transformation process\n- Clear methodology and analysis\n- Valuable insights for library professionals\n- Minor suggestions for clarity have been addressed',
+          authorId: adminUser.id
+        },
+        {
+          content: 'Thank you for the constructive review process. The suggested revisions have improved the manuscript significantly.',
+          authorId: author4.id
+        },
+        {
+          content: '@editorial-bot decision accept reason="Excellent case study with valuable insights for academic library professionals"',
+          authorId: editorUser.id
+        },
+        {
+          content: 'The manuscript has been accepted. Proceeding with final publication preparation.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot status PUBLISHED reason="Final review complete, ready for publication"',
+          authorId: editorUser.id
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 5, // Large-Scale Collaborative Research (PUBLISHED)
+      title: 'Multi-Institutional Review Process',
+      type: ConversationType.SEMI_PUBLIC,
+      messages: [
+        {
+          content: 'This large-scale collaborative study represents a significant contribution to computational biology. The multi-institutional approach is commendable.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot assign expert1@genomics.org,expert2@biocomputing.edu,expert3@institute.gov deadline="2024-02-15" message="Please review this major collaborative study in computational biology"',
+          authorId: editorUser.id
+        },
+        {
+          content: 'All three expert reviews are complete. The consensus is overwhelmingly positive:\n\n- Innovative methodology for large-scale genomic analysis\n- Excellent international collaboration model\n- Significant findings with broad implications\n- High-quality data analysis and visualization',
+          authorId: adminUser.id
+        },
+        {
+          content: 'The scale of this collaboration is impressive. The 100,000+ sample analysis provides unprecedented insights into gene expression patterns.',
+          authorId: editorUser.id
+        },
+        {
+          content: 'We appreciate the rigorous review process. This project represents 3 years of coordinated international effort.',
+          authorId: author2.id
+        },
+        {
+          content: '@editorial-bot decision accept reason="Outstanding collaborative research with significant scientific impact and innovative methodology"',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Congratulations to all authors on this exceptional contribution to computational biology.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot status PUBLISHED reason="Major contribution ready for publication with DOI assignment"',
+          authorId: editorUser.id
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 7, // Interdisciplinary Climate Change (PUBLISHED)
+      title: 'Interdisciplinary Review Workflow',
+      type: ConversationType.SEMI_PUBLIC,
+      messages: [
+        {
+          content: 'This interdisciplinary approach to climate modeling is exactly the kind of innovative research we need. Assigning reviewers from different fields.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot assign climate1@atmospheric.edu,stats1@math.university.edu,comp1@modeling.org deadline="2024-03-05" message="Please review this interdisciplinary climate modeling study"',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Reviews complete. Each reviewer from different disciplines (atmospheric science, statistics, computer modeling) praised the interdisciplinary integration.',
+          authorId: adminUser.id
+        },
+        {
+          content: 'The combination of methodologies is particularly strong. The statistical validation of the atmospheric models adds significant credibility.',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Thank you for assembling such a diverse review panel. Their feedback improved our cross-disciplinary explanations.',
+          authorId: author8.id
+        },
+        {
+          content: '@editorial-bot decision accept reason="Excellent interdisciplinary methodology with strong validation across multiple fields"',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot status PUBLISHED reason="Interdisciplinary climate research approved for publication"',
+          authorId: editorUser.id
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 10, // Future of Open Access Publishing (PUBLISHED)
+      title: 'Comprehensive Editorial Process',
+      type: ConversationType.SEMI_PUBLIC,
+      messages: [
+        {
+          content: 'This comprehensive analysis of open access publishing trends addresses critical issues in scholarly communication.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot assign publisher1@society.org,economist1@research.edu,tech1@innovation.com deadline="2024-01-20" message="Please review this analysis of open access publishing trends"',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Excellent reviews from three different perspectives:\n- Publishing industry expert: "Thorough analysis of current trends"\n- Research economist: "Sound economic analysis of OA models"\n- Technology specialist: "Good coverage of technical innovations"',
+          authorId: adminUser.id
+        },
+        {
+          content: 'The multi-author collaboration brings together diverse expertise in publishing, technology, and social factors.',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Minor revisions were suggested to strengthen the conclusions section, which have been completed.',
+          authorId: author4.id
+        },
+        {
+          content: 'The revised manuscript addresses all reviewer comments effectively.',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot decision accept reason="Comprehensive analysis with strong multi-disciplinary perspective on open access publishing"',
+          authorId: editorUser.id
+        },
+        {
+          content: '@editorial-bot status PUBLISHED reason="Excellent contribution to scholarly communication literature"',
+          authorId: editorUser.id
         }
       ]
     }
@@ -323,139 +625,78 @@ This work demonstrates the potential for innovative approaches to academic publi
     });
 
     if (!existingConversation) {
-      await prisma.conversation.create({
+      // Get the manuscript authors to add as participants
+      const manuscriptAuthors = await prisma.manuscriptAuthor.findMany({
+        where: { manuscriptId: manuscript.id }
+      });
+
+      // Create participant list
+      const participants = [
+        {
+          userId: editorUser.id,
+          role: 'MODERATOR'
+        },
+        {
+          userId: adminUser.id,
+          role: 'PARTICIPANT'
+        }
+      ];
+
+      // Add manuscript authors as participants
+      for (const authorRel of manuscriptAuthors) {
+        if (authorRel.userId !== editorUser.id && authorRel.userId !== adminUser.id) {
+          participants.push({
+            userId: authorRel.userId,
+            role: 'PARTICIPANT'
+          });
+        }
+      }
+
+      // Add reviewer if not already included
+      if (!participants.some(p => p.userId === reviewerUser.id)) {
+        participants.push({
+          userId: reviewerUser.id,
+          role: 'PARTICIPANT'
+        });
+      }
+
+      // Create conversation with messages
+      const conversation = await prisma.conversation.create({
         data: {
           title: convData.title,
           type: convData.type,
-          privacy: PrivacyLevel.PRIVATE,
+          privacy: convData.type === ConversationType.EDITORIAL ? PrivacyLevel.PRIVATE : PrivacyLevel.SEMI_PUBLIC,
           manuscriptId: manuscript.id,
           participants: {
-            create: [
-              {
-                userId: editorUser.id,
-                role: 'MODERATOR'
-              },
-              {
-                userId: adminUser.id,
-                role: 'PARTICIPANT'
-              },
-              {
-                userId: reviewerUser.id,
-                role: 'PARTICIPANT'
-              }
-            ]
-          },
-          messages: {
-            create: convData.messages
+            create: participants
           }
         }
       });
+
+      // Create messages with proper timestamps to show progression
+      for (let i = 0; i < convData.messages.length; i++) {
+        const message = convData.messages[i];
+        const baseDate = new Date('2024-01-01');
+        const messageDate = new Date(baseDate.getTime() + (i * 2 * 24 * 60 * 60 * 1000)); // 2 days apart
+
+        await prisma.message.create({
+          data: {
+            content: message.content,
+            authorId: message.authorId,
+            conversationId: conversation.id,
+            isBot: message.content.includes('@editorial-bot'),
+            privacy: convData.type === ConversationType.EDITORIAL ? MessagePrivacy.EDITOR_ONLY : MessagePrivacy.AUTHOR_VISIBLE,
+            createdAt: messageDate,
+            updatedAt: messageDate
+          }
+        });
+      }
     }
   }
 
   console.log('✅ Sample conversations created');
 
-  // Create core bot definitions
-  const plagiarismBot = await prisma.botDefinition.upsert({
-    where: { id: 'plagiarism-checker' },
-    update: {},
-    create: {
-      id: 'plagiarism-checker',
-      name: 'Plagiarism Checker',
-      description: 'Checks manuscripts for potential plagiarism using multiple databases and algorithms',
-      version: '1.0.0',
-      author: 'Colloquium Team',
-      isPublic: true,
-      configSchema: {
-        type: 'object',
-        properties: {
-          databases: {
-            type: 'array',
-            items: { type: 'string' },
-            default: ['crossref', 'pubmed', 'arxiv']
-          },
-          threshold: {
-            type: 'number',
-            minimum: 0,
-            maximum: 1,
-            default: 0.15
-          },
-          excludeReferences: {
-            type: 'boolean',
-            default: true
-          }
-        }
-      }
-    }
-  });
-
-  const statsBot = await prisma.botDefinition.upsert({
-    where: { id: 'statistics-reviewer' },
-    update: {},
-    create: {
-      id: 'statistics-reviewer',
-      name: 'Statistics Reviewer',
-      description: 'Reviews statistical methods and analyses in manuscripts',
-      version: '1.0.0',
-      author: 'Colloquium Team',
-      isPublic: true,
-      configSchema: {
-        type: 'object',
-        properties: {
-          checkMethods: {
-            type: 'array',
-            items: { type: 'string' },
-            default: ['anova', 'regression', 'ttest']
-          },
-          requireEffectSizes: {
-            type: 'boolean',
-            default: true
-          },
-          requireConfidenceIntervals: {
-            type: 'boolean',
-            default: true
-          }
-        }
-      }
-    }
-  });
-
-  // Install bots (use upsert to handle existing installations)
-  await prisma.botInstall.upsert({
-    where: { botId: plagiarismBot.id },
-    update: {
-      config: {
-        autoTrigger: true,
-        triggerOnSubmission: true
-      }
-    },
-    create: {
-      botId: plagiarismBot.id,
-      config: {
-        autoTrigger: true,
-        triggerOnSubmission: true
-      }
-    }
-  });
-
-  await prisma.botInstall.upsert({
-    where: { botId: statsBot.id },
-    update: {
-      config: {
-        autoTrigger: false,
-        requireExplicitMention: true
-      }
-    },
-    create: {
-      botId: statsBot.id,
-      config: {
-        autoTrigger: false,
-        requireExplicitMention: true
-      }
-    }
-  });
-
-  console.log('✅ Sample bots created and installed');
+  console.log('✅ Sample bots ready');
 
   console.log('🎉 Database seeding completed successfully!');
 }

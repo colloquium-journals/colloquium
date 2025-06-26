@@ -35,8 +35,8 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// Mock environment variables
-process.env.NODE_ENV = 'test';
+// Mock environment variables  
+// process.env.NODE_ENV = 'test'; // Read-only in build mode
 process.env.NEXT_PUBLIC_API_URL = 'http://localhost:4000';
 
 beforeAll(() => {
@@ -55,6 +55,9 @@ beforeAll(() => {
     unobserve: jest.fn(),
     disconnect: jest.fn(),
   }));
+  
+  // Mock scrollIntoView for Mantine Select component
+  Element.prototype.scrollIntoView = jest.fn();
 });
 
 afterAll(() => {

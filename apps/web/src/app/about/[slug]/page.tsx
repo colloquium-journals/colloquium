@@ -255,25 +255,29 @@ export default function AboutPageDetail() {
 
                       <Group gap="lg">
                         {member.orcidId && (
-                          <Anchor
-                            href={`https://orcid.org/${member.orcidId}`}
-                            target="_blank"
-                            size="sm"
-                            rightSection={<IconExternalLink size={12} />}
-                          >
-                            ORCID: {member.orcidId}
-                          </Anchor>
+                          <Group gap="xs">
+                            <Anchor
+                              href={`https://orcid.org/${member.orcidId}`}
+                              target="_blank"
+                              size="sm"
+                            >
+                              ORCID: {member.orcidId}
+                            </Anchor>
+                            <IconExternalLink size={12} />
+                          </Group>
                         )}
                         
                         {member.website && (
-                          <Anchor
-                            href={member.website}
-                            target="_blank"
-                            size="sm"
-                            rightSection={<IconExternalLink size={12} />}
-                          >
-                            Website
-                          </Anchor>
+                          <Group gap="xs">
+                            <Anchor
+                              href={member.website}
+                              target="_blank"
+                              size="sm"
+                            >
+                              Website
+                            </Anchor>
+                            <IconExternalLink size={12} />
+                          </Group>
                         )}
                       </Group>
 

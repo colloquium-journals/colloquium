@@ -304,7 +304,7 @@ export default function ProfilePage() {
                   <Text c="dimmed" ta="center">
                     Start by submitting your first manuscript to begin building your academic portfolio.
                   </Text>
-                  <Button component={Link} href="/manuscripts/submit">
+                  <Button component={Link} href="/articles/submit">
                     Submit Paper
                   </Button>
                 </Stack>

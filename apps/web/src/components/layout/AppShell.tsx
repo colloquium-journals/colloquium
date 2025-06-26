@@ -34,14 +34,13 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
   // Filter navigation items based on user role and authentication
   const allNavigationItems = [
     { 
-      label: 'Dashboard', 
-      href: '/dashboard', 
-      requiresAuth: true, 
-      allowedRoles: ['ADMIN', 'EDITOR'] 
+      label: 'Home', 
+      href: '/', 
+      requiresAuth: false // Public access
     },
     { 
-      label: 'Manuscripts', 
-      href: '/manuscripts', 
+      label: 'Articles', 
+      href: '/articles', 
       requiresAuth: false // Public access
     },
     { 
@@ -99,18 +98,17 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
             <Burger opened={navOpened} onClick={toggleNav} hiddenFrom="sm" size="sm" />
             
             {/* Logo */}
-            <Title 
-              order={3} 
-              component={Link} 
-              href="/"
-              style={{ 
-                textDecoration: 'none',
-                color: 'var(--mantine-color-blue-6)',
-                cursor: 'pointer'
-              }}
-            >
-              Colloquium
-            </Title>
+            <Link href="/" style={{ textDecoration: 'none' }}>
+              <Title 
+                order={3} 
+                style={{ 
+                  color: 'var(--mantine-color-blue-6)',
+                  cursor: 'pointer'
+                }}
+              >
+                Colloquium
+              </Title>
+            </Link>
 
             {/* Desktop Navigation */}
             <Group gap="xs" ml="xl" visibleFrom="sm">
@@ -147,13 +145,13 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
             {isAuthenticated && user && user.name && (
               <Button
                 component={Link}
-                href="/manuscripts/submit"
+                href="/articles/submit"
                 size="sm"
                 visibleFrom="md"
                 variant="gradient"
                 gradient={{ from: 'blue', to: 'cyan' }}
               >
-                Submit Manuscript
+                Submit Article
               </Button>
             )}
             
@@ -194,14 +192,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                         component={Link}
                         href="/admin/settings"
                       >
-                        Journal Settings
-                      </Menu.Item>
-                      <Menu.Item 
-                        leftSection={<IconRobot size={14} />}
-                        component={Link}
-                        href="/admin/bots"
-                      >
-                        Bot Management
+                        Admin Settings
                       </Menu.Item>
                     </>
                   )}

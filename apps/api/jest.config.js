@@ -26,7 +26,7 @@ module.exports = {
   passWithNoTests: true,
   moduleNameMapper: {
     '^@colloquium/auth$': '<rootDir>/../../packages/auth/dist',
-    '^@colloquium/database$': '<rootDir>/../../packages/database/dist',
+    '^@colloquium/database$': '<rootDir>/../../packages/database/dist/database/src',
     '^@colloquium/bots/src/(.*)$': '<rootDir>/../../packages/bots/dist/$1',
     '^@colloquium/bots$': '<rootDir>/../../packages/bots/dist',
     '^@colloquium/(.*)$': '<rootDir>/../../packages/$1/src'

@@ -94,7 +94,6 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
   const [content, setContent] = useState('');
   const [mentionedBots, setMentionedBots] = useState<Bot[]>([]);
   const [availableBots, setAvailableBots] = useState<Bot[]>([]);
-  const [showBotMenu, setShowBotMenu] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [privacy, setPrivacy] = useState(getDefaultPrivacy(user?.role));
   const [loadingBots, setLoadingBots] = useState(false);
@@ -147,6 +146,13 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
           setAvailableBots(enabledBots);
         } else {
           console.error('Failed to fetch bots:', response.status, response.statusText);
+          // Try to get more error details
+          try {
+            const errorData = await response.json();
+            console.error('Bot fetch error details:', errorData);
+          } catch (e) {
+            console.error('Could not parse error response');
+          }
         }
       } catch (error) {
         console.error('Error fetching bots:', error);
@@ -195,7 +201,6 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
     
     setContent(newContent);
     setMentionedBots([...mentionedBots, bot]);
-    setShowBotMenu(false);
     
     // Focus back to textarea
     if (textareaRef.current) {
@@ -353,8 +358,6 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
         <Group justify="space-between">
           <Group gap="xs">
             <Menu
-              opened={showBotMenu}
-              onChange={setShowBotMenu}
               shadow="md"
               width={300}
             >
@@ -363,7 +366,6 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
                   variant="subtle"
                   size="xs"
                   leftSection={<IconAt size={14} />}
-                  onClick={() => setShowBotMenu(!showBotMenu)}
                 >
                   Mention Bot
                 </Button>

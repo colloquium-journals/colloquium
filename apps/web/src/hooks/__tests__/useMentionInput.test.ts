@@ -276,7 +276,7 @@ describe('useMentionInput', () => {
       expect(handled).toBe(true);
     });
 
-    expect(mockOnChange).toHaveBeenCalledWith('Hello @user1 ');
+    expect(mockOnChange).toHaveBeenCalledWith('Hello @John Doe ');
     expect(result.current.mentionState.isActive).toBe(false);
     
     document.body.removeChild(container);
@@ -339,7 +339,7 @@ describe('useMentionInput', () => {
       result.current.handleSelectSuggestion(mockSuggestions[0]);
     });
 
-    expect(mockOnChange).toHaveBeenCalledWith('Hello @user1 ');
+    expect(mockOnChange).toHaveBeenCalledWith('Hello @John Doe ');
     expect(result.current.mentionState.isActive).toBe(false);
     
     document.body.removeChild(container);

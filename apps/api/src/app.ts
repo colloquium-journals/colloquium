@@ -11,17 +11,18 @@ import http from 'http';
 // Import routes
 import authRoutes from './routes/auth';
 import settingsRoutes from './routes/settings';
-import manuscriptsRoutes from './routes/manuscripts';
+import articlesRoutes from './routes/articles';
 import conversationsRoutes from './routes/conversations';
 import messagesRoutes from './routes/messages';
 import usersRoutes from './routes/users';
 import botsRoutes from './routes/bots';
 import botManagementRoutes from './routes/bot-management';
+import botConfigFilesRoutes from './routes/bot-config-files';
 import contentRoutes from './routes/content';
 import eventsRoutes, { closeAllConnections } from './routes/events';
 import orcidRoutes from './routes/orcid';
 import reviewersRoutes from './routes/reviewers';
-import checkboxStatesRoutes from './routes/checkbox-states';
+import formatsRoutes from './routes/formats';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -76,17 +77,18 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/manuscripts', manuscriptsRoutes);
+app.use('/api/articles', articlesRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/bots', botsRoutes);
 app.use('/api/bot-management', botManagementRoutes);
+app.use('/api/bot-config-files', botConfigFilesRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/orcid', orcidRoutes);
 app.use('/api/reviewers', reviewersRoutes);
-app.use('/api/checkbox-states', checkboxStatesRoutes);
+app.use('/api/formats', formatsRoutes);
 
 // Error handling middleware
 app.use(notFound);

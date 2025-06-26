@@ -8,8 +8,7 @@ import {
   IconPlus, 
   IconUser,
   IconSettings,
-  IconSearch,
-  IconDashboard
+  IconSearch
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 
@@ -23,18 +22,18 @@ export function SearchSpotlight({ children }: SearchSpotlightProps) {
   const actions: SpotlightActionData[] = [
     // Navigation
     {
-      id: 'dashboard',
-      label: 'Dashboard',
-      description: 'View your dashboard with overview and statistics',
-      onClick: () => router.push('/dashboard'),
-      leftSection: <IconDashboard size={18} />,
-      keywords: ['dashboard', 'home', 'overview', 'stats']
+      id: 'home',
+      label: 'Home',
+      description: 'Return to the homepage',
+      onClick: () => router.push('/'),
+      leftSection: <IconHome size={18} />,
+      keywords: ['home', 'homepage', 'main']
     },
     {
-      id: 'manuscripts',
-      label: 'Browse Manuscripts',
-      description: 'View published manuscripts and research',
-      onClick: () => router.push('/manuscripts'),
+      id: 'articles',
+      label: 'Browse Articles',
+      description: 'View published articles and research',
+      onClick: () => router.push('/articles'),
       leftSection: <IconFileText size={18} />,
       keywords: ['manuscripts', 'papers', 'research', 'articles', 'publications']
     },
@@ -50,9 +49,9 @@ export function SearchSpotlight({ children }: SearchSpotlightProps) {
     // Quick Actions
     {
       id: 'submit',
-      label: 'Submit Manuscript',
-      description: 'Submit a new manuscript for review',
-      onClick: () => router.push('/manuscripts/submit'),
+      label: 'Submit Article',
+      description: 'Submit a new article for review',
+      onClick: () => router.push('/articles/submit'),
       leftSection: <IconPlus size={18} />,
       keywords: ['submit', 'upload', 'new', 'manuscript', 'paper', 'publish']
     },
@@ -80,7 +79,7 @@ export function SearchSpotlight({ children }: SearchSpotlightProps) {
       id: 'ml-manuscript',
       label: 'Machine Learning Applications in Peer Review',
       description: 'Published manuscript by Dr. Sarah Johnson',
-      onClick: () => router.push('/manuscripts/cmbutx3fs0008qrgm7tirs6mu'),
+      onClick: () => router.push('/articles/cmbutx3fs0008qrgm7tirs6mu'),
       leftSection: <IconFileText size={18} />,
       keywords: ['machine learning', 'peer review', 'automation', 'sarah johnson']
     },
@@ -88,7 +87,7 @@ export function SearchSpotlight({ children }: SearchSpotlightProps) {
       id: 'blockchain-manuscript',
       label: 'Blockchain Technology for Academic Publishing',
       description: 'Published manuscript by Prof. Elena Rodriguez',
-      onClick: () => router.push('/manuscripts/cmbutx3ft0009qrgm56763u0f'),
+      onClick: () => router.push('/articles/cmbutx3ft0009qrgm56763u0f'),
       leftSection: <IconFileText size={18} />,
       keywords: ['blockchain', 'transparency', 'publishing', 'elena rodriguez']
     },
@@ -96,7 +95,7 @@ export function SearchSpotlight({ children }: SearchSpotlightProps) {
       id: 'open-science-manuscript',
       label: 'Open Science Platforms: A Comparative Analysis',
       description: 'Published manuscript by Dr. Robert Wilson',
-      onClick: () => router.push('/manuscripts/cmbutx3fv000aqrgmqs6fvbp1'),
+      onClick: () => router.push('/articles/cmbutx3fv000aqrgmqs6fvbp1'),
       leftSection: <IconFileText size={18} />,
       keywords: ['open science', 'platforms', 'collaboration', 'robert wilson']
     }

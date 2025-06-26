@@ -37,18 +37,7 @@ jest.mock('../../../contexts/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
-// Mock InteractiveCheckbox
-jest.mock('../../shared/InteractiveCheckbox', () => ({
-  InteractiveCheckbox: ({ label }: { label: string }) => <div data-testid="interactive-checkbox">{label}</div>
-}));
-
-// Mock useCheckboxStates hook
-jest.mock('../../../hooks/useCheckboxStates', () => ({
-  useCheckboxStates: () => ({
-    isChecked: jest.fn(() => false),
-    updateCheckboxState: jest.fn()
-  })
-}));
+// Interactive checkboxes are now handled by built-in markdown rendering
 
 // Mock fetch for API calls
 global.fetch = jest.fn();
@@ -58,8 +47,8 @@ const mockConversationData = {
   type: 'EDITORIAL',
   privacy: 'PRIVATE',
   title: 'Test Conversation',
-  manuscript: {
-    title: 'Test Manuscript',
+  article: {
+    title: 'Test Article',
     authors: ['Test Author']
   },
   createdAt: '2024-01-01T00:00:00.000Z',

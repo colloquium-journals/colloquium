@@ -13,14 +13,14 @@ describe('Bot Mention Transform Logic', () => {
   const mockBot = {
     id: 'editorial-bot',
     name: 'Editorial Bot',
-    description: 'Assists with manuscript editorial workflows',
+    description: 'Assists with article editorial workflows',
     isInstalled: true,
     isEnabled: true
   };
 
   it('should correctly transform bot ID to display name in message content', () => {
     // Simulate the transformation logic from MessageComposer
-    let processedContent = '@editorial-bot help with this manuscript';
+    let processedContent = '@editorial-bot help with this article';
     
     // Apply the fixed transformation logic
     processedContent = processedContent.replace(
@@ -29,7 +29,7 @@ describe('Bot Mention Transform Logic', () => {
     );
 
     // Verify the transformation
-    expect(processedContent).toBe('@Editorial Bot help with this manuscript');
+    expect(processedContent).toBe('@Editorial Bot help with this article');
   });
 
   it('should not affect content without bot mentions', () => {

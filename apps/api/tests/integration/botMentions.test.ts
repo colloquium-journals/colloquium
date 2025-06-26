@@ -14,8 +14,7 @@ describe('Bot Mentions Integration', () => {
     const user = await prisma.user.create({
       data: {
         email: 'test@example.com',
-        firstName: 'Test',
-        lastName: 'User',
+        name: 'Test User',
         role: GlobalRole.USER
       }
     });
@@ -29,13 +28,21 @@ describe('Bot Mentions Integration', () => {
     );
 
     // Create test conversation
+    // Create test manuscript first
+    const manuscript = await prisma.manuscript.create({
+      data: {
+        title: 'Test Manuscript',
+        abstract: 'Test abstract',
+        content: 'Test content'
+      }
+    });
+
     const conversation = await prisma.conversation.create({
       data: {
         title: 'Test Conversation',
         type: ConversationType.EDITORIAL,
-        status: 'ACTIVE',
-        participantIds: [userId],
-        createdById: userId
+        privacy: 'PRIVATE',
+        manuscriptId: manuscript.id
       }
     });
     conversationId = conversation.id;

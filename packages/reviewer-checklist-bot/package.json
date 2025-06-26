@@ -1,0 +1,59 @@
+{
+  "name": "@colloquium/reviewer-checklist-bot",
+  "version": "1.0.0",
+  "description": "Interactive reviewer checklist bot for systematic manuscript evaluation",
+  "main": "plugin.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "plugin.js",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "colloquium",
+    "bot",
+    "reviewer",
+    "checklist",
+    "evaluation",
+    "manuscript",
+    "review"
+  ],
+  "author": "Colloquium Team",
+  "license": "MIT",
+  "dependencies": {
+    "@colloquium/types": "*",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@colloquium/eslint-config": "*",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.8.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.2.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "colloquium": {
+    "botId": "reviewer-checklist",
+    "apiVersion": "1.0.0",
+    "permissions": [
+      "read_manuscript",
+      "send_messages"
+    ],
+    "isDefault": true,
+    "defaultConfig": {
+      "template": "# Reviewer Checklist\n\n## Scientific Rigor\n- [ ] The methodology is clearly described and appropriate for the research question\n- [ ] Data analysis methods are appropriate and correctly applied\n- [ ] Results are clearly presented and support the conclusions\n- [ ] Statistical analyses are appropriate and correctly interpreted\n\n## Significance and Novelty\n- [ ] The work presents novel insights or significant contributions to the field\n- [ ] The research question is clearly stated and well-motivated\n- [ ] The implications of the findings are discussed appropriately\n\n## Scholarship\n- [ ] Literature review is comprehensive and up-to-date\n- [ ] Prior work is appropriately cited and contextualized\n- [ ] The work builds appropriately on existing knowledge\n\n## Technical Quality\n- [ ] Writing is clear, well-organized, and free of significant errors\n- [ ] Figures and tables are clear and informative\n- [ ] References are complete, accurate, and properly formatted\n\n## Ethics and Standards\n- [ ] Ethical considerations are appropriately addressed (if applicable)\n- [ ] Conflicts of interest are disclosed\n- [ ] Data collection and handling follow appropriate standards\n\n## Reproducibility\n- [ ] Study is reproducible with sufficient methodological detail\n- [ ] Data availability and access are clearly stated\n- [ ] Code/analysis scripts are available when applicable\n\n## Overall Assessment\n- [ ] The manuscript meets the standards for publication\n- [ ] I recommend this manuscript for acceptance/revision/rejection\n\n---\n*This checklist is editable. Check off items as you complete your review.*"
+    }
+  }
+}

@@ -354,3 +354,66 @@ export const mockBotExecutor = () => ({
   getBotStatus: jest.fn().mockReturnValue('active'),
   listAvailableBots: jest.fn().mockReturnValue(['test-bot', 'another-bot'])
 });
+
+// Integration test helpers (require actual database connection)
+let testDbConnection: any = null;
+
+export const createTestUser = async (email: string, role: string = 'USER') => {
+  // This would use the actual prisma client in integration tests
+  if (!testDbConnection) {
+    throw new Error('Test database connection not initialized');
+  }
+  
+  return await testDbConnection.user.create({
+    data: {
+      email,
+      name: email.split('@')[0],
+      role
+    }
+  });
+};
+
+export const createTestBot = async (id: string, name: string, version: string) => {
+  if (!testDbConnection) {
+    throw new Error('Test database connection not initialized');
+  }
+  
+  return await testDbConnection.botDefinition.create({
+    data: {
+      id,
+      name,
+      description: `${name} bot for testing`,
+      version,
+      author: 'Test Author',
+      isPublic: true,
+      configSchema: {}
+    }
+  });
+};
+
+export const getAuthCookie = async (userId: string): Promise<string> => {
+  // In real implementation, this would generate a valid JWT token
+  // and return it as a cookie string
+  const token = createMockJWT({ userId });
+  return `authToken=${token}; Path=/; HttpOnly`;
+};
+
+export const cleanupTestData = async () => {
+  if (!testDbConnection) return;
+  
+  // Clean up test data in dependency order
+  await testDbConnection.botConfigFile.deleteMany({});
+  await testDbConnection.botInstall.deleteMany({});
+  await testDbConnection.botDefinition.deleteMany({});
+  await testDbConnection.user.deleteMany({
+    where: {
+      email: {
+        contains: '@test.com'
+      }
+    }
+  });
+};
+
+export const setTestDbConnection = (connection: any) => {
+  testDbConnection = connection;
+};

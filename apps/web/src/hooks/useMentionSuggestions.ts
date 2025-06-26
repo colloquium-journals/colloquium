@@ -90,8 +90,8 @@ export function useMentionSuggestions({ conversationId, availableBots }: UseMent
 
     const botSuggestions: MentionSuggestion[] = availableBots.map(bot => ({
       id: bot.id,
-      name: bot.id, // Use kebab-case ID for the mention
-      displayName: bot.id, // Use kebab-case ID as display name too
+      name: bot.id, // Use bot ID for the mention (e.g., @editorial-bot)
+      displayName: bot.name, // Use human-readable name for display (e.g., "Editorial Bot")
       type: 'bot' as const,
       description: bot.description,
       color: bot.color,

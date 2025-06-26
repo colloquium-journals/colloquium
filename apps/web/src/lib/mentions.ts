@@ -38,20 +38,23 @@ export function parseMentions(content: string): Mention[] {
   const userRegex = /@([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}(?:\s+\([^)]+\))?)(?=\s|$|[.,!?;:])/g;
   
   while ((match = userRegex.exec(content)) !== null) {
+    if (match.index === undefined) continue;
+    
     const fullMatch = match[0]; // The full @mention
     const name = match[1].trim(); // The name part without @
+    const matchIndex = match.index; // Store locally for type safety
     
     // Skip if this position was already captured by bot regex
     const overlaps = mentions.some(existing => 
-      match.index >= existing.startIndex && match.index < existing.endIndex
+      matchIndex >= existing.startIndex && matchIndex < existing.endIndex
     );
     
     if (!overlaps) {
       mentions.push({
         id: generateMentionId(name),
         name: fullMatch, // Keep the @ symbol
-        startIndex: match.index,
-        endIndex: match.index + fullMatch.length,
+        startIndex: matchIndex,
+        endIndex: matchIndex + fullMatch.length,
         isBot: false
       });
     }

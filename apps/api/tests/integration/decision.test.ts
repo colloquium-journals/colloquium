@@ -43,7 +43,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       data: {
         title: 'Manuscript Discussion',
         type: 'SEMI_PUBLIC',
-        privacy: 'AUTHOR_VISIBLE',
+        privacy: 'SEMI_PUBLIC',
         manuscriptId
       }
     });
@@ -80,11 +80,7 @@ describe('Simplified Editorial Decision Workflow', () => {
         manuscriptId,
         reviewerId: reviewer1.id,
         status: 'COMPLETED',
-        completedAt: new Date(),
-        metadata: {
-          recommendation: 'accept',
-          score: 8
-        }
+        completedAt: new Date()
       }
     });
 
@@ -93,11 +89,7 @@ describe('Simplified Editorial Decision Workflow', () => {
         manuscriptId,
         reviewerId: reviewer2.id,
         status: 'COMPLETED',
-        completedAt: new Date(),
-        metadata: {
-          recommendation: 'minor_revision',
-          score: 7
-        }
+        completedAt: new Date()
       }
     });
   });
@@ -181,7 +173,7 @@ describe('Simplified Editorial Decision Workflow', () => {
         data: {
           title: 'Revision Discussion',
           type: 'SEMI_PUBLIC',
-          privacy: 'AUTHOR_VISIBLE',
+          privacy: 'SEMI_PUBLIC',
           manuscriptId: revisionManuscript.id
         }
       });

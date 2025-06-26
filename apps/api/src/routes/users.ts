@@ -115,6 +115,48 @@ router.get('/', authenticate, (req, res, next) => {
   }
 });
 
+// GET /api/users/lookup - Look up user by email for author management
+router.get('/lookup', authenticate, async (req, res, next) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        error: 'Email Required',
+        message: 'Email parameter is required'
+      });
+    }
+    
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        orcidId: true,
+        affiliation: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({
+        error: 'User Not Found',
+        message: 'No user found with this email address'
+      });
+    }
+    
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      orcidId: user.orcidId,
+      affiliation: user.affiliation
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/users/me - Get current user profile
 router.get('/me', authenticate, async (req, res, next) => {
   try {

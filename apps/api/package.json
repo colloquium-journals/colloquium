@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "lsof -ti:4000 | xargs kill -9 2>/dev/null || true",
     "dev": "tsx watch --clear-screen=false src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
@@ -17,6 +18,10 @@
     "@colloquium/bots": "*",
     "@colloquium/database": "*",
     "@colloquium/types": "*",
+    "@colloquium/editorial-bot": "*",
+    "@colloquium/reference-bot": "*",
+    "@colloquium/markdown-renderer-bot": "*",
+    "@colloquium/reviewer-checklist-bot": "*",
     "bcrypt": "^5.1.1",
     "bull": "^4.11.0",
     "compression": "^1.7.4",

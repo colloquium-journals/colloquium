@@ -54,8 +54,8 @@ export async function resolveMentions(content: string, conversationId: string): 
     
     // Skip if this position was already captured by bot regex
     const overlaps = mentions.some(existing => 
-      match.index >= content.indexOf(existing.originalText) && 
-      match.index < content.indexOf(existing.originalText) + existing.originalText.length
+      match && match.index !== undefined && match.index >= content.indexOf(existing.originalText) && 
+      match && match.index !== undefined && match.index < content.indexOf(existing.originalText) + existing.originalText.length
     );
     
     if (!overlaps) {
