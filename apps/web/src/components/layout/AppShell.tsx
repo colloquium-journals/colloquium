@@ -11,12 +11,16 @@ import {
   Avatar,
   Text,
   Divider,
-  Stack
+  Stack,
+  Image
 } from '@mantine/core';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { IconUser, IconLogout, IconLogin, IconSettings, IconRobot } from '@tabler/icons-react';
+import { IconUser, IconLogout, IconLogin, IconSettings, IconRobot, IconSun, IconMoon } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useJournalSettings } from '@/contexts/JournalSettingsContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Footer } from './Footer';
 
 interface AppShellLayoutProps {
   children: React.ReactNode;
@@ -27,6 +31,8 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
+  const { settings, loading } = useJournalSettings();
+  const { colorScheme, toggleColorScheme, isDarkModeEnabled } = useTheme();
   
   const toggleNav = () => setNavOpened(!navOpened);
   const closeNav = () => setNavOpened(false);
@@ -99,15 +105,26 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
             
             {/* Logo */}
             <Link href="/" style={{ textDecoration: 'none' }}>
-              <Title 
-                order={3} 
-                style={{ 
-                  color: 'var(--mantine-color-blue-6)',
-                  cursor: 'pointer'
-                }}
-              >
-                Colloquium
-              </Title>
+              <Group gap="xs" align="center">
+                {settings.logoUrl && (
+                  <Image 
+                    src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `http://localhost:4000${settings.logoUrl}`}
+                    alt={`${settings.name} logo`}
+                    h={32}
+                    w="auto"
+                    fit="contain"
+                  />
+                )}
+                <Title 
+                  order={3} 
+                  className="journal-primary"
+                  style={{ 
+                    cursor: 'pointer'
+                  }}
+                >
+                  {loading ? 'Colloquium' : settings.name}
+                </Title>
+              </Group>
             </Link>
 
             {/* Desktop Navigation */}
@@ -119,6 +136,10 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                   href={item.href}
                   variant={isActivePage(item.href) ? 'filled' : 'subtle'}
                   color={isActivePage(item.href) ? 'blue' : 'gray'}
+                  style={isActivePage(item.href) ? { 
+                    backgroundColor: settings.primaryColor,
+                    borderColor: settings.primaryColor 
+                  } : undefined}
                   size="sm"
                 >
                   {item.label}
@@ -129,6 +150,32 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
 
           {/* Right Section */}
           <Group gap="md">
+            {/* Dark Mode Toggle */}
+            {isDarkModeEnabled && (
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={toggleColorScheme}
+                leftSection={colorScheme === 'dark' ? <IconSun size={16} /> : <IconMoon size={16} />}
+                hiddenFrom="md"
+              >
+                {colorScheme === 'dark' ? 'Light' : 'Dark'}
+              </Button>
+            )}
+            
+            {isDarkModeEnabled && (
+              <Button
+                variant="subtle"
+                size="compact-sm"
+                onClick={toggleColorScheme}
+                p="xs"
+                visibleFrom="md"
+                title={`Switch to ${colorScheme === 'dark' ? 'light' : 'dark'} mode`}
+              >
+                {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+              </Button>
+            )}
+
             {isAuthenticated && user && !user.name && (
               <Button
                 component={Link}
@@ -183,6 +230,14 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                   >
                     Profile
                   </Menu.Item>
+                  {isDarkModeEnabled && (
+                    <Menu.Item
+                      leftSection={colorScheme === 'dark' ? <IconSun size={14} /> : <IconMoon size={14} />}
+                      onClick={toggleColorScheme}
+                    >
+                      {colorScheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </Menu.Item>
+                  )}
                   {user.role === 'ADMIN' && (
                     <>
                       <Menu.Divider />
@@ -230,6 +285,10 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
               href={item.href}
               variant={isActivePage(item.href) ? 'filled' : 'subtle'}
               color={isActivePage(item.href) ? 'blue' : 'gray'}
+              style={isActivePage(item.href) ? { 
+                backgroundColor: settings.primaryColor,
+                borderColor: settings.primaryColor 
+              } : undefined}
               fullWidth
               onClick={closeNav}
             >
@@ -239,8 +298,11 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
         </Stack>
       </AppShell.Navbar>
       
-      <AppShell.Main>
-        {children}
+      <AppShell.Main style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 60px)' }}>
+        <div style={{ flex: 1 }}>
+          {children}
+        </div>
+        <Footer />
       </AppShell.Main>
     </AppShell>
   );

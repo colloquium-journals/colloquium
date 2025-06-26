@@ -59,6 +59,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
+import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 
 interface BotInstallation {
   id: string;
@@ -159,10 +160,15 @@ interface JournalSettings {
   analyticsId?: string;
   customFooter?: string;
   maintenanceMode: boolean;
+  
+  // Theme Settings
+  enableDarkMode: boolean;
+  defaultTheme: 'light' | 'dark' | 'auto';
 }
 
 export default function JournalSettingsPage() {
   const { user, isAuthenticated } = useAuth();
+  const { refreshSettings } = useJournalSettings();
   const [settings, setSettings] = useState<JournalSettings>({
     name: '',
     description: '',
@@ -183,8 +189,13 @@ export default function JournalSettingsPage() {
     copyrightHolder: '',
     enableEmailNotifications: true,
     enableAnalytics: false,
-    maintenanceMode: false
+    maintenanceMode: false,
+    enableDarkMode: false,
+    defaultTheme: 'light'
   });
+  
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -337,6 +348,50 @@ export default function JournalSettingsPage() {
     }
   }, [activeTab, roleFilter, searchTerm]);
 
+  // Upload logo
+  const handleLogoUpload = async () => {
+    if (!logoFile) return;
+
+    try {
+      setIsUploadingLogo(true);
+      const formData = new FormData();
+      formData.append('logo', logoFile);
+
+      const response = await fetch('http://localhost:4000/api/settings/logo', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload logo');
+      }
+
+      const data = await response.json();
+      setSettings(prev => ({ ...prev, logoUrl: data.logoUrl }));
+      setLogoFile(null);
+
+      notifications.show({
+        title: 'Success',
+        message: 'Logo uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />
+      });
+
+      // Refresh the global settings context
+      await refreshSettings();
+    } catch (err) {
+      notifications.show({
+        title: 'Error',
+        message: err instanceof Error ? err.message : 'Failed to upload logo',
+        color: 'red',
+        icon: <IconAlertCircle size={16} />
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
   // Save settings
   const handleSaveSettings = async () => {
     try {
@@ -358,6 +413,9 @@ export default function JournalSettingsPage() {
         color: 'green',
         icon: <IconCheck size={16} />
       });
+
+      // Refresh the global settings context
+      await refreshSettings();
     } catch (err) {
       notifications.show({
         title: 'Error',
@@ -927,12 +985,36 @@ export default function JournalSettingsPage() {
                   />
                 </Group>
 
-                <FileInput
-                  label="Logo"
-                  placeholder="Upload journal logo"
-                  accept="image/*"
-                  leftSection={<IconPhoto size={16} />}
-                />
+                <Stack gap="xs">
+                  <Text size="sm" fw={500}>Logo</Text>
+                  {settings.logoUrl && (
+                    <Group gap="md">
+                      <img 
+                        src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `http://localhost:4000${settings.logoUrl}`} 
+                        alt="Current logo" 
+                        style={{ height: 48, objectFit: 'contain' }}
+                      />
+                      <Text size="sm" c="dimmed">Current logo</Text>
+                    </Group>
+                  )}
+                  <FileInput
+                    placeholder="Upload new journal logo"
+                    accept="image/*"
+                    value={logoFile}
+                    onChange={setLogoFile}
+                    leftSection={<IconPhoto size={16} />}
+                  />
+                  {logoFile && (
+                    <Button
+                      size="xs"
+                      onClick={handleLogoUpload}
+                      loading={isUploadingLogo}
+                      leftSection={<IconUpload size={14} />}
+                    >
+                      Upload Logo
+                    </Button>
+                  )}
+                </Stack>
               </Stack>
             </Card>
           </Tabs.Panel>
@@ -1159,6 +1241,29 @@ export default function JournalSettingsPage() {
                   checked={settings.maintenanceMode}
                   onChange={(e) => setSettings({ ...settings, maintenanceMode: e.currentTarget.checked })}
                 />
+
+                <Divider label="Theme Settings" />
+
+                <Switch
+                  label="Enable Dark Mode"
+                  description="Allow users to switch between light and dark themes"
+                  checked={settings.enableDarkMode}
+                  onChange={(e) => setSettings({ ...settings, enableDarkMode: e.currentTarget.checked })}
+                />
+
+                {settings.enableDarkMode && (
+                  <Select
+                    label="Default Theme"
+                    description="Default theme for new visitors"
+                    value={settings.defaultTheme}
+                    onChange={(value) => setSettings({ ...settings, defaultTheme: (value as 'light' | 'dark' | 'auto') || 'light' })}
+                    data={[
+                      { value: 'light', label: 'Light Theme' },
+                      { value: 'dark', label: 'Dark Theme' },
+                      { value: 'auto', label: 'Auto (Follow System)' }
+                    ]}
+                  />
+                )}
               </Stack>
             </Card>
           </Tabs.Panel>

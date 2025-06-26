@@ -1,7 +1,10 @@
+'use client';
+
 import { Title, Text, Button, Stack, Card, Group, Container, Grid, Badge, Anchor, SimpleGrid } from '@mantine/core';
 import { IconPencil, IconCalendar, IconUsers, IconTag } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 
 async function fetchRecentArticles() {
   try {
@@ -130,27 +133,47 @@ async function RecentArticles() {
 }
 
 export default function HomePage() {
+  const { settings: journalSettings } = useJournalSettings();
+  
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
         {/* Journal Header */}
         <Stack align="center" gap="md" ta="center">
-          <Title order={1} size="2.5rem" c="academic.8">
-            Journal of Open Science
+          {journalSettings.logoUrl && (
+            <img 
+              src={journalSettings.logoUrl.startsWith('http') ? journalSettings.logoUrl : `http://localhost:4000${journalSettings.logoUrl}`}
+              alt={`${journalSettings.name} logo`}
+              style={{ height: 80, objectFit: 'contain', marginBottom: '1rem' }}
+            />
+          )}
+          <Title order={1} size="2.5rem" className="journal-primary">
+            {journalSettings.name}
           </Title>
           <Text size="lg" c="dimmed" maw={600}>
-            A peer-reviewed open access journal dedicated to advancing scientific knowledge 
-            through transparent, collaborative research and innovative review processes.
+            {journalSettings.description}
           </Text>
-          <Button 
-            size="lg" 
-            leftSection={<IconPencil size={20} />} 
-            component={Link} 
-            href="/articles/submit"
-            mt="md"
-          >
-            Submit Your Research
-          </Button>
+          {journalSettings.submissionsOpen && (
+            <Button 
+              size="lg" 
+              leftSection={<IconPencil size={20} />} 
+              component={Link} 
+              href="/articles/submit"
+              mt="md"
+              className="journal-primary-bg"
+              style={{
+                backgroundColor: journalSettings.primaryColor,
+                borderColor: journalSettings.primaryColor
+              }}
+            >
+              Submit Your Research
+            </Button>
+          )}
+          {!journalSettings.submissionsOpen && (
+            <Text size="sm" c="orange" mt="md" fw={500}>
+              Submissions are currently closed
+            </Text>
+          )}
         </Stack>
 
         {/* Main Content - Two Column Layout */}
@@ -178,11 +201,14 @@ export default function HomePage() {
                 About the Journal
               </Title>
               <Text>
-                The Journal of Open Science is committed to advancing scientific knowledge through 
-                open, transparent, and collaborative research practices. We embrace innovative 
-                peer review processes that foster constructive dialogue between authors, reviewers, 
-                and the broader scientific community.
+                {journalSettings.description || 'This journal is committed to advancing scientific knowledge through open, transparent, and collaborative research practices.'}
               </Text>
+              {journalSettings.publisherName && (
+                <Text size="sm" c="dimmed">
+                  Published by {journalSettings.publisherName}
+                  {journalSettings.publisherLocation && ` • ${journalSettings.publisherLocation}`}
+                </Text>
+              )}
             </Stack>
           </Card>
         </Group>

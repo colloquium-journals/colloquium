@@ -2,6 +2,37 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
+import { prisma } from '@colloquium/database';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+// Configure multer for logo uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(process.cwd(), 'uploads', 'logos');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `logo-${Date.now()}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 const router = Router();
 
@@ -52,11 +83,15 @@ const JournalSettingsSchema = z.object({
   enableAnalytics: z.boolean().default(false),
   analyticsId: z.string().optional(),
   customFooter: z.string().optional(),
-  maintenanceMode: z.boolean().default(false)
+  maintenanceMode: z.boolean().default(false),
+  
+  // Theme Settings
+  enableDarkMode: z.boolean().default(false),
+  defaultTheme: z.enum(['light', 'dark', 'auto']).default('light')
 });
 
-// In-memory settings store (replace with database in production)
-let journalSettings = {
+// Default settings
+const defaultSettings = {
   name: 'Colloquium Journal',
   description: 'An academic journal powered by Colloquium',
   logoUrl: undefined as string | undefined,
@@ -87,8 +122,67 @@ let journalSettings = {
   enableAnalytics: false,
   analyticsId: undefined as string | undefined,
   customFooter: undefined as string | undefined,
-  maintenanceMode: false
+  maintenanceMode: false,
+  enableDarkMode: false,
+  defaultTheme: 'light' as 'light' | 'dark' | 'auto'
 };
+
+// Helper function to get or create journal settings
+async function getJournalSettings() {
+  try {
+    let settings = await prisma.journalSettings.findFirst({
+      where: { id: 'singleton' }
+    });
+    
+    if (!settings) {
+      // Create default settings if none exist
+      settings = await prisma.journalSettings.create({
+        data: {
+          id: 'singleton',
+          name: defaultSettings.name,
+          description: defaultSettings.description,
+          settings: defaultSettings
+        }
+      });
+    }
+    
+    // Merge default settings with stored settings
+    const storedSettings = (settings.settings as any) || {};
+    return { ...defaultSettings, ...storedSettings };
+  } catch (error) {
+    console.error('Error fetching journal settings:', error);
+    return defaultSettings;
+  }
+}
+
+// Helper function to update journal settings
+async function updateJournalSettings(newSettings: any) {
+  try {
+    const currentSettings = await getJournalSettings();
+    const mergedSettings = { ...currentSettings, ...newSettings };
+    
+    await prisma.journalSettings.upsert({
+      where: { id: 'singleton' },
+      update: {
+        name: mergedSettings.name,
+        description: mergedSettings.description,
+        settings: mergedSettings,
+        updatedAt: new Date()
+      },
+      create: {
+        id: 'singleton',
+        name: mergedSettings.name,
+        description: mergedSettings.description,
+        settings: mergedSettings
+      }
+    });
+    
+    return mergedSettings;
+  } catch (error) {
+    console.error('Error updating journal settings:', error);
+    throw error;
+  }
+}
 
 // Middleware to check admin access
 const requireAdmin = (req: any, res: any, next: any) => {
@@ -106,6 +200,8 @@ const requireAdmin = (req: any, res: any, next: any) => {
 // GET /api/settings - Get journal settings
 router.get('/', async (req, res, next) => {
   try {
+    const journalSettings = await getJournalSettings();
+    
     // Return public settings (non-sensitive information)
     const publicSettings = {
       name: journalSettings.name,
@@ -123,7 +219,12 @@ router.get('/', async (req, res, next) => {
       licenseType: journalSettings.licenseType,
       copyrightHolder: journalSettings.copyrightHolder,
       customFooter: journalSettings.customFooter,
-      maintenanceMode: journalSettings.maintenanceMode
+      maintenanceMode: journalSettings.maintenanceMode,
+      contactEmail: journalSettings.contactEmail,
+      publisherName: journalSettings.publisherName,
+      publisherLocation: journalSettings.publisherLocation,
+      enableDarkMode: journalSettings.enableDarkMode,
+      defaultTheme: journalSettings.defaultTheme
     };
 
     res.json(publicSettings);
@@ -135,6 +236,8 @@ router.get('/', async (req, res, next) => {
 // GET /api/settings/admin - Get all settings (admin only)
 router.get('/admin', authenticate, requireAdmin, async (req, res, next) => {
   try {
+    const journalSettings = await getJournalSettings();
+    
     // Return all settings excluding sensitive fields like passwords
     const adminSettings = { ...journalSettings };
     if (adminSettings.smtpPassword) {
@@ -154,24 +257,62 @@ router.put('/',
   validateRequest({ body: JournalSettingsSchema }),
   async (req, res, next) => {
     try {
-      // Update settings (in production, this would update the database)
-      journalSettings = { ...journalSettings, ...req.body };
+      // Update settings in database
+      const updatedSettings = await updateJournalSettings(req.body);
       
       // Log the settings update
       console.log(`Settings updated by admin: ${req.user?.email || 'unknown'}`);
       
       res.json({ 
         message: 'Settings updated successfully',
-        settings: journalSettings
+        settings: updatedSettings
       });
     } catch (error) {
       next(error);
     }
   });
 
+// POST /api/settings/logo - Upload logo (admin only)
+router.post('/logo',
+  authenticate,
+  requireAdmin,
+  upload.single('logo'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ 
+          error: { message: 'No logo file provided' } 
+        });
+      }
+
+      const logoUrl = `/uploads/logos/${req.file.filename}`;
+      
+      // Update settings with new logo URL
+      const updatedSettings = await updateJournalSettings({ logoUrl });
+      
+      res.json({ 
+        message: 'Logo uploaded successfully',
+        logoUrl
+      });
+    } catch (error) {
+      // Clean up uploaded file if there was an error
+      if (req.file) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error('Error cleaning up uploaded file:', unlinkError);
+        }
+      }
+      next(error);
+    }
+  }
+);
+
 // GET /api/settings/maintenance - Check maintenance mode
 router.get('/maintenance', async (req, res, next) => {
   try {
+    const journalSettings = await getJournalSettings();
+    
     res.json({ 
       maintenanceMode: journalSettings.maintenanceMode,
       message: journalSettings.maintenanceMode ? 'The journal is currently under maintenance' : null

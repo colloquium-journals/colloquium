@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
   Container,
   Stack,
@@ -28,6 +27,31 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
+import { useJournalSettings } from '@/contexts/JournalSettingsContext';
+
+async function fetchContent() {
+  try {
+    const [sectionsResponse, aboutPagesResponse] = await Promise.all([
+      fetch('http://localhost:4000/api/content', { cache: 'no-store' }),
+      fetch('http://localhost:4000/api/content/about', { cache: 'no-store' })
+    ]);
+
+    const sectionsData = sectionsResponse.ok ? await sectionsResponse.json() : { sections: [] };
+    const aboutData = aboutPagesResponse.ok ? await aboutPagesResponse.json() : { pages: [] };
+
+    return {
+      sections: sectionsData.sections || [],
+      aboutPages: aboutData.pages || []
+    };
+  } catch (err) {
+    console.error('Error fetching content:', err);
+    return {
+      sections: [],
+      aboutPages: []
+    };
+  }
+}
 
 interface ContentSection {
   slug: string;
@@ -57,36 +81,27 @@ const PAGE_ICONS = {
 };
 
 export default function AboutPage() {
+  const { settings: journalSettings } = useJournalSettings();
   const [sections, setSections] = useState<ContentSection[]>([]);
   const [aboutPages, setAboutPages] = useState<ContentPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchContent = async () => {
+    const loadContent = async () => {
       try {
-        const [sectionsResponse, aboutPagesResponse] = await Promise.all([
-          fetch('http://localhost:4000/api/content'),
-          fetch('http://localhost:4000/api/content/about')
-        ]);
-
-        if (!sectionsResponse.ok || !aboutPagesResponse.ok) {
-          throw new Error('Failed to fetch content');
-        }
-
-        const sectionsData = await sectionsResponse.json();
-        const aboutData = await aboutPagesResponse.json();
-
-        setSections(sectionsData.sections);
-        setAboutPages(aboutData.pages);
+        setLoading(true);
+        const contentData = await fetchContent();
+        setSections(contentData.sections);
+        setAboutPages(contentData.aboutPages);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load content');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchContent();
+    
+    loadContent();
   }, []);
 
   const formatDate = (timestamp: number | string) => {
@@ -128,7 +143,7 @@ export default function AboutPage() {
       <Stack gap="xl">
         {/* Header */}
         <Stack gap="md" align="center">
-          <Title order={1} ta="center">About Colloquium</Title>
+          <Title order={1} ta="center">About {journalSettings.name}</Title>
           <Text size="lg" c="dimmed" ta="center" maw={600}>
             Learn about our mission, policies, and community guidelines for open academic publishing.
           </Text>
@@ -215,6 +230,10 @@ export default function AboutPage() {
                   href="/about/editorial-board"
                   size="md"
                   fullWidth
+                  style={{
+                    backgroundColor: journalSettings.primaryColor,
+                    borderColor: journalSettings.primaryColor
+                  }}
                 >
                   <Group gap="xs">
                     View Editorial Board
@@ -277,8 +296,8 @@ export default function AboutPage() {
               we'd love to hear from you.
             </Text>
             <Group gap="md">
-              <Anchor href="mailto:contact@colloquium.org">
-                contact@colloquium.org
+              <Anchor href={`mailto:${journalSettings.contactEmail}`}>
+                {journalSettings.contactEmail}
               </Anchor>
               <Text c="dimmed">•</Text>
               <Anchor 
