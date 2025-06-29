@@ -1,0 +1,11 @@
+{
+  "name": "academic-standard",
+  "title": "Academic Standard",
+  "description": "Clean, professional academic journal template",
+  "cssTemplate": "",
+  "metadata": {
+    "type": "academic",
+    "responsive": true,
+    "printOptimized": true
+  }
+}

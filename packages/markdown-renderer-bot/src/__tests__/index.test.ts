@@ -321,6 +321,7 @@ describe('Markdown Renderer Bot', () => {
       
       expect(result.messages[0].content).toContain('Available Journal Templates');
       expect(result.messages[0].content).toContain('Academic Standard');
+      expect(result.messages[0].content).toContain('Colloquium Journal Style');
       expect(result.messages[0].content).toContain('Minimal');
       expect(result.messages[0].content).toContain('Usage Examples');
     });

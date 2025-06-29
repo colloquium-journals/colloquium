@@ -10,6 +10,7 @@
     "predev": "./scripts/cleanup-dev.sh",
     "dev": "turbo run dev --concurrency=15",
     "dev:clean": "./scripts/cleanup-dev.sh && npm run dev",
+    "docker:up": "cd docker && docker-compose up -d postgres redis mailhog",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",

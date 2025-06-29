@@ -1,0 +1,12 @@
+{
+  "name": "colloquium-journal",
+  "title": "Colloquium Journal Style",
+  "description": "Professional academic template with journal branding and structured sections",
+  "cssTemplate": "",
+  "metadata": {
+    "type": "academic-journal",
+    "responsive": true,
+    "printOptimized": true,
+    "features": ["typography", "branding", "structured-sections"]
+  }
+}

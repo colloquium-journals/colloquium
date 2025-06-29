@@ -5,7 +5,6 @@ import DOMPurify from 'dompurify';
 import * as Handlebars from 'handlebars';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import * as mime from 'mime-types';
 import puppeteer from 'puppeteer';
 import { CommandBot, BotCommand } from '@colloquium/types';
 
@@ -23,252 +22,57 @@ const journalTemplateSchema = z.object({
   metadata: z.record(z.any()).optional()
 });
 
-// Built-in templates
-const DEFAULT_TEMPLATES = {
-  'academic-standard': {
-    name: 'academic-standard',
-    title: 'Academic Standard',
-    description: 'Clean, professional academic journal template',
-    htmlTemplate: `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
-    <style>
-        body {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            font-family: 'Times New Roman', serif;
-            line-height: 1.6;
-            color: #333;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 30px;
-        }
-        .title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .authors {
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-        .metadata {
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 20px;
-        }
-        .abstract {
-            background: #f9f9f9;
-            padding: 20px;
-            border-left: 4px solid #2c5aa0;
-            margin: 30px 0;
-        }
-        .abstract h3 {
-            margin-top: 0;
-            color: #2c5aa0;
-        }
-        .content {
-            text-align: justify;
-        }
-        .content h1, .content h2, .content h3 {
-            color: #2c5aa0;
-            margin-top: 30px;
-        }
-        .content h1 {
-            font-size: 20px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-        }
-        .content h2 {
-            font-size: 18px;
-        }
-        .content h3 {
-            font-size: 16px;
-        }
-        .content img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 20px auto;
-        }
-        .content figure {
-            text-align: center;
-            margin: 20px 0;
-        }
-        .content figcaption {
-            font-style: italic;
-            font-size: 14px;
-            color: #666;
-            margin-top: 10px;
-        }
-        .content blockquote {
-            border-left: 4px solid #ddd;
-            margin: 20px 0;
-            padding-left: 20px;
-            color: #666;
-        }
-        .content code {
-            background: #f4f4f4;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-        }
-        .content pre {
-            background: #f4f4f4;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
-        .footer {
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-        }
-    </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
-</head>
-<body>
-    <div class="header">
-        <div class="title">{{title}}</div>
-        {{#if authors}}
-        <div class="authors">{{authors}}</div>
-        {{/if}}
-        <div class="metadata">
-            {{#if submittedDate}}Submitted: {{submittedDate}}{{/if}}
-            {{#if journalName}} • {{journalName}}{{/if}}
-        </div>
-    </div>
-
-    {{#if abstract}}
-    <div class="abstract">
-        <h3>Abstract</h3>
-        <p>{{abstract}}</p>
-    </div>
-    {{/if}}
-
-    <div class="content">
-        {{{content}}}
-    </div>
-
-    <div class="footer">
-        Rendered by Colloquium Markdown Renderer
-        {{#if renderDate}} • {{renderDate}}{{/if}}
-    </div>
-</body>
-</html>`,
-    cssTemplate: '',
-    metadata: {
-      type: 'academic',
-      responsive: true,
-      printOptimized: true
-    }
-  },
-
-  'minimal': {
-    name: 'minimal',
-    title: 'Minimal',
-    description: 'Clean, minimal template with modern typography',
-    htmlTemplate: `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
-    <style>
-        body {
-            max-width: 700px;
-            margin: 0 auto;
-            padding: 60px 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.7;
-            color: #374151;
-        }
-        .title {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            color: #111827;
-        }
-        .authors {
-            color: #6b7280;
-            margin-bottom: 32px;
-        }
-        .abstract {
-            background: #f9fafb;
-            padding: 24px;
-            border-radius: 8px;
-            margin: 32px 0;
-        }
-        .abstract h3 {
-            margin-top: 0;
-            color: #374151;
-            font-size: 18px;
-        }
-        .content h1, .content h2, .content h3 {
-            color: #111827;
-            margin-top: 40px;
-            margin-bottom: 16px;
-        }
-        .content h1 { font-size: 24px; }
-        .content h2 { font-size: 20px; }
-        .content h3 { font-size: 18px; }
-        .content img {
-            max-width: 100%;
-            border-radius: 8px;
-            margin: 24px 0;
-        }
-        .content code {
-            background: #f3f4f6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 14px;
-        }
-        .content pre {
-            background: #1f2937;
-            color: #f9fafb;
-            padding: 20px;
-            border-radius: 8px;
-            overflow-x: auto;
-        }
-    </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
-</head>
-<body>
-    <h1 class="title">{{title}}</h1>
-    {{#if authors}}<div class="authors">{{authors}}</div>{{/if}}
+// Template loading functions
+async function loadBuiltInTemplates(): Promise<Record<string, any>> {
+  const templatesDir = path.join(__dirname, '..', 'templates');
+  const templates: Record<string, any> = {};
+  
+  try {
+    const files = await fs.readdir(templatesDir);
+    const templateNames = new Set<string>();
     
-    {{#if abstract}}
-    <div class="abstract">
-        <h3>Abstract</h3>
-        <p>{{abstract}}</p>
-    </div>
-    {{/if}}
-
-    <div class="content">
-        {{{content}}}
-    </div>
-</body>
-</html>`,
-    cssTemplate: '',
-    metadata: {
-      type: 'modern',
-      responsive: true
+    // Find all template files
+    files.forEach(file => {
+      if (file.endsWith('.html')) {
+        templateNames.add(file.replace('.html', ''));
+      }
+    });
+    
+    // Load each template
+    for (const templateName of templateNames) {
+      try {
+        const htmlPath = path.join(templatesDir, `${templateName}.html`);
+        const jsonPath = path.join(templatesDir, `${templateName}.json`);
+        
+        if (await fs.pathExists(htmlPath) && await fs.pathExists(jsonPath)) {
+          const htmlTemplate = await fs.readFile(htmlPath, 'utf-8');
+          const metadata = await fs.readJson(jsonPath);
+          
+          templates[templateName] = {
+            ...metadata,
+            htmlTemplate
+          };
+        }
+      } catch (error) {
+        console.warn(`Failed to load template ${templateName}:`, error);
+      }
     }
+  } catch (error) {
+    console.warn('Failed to load built-in templates:', error);
   }
-};
+  
+  return templates;
+}
+
+// Cache for loaded templates
+let BUILT_IN_TEMPLATES: Record<string, any> | null = null;
+
+async function getBuiltInTemplates(): Promise<Record<string, any>> {
+  if (!BUILT_IN_TEMPLATES) {
+    BUILT_IN_TEMPLATES = await loadBuiltInTemplates();
+  }
+  return BUILT_IN_TEMPLATES;
+}
 
 // Main render command
 const renderCommand: BotCommand = {
@@ -454,7 +258,7 @@ const uploadTemplateCommand: BotCommand = {
   parameters: [],
   examples: ['@markdown-renderer upload-template'],
   permissions: [],
-  async execute(params, context) {
+  async execute(_params, _context) {
     let message = `📤 **Upload Custom Journal Templates**\n\n`;
     
     message += `To upload a custom journal template, you need to upload the template files through the bot configuration system:\n\n`;
@@ -523,7 +327,8 @@ const listTemplatesCommand: BotCommand = {
     let message = `📝 **Available Journal Templates**\n\n`;
     
     // List built-in templates
-    Object.values(DEFAULT_TEMPLATES).forEach(template => {
+    const builtInTemplates = await getBuiltInTemplates();
+    Object.values(builtInTemplates).forEach((template: any) => {
       message += `**${template.title}** (\`${template.name}\`)\n`;
       message += `${template.description}\n\n`;
     });
@@ -669,9 +474,11 @@ function findAssetFile(files: any[], filename: string): any | null {
 }
 
 async function getTemplate(templateName: string, config: any): Promise<any> {
+  const builtInTemplates = await getBuiltInTemplates();
+  
   // Check built-in templates first
-  if (DEFAULT_TEMPLATES[templateName as keyof typeof DEFAULT_TEMPLATES]) {
-    return DEFAULT_TEMPLATES[templateName as keyof typeof DEFAULT_TEMPLATES];
+  if (builtInTemplates[templateName]) {
+    return builtInTemplates[templateName];
   }
 
   // Check for file-based custom templates
@@ -686,7 +493,14 @@ async function getTemplate(templateName: string, config: any): Promise<any> {
   }
 
   // Fallback to academic-standard
-  return DEFAULT_TEMPLATES['academic-standard'];
+  return builtInTemplates['academic-standard'] || {
+    name: 'fallback',
+    title: 'Fallback Template',
+    description: 'Basic fallback template',
+    htmlTemplate: '<html><body><h1>{{title}}</h1><div>{{{content}}}</div></body></html>',
+    cssTemplate: '',
+    metadata: { type: 'basic' }
+  };
 }
 
 async function getFileBasedTemplate(fileName: string): Promise<any> {
@@ -747,7 +561,15 @@ async function getFileBasedTemplate(fileName: string): Promise<any> {
   } catch (error) {
     console.error(`Failed to load file-based template '${fileName}':`, error);
     // Fallback to academic-standard if file template fails
-    return DEFAULT_TEMPLATES['academic-standard'];
+    const builtInTemplates = await getBuiltInTemplates();
+    return builtInTemplates['academic-standard'] || {
+      name: 'fallback',
+      title: 'Fallback Template',
+      description: 'Basic fallback template',
+      htmlTemplate: '<html><body><h1>{{title}}</h1><div>{{{content}}}</div></body></html>',
+      cssTemplate: '',
+      metadata: { type: 'basic' }
+    };
   }
 }
 

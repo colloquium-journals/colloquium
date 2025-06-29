@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   Card,
   Title,
@@ -28,6 +29,7 @@ interface MagicLinkVerificationProps {
 export function MagicLinkVerification({ onSuccess }: MagicLinkVerificationProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,9 @@ export function MagicLinkVerification({ onSuccess }: MagicLinkVerificationProps)
         if (data.token) {
           localStorage.setItem('auth-token', data.token);
         }
+
+        // Update AuthContext with the new user state
+        await refreshUser();
 
         if (onSuccess) {
           onSuccess(data.user);

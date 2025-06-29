@@ -2,6 +2,37 @@
 
 This directory contains utility scripts for managing the Colloquium development environment.
 
+## Quick Start
+
+### First Time Setup
+1. Run the complete setup script:
+   ```bash
+   ./scripts/dev-setup.sh
+   ```
+   This will install dependencies, start Docker services, run migrations, and seed the database.
+
+2. Start the development servers:
+   ```bash
+   npm run dev
+   ```
+
+### Subsequent Development Sessions
+1. Start Docker services:
+   ```bash
+   npm run docker:up
+   ```
+   
+2. Start the development servers:
+   ```bash
+   npm run dev
+   ```
+
+### Alternative: Full Development Environment
+If you need to run the complete development stack (including web and API containers):
+```bash
+cd docker && docker-compose up
+```
+
 ## Setup Scripts
 
 - **`dev-setup.sh`** - Initial development environment setup
