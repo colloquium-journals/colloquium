@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { 
   Paper, 
   Textarea, 
@@ -36,6 +36,11 @@ interface MessageComposerProps {
   placeholder?: string;
   disabled?: boolean;
   conversationId?: string;
+}
+
+export interface MessageComposerRef {
+  prependContent: (newContent: string) => void;
+  focus: () => void;
 }
 
 // Bot colors for UI consistency
@@ -89,7 +94,7 @@ function getDefaultPrivacy(userRole: string | undefined): string {
   }
 }
 
-export function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false, conversationId }: MessageComposerProps) {
+export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerProps>(function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false, conversationId }, ref) {
   const { user } = useAuth();
   const [content, setContent] = useState('');
   const [mentionedBots, setMentionedBots] = useState<Bot[]>([]);
@@ -99,6 +104,20 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
   const [loadingBots, setLoadingBots] = useState(false);
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    prependContent: (newContent: string) => {
+      const existingContent = content.trim();
+      const fullContent = existingContent 
+        ? `${newContent}\n\n${existingContent}`
+        : newContent;
+      setContent(fullContent);
+    },
+    focus: () => {
+      textareaRef.current?.focus();
+    }
+  }), [content]);
 
   // Mention functionality
   const { allSuggestions, getFilteredSuggestions } = useMentionSuggestions({
@@ -436,4 +455,4 @@ export function MessageComposer({ onSubmit, placeholder = "Write your message...
       </Stack>
     </Paper>
   );
-}
+});

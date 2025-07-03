@@ -111,6 +111,57 @@ Since this is a new project, establish these commands as you build:
 - Ensure bot security through isolated execution environments
 - Support both self-hosted and managed hosting options
 
+## File Storage System
+
+### Current Implementation
+- **Storage Type**: Local file system (with abstraction for future cloud storage)
+- **Base Directory**: `apps/api/uploads/`
+- **Configuration**: Environment variables in `.env`
+
+### Storage Structure
+```
+uploads/
+├── manuscripts/              # Submitted manuscript files and assets
+│   ├── manuscript-{timestamp}-{random}.{ext}
+│   └── ...
+└── bot-config/              # Bot configuration and template files
+    ├── template-{timestamp}-{random}.html
+    └── config-{timestamp}-{random}.json
+```
+
+### File Upload Endpoints
+- **Manuscript Upload**: `POST /api/articles` (up to 5 files, 50MB limit)
+- **Additional Files**: `POST /api/manuscripts/:id/files`
+- **Bot Config Files**: `POST /api/bot-config-files/:botId/files` (10MB limit)
+
+### Database Schema
+Files are tracked in the `ManuscriptFile` table with:
+- Unique generated filenames for security
+- Original filenames preserved
+- File type classification (SOURCE, ASSET, RENDERED, SUPPLEMENTARY)
+- SHA256 checksums for integrity
+- Complete metadata and access control
+
+### Environment Variables
+```bash
+UPLOAD_DIR="./uploads"
+MAX_FILE_SIZE="50mb"
+STORAGE_TYPE="LOCAL"                    # Future: S3, GCS, AZURE
+BOT_CONFIG_UPLOAD_DIR="./uploads/bot-config"
+```
+
+### File Access
+- **Download URLs**: `/api/manuscripts/{id}/files/{fileId}/download`
+- **Static Serving**: Express static middleware serves `/uploads`
+- **Security**: File type validation, size limits, access control
+
+### Future Cloud Storage
+The `FileStorageService` provides abstraction for:
+- Amazon S3
+- Google Cloud Storage
+- Azure Blob Storage
+- Easy migration from local to cloud storage
+
 ## Code Style Guidelines
 
 - Follow academic naming conventions where appropriate

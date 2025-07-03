@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, requirePermission } from '../middleware/auth';
+import { authenticate, requirePermission, generateBotServiceToken } from '../middleware/auth';
 import { Permission } from '@colloquium/auth';
 import { botExecutor } from '../bots';
 
@@ -181,6 +181,9 @@ router.post('/:id/execute/:command', authenticate, async (req, res, next) => {
       });
     }
 
+    // Generate service token for bot API calls
+    const serviceToken = generateBotServiceToken(botId, manuscriptId || '', ['read_manuscript_files', 'upload_files']);
+
     // Execute the command
     const result = await botExecutor.executeCommandBot(
       {
@@ -201,7 +204,8 @@ router.post('/:id/execute/:command', authenticate, async (req, res, next) => {
           id: 'default',
           settings: {}
         },
-        config: {}
+        config: {},
+        serviceToken
       }
     );
 

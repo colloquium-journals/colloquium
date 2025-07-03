@@ -50,8 +50,55 @@
             margin-bottom: 15px;
         }
         
+        .author {
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
         .author-name {
             font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .corresponding {
+            color: #2563eb;
+            font-weight: bold;
+            margin-left: 2px;
+        }
+        
+        .affiliation {
+            font-size: 14px;
+            color: #718096;
+            font-style: italic;
+            margin-top: 4px;
+        }
+        
+        .orcid {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        
+        .orcid a {
+            color: #16a34a;
+            text-decoration: none;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+        
+        .orcid a:hover {
+            text-decoration: underline;
+        }
+        
+        .orcid .verified {
+            color: #16a34a;
+            font-weight: bold;
+            margin-left: 2px;
+        }
+        
+        .corresponding-note {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 15px;
+            font-style: italic;
         }
         
         .manuscript-meta {
@@ -296,11 +343,38 @@
     <header class="journal-header">
         <div class="journal-name">{{journalName}}</div>
         <h1 class="article-title">{{title}}</h1>
+        
+        {{#if authorList}}
+        <div class="authors">
+            {{#each authorList}}
+            <div class="author">
+                <span class="author-name">{{name}}</span>
+                {{#if isCorresponding}}<sup class="corresponding">*</sup>{{/if}}
+                {{#if affiliation}}<div class="affiliation">{{affiliation}}</div>{{/if}}
+                {{#if orcidId}}
+                <div class="orcid">
+                    <a href="https://orcid.org/{{orcidId}}" target="_blank" rel="noopener">
+                        ORCID: {{orcidId}}
+                        {{#if orcidVerified}}<span class="verified">✓</span>{{/if}}
+                    </a>
+                </div>
+                {{/if}}
+            </div>
+            {{/each}}
+            {{#if correspondingAuthor}}
+            <div class="corresponding-note">
+                <sup>*</sup> Corresponding author{{#if correspondingAuthor.email}}: {{correspondingAuthor.email}}{{/if}}
+            </div>
+            {{/if}}
+        </div>
+        {{else}}
         {{#if authors}}
         <div class="authors">
             <span class="author-name">{{authors}}</span>
         </div>
         {{/if}}
+        {{/if}}
+        
         <div class="manuscript-meta">
             {{#if submittedDate}}Submitted: {{submittedDate}}{{/if}}
             {{#if renderDate}}{{#if submittedDate}} • {{/if}}Rendered: {{renderDate}}{{/if}}

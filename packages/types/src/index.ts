@@ -150,6 +150,7 @@ export interface BotContext {
     settings: Record<string, any>;
   };
   config: Record<string, any>;
+  serviceToken?: string; // Bot service token for API authentication
 }
 
 export interface BotResponse {

@@ -29,6 +29,8 @@ import formatsRoutes from './routes/formats';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { initializeBots } from './bots';
+import { startBotWorker, stopBotWorker, startQueueMonitoring, stopQueueMonitoring } from './jobs/worker';
+import { closeQueues, getQueueHealth } from './jobs';
 
 
 dotenv.config();
@@ -69,13 +71,32 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    service: 'colloquium-api',
-    version: process.env.npm_package_version || '0.1.0'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    let queueHealth;
+    try {
+      queueHealth = await getQueueHealth();
+    } catch (queueError) {
+      console.warn('Queue health check failed:', queueError);
+      queueHealth = { status: 'error', error: 'Queue health check failed' };
+    }
+    
+    res.status(200).json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      service: 'colloquium-api',
+      version: process.env.npm_package_version || '0.1.0',
+      queue: queueHealth
+    });
+  } catch (error) {
+    res.status(503).json({ 
+      status: 'SERVICE_UNAVAILABLE',
+      timestamp: new Date().toISOString(),
+      service: 'colloquium-api',
+      version: process.env.npm_package_version || '0.1.0',
+      error: 'Health check failed'
+    });
+  }
 });
 
 // API routes
@@ -117,6 +138,16 @@ if (process.env.NODE_ENV !== 'test') {
     } catch (error) {
       console.error('❌ Bot initialization failed:', error);
     }
+    
+    // Start bot processing worker
+    try {
+      console.log('⚙️ Starting bot processing worker...');
+      startBotWorker();
+      startQueueMonitoring();
+      console.log('✅ Bot worker started successfully');
+    } catch (error) {
+      console.error('❌ Bot worker initialization failed:', error);
+    }
   });
 
   server.on('error', (error: any) => {
@@ -132,17 +163,29 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Graceful shutdown logic
-const gracefulShutdown = () => {
+const gracefulShutdown = async () => {
   console.log('\nSIGINT received. Starting graceful shutdown.');
   
   // 1. Close all active SSE connections
   closeAllConnections();
 
-  // 2. Close the HTTP server with timeout
+  // 2. Stop bot processing worker and close queues
+  try {
+    console.log('Stopping bot worker...');
+    stopQueueMonitoring();
+    await stopBotWorker();
+    console.log('Closing job queues...');
+    await closeQueues();
+    console.log('✅ Bot worker and queues closed successfully');
+  } catch (error) {
+    console.error('❌ Error closing bot worker/queues:', error);
+  }
+
+  // 3. Close the HTTP server with timeout
   const shutdownTimeout = setTimeout(() => {
     console.log('Force shutdown after timeout.');
     process.exit(1);
-  }, 5000); // 5 second timeout
+  }, 10000); // 10 second timeout to allow for queue cleanup
 
   server.close(() => {
     clearTimeout(shutdownTimeout);

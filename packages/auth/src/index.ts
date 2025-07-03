@@ -8,6 +8,11 @@ export interface JWTPayload {
   role: string;
   iat?: number;
   exp?: number;
+  // Bot service token fields
+  botId?: string;
+  manuscriptId?: string;
+  permissions?: string[];
+  type?: 'BOT_SERVICE_TOKEN' | 'USER_TOKEN';
 }
 
 // JWT utilities

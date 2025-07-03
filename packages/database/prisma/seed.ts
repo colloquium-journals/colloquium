@@ -696,6 +696,223 @@ This work demonstrates the potential for innovative approaches to academic publi
 
   console.log('✅ Sample conversations created');
 
+  // Create ManuscriptFile records for all manuscripts
+  const manuscriptFiles = [
+    // Manuscript 1: Colloquium Platform paper
+    {
+      manuscriptId: createdManuscripts[0]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000001000-123456789.md',
+          originalName: 'colloquium-platform-paper.md',
+          mimetype: 'text/markdown',
+          size: 15432,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000001000-123456789.md',
+          uploadedBy: authorUser.id
+        },
+        {
+          filename: 'architecture-diagram.png',
+          originalName: 'system-architecture.png',
+          mimetype: 'image/png',
+          size: 45623,
+          fileType: 'ASSET',
+          path: '/uploads/manuscripts/architecture-diagram.png',
+          uploadedBy: authorUser.id
+        }
+      ]
+    },
+    // Manuscript 2: ML in Peer Review paper
+    {
+      manuscriptId: createdManuscripts[1]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000002000-234567890.md',
+          originalName: 'ml-peer-review-paper.md',
+          mimetype: 'text/markdown',
+          size: 18734,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000002000-234567890.md',
+          uploadedBy: author2.id
+        },
+        {
+          filename: 'ml-results-chart.png',
+          originalName: 'performance-results.png',
+          mimetype: 'image/png',
+          size: 67234,
+          fileType: 'ASSET',
+          path: '/uploads/manuscripts/ml-results-chart.png',
+          uploadedBy: author2.id
+        }
+      ]
+    },
+    // Manuscript 3: Blockchain paper
+    {
+      manuscriptId: createdManuscripts[2]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000003000-345678901.md',
+          originalName: 'blockchain-publishing-paper.md',
+          mimetype: 'text/markdown',
+          size: 21456,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000003000-345678901.md',
+          uploadedBy: author3.id
+        }
+      ]
+    },
+    // Manuscript 4: Open Science Platforms paper
+    {
+      manuscriptId: createdManuscripts[3]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000004000-456789012.md',
+          originalName: 'open-science-platforms-paper.md',
+          mimetype: 'text/markdown',
+          size: 24789,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000004000-456789012.md',
+          uploadedBy: author4.id
+        }
+      ]
+    },
+    // Manuscript 5: Digital Transformation paper
+    {
+      manuscriptId: createdManuscripts[4]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000005000-567890123.md',
+          originalName: 'digital-transformation-libraries.md',
+          mimetype: 'text/markdown',
+          size: 27634,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000005000-567890123.md',
+          uploadedBy: author4.id
+        }
+      ]
+    },
+    // Manuscript 6: Large-Scale Collaborative Research paper
+    {
+      manuscriptId: createdManuscripts[5]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000006000-678901234.md',
+          originalName: 'collaborative-genomics-paper.md',
+          mimetype: 'text/markdown',
+          size: 32145,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000006000-678901234.md',
+          uploadedBy: author2.id
+        }
+      ]
+    },
+    // Manuscript 7: Quantum Computing Applications paper
+    {
+      manuscriptId: createdManuscripts[6]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000007000-789012345.md',
+          originalName: 'quantum-computing-cryptography.md',
+          mimetype: 'text/markdown',
+          size: 28456,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000007000-789012345.md',
+          uploadedBy: author9.id
+        }
+      ]
+    },
+    // Manuscript 8: Interdisciplinary Climate Change paper
+    {
+      manuscriptId: createdManuscripts[7]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000008000-890123456.md',
+          originalName: 'interdisciplinary-climate-modeling.md',
+          mimetype: 'text/markdown',
+          size: 31789,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000008000-890123456.md',
+          uploadedBy: author8.id
+        }
+      ]
+    },
+    // Manuscript 9: AI Ethics paper
+    {
+      manuscriptId: createdManuscripts[8]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000009000-901234567.md',
+          originalName: 'ai-ethics-guidelines.md',
+          mimetype: 'text/markdown',
+          size: 35234,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000009000-901234567.md',
+          uploadedBy: author2.id
+        }
+      ]
+    },
+    // Manuscript 10: Nanotechnology paper
+    {
+      manuscriptId: createdManuscripts[9]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000010000-012345678.md',
+          originalName: 'nanotechnology-medical-devices.md',
+          mimetype: 'text/markdown',
+          size: 33567,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000010000-012345678.md',
+          uploadedBy: author7.id
+        }
+      ]
+    },
+    // Manuscript 11: Future of Open Access Publishing paper
+    {
+      manuscriptId: createdManuscripts[10]?.id,
+      files: [
+        {
+          filename: 'manuscript-1703000011000-123456789.md',
+          originalName: 'future-open-access-publishing.md',
+          mimetype: 'text/markdown',
+          size: 29890,
+          fileType: 'SOURCE',
+          path: '/uploads/manuscripts/manuscript-1703000011000-123456789.md',
+          uploadedBy: author4.id
+        }
+      ]
+    }
+  ];
+
+  for (const manuscriptFileData of manuscriptFiles) {
+    if (!manuscriptFileData.manuscriptId) continue;
+
+    for (const fileData of manuscriptFileData.files) {
+      const existingFile = await prisma.manuscriptFile.findFirst({
+        where: {
+          manuscriptId: manuscriptFileData.manuscriptId,
+          filename: fileData.filename
+        }
+      });
+
+      if (!existingFile) {
+        await prisma.manuscriptFile.create({
+          data: {
+            manuscriptId: manuscriptFileData.manuscriptId,
+            filename: fileData.filename,
+            originalName: fileData.originalName,
+            mimetype: fileData.mimetype,
+            size: fileData.size,
+            path: fileData.path,
+            fileType: fileData.fileType,
+            uploadedAt: new Date()
+          }
+        });
+      }
+    }
+  }
+
+  console.log('✅ Manuscript files created');
+
   console.log('✅ Sample bots ready');
 
   console.log('🎉 Database seeding completed successfully!');

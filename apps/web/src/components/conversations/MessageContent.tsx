@@ -4,6 +4,7 @@ import { parseMarkdownWithMentions, type MarkdownChunk } from '../../lib/markdow
 import { MentionTooltip } from './MentionTooltip';
 // TODO: InteractiveCheckbox and useCheckboxStates removed - using built-in markdown checkboxes instead
 import styles from './MarkdownContent.module.css';
+import { useEffect, useRef } from 'react';
 
 interface MessageContentProps {
   content: string;
@@ -15,9 +16,35 @@ interface MessageContentProps {
 
 export function MessageContent({ content, conversationId, messageId, size = 'sm', style }: MessageContentProps) {
   const chunks = parseMarkdownWithMentions(content);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Handle clicks on hash links to prevent opening new tabs
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'A') {
+        const href = target.getAttribute('href');
+        if (href && href.startsWith('#message-')) {
+          e.preventDefault();
+          // Scroll to the target message
+          const targetElement = document.getElementById(href.substring(1));
+          if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }
+    };
+    
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, []);
   
   return (
     <div 
+      ref={containerRef}
       style={{
         fontSize: size === 'xs' ? '12px' : size === 'sm' ? '14px' : size === 'md' ? '16px' : '18px',
         lineHeight: 1.6,

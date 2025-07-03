@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyJWT, Permission, GlobalPermission, GlobalRole, hasPermission, hasGlobalPermission } from '@colloquium/auth';
+import { verifyJWT, generateJWT, Permission, GlobalPermission, GlobalRole, hasPermission, hasGlobalPermission } from '@colloquium/auth';
 import { prisma } from '@colloquium/database';
 
-// Extend Express Request to include user
+// Extend Express Request to include user and bot context
 declare global {
   namespace Express {
     interface Request {
@@ -13,6 +13,12 @@ declare global {
         role: GlobalRole;
         orcidId: string | null;
         createdAt: Date;
+      };
+      botContext?: {
+        botId: string;
+        manuscriptId: string;
+        permissions: string[];
+        type: 'BOT_SERVICE_TOKEN';
       };
     }
   }
@@ -195,3 +201,60 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
 // Alias for authenticate for convenience
 export const requireAuth = authenticate;
+
+// Bot service token generation
+export function generateBotServiceToken(botId: string, manuscriptId: string, permissions: string[] = []): string {
+  return generateJWT({
+    userId: `bot-${botId}`,
+    email: `${botId}@colloquium.bot`,
+    role: 'BOT',
+    botId,
+    manuscriptId,
+    permissions,
+    type: 'BOT_SERVICE_TOKEN'
+  });
+}
+
+// Bot service token verification
+function verifyBotServiceToken(token: string): any {
+  try {
+    const payload = verifyJWT(token);
+    if (payload.type !== 'BOT_SERVICE_TOKEN') {
+      throw new Error('Invalid token type');
+    }
+    return payload;
+  } catch (error) {
+    throw new Error('Invalid bot service token');
+  }
+}
+
+// Authentication middleware that supports both user and bot tokens
+export const authenticateWithBots = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Check for bot service token first
+    const botToken = req.headers['x-bot-token'] as string;
+    if (botToken) {
+      try {
+        const botPayload = verifyBotServiceToken(botToken);
+        req.botContext = {
+          botId: botPayload.botId,
+          manuscriptId: botPayload.manuscriptId,
+          permissions: botPayload.permissions || [],
+          type: 'BOT_SERVICE_TOKEN'
+        };
+        console.log(`DEBUG: Authenticated bot - botId: ${botPayload.botId}, manuscriptId: ${botPayload.manuscriptId}`);
+        return next();
+      } catch (botError) {
+        return res.status(401).json({
+          error: 'Invalid Bot Token',
+          message: 'Bot service token is invalid or expired'
+        });
+      }
+    }
+
+    // Fallback to regular user authentication
+    return authenticate(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+};

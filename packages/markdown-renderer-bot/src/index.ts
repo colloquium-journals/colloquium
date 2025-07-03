@@ -12,15 +12,15 @@ import { CommandBot, BotCommand } from '@colloquium/types';
 const window = new JSDOM('').window;
 const purify = DOMPurify(window);
 
-// Journal template schema
-const journalTemplateSchema = z.object({
-  name: z.string(),
-  title: z.string(),
-  description: z.string(),
-  htmlTemplate: z.string(),
-  cssTemplate: z.string().optional(),
-  metadata: z.record(z.any()).optional()
-});
+// Journal template schema (for future validation)
+// const journalTemplateSchema = z.object({
+//   name: z.string(),
+//   title: z.string(),
+//   description: z.string(),
+//   htmlTemplate: z.string(),
+//   cssTemplate: z.string().optional(),
+//   metadata: z.record(z.any()).optional()
+// });
 
 // Template loading functions
 async function loadBuiltInTemplates(): Promise<Record<string, any>> {
@@ -122,13 +122,33 @@ const renderCommand: BotCommand = {
   ],
   permissions: ['read_manuscript_files', 'upload_files'],
   async execute(params, context) {
+    console.log(`DEBUG: Raw params received:`, params);
     const { template = 'academic-standard', output = 'html', includeAssets = true, customCss } = params;
-    const { manuscriptId, config } = context;
+    console.log(`DEBUG: Parsed params - template: ${template}, output: ${output}, includeAssets: ${includeAssets}`);
+    const { manuscriptId, config, serviceToken } = context;
+
+    if (!serviceToken) {
+      return {
+        messages: [{
+          content: '❌ **Authentication Error**\n\nBot service token not available. Please contact system administrator.'
+        }],
+        errors: ['Bot service token not available']
+      };
+    }
 
     try {
       // Step 1: Access manuscript files
-      const manuscriptFiles = await getManuscriptFiles(manuscriptId);
+      console.log(`DEBUG: Fetching files for manuscript: ${manuscriptId}`);
+      const manuscriptFiles = await getManuscriptFiles(manuscriptId, serviceToken);
+      console.log(`DEBUG: Found ${manuscriptFiles.length} files`);
+      console.log(`DEBUG: Files:`, manuscriptFiles.map(f => ({
+        originalName: f.originalName,
+        fileType: f.fileType,
+        downloadUrl: f.downloadUrl
+      })));
+      
       const markdownFile = findMarkdownFile(manuscriptFiles);
+      console.log(`DEBUG: Selected markdown file:`, markdownFile);
       
       if (!markdownFile) {
         return {
@@ -142,7 +162,7 @@ const renderCommand: BotCommand = {
       const templateData = await getTemplate(template, config);
       
       // Step 3: Process Markdown content
-      const markdownContent = await downloadFile(markdownFile.downloadUrl);
+      const markdownContent = await downloadFile(markdownFile.downloadUrl, serviceToken);
       const processedContent = await processMarkdownContent(
         markdownContent, 
         manuscriptFiles, 
@@ -150,12 +170,20 @@ const renderCommand: BotCommand = {
       );
 
       // Step 4: Get manuscript metadata
-      const metadata = await getManuscriptMetadata(manuscriptId);
+      const metadata = await getManuscriptMetadata(manuscriptId, serviceToken);
 
-      // Step 5: Render using template
+      // Step 5: Prepare author data for templates
+      const authorData = await prepareAuthorData(metadata);
+      
+      // Step 6: Render using template
       const renderedHtml = await renderWithTemplate(templateData, {
         title: metadata.title || 'Untitled Manuscript',
-        authors: metadata.authors?.join(', ') || '',
+        // Legacy simple author string for backward compatibility
+        authors: authorData.authorsString,
+        // Rich author data for advanced templates
+        authorList: authorData.authorList,
+        authorCount: authorData.authorCount,
+        correspondingAuthor: authorData.correspondingAuthor,
         abstract: metadata.abstract || '',
         content: processedContent.html,
         customCss,
@@ -168,20 +196,26 @@ const renderCommand: BotCommand = {
       const baseFilename = markdownFile.originalName.replace(/\.(md|markdown)$/i, '');
       const uploadResults = [];
       
-      // Always generate HTML first (needed for PDF)
+      console.log(`DEBUG: Requested output format: ${output}`);
+      
+      // Generate HTML if requested or if needed for PDF
       if (output === 'html' || output === 'both') {
+        console.log(`DEBUG: Generating HTML file`);
         const htmlFilename = `${baseFilename}.html`;
-        const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, renderedHtml, 'text/html');
+        const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, renderedHtml, 'text/html', serviceToken);
         uploadResults.push({ type: 'HTML', ...htmlResult });
       }
       
       // Generate PDF if requested
       if (output === 'pdf' || output === 'both') {
+        console.log(`DEBUG: Generating PDF file`);
         const pdfBuffer = await generatePDF(renderedHtml, templateData);
         const pdfFilename = `${baseFilename}.pdf`;
-        const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf');
+        const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf', serviceToken);
         uploadResults.push({ type: 'PDF', ...pdfResult });
       }
+      
+      console.log(`DEBUG: Upload results:`, uploadResults.map(r => ({ type: r.type, filename: r.filename })));
 
       // Step 7: Return success message
       let message = `✅ **Markdown Rendered Successfully**\n\n`;
@@ -321,7 +355,7 @@ const listTemplatesCommand: BotCommand = {
   parameters: [],
   examples: ['@markdown-renderer templates'],
   permissions: [],
-  async execute(params, context) {
+  async execute(_params, context) {
     const { config } = context;
     
     let message = `📝 **Available Journal Templates**\n\n`;
@@ -379,35 +413,79 @@ const listTemplatesCommand: BotCommand = {
 // Remove the manual help command - it will be auto-injected by the framework
 
 // Helper functions
-async function getManuscriptFiles(manuscriptId: string): Promise<any[]> {
-  // TODO: Implement API call to get manuscript files
-  // This would call the API endpoint we need to create
-  const response = await fetch(`http://localhost:4000/api/manuscripts/${manuscriptId}/files`, {
-    credentials: 'include'
+async function getManuscriptFiles(manuscriptId: string, serviceToken: string): Promise<any[]> {
+  const url = `http://localhost:4000/api/articles/${manuscriptId}/files`;
+  console.log(`DEBUG: Fetching files from: ${url}`);
+  console.log(`DEBUG: Service token present: ${!!serviceToken}`);
+  
+  const response = await fetch(url, {
+    headers: {
+      'x-bot-token': serviceToken,
+      'content-type': 'application/json'
+    }
   });
   
+  console.log(`DEBUG: Files API response: ${response.status} ${response.statusText}`);
+  
   if (!response.ok) {
+    const errorText = await response.text();
+    console.log(`DEBUG: Error response body:`, errorText);
     throw new Error(`Failed to fetch manuscript files: ${response.statusText}`);
   }
   
   const data = await response.json();
+  console.log(`DEBUG: Files API response data:`, data);
   return data.files || [];
 }
 
 function findMarkdownFile(files: any[]): any | null {
-  return files.find(file => 
+  // Try to find markdown files with multiple criteria, prioritizing SOURCE files
+  let markdownFile = files.find(file => 
     file.fileType === 'SOURCE' && 
     (file.mimetype?.includes('markdown') || 
      file.originalName.match(/\.(md|markdown)$/i) ||
      file.detectedFormat === 'markdown')
   );
+  
+  // If no SOURCE markdown file found, look for any markdown file
+  if (!markdownFile) {
+    markdownFile = files.find(file => 
+      file.mimetype?.includes('markdown') || 
+      file.originalName.match(/\.(md|markdown)$/i) ||
+      file.detectedFormat === 'markdown'
+    );
+  }
+  
+  // Final fallback: look for files with .md/.markdown extension regardless of other fields
+  if (!markdownFile) {
+    markdownFile = files.find(file => 
+      file.originalName.match(/\.(md|markdown)$/i)
+    );
+  }
+  
+  return markdownFile;
 }
 
-async function downloadFile(url: string): Promise<string> {
-  const response = await fetch(url);
+async function downloadFile(downloadUrl: string, serviceToken: string): Promise<string> {
+  // Convert relative URL to absolute URL for internal API calls
+  const baseUrl = 'http://localhost:4000';
+  const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${baseUrl}${downloadUrl}`;
+  
+  console.log(`DEBUG: Downloading file from: ${fullUrl}`);
+  console.log(`DEBUG: Using service token: ${serviceToken ? 'present' : 'missing'}`);
+  
+  const response = await fetch(fullUrl, {
+    headers: {
+      'x-bot-token': serviceToken
+    }
+  });
+  
+  console.log(`DEBUG: Download response status: ${response.status} ${response.statusText}`);
+  
   if (!response.ok) {
     throw new Error(`Failed to download file: ${response.statusText}`);
   }
+  
   return await response.text();
 }
 
@@ -578,10 +656,12 @@ async function renderWithTemplate(template: any, data: any): Promise<string> {
   return compiledTemplate(data);
 }
 
-async function getManuscriptMetadata(manuscriptId: string): Promise<any> {
-  // TODO: Implement API call to get manuscript metadata
-  const response = await fetch(`http://localhost:4000/api/manuscripts/${manuscriptId}`, {
-    credentials: 'include'
+async function getManuscriptMetadata(manuscriptId: string, serviceToken: string): Promise<any> {
+  const response = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+    headers: {
+      'x-bot-token': serviceToken,
+      'content-type': 'application/json'
+    }
   });
   
   if (!response.ok) {
@@ -589,6 +669,77 @@ async function getManuscriptMetadata(manuscriptId: string): Promise<any> {
   }
   
   return await response.json();
+}
+
+async function prepareAuthorData(metadata: any): Promise<{
+  authorsString: string;
+  authorList: any[];
+  authorCount: number;
+  correspondingAuthor: any | null;
+}> {
+  // Initialize with empty/default values
+  let authorList: any[] = [];
+  let correspondingAuthor: any | null = null;
+  
+  try {
+    // Check if we have detailed author relations
+    if (metadata.authorRelations && Array.isArray(metadata.authorRelations)) {
+      // Sort authors by order field
+      const sortedAuthors = metadata.authorRelations.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      
+      authorList = sortedAuthors.map((authorRel: any) => {
+        const author = authorRel.user || {};
+        return {
+          id: author.id || null,
+          name: author.name || 'Unknown Author',
+          email: author.email || null,
+          orcidId: author.orcidId || null,
+          orcidVerified: author.orcidVerified || false,
+          affiliation: author.affiliation || null,
+          bio: author.bio || null,
+          website: author.website || null,
+          isCorresponding: authorRel.isCorresponding || false,
+          order: authorRel.order || 0,
+          isRegistered: !!author.id
+        };
+      });
+      
+      // Find corresponding author
+      correspondingAuthor = authorList.find(author => author.isCorresponding) || null;
+    }
+    // Fallback to simple author array if no detailed relations
+    else if (metadata.authors && Array.isArray(metadata.authors)) {
+      authorList = metadata.authors.map((name: string, index: number) => ({
+        id: null,
+        name: name.trim(),
+        email: null,
+        orcidId: null,
+        orcidVerified: false,
+        affiliation: null,
+        bio: null,
+        website: null,
+        isCorresponding: index === 0, // Assume first author is corresponding
+        order: index,
+        isRegistered: false
+      }));
+      
+      correspondingAuthor = authorList[0] || null;
+    }
+  } catch (error) {
+    console.warn('Error processing author data:', error);
+  }
+  
+  // Generate backward-compatible authors string
+  const authorsString = authorList.length > 0 
+    ? authorList.map(author => author.name).join(', ')
+    : '';
+  
+  return {
+    authorsString,
+    authorList,
+    authorCount: authorList.length,
+    correspondingAuthor
+  };
 }
 
 async function generatePDF(htmlContent: string, template: any): Promise<Buffer> {
@@ -654,9 +805,9 @@ async function uploadRenderedFile(
   manuscriptId: string, 
   filename: string, 
   content: string | Buffer, 
-  mimeType: string = 'text/html'
+  mimeType: string = 'text/html',
+  serviceToken: string
 ): Promise<any> {
-  // TODO: Implement API call to upload rendered file
   const formData = new FormData();
   
   const blob = typeof content === 'string' 
@@ -667,9 +818,11 @@ async function uploadRenderedFile(
   formData.append('fileType', 'RENDERED');
   formData.append('renderedBy', 'markdown-renderer');
   
-  const response = await fetch(`http://localhost:4000/api/manuscripts/${manuscriptId}/files`, {
+  const response = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/files`, {
     method: 'POST',
-    credentials: 'include',
+    headers: {
+      'x-bot-token': serviceToken
+    },
     body: formData
   });
   
@@ -679,10 +832,13 @@ async function uploadRenderedFile(
   
   const result = await response.json();
   
-  // Add size information for tracking
+  // Add size information for tracking and fix download URL
+  const fileResult = result.files[0];
+  const baseUrl = process.env.API_BASE_URL || 'http://localhost:4000';
   return {
-    ...result.files[0], // Assuming single file upload returns files array
-    size: typeof content === 'string' ? content.length : content.length
+    ...fileResult,
+    size: typeof content === 'string' ? content.length : content.length,
+    downloadUrl: `${baseUrl}${fileResult.downloadUrl}` // Make URL absolute with environment-aware base
   };
 }
 

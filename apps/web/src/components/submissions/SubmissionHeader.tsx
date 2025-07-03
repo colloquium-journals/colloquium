@@ -14,7 +14,8 @@ import {
   Loader,
   Alert,
   Button,
-  ActionIcon
+  ActionIcon,
+  Collapse
 } from '@mantine/core';
 import { 
   IconCalendar, 
@@ -25,7 +26,13 @@ import {
   IconCheck,
   IconX,
   IconEye,
-  IconDownload
+  IconDownload,
+  IconFiles,
+  IconPhoto,
+  IconCode,
+  IconUserCog,
+  IconChevronDown,
+  IconChevronRight
 } from '@tabler/icons-react';
 
 interface SubmissionData {
@@ -43,10 +50,21 @@ interface SubmissionData {
     isCorresponding?: boolean;
   }>;
   keywords?: string[];
-  manuscript?: {
+  files?: Array<{
+    id: string;
     filename: string;
+    originalName: string;
     size: number;
+    fileType: string;
+    mimetype: string;
     uploadedAt: string;
+  }>;
+  assignedEditor?: {
+    id: string;
+    name: string;
+    email: string;
+    affiliation?: string;
+    assignedAt: string;
   };
   reviewAssignments?: Array<{
     id: string;
@@ -68,6 +86,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const [submission, setSubmission] = useState<SubmissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filesExpanded, setFilesExpanded] = useState(false);
 
   useEffect(() => {
     const fetchSubmission = async () => {
@@ -126,12 +145,32 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             isCorresponding: index === 0
           })) || [],
           keywords: manuscriptData.keywords || [],
-          manuscript: manuscriptData.files?.[0] ? {
-            filename: manuscriptData.files[0].originalName,
-            size: manuscriptData.files[0].size,
-            uploadedAt: manuscriptData.files[0].uploadedAt
+          files: manuscriptData.files?.map((file: any) => ({
+            id: file.id,
+            filename: file.filename,
+            originalName: file.originalName,
+            size: file.size,
+            fileType: file.fileType,
+            mimetype: file.mimetype,
+            uploadedAt: file.uploadedAt
+          })) || [],
+          assignedEditor: manuscriptData.actionEditor ? {
+            id: manuscriptData.actionEditor.editor.id,
+            name: manuscriptData.actionEditor.editor.name,
+            email: manuscriptData.actionEditor.editor.email,
+            affiliation: manuscriptData.actionEditor.editor.affiliation,
+            assignedAt: manuscriptData.actionEditor.assignedAt
           } : undefined,
-          reviewAssignments: [] // TODO: Add if available
+          reviewAssignments: manuscriptData.reviewAssignments?.map((assignment: any) => ({
+            id: assignment.id,
+            reviewer: {
+              name: assignment.reviewer.name,
+              affiliation: assignment.reviewer.affiliation
+            },
+            status: assignment.status,
+            assignedAt: assignment.assignedAt,
+            dueDate: assignment.dueDate
+          })) || []
         });
       } catch (err) {
         console.error('Error fetching submission:', err);
@@ -146,29 +185,36 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     }
   }, [submissionId]);
 
-  const handleDownload = async () => {
-    if (!submission?.manuscript) return;
+  const handleDownload = async (fileId?: string) => {
+    if (!submission?.files || submission.files.length === 0) return;
+    
+    // Use first file if no specific file ID provided, or find the specified file
+    const fileToDownload = fileId 
+      ? submission.files.find(f => f.id === fileId)
+      : submission.files.find(f => f.fileType === 'SOURCE') || submission.files[0];
+    
+    if (!fileToDownload) return;
     
     try {
-      const response = await fetch(`http://localhost:4000/api/manuscripts/${submission.id}/download`, {
+      const response = await fetch(`http://localhost:4000/api/manuscripts/${submission.id}/files/${fileToDownload.id}/download`, {
         credentials: 'include'
       });
       
       if (!response.ok) {
-        throw new Error('Failed to download manuscript');
+        throw new Error('Failed to download file');
       }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = submission.manuscript.filename;
+      a.download = fileToDownload.originalName;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error downloading manuscript:', error);
+      console.error('Error downloading file:', error);
     }
   };
 
@@ -192,81 +238,28 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   }
 
   return (
-    <Box>
-      {/* Main Header */}
-      <Paper shadow="md" p="xl" radius="lg" style={{ background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-indigo-0) 100%)' }}>
-        <Stack gap="lg">
-          {/* Title and Status */}
-          <Group justify="space-between" align="flex-start">
-            <Box style={{ flex: 1 }}>
-              <Group gap="sm" mb="xs" align="center">
-                <Badge 
-                  size="lg"
-                  variant="filled"
-                  color={getStatusColor(submission.status)}
-                  leftSection={getStatusIcon(submission.status)}
-                >
-                  {getStatusLabel(submission.status)}
-                </Badge>
-                {submission.manuscript && (
-                  <Button
-                    size="sm"
-                    variant="light"
-                    leftSection={<IconDownload size={16} />}
-                    onClick={handleDownload}
-                  >
-                    Download Paper
-                  </Button>
-                )}
-              </Group>
-              <Text size="sm" c="dimmed" mb="xs">
-                ID: {submission.id}
-              </Text>
-              
-              <Title order={1} size="h2" mb="md" style={{ lineHeight: 1.3 }}>
-                {submission.title}
-              </Title>
-              
-              {submission.abstract && (
-                <Text size="sm" c="dimmed" lineClamp={3} style={{ maxWidth: '80%' }}>
-                  {submission.abstract}
-                </Text>
-              )}
-            </Box>
-
-            <Box>
-              <Text size="xs" c="dimmed" ta="right">
-                Use @editorial-bot for actions
-              </Text>
-            </Box>
-          </Group>
-
-          {/* Keywords */}
-          {submission.keywords && submission.keywords.length > 0 && (
-            <Box>
-              <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
-              <Group gap="xs">
-                {submission.keywords.map((keyword, index) => (
-                  <Badge key={index} size="sm" variant="light" color="gray">
-                    {keyword}
-                  </Badge>
-                ))}
-              </Group>
-            </Box>
-          )}
-        </Stack>
-      </Paper>
-
-      {/* Authors and Metadata */}
-      <Paper shadow="sm" p="lg" radius="lg" mt="md">
-        <Stack gap="lg">
-          {/* Authors */}
-          <Box>
-            <Group gap="xs" mb="md">
-              <IconUser size={18} />
-              <Text fw={600} size="sm">Authors</Text>
+    <Paper shadow="md" p="xl" radius="lg" style={{ background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-indigo-0) 100%)' }}>
+      <Stack gap="lg">
+        {/* Title, Status, and Actions Row */}
+        <Group justify="space-between" align="flex-start">
+          <Box style={{ flex: 1 }}>
+            <Group gap="sm" mb="xs" align="center">
+              <Badge 
+                size="lg"
+                variant="filled"
+                color={getStatusColor(submission.status)}
+                leftSection={getStatusIcon(submission.status)}
+              >
+                {getStatusLabel(submission.status)}
+              </Badge>
             </Group>
-            <Group gap="md">
+            
+            <Title order={1} size="h2" mb="sm" style={{ lineHeight: 1.3 }}>
+              {submission.title}
+            </Title>
+            
+            {/* Authors directly below title */}
+            <Group gap="md" mb="md">
               {submission.authors.map((author) => (
                 <Group key={author.id} gap="sm">
                   <Avatar size="sm" color="blue">
@@ -290,93 +283,256 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 </Group>
               ))}
             </Group>
+            
+            {submission.abstract && (
+              <Text size="sm" c="dimmed" lineClamp={3} style={{ maxWidth: '80%' }}>
+                {submission.abstract}
+              </Text>
+            )}
           </Box>
+        </Group>
 
-          <Divider />
+        <Divider />
 
-          {/* Dates and File Info */}
-          <Group grow>
-            <Box>
-              <Group gap="xs" mb="xs">
-                <IconCalendar size={16} />
-                <Text size="sm" fw={500} c="dimmed">Submitted</Text>
+        {/* Organized Information Section */}
+        <Stack gap="md">
+          {/* Assigned Editor */}
+          <Group gap="xs" align="center">
+            <IconUserCog size={16} />
+            <Text fw={500} size="sm">Editor:</Text>
+            {submission.assignedEditor ? (
+              <Group gap="xs">
+                <Avatar size="xs" color="indigo">
+                  {submission.assignedEditor.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                </Avatar>
+                <Text size="sm" fw={500}>{submission.assignedEditor.name}</Text>
+                {submission.assignedEditor.affiliation && (
+                  <Text size="xs" c="dimmed">({submission.assignedEditor.affiliation})</Text>
+                )}
               </Group>
-              <Text size="sm">
-                {new Date(submission.submittedAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+            ) : (
+              <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
+                No editor assigned
               </Text>
-            </Box>
-
-            <Box>
-              <Group gap="xs" mb="xs">
-                <IconClock size={16} />
-                <Text size="sm" fw={500} c="dimmed">Last Updated</Text>
-              </Group>
-              <Text size="sm">
-                {new Date(submission.updatedAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </Text>
-            </Box>
-
-            {submission.manuscript && (
-              <Box>
-                <Group gap="xs" mb="xs">
-                  <IconFileText size={16} />
-                  <Text size="sm" fw={500} c="dimmed">Manuscript</Text>
-                </Group>
-                <Text size="sm">
-                  {submission.manuscript.filename}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {(submission.manuscript.size / 1024 / 1024).toFixed(1)} MB
-                </Text>
-              </Box>
             )}
           </Group>
 
-          {/* Review Assignments (if any) */}
-          {submission.reviewAssignments && submission.reviewAssignments.length > 0 && (
-            <>
-              <Divider />
-              <Box>
-                <Text fw={600} size="sm" mb="md">Review Assignments</Text>
-                <Stack gap="sm">
-                  {submission.reviewAssignments.map((assignment) => (
-                    <Group key={assignment.id} justify="space-between">
-                      <Group gap="sm">
-                        <Avatar size="xs" color="grape">
-                          {assignment.reviewer.name.split(' ').map(n => n[0]).join('')}
-                        </Avatar>
-                        <Box>
-                          <Text size="sm">{assignment.reviewer.name}</Text>
-                          {assignment.reviewer.affiliation && (
-                            <Text size="xs" c="dimmed">{assignment.reviewer.affiliation}</Text>
-                          )}
-                        </Box>
+          {/* Assigned Reviewers */}
+          <Group gap="xs" align="center">
+            <IconEye size={16} />
+            <Text fw={500} size="sm">Reviewers:</Text>
+            {submission.reviewAssignments && submission.reviewAssignments.length > 0 ? (
+              <Group gap="md">
+                {submission.reviewAssignments.map((assignment) => (
+                  <Group key={assignment.id} gap="xs">
+                    <Avatar size="xs" color="grape">
+                      {assignment.reviewer.name.split(' ').map(n => n[0]).join('')}
+                    </Avatar>
+                    <Text size="sm" fw={500}>{assignment.reviewer.name}</Text>
+                    <Badge 
+                      size="xs" 
+                      variant="light"
+                      color={getReviewStatusColor(assignment.status)}
+                    >
+                      {assignment.status}
+                    </Badge>
+                  </Group>
+                ))}
+              </Group>
+            ) : (
+              <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
+                No reviewers assigned
+              </Text>
+            )}
+          </Group>
+
+          {/* Dates */}
+          <Group gap="xl">
+            <Group gap="xs">
+              <IconCalendar size={14} />
+              <Text size="sm" c="dimmed">
+                Submitted: {new Date(submission.submittedAt).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
+              </Text>
+            </Group>
+            
+            <Group gap="xs">
+              <IconClock size={14} />
+              <Text size="sm" c="dimmed">
+                Updated: {new Date(submission.updatedAt).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
+              </Text>
+            </Group>
+          </Group>
+
+          {/* Files Section - Collapsible */}
+          {submission.files && submission.files.length > 0 && (
+            <Box>
+              <Group justify="space-between" align="center">
+                <Group 
+                  gap="xs" 
+                  style={{ cursor: 'pointer', flex: 1 }}
+                  onClick={() => setFilesExpanded(!filesExpanded)}
+                >
+                  {filesExpanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+                  <IconFiles size={16} />
+                  <Text fw={500} size="sm">Files</Text>
+                  <Badge size="sm" variant="light" color="blue">
+                    {submission.files.length}
+                  </Badge>
+                </Group>
+                
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconDownload size={14} />}
+                  onClick={() => handleDownload()}
+                >
+                  Download
+                </Button>
+              </Group>
+              
+              <Collapse in={filesExpanded}>
+                <Stack gap="xs" mt="xs">
+                  {submission.files
+                    .sort((a, b) => {
+                      // Sort by: RENDERED first, then SOURCE, then others, then by upload date
+                      const typeOrder = { 'RENDERED': 0, 'SOURCE': 1, 'ASSET': 2, 'SUPPLEMENTARY': 3 };
+                      const aOrder = typeOrder[a.fileType as keyof typeof typeOrder] ?? 4;
+                      const bOrder = typeOrder[b.fileType as keyof typeof typeOrder] ?? 4;
+                      if (aOrder !== bOrder) return aOrder - bOrder;
+                      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+                    })
+                    .map((file, index) => (
+                      <Group key={file.id} justify="space-between" p="xs" 
+                             style={{ 
+                               backgroundColor: index === 0 && file.fileType === 'RENDERED' 
+                                 ? 'var(--mantine-color-blue-0)' 
+                                 : 'var(--mantine-color-gray-0)', 
+                               borderRadius: 'var(--mantine-radius-sm)',
+                               border: index === 0 && file.fileType === 'RENDERED'
+                                 ? '1px solid var(--mantine-color-blue-4)'
+                                 : '1px solid var(--mantine-color-gray-3)'
+                             }}>
+                        <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
+                          {getFileIcon(file.fileType, file.mimetype)}
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Group gap="xs" align="center">
+                              <Text size="sm" fw={500} truncate style={{ flex: 1 }}>
+                                {file.originalName}
+                              </Text>
+                              <Badge 
+                                size="xs" 
+                                variant="light" 
+                                color={getFileTypeColor(file.fileType)}
+                              >
+                                {file.fileType}
+                              </Badge>
+                              {index === 0 && file.fileType === 'RENDERED' && (
+                                <Badge size="xs" variant="filled" color="blue">
+                                  Latest
+                                </Badge>
+                              )}
+                            </Group>
+                            <Text size="xs" c="dimmed" truncate>
+                              {formatFileSize(file.size)} • {getFileTypeLabel(file.mimetype)}
+                            </Text>
+                          </Box>
+                        </Group>
+                        <ActionIcon 
+                          variant="light" 
+                          color="blue" 
+                          size="sm"
+                          onClick={() => handleDownload(file.id)}
+                        >
+                          <IconDownload size={14} />
+                        </ActionIcon>
                       </Group>
-                      <Badge 
-                        size="sm" 
-                        variant="light"
-                        color={getReviewStatusColor(assignment.status)}
-                      >
-                        {assignment.status}
-                      </Badge>
-                    </Group>
-                  ))}
+                    ))}
                 </Stack>
-              </Box>
-            </>
+              </Collapse>
+            </Box>
+          )}
+
+          {/* Keywords */}
+          {submission.keywords && submission.keywords.length > 0 && (
+            <Box>
+              <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
+              <Group gap="xs">
+                {submission.keywords.map((keyword, index) => (
+                  <Badge key={index} size="sm" variant="light" color="gray">
+                    {keyword}
+                  </Badge>
+                ))}
+              </Group>
+            </Box>
           )}
         </Stack>
-      </Paper>
-    </Box>
+      </Stack>
+    </Paper>
   );
+}
+
+function getFileIcon(fileType: string, mimetype: string) {
+  if (fileType === 'ASSET') {
+    if (mimetype.startsWith('image/')) {
+      return <IconPhoto size={16} color="var(--mantine-color-green-6)" />;
+    }
+    return <IconFiles size={16} color="var(--mantine-color-blue-6)" />;
+  }
+  
+  if (fileType === 'SOURCE') {
+    if (mimetype.includes('markdown')) {
+      return <IconCode size={16} color="var(--mantine-color-violet-6)" />;
+    }
+    return <IconFileText size={16} color="var(--mantine-color-orange-6)" />;
+  }
+  
+  return <IconFileText size={16} color="var(--mantine-color-gray-6)" />;
+}
+
+function getFileTypeColor(fileType: string): string {
+  switch (fileType) {
+    case 'SOURCE':
+      return 'orange';
+    case 'ASSET':
+      return 'green';
+    case 'RENDERED':
+      return 'blue';
+    case 'SUPPLEMENTARY':
+      return 'purple';
+    default:
+      return 'gray';
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function getFileTypeLabel(mimetype: string): string {
+  const typeMap: { [key: string]: string } = {
+    'text/markdown': 'Markdown',
+    'application/pdf': 'PDF',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+    'text/plain': 'Text',
+    'image/png': 'PNG Image',
+    'image/jpeg': 'JPEG Image',
+    'image/gif': 'GIF Image',
+    'image/svg+xml': 'SVG Image'
+  };
+  
+  return typeMap[mimetype] || mimetype.split('/')[1]?.toUpperCase() || 'Unknown';
 }
 
 function getStatusColor(status: string): string {

@@ -1,11 +1,11 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '@colloquium/database';
 import { ManuscriptFileType, StorageType } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { z } from 'zod';
-import { authenticate, requirePermission, optionalAuth } from '../middleware/auth';
+import { authenticate, requirePermission, optionalAuth, authenticateWithBots } from '../middleware/auth';
 import { Permission, hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermission, hasGlobalPermission } from '@colloquium/auth';
 import { fileStorage } from '../services/fileStorage';
 import { formatDetection } from '../services/formatDetection';
@@ -449,7 +449,7 @@ router.post('/', authenticate, (req, res, next) => {
 });
 
 // GET /api/manuscripts/:id - Get manuscript details
-router.get('/:id', optionalAuth, async (req, res, next) => {
+router.get('/:id', authenticateWithBots, async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -518,8 +518,13 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     const isReviewer = req.user && manuscript.reviews.some((review: any) => review.reviewerId === req.user!.id);
     
     console.log('DEBUG: Permission context - isPublished:', isPublished, 'isAuthor:', isAuthor, 'isActionEditor:', isActionEditor, 'isReviewer:', isReviewer);
+    console.log('DEBUG: Bot context:', req.botContext);
     
-    const canView = hasManuscriptPermission(
+    // Check if this is a bot request for the same manuscript
+    const isBotWithAccess = req.botContext && req.botContext.manuscriptId === id;
+    console.log('DEBUG: Bot has access:', isBotWithAccess);
+    
+    const canView = isBotWithAccess || hasManuscriptPermission(
       req.user?.role || GlobalRole.USER,
       ManuscriptPermission.VIEW_MANUSCRIPT,
       {
@@ -568,7 +573,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         mimetype: file.mimetype,
         size: file.size,
         uploadedAt: file.uploadedAt,
-        downloadUrl: `/api/manuscripts/${manuscript.id}/files/${file.id}/download`
+        downloadUrl: `/api/articles/${manuscript.id}/files/${file.id}/download`
       })),
       conversations: manuscript.conversations.map((conv: any) => ({
         id: conv.id,
@@ -592,35 +597,26 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/manuscripts/:id/files - List files for manuscript
-router.get('/:id/files', async (req, res, next) => {
-  try {
-    const { id } = req.params;
 
-    const files = await prisma.manuscriptFile.findMany({
-      where: { manuscriptId: id },
-      orderBy: { uploadedAt: 'asc' }
-    });
-
-    const formattedFiles = files.map((file: any) => ({
-      id: file.id,
-      originalName: file.originalName,
-      mimetype: file.mimetype,
-      size: file.size,
-      uploadedAt: file.uploadedAt,
-      downloadUrl: `/api/manuscripts/${id}/files/${file.id}/download`
-    }));
-
-    res.json({ files: formattedFiles });
-  } catch (error) {
-    next(error);
+// Custom middleware that handles both user and bot authentication for file downloads
+const authenticateForFileDownload = async (req: Request, res: Response, next: NextFunction) => {
+  // Try bot authentication first
+  const botToken = req.headers['x-bot-token'] as string;
+  if (botToken) {
+    return authenticateWithBots(req, res, next);
   }
-});
+  
+  // Fall back to optional user authentication
+  return optionalAuth(req, res, next);
+};
 
 // GET /api/manuscripts/:id/files/:fileId/download - Download specific file
-router.get('/:id/files/:fileId/download', async (req, res, next) => {
+router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (req, res, next) => {
   try {
     const { id, fileId } = req.params;
+    console.log(`DEBUG: Download endpoint hit - manuscriptId: ${id}, fileId: ${fileId}`);
+    console.log(`DEBUG: User:`, req.user ? `${req.user.email} (${req.user.role})` : 'none');
+    console.log(`DEBUG: Bot context:`, req.botContext ? `${req.botContext.botId} for ${req.botContext.manuscriptId}` : 'none');
 
     const file = await prisma.manuscriptFile.findFirst({
       where: {
@@ -629,15 +625,50 @@ router.get('/:id/files/:fileId/download', async (req, res, next) => {
       }
     });
 
+    console.log(`DEBUG: File lookup result:`, file);
+
     if (!file) {
+      console.log(`DEBUG: File not found in database - fileId: ${fileId}, manuscriptId: ${id}`);
       return res.status(404).json({
         error: 'File not found',
         message: 'The requested file does not exist or is not associated with this manuscript'
       });
     }
 
+    // Check if user/bot has permission to download this file
+    const isBotWithAccess = req.botContext && req.botContext.manuscriptId === id;
+    
+    if (!isBotWithAccess && !req.user) {
+      // No authentication at all - check if file is from a published manuscript
+      const manuscript = await prisma.manuscript.findUnique({
+        where: { id }
+      });
+      
+      if (!manuscript || (manuscript.status !== 'PUBLISHED' && manuscript.status !== 'RETRACTED')) {
+        return res.status(403).json({
+          error: 'Access Denied',
+          message: 'Authentication required to download this file'
+        });
+      }
+    }
+    
+    console.log(`DEBUG: File download authorized - bot: ${!!isBotWithAccess}, user: ${!!req.user}`);
+
     // Check if file exists on disk
-    if (!fs.existsSync(file.path)) {
+    // Handle both absolute and relative paths
+    let filePath = file.path;
+    if (filePath.startsWith('/uploads/')) {
+      // Convert absolute path starting with /uploads/ to relative path
+      filePath = '.' + filePath;
+    }
+    
+    console.log(`DEBUG: Original path: ${file.path}`);
+    console.log(`DEBUG: Resolved path: ${filePath}`);
+    console.log(`DEBUG: Full absolute path: ${path.resolve(filePath)}`);
+    console.log(`DEBUG: File exists check: ${fs.existsSync(filePath)}`);
+    
+    if (!fs.existsSync(filePath)) {
+      console.log(`DEBUG: File not found on disk at: ${filePath}`);
       return res.status(404).json({
         error: 'File not found',
         message: 'The file has been deleted or moved'
@@ -650,7 +681,7 @@ router.get('/:id/files/:fileId/download', async (req, res, next) => {
     res.setHeader('Content-Length', file.size.toString());
 
     // Stream the file
-    const fileStream = fs.createReadStream(file.path);
+    const fileStream = fs.createReadStream(filePath);
     fileStream.pipe(res);
   } catch (error) {
     next(error);
@@ -772,7 +803,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
 });
 
 // GET /api/manuscripts/:id/files - List all files for a manuscript
-router.get('/:id/files', authenticate, async (req, res, next) => {
+router.get('/:id/files', authenticateWithBots, async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -796,7 +827,7 @@ router.get('/:id/files', authenticate, async (req, res, next) => {
       detectedFormat: file.detectedFormat,
       fileExtension: file.fileExtension,
       uploadedAt: file.uploadedAt,
-      downloadUrl: `/api/manuscripts/${id}/files/${file.id}/download`
+      downloadUrl: `/api/articles/${id}/files/${file.id}/download`
     }));
 
     res.json({
@@ -815,7 +846,7 @@ router.get('/:id/files', authenticate, async (req, res, next) => {
 });
 
 // POST /api/manuscripts/:id/files - Upload additional files (for bots)
-router.post('/:id/files', authenticate, upload.array('file', 5), async (req, res, next) => {
+router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { fileType = 'SUPPLEMENTARY', renderedBy } = req.body;
@@ -882,7 +913,7 @@ router.post('/:id/files', authenticate, upload.array('file', 5), async (req, res
           mimetype: manuscriptFile.mimetype,
           size: manuscriptFile.size,
           fileType: manuscriptFile.fileType,
-          downloadUrl: `/api/manuscripts/${id}/files/${manuscriptFile.id}/download`
+          downloadUrl: `/api/articles/${id}/files/${manuscriptFile.id}/download`
         });
 
       } catch (error) {

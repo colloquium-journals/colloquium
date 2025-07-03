@@ -44,9 +44,26 @@ Templates have access to these variables:
 
 ### Document Content
 - `{{title}}` - Manuscript title
-- `{{authors}}` - Comma-separated author list
 - `{{abstract}}` - Abstract text
 - `{{{content}}}` - Processed markdown content (HTML)
+
+### Author Information
+- `{{authors}}` - Simple comma-separated author list (legacy compatibility)
+- `{{authorList}}` - Rich array of author objects with detailed information
+- `{{authorCount}}` - Number of authors
+- `{{correspondingAuthor}}` - Corresponding author object
+
+**Rich Author Data** (available in `{{authorList}}`):
+- `{{name}}` - Author's full name
+- `{{email}}` - Email address (if available)
+- `{{orcidId}}` - ORCID identifier
+- `{{orcidVerified}}` - Boolean: ORCID verification status
+- `{{affiliation}}` - Institution/organization
+- `{{bio}}` - Author biography
+- `{{website}}` - Personal/professional website
+- `{{isCorresponding}}` - Boolean: is this the corresponding author?
+- `{{order}}` - Author order (0-indexed)
+- `{{isRegistered}}` - Boolean: is this a registered user?
 
 ### Metadata
 - `{{submittedDate}}` - Submission date
@@ -204,3 +221,8 @@ Templates are automatically loaded when the bot starts. Use these commands to te
 Templates are included in the npm package automatically. When the bot is installed, all templates in `/templates/` are available immediately without additional configuration.
 
 This makes templates feel like first-class citizens that can be easily created, shared, and modified by journal administrators and developers.
+
+## See Also
+
+- **[Author Templating Guide](AUTHOR_TEMPLATING.md)** - Comprehensive guide to working with rich author data in templates
+- **[Template Examples](TEMPLATE_EXAMPLES.md)** - Usage examples and template comparisons

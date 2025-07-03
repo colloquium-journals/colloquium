@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
-import { authenticate, requirePermission, optionalAuth } from '../middleware/auth';
+import { authenticate, requirePermission, optionalAuth, generateBotServiceToken } from '../middleware/auth';
 import { Permission, GlobalRole } from '@colloquium/auth';
 import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
 import { botActionProcessor } from '../services/botActionProcessor';
+import { getBotQueue } from '../jobs';
 
 const router = Router();
 
@@ -237,7 +238,10 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
           select: {
             id: true,
             title: true,
-            authors: true
+            authors: true,
+            files: {
+              orderBy: { uploadedAt: 'asc' }
+            }
           }
         },
         participants: {
@@ -295,7 +299,19 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     const formattedConversation = {
       id: conversation.id,
       title: conversation.title,
-      manuscript: conversation.manuscript,
+      manuscript: {
+        ...conversation.manuscript,
+        files: conversation.manuscript.files?.map((file: any) => ({
+          id: file.id,
+          filename: file.filename,
+          originalName: file.originalName,
+          mimetype: file.mimetype,
+          size: file.size,
+          fileType: file.fileType,
+          uploadedAt: file.uploadedAt,
+          downloadUrl: `/api/articles/${conversation.manuscript.id}/files/${file.id}/download`
+        })) || []
+      },
       participants: conversation.participants.map(p => ({
         id: p.id,
         role: p.role,
@@ -421,168 +437,40 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       data: { updatedAt: new Date() }
     });
 
-    // Process message for bot commands (asynchronously)
-    try {
-      const botResponses = await botExecutor.processMessage(content, {
-        conversationId,
-        manuscriptId: conversation.manuscriptId,
-        triggeredBy: {
+    // Queue bot processing for asynchronous execution
+    // Check if the message contains bot mentions before queuing
+    const hasBotMentions = content.includes('@') && /[@][\w-]+/.test(content);
+    
+    if (hasBotMentions) {
+      try {
+        console.log(`Queuing bot processing for message ${message.id} with content: "${content.substring(0, 100)}..."`);
+        
+        const botQueue = getBotQueue();
+        
+        // Add job to the bot processing queue
+        await botQueue.add('bot-processing', {
           messageId: message.id,
+          conversationId,
           userId: req.user!.id,
-          trigger: 'MENTION' as any
-        },
-        journal: {
-          id: 'default', // TODO: Get actual journal ID
-          settings: {}
-        },
-        config: {}
-      });
-
-      // Create bot response messages
-      for (const botResponse of botResponses) {
-        if (botResponse.messages && botResponse.botId) {
-          const botUserId = botExecutor.getBotUserId(botResponse.botId);
-          if (!botUserId) {
-            console.error(`No user ID found for bot: ${botResponse.botId}`);
-            continue;
-          }
-
-          for (const botMessage of botResponse.messages) {
-            const createdBotMessage = await prisma.message.create({
-              data: {
-                content: botMessage.content,
-                conversationId,
-                authorId: botUserId,
-                parentId: botMessage.replyTo || message.id,
-                privacy: 'AUTHOR_VISIBLE',
-                isBot: true
-              },
-              include: {
-                author: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true
-                  }
-                }
-              }
-            });
-
-            // Immediately broadcast bot response
-            const formattedBotMessage = {
-              id: createdBotMessage.id,
-              content: createdBotMessage.content,
-              privacy: createdBotMessage.privacy,
-              author: createdBotMessage.author,
-              createdAt: createdBotMessage.createdAt,
-              updatedAt: createdBotMessage.updatedAt,
-              parentId: createdBotMessage.parentId,
-              isBot: createdBotMessage.isBot
-            };
-
-            broadcastToConversation(conversationId, {
-              type: 'new-message',
-              message: formattedBotMessage
-            });
-          }
-
-          // Process bot actions
-          if (botResponse.actions && botResponse.actions.length > 0) {
-            try {
-              await botActionProcessor.processActions(botResponse.actions, {
-                manuscriptId: conversation.manuscriptId,
-                userId: req.user!.id,
-                conversationId
-              });
-            } catch (actionError) {
-              console.error('Failed to process bot actions:', actionError);
-              // Create an error message for failed actions
-              const actionErrorMessage = await prisma.message.create({
-                data: {
-                  content: `⚠️ **Action Processing Error:** Some bot actions could not be completed. Please check the logs or retry manually.`,
-                  conversationId,
-                  authorId: botUserId,
-                  parentId: message.id,
-                  privacy: 'EDITOR_ONLY', // Only show to editors
-                  isBot: true
-                },
-                include: {
-                  author: {
-                    select: {
-                      id: true,
-                      name: true,
-                      email: true
-                    }
-                  }
-                }
-              });
-
-              // Immediately broadcast action error message
-              broadcastToConversation(conversationId, {
-                type: 'new-message',
-                message: {
-                  id: actionErrorMessage.id,
-                  content: actionErrorMessage.content,
-                  privacy: actionErrorMessage.privacy,
-                  author: actionErrorMessage.author,
-                  createdAt: actionErrorMessage.createdAt,
-                  updatedAt: actionErrorMessage.updatedAt,
-                  parentId: actionErrorMessage.parentId,
-                  isBot: actionErrorMessage.isBot
-                }
-              });
-            }
-          }
-        }
-
-        if (botResponse.errors && botResponse.errors.length > 0) {
-          console.error('Bot execution errors:', botResponse.errors);
-          
-          if (botResponse.botId) {
-            const botUserId = botExecutor.getBotUserId(botResponse.botId);
-            if (botUserId) {
-              // Create error message for debugging
-              const errorMessage = await prisma.message.create({
-                data: {
-                  content: `❌ **Bot Error:** ${botResponse.errors.join(', ')}`,
-                  conversationId,
-                  authorId: botUserId,
-                  parentId: message.id,
-                  privacy: 'AUTHOR_VISIBLE', // Make errors visible to users for better UX
-                  isBot: true
-                },
-                include: {
-                  author: {
-                    select: {
-                      id: true,
-                      name: true,
-                      email: true
-                    }
-                  }
-                }
-              });
-
-              // Immediately broadcast error message
-              broadcastToConversation(conversationId, {
-                type: 'new-message',
-                message: {
-                  id: errorMessage.id,
-                  content: errorMessage.content,
-                  privacy: errorMessage.privacy,
-                  author: errorMessage.author,
-                  createdAt: errorMessage.createdAt,
-                  updatedAt: errorMessage.updatedAt,
-                  parentId: errorMessage.parentId,
-                  isBot: errorMessage.isBot
-                }
-              });
-            }
-          }
-        }
+          manuscriptId: conversation.manuscriptId
+        }, {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+          removeOnComplete: true, // Remove completed jobs to save memory
+          removeOnFail: false,    // Keep failed jobs for debugging
+        });
+        
+        console.log(`Bot processing job queued successfully for message ${message.id}`);
+      } catch (queueError) {
+        console.error('Failed to queue bot processing:', queueError);
+        // Don't fail the message creation if queue fails
+        // TODO: Could optionally create a system message about the failure
       }
-    } catch (error) {
-      console.error('Bot processing failed:', error);
-      // Don't fail the whole request if bot processing fails
+    } else {
+      console.log('No bot mentions detected, skipping bot processing queue');
     }
 
     // Format response

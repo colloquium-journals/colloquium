@@ -8,28 +8,26 @@ import {
   ActionIcon, 
   Menu, 
   Badge, 
-  Button,
-  Collapse,
-  Textarea,
   Stack,
   Tooltip,
   Divider,
   Modal,
-  TextInput
+  TextInput,
+  Textarea,
+  Button
 } from '@mantine/core';
 import { 
   IconDots, 
   IconArrowBack, 
   IconFlag, 
-  IconCheck, 
-  IconX, 
   IconEye, 
   IconLock, 
   IconUsers, 
   IconShield,
   IconInfoCircle,
   IconEdit,
-  IconHistory
+  IconHistory,
+  IconLink
 } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageContent } from './MessageContent';
@@ -63,27 +61,22 @@ interface MessageCardProps {
 }
 
 export function MessageCard({ message, onReply, onEdit, isReply = false, conversationId }: MessageCardProps) {
-  const [showReplyForm, setShowReplyForm] = useState(false);
-  const [replyContent, setReplyContent] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [editReason, setEditReason] = useState('');
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const { user } = useAuth();
 
-  const handleReply = async () => {
-    if (!replyContent.trim()) return;
-    
-    setIsSubmitting(true);
-    try {
-      await onReply(replyContent);
-      setReplyContent('');
-      setShowReplyForm(false);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const copyMessageLink = () => {
+    const messageUrl = `${window.location.href.split('#')[0]}#message-${message.id}`;
+    navigator.clipboard.writeText(messageUrl);
+    // TODO: Show toast notification
   };
+
+  const handleReply = () => {
+    onReply(''); // Let the parent handle the reply logic
+  };
+
 
   const handleEdit = async () => {
     if (!editContent.trim() || !onEdit) return;
@@ -199,12 +192,14 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
 
   return (
     <div
+      id={`message-${message.id}`}
       style={{ 
         border: '1px solid var(--mantine-color-gray-3)',
         borderLeft: isReply ? '4px solid var(--mantine-color-blue-4)' : '1px solid var(--mantine-color-gray-3)',
         borderRadius: 'var(--mantine-radius-md)',
         padding: 'var(--mantine-spacing-lg)',
-        backgroundColor: isReply ? 'var(--mantine-color-gray-0)' : 'white'
+        backgroundColor: isReply ? 'var(--mantine-color-gray-0)' : 'white',
+        scrollMarginTop: '2rem'
       }}
     >
       <Stack gap="sm">
@@ -309,9 +304,15 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
               <Menu.Dropdown>
                 <Menu.Item 
                   leftSection={<IconArrowBack size={14} />}
-                  onClick={() => setShowReplyForm(!showReplyForm)}
+                  onClick={handleReply}
                 >
                   Reply
+                </Menu.Item>
+                <Menu.Item 
+                  leftSection={<IconLink size={14} />}
+                  onClick={copyMessageLink}
+                >
+                  Copy Link
                 </Menu.Item>
                 {canEdit() && (
                   <Menu.Item 
@@ -354,43 +355,6 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
           size="sm"
         />
 
-        {/* Reply Form */}
-        <Collapse in={showReplyForm}>
-          <Stack gap="sm" mt="md" p="sm" style={{ backgroundColor: 'var(--mantine-color-gray-1)', borderRadius: '8px' }}>
-            <Text size="sm" fw={500} c="dimmed">
-              Reply to {message.author.name}
-            </Text>
-            <Textarea
-              placeholder="Write your reply..."
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              minRows={3}
-              autosize
-            />
-            <Group justify="flex-end" gap="xs">
-              <Button
-                variant="subtle"
-                size="xs"
-                leftSection={<IconX size={14} />}
-                onClick={() => {
-                  setShowReplyForm(false);
-                  setReplyContent('');
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="xs"
-                leftSection={<IconCheck size={14} />}
-                onClick={handleReply}
-                loading={isSubmitting}
-                disabled={!replyContent.trim()}
-              >
-                Reply
-              </Button>
-            </Group>
-          </Stack>
-        </Collapse>
       </Stack>
 
       {/* Edit Modal */}

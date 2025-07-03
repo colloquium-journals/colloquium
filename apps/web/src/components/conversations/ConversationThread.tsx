@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Stack, Paper, Title, Text, Badge, Group, Loader, Alert } from '@mantine/core';
-import { IconAlertCircle, IconWifi, IconWifiOff, IconLoader } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { MessageThread } from './MessageThread';
-import { MessageComposer } from './MessageComposer';
 import { useSSE } from '../../hooks/useSSE';
 
 // Mock data types (will be replaced with real API calls)
@@ -266,41 +265,13 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
   return (
     <Stack gap="lg">
-      {/* SSE Connection Status Indicator */}
-      <Group justify="flex-end" gap="xs">
-        <Text size="xs" c="dimmed">
-          Real-time: 
-        </Text>
-        {connectionStatus === 'connected' ? (
-          <Badge color="green" size="sm" variant="light">
-            <IconWifi size={12} style={{ marginRight: 4 }} />
-            Connected
-          </Badge>
-        ) : connectionStatus === 'connecting' ? (
-          <Badge color="yellow" size="sm" variant="light">
-            <IconLoader size={12} style={{ marginRight: 4 }} />
-            Connecting...
-          </Badge>
-        ) : (
-          <Badge color="red" size="sm" variant="light">
-            <IconWifiOff size={12} style={{ marginRight: 4 }} />
-            Disconnected
-          </Badge>
-        )}
-      </Group>
 
       {/* Message Thread */}
       <MessageThread 
         messages={conversation.messages}
         onReply={(messageId, content) => handlePostMessage(content, messageId)}
         onEdit={handleEditMessage}
-        conversationId={conversationId}
-      />
-
-      {/* Message Composer */}
-      <MessageComposer 
         onSubmit={(content, privacy) => handlePostMessage(content, undefined, privacy)}
-        placeholder="Write your message... Type @ to mention users and bots"
         conversationId={conversationId}
       />
     </Stack>
