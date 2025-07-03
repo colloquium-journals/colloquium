@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useParams, notFound } from 'next/navigation';
 import {
   Container,
   Stack,
@@ -9,12 +11,10 @@ import {
   Anchor,
   Loader,
   Alert,
-  Badge,
   Paper,
   Flex,
   NavLink,
   Box,
-  ScrollArea,
   Divider
 } from '@mantine/core';
 import {
@@ -38,52 +38,9 @@ import {
   IconTarget,
   IconQuestionMark
 } from '@tabler/icons-react';
-import Link from 'next/link';
 import { format } from 'date-fns';
-import { useEffect, useState } from 'react';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { marked } from 'marked';
-
-async function fetchContent() {
-  try {
-    const [sectionsResponse, aboutPagesResponse] = await Promise.all([
-      fetch('http://localhost:4000/api/content', { cache: 'no-store' }),
-      fetch('http://localhost:4000/api/content/about', { cache: 'no-store' })
-    ]);
-
-    const sectionsData = sectionsResponse.ok ? await sectionsResponse.json() : { sections: [] };
-    const aboutData = aboutPagesResponse.ok ? await aboutPagesResponse.json() : { pages: [] };
-
-    return {
-      sections: sectionsData.sections || [],
-      aboutPages: aboutData.pages || []
-    };
-  } catch (err) {
-    console.error('Error fetching content:', err);
-    return {
-      sections: [],
-      aboutPages: []
-    };
-  }
-}
-
-async function fetchPageContent(slug: string) {
-  try {
-    const response = await fetch(`http://localhost:4000/api/content/about/${slug}`, { cache: 'no-store' });
-    return response.ok ? await response.json() : null;
-  } catch (err) {
-    console.error('Error fetching page content:', err);
-    return null;
-  }
-}
-
-interface ContentSection {
-  slug: string;
-  name: string;
-  description: string;
-  pageCount: number;
-  lastUpdated: number;
-}
 
 interface ContentPage {
   slug: string;
@@ -95,6 +52,19 @@ interface ContentPage {
   wordCount: number;
   content?: string;
   icon?: string;
+}
+
+interface SectionConfig {
+  id: string;
+  title: string;
+  description: string;
+  path: string;
+  contentPath: string;
+  icon: string;
+  order: number;
+  visible: boolean;
+  showInNavigation: boolean;
+  allowAnonymous: boolean;
 }
 
 // Icon mapping for frontmatter icon names to actual components
@@ -118,38 +88,77 @@ const ICON_MAP = {
   IconQuestionMark
 };
 
-// Fallback mapping for pages without custom icons (legacy support)
-const FALLBACK_ICONS = {
-  'index': IconFileText,
-  'submission-scope': IconFileText,
-  'code-of-conduct': IconGavel,
-  'ethics-guidelines': IconShield,
-  'licensing': IconLicense,
-  'editorial-board': IconUsers
-};
+async function fetchSectionConfig(): Promise<SectionConfig[]> {
+  try {
+    const response = await fetch('http://localhost:4000/api/content/sections', { cache: 'no-store' });
+    if (response.ok) {
+      const data = await response.json();
+      return data.sections || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching section config:', error);
+    return [];
+  }
+}
 
-export default function AboutPage() {
+async function fetchSectionContent(sectionId: string) {
+  try {
+    const response = await fetch(`http://localhost:4000/api/content/${sectionId}`, { cache: 'no-store' });
+    return response.ok ? await response.json() : { pages: [] };
+  } catch (error) {
+    console.error('Error fetching section content:', error);
+    return { pages: [] };
+  }
+}
+
+async function fetchPageContent(sectionId: string, slug: string) {
+  try {
+    const response = await fetch(`http://localhost:4000/api/content/${sectionId}/${slug}`, { cache: 'no-store' });
+    return response.ok ? await response.json() : null;
+  } catch (error) {
+    console.error('Error fetching page content:', error);
+    return null;
+  }
+}
+
+export default function DynamicSectionPage() {
+  const params = useParams();
   const { settings: journalSettings } = useJournalSettings();
-  const [sections, setSections] = useState<ContentSection[]>([]);
-  const [aboutPages, setAboutPages] = useState<ContentPage[]>([]);
+  const [sectionConfig, setSectionConfig] = useState<SectionConfig | null>(null);
+  const [pages, setPages] = useState<ContentPage[]>([]);
   const [activeSection, setActiveSection] = useState<string>('index');
   const [currentContent, setCurrentContent] = useState<ContentPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const sectionSlug = params.section as string;
+
   useEffect(() => {
-    const loadContent = async () => {
+    const loadSectionData = async () => {
       try {
         setLoading(true);
-        const contentData = await fetchContent();
-        setSections(contentData.sections);
-        setAboutPages(contentData.aboutPages);
+        
+        // Load section configuration
+        const sections = await fetchSectionConfig();
+        const section = sections.find(s => s.path === `/${sectionSlug}` || s.id === sectionSlug);
+        
+        if (!section || !section.visible) {
+          notFound();
+          return;
+        }
+        
+        setSectionConfig(section);
+        
+        // Load section content
+        const contentData = await fetchSectionContent(section.contentPath);
+        setPages(contentData.pages || []);
         
         // Load initial content (index page)
-        if (contentData.aboutPages.length > 0) {
-          const indexPage = contentData.aboutPages.find((page: ContentPage) => page.slug === 'index') || contentData.aboutPages[0];
-          await loadPageContent(indexPage.slug);
+        if (contentData.pages && contentData.pages.length > 0) {
+          const indexPage = contentData.pages.find((page: ContentPage) => page.slug === 'index') || contentData.pages[0];
+          await loadPageContent(section.contentPath, indexPage.slug);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load content');
@@ -158,13 +167,13 @@ export default function AboutPage() {
       }
     };
     
-    loadContent();
-  }, []);
+    loadSectionData();
+  }, [sectionSlug]);
 
-  const loadPageContent = async (slug: string) => {
+  const loadPageContent = async (sectionPath: string, slug: string) => {
     try {
       setContentLoading(true);
-      const pageData = await fetchPageContent(slug);
+      const pageData = await fetchPageContent(sectionPath, slug);
       if (pageData) {
         // Process markdown content
         if (pageData.content) {
@@ -186,16 +195,10 @@ export default function AboutPage() {
     return format(date, 'MMM dd, yyyy');
   };
 
-
   const getPageIcon = (page: ContentPage) => {
     // First, try to use the custom icon from frontmatter
     if (page.icon && page.icon in ICON_MAP) {
       return ICON_MAP[page.icon as keyof typeof ICON_MAP];
-    }
-    
-    // Fallback to legacy slug-based mapping
-    if (page.slug in FALLBACK_ICONS) {
-      return FALLBACK_ICONS[page.slug as keyof typeof FALLBACK_ICONS];
     }
     
     // Final fallback
@@ -207,7 +210,7 @@ export default function AboutPage() {
       <Container size="lg" py="xl">
         <Stack align="center" gap="md">
           <Loader size="lg" />
-          <Text>Loading about pages...</Text>
+          <Text>Loading section...</Text>
         </Stack>
       </Container>
     );
@@ -223,14 +226,19 @@ export default function AboutPage() {
     );
   }
 
+  if (!sectionConfig) {
+    notFound();
+    return null;
+  }
+
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
         {/* Header */}
         <Stack gap="md" align="center">
-          <Title order={1} ta="center">About {journalSettings.name}</Title>
+          <Title order={1} ta="center">{sectionConfig.title}</Title>
           <Text size="lg" c="dimmed" ta="center" maw={600}>
-            Learn about our mission, policies, and community guidelines for open academic publishing.
+            {sectionConfig.description}
           </Text>
         </Stack>
 
@@ -243,7 +251,7 @@ export default function AboutPage() {
                 SECTIONS
               </Text>
               
-              {aboutPages
+              {pages
                 .sort((a, b) => a.order - b.order)
                 .map((page: ContentPage) => {
                   const IconComponent = getPageIcon(page);
@@ -253,7 +261,7 @@ export default function AboutPage() {
                       label={page.title}
                       leftSection={<IconComponent size={20} />}
                       active={activeSection === page.slug}
-                      onClick={() => loadPageContent(page.slug)}
+                      onClick={() => loadPageContent(sectionConfig.contentPath, page.slug)}
                       style={{
                         borderRadius: '6px',
                         cursor: 'pointer'

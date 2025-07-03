@@ -1,6 +1,7 @@
 ---
 title: "Ethics Guidelines"
 description: "Research ethics and publication standards"
+icon: "IconShield"
 order: 4
 visible: true
 lastUpdated: "2025-06-13"

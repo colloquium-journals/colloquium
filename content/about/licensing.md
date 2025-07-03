@@ -1,6 +1,7 @@
 ---
 title: "Licensing & Open Access"
 description: "Our commitment to open access and licensing policies"
+icon: "IconLicense"
 order: 5
 visible: true
 lastUpdated: "2025-06-13"

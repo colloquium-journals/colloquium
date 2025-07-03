@@ -28,6 +28,7 @@ interface AppShellLayoutProps {
 
 export function AppShellLayout({ children }: AppShellLayoutProps) {
   const [navOpened, setNavOpened] = useState(false);
+  const [sections, setSections] = useState<any[]>([]);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
@@ -37,8 +38,25 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
   const toggleNav = () => setNavOpened(!navOpened);
   const closeNav = () => setNavOpened(false);
 
+  // Load section configuration
+  useEffect(() => {
+    const loadSections = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/api/content/sections', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          setSections(data.sections || []);
+        }
+      } catch (error) {
+        console.error('Error loading sections:', error);
+      }
+    };
+    
+    loadSections();
+  }, []);
+
   // Filter navigation items based on user role and authentication
-  const allNavigationItems = [
+  const staticNavigationItems = [
     { 
       label: 'Home', 
       href: '/', 
@@ -53,13 +71,19 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
       label: 'Submissions', 
       href: '/submissions', 
       requiresAuth: false // Public access (filtered by API)
-    },
-    { 
-      label: 'About', 
-      href: '/about', 
-      requiresAuth: false // Public access
     }
   ];
+
+  // Add dynamic section navigation items
+  const sectionNavigationItems = sections
+    .filter(section => section.showInNavigation && section.visible)
+    .map(section => ({
+      label: section.title,
+      href: section.path,
+      requiresAuth: !section.allowAnonymous
+    }));
+
+  const allNavigationItems = [...staticNavigationItems, ...sectionNavigationItems];
 
   const navigationItems = allNavigationItems.filter(item => {
     // If item doesn't require auth, show it to everyone

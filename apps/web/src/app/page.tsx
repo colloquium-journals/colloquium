@@ -13,7 +13,7 @@ async function fetchRecentArticles() {
       limit: '6',
       orderBy: 'publishedAt',
       order: 'desc',
-      status: 'ALL'
+      status: 'PUBLISHED'
     });
     
     const url = `http://localhost:4000/api/articles?${params}`;
@@ -35,12 +35,7 @@ async function fetchRecentArticles() {
     const data = await response.json();
     console.log('Fetched articles data:', data);
     
-    // Filter to only published articles on the client side
-    const publishedArticles = data.manuscripts?.filter((article: any) => 
-      article.status === 'PUBLISHED'
-    ) || [];
-    
-    return { data: publishedArticles };
+    return { data: data.manuscripts || [] };
   } catch (error) {
     console.error('Error fetching articles:', error);
     return { data: [] };

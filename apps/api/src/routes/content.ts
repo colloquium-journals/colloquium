@@ -10,6 +10,7 @@ const router = Router();
 
 // Content directory path
 const CONTENT_DIR = join(process.cwd(), '../../content');
+const SECTIONS_CONFIG_PATH = join(CONTENT_DIR, 'sections.json');
 
 // Validation schemas
 const contentPathSchema = z.object({
@@ -23,6 +24,99 @@ marked.setOptions({
   breaks: false,
   pedantic: false
 });
+
+// Section configuration schema
+const sectionConfigSchema = z.object({
+  sections: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    path: z.string(),
+    contentPath: z.string(),
+    icon: z.string(),
+    order: z.number(),
+    visible: z.boolean(),
+    showInNavigation: z.boolean(),
+    allowAnonymous: z.boolean()
+  })),
+  configuration: z.object({
+    version: z.string(),
+    lastUpdated: z.string(),
+    defaultIcon: z.string(),
+    allowCustomSections: z.boolean(),
+    maxSections: z.number()
+  })
+});
+
+// Helper function to load section configuration
+function loadSectionConfig() {
+  try {
+    if (!existsSync(SECTIONS_CONFIG_PATH)) {
+      // Return default configuration if file doesn't exist
+      return {
+        sections: [
+          {
+            id: "about",
+            title: "About",
+            description: "Learn about our journal, policies, and community",
+            path: "/about",
+            contentPath: "about",
+            icon: "IconFileText",
+            order: 1,
+            visible: true,
+            showInNavigation: true,
+            allowAnonymous: true
+          }
+        ],
+        configuration: {
+          version: "1.0",
+          lastUpdated: new Date().toISOString().split('T')[0],
+          defaultIcon: "IconFileText",
+          allowCustomSections: true,
+          maxSections: 10
+        }
+      };
+    }
+
+    const configContent = readFileSync(SECTIONS_CONFIG_PATH, 'utf-8');
+    const config = JSON.parse(configContent);
+    
+    // Validate the configuration
+    const validation = sectionConfigSchema.safeParse(config);
+    if (!validation.success) {
+      console.error('Invalid sections configuration:', validation.error);
+      throw new Error('Invalid sections configuration');
+    }
+    
+    return validation.data;
+  } catch (error) {
+    console.error('Error loading section configuration:', error);
+    // Return minimal default configuration on error
+    return {
+      sections: [
+        {
+          id: "about",
+          title: "About",
+          description: "Learn about our journal",
+          path: "/about", 
+          contentPath: "about",
+          icon: "IconFileText",
+          order: 1,
+          visible: true,
+          showInNavigation: true,
+          allowAnonymous: true
+        }
+      ],
+      configuration: {
+        version: "1.0",
+        lastUpdated: new Date().toISOString().split('T')[0],
+        defaultIcon: "IconFileText",
+        allowCustomSections: false,
+        maxSections: 10
+      }
+    };
+  }
+}
 
 // Helper function to read and parse markdown files
 function parseMarkdownFile(filePath: string) {
@@ -159,6 +253,50 @@ router.get('/editorial-board', async (req, res, next) => {
   }
 });
 
+// GET /api/content/sections/config - Get section configuration
+router.get('/sections/config', async (req, res, next) => {
+  try {
+    const config = loadSectionConfig();
+    res.json(config);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/content/sections - List configured content sections with metadata
+router.get('/sections', async (req, res, next) => {
+  try {
+    const config = loadSectionConfig();
+    
+    // Combine configuration with filesystem data
+    const sections = config.sections
+      .filter(sectionConfig => sectionConfig.visible)
+      .map(sectionConfig => {
+        const sectionPath = join(CONTENT_DIR, sectionConfig.contentPath);
+        const pages = existsSync(sectionPath) ? listContentFiles(sectionPath) : [];
+        const visiblePages = pages.filter(page => page?.visible);
+        
+        return {
+          ...sectionConfig,
+          pageCount: visiblePages.length,
+          hasContent: existsSync(sectionPath),
+          lastUpdated: visiblePages.length > 0 
+            ? Math.max(...visiblePages.map(p => new Date(p?.lastUpdated || 0).getTime()))
+            : new Date().getTime()
+        };
+      })
+      .sort((a, b) => a.order - b.order);
+
+    res.json({
+      sections,
+      total: sections.length,
+      configuration: config.configuration
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/content/:section - List all pages in a section
 router.get('/:section', async (req, res, next) => {
   try {
@@ -279,7 +417,7 @@ router.get('/:section/index', async (req, res, next) => {
   }
 });
 
-// GET /api/content - List all content sections
+// GET /api/content - List all content sections (legacy, now uses configuration)
 router.get('/', async (req, res, next) => {
   try {
     if (!existsSync(CONTENT_DIR)) {
@@ -289,26 +427,32 @@ router.get('/', async (req, res, next) => {
       });
     }
 
-    const sections = readdirSync(CONTENT_DIR, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => {
-        const sectionPath = join(CONTENT_DIR, dirent.name);
-        const pages = listContentFiles(sectionPath);
+    const config = loadSectionConfig();
+    
+    // Return configured sections for legacy compatibility
+    const sections = config.sections
+      .filter(sectionConfig => sectionConfig.visible)
+      .map(sectionConfig => {
+        const sectionPath = join(CONTENT_DIR, sectionConfig.contentPath);
+        const pages = existsSync(sectionPath) ? listContentFiles(sectionPath) : [];
         const visiblePages = pages.filter(page => page?.visible);
         
-        // Try to get section info from index.md
-        const indexPath = join(sectionPath, 'index.md');
-        const indexInfo = parseMarkdownFile(indexPath);
-        
         return {
-          slug: dirent.name,
-          name: indexInfo?.frontmatter.title || dirent.name,
-          description: indexInfo?.frontmatter.description || '',
+          slug: sectionConfig.id,
+          name: sectionConfig.title,
+          description: sectionConfig.description,
           pageCount: visiblePages.length,
-          lastUpdated: Math.max(...visiblePages.map(p => new Date(p?.lastUpdated || 0).getTime()))
+          lastUpdated: visiblePages.length > 0 
+            ? Math.max(...visiblePages.map(p => new Date(p?.lastUpdated || 0).getTime()))
+            : new Date().getTime()
         };
       })
-      .filter(section => section.pageCount > 0);
+      .filter(section => section.pageCount > 0)
+      .sort((a, b) => {
+        const aConfig = config.sections.find(s => s.id === a.slug);
+        const bConfig = config.sections.find(s => s.id === b.slug);
+        return (aConfig?.order || 999) - (bConfig?.order || 999);
+      });
 
     res.json({
       sections,

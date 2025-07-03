@@ -1,6 +1,7 @@
 ---
 title: "Editorial Board"
 description: "Meet our distinguished editorial team"
+icon: "IconUsers"
 order: 6
 visible: true
 lastUpdated: "2025-06-13"

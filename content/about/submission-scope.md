@@ -4,6 +4,7 @@ description: "What we publish and how to submit your research"
 order: 2
 visible: true
 lastUpdated: "2025-06-13"
+icon: "IconFileText"
 ---
 
 # Submission Scope & Guidelines

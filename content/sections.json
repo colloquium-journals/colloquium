@@ -1,0 +1,59 @@
+{
+  "sections": [
+    {
+      "id": "about",
+      "title": "About",
+      "description": "Learn about our journal, policies, and community",
+      "path": "/about",
+      "contentPath": "about",
+      "icon": "IconFileText",
+      "order": 1,
+      "visible": true,
+      "showInNavigation": true,
+      "allowAnonymous": true
+    },
+    {
+      "id": "policies",
+      "title": "Policies",
+      "description": "Editorial and publication policies",
+      "path": "/policies",
+      "contentPath": "policies",
+      "icon": "IconShield",
+      "order": 2,
+      "visible": false,
+      "showInNavigation": false,
+      "allowAnonymous": true
+    },
+    {
+      "id": "help",
+      "title": "Help & Support",
+      "description": "Documentation and support resources",
+      "path": "/help",
+      "contentPath": "help",
+      "icon": "IconQuestionMark",
+      "order": 3,
+      "visible": true,
+      "showInNavigation": true,
+      "allowAnonymous": true
+    },
+    {
+      "id": "news",
+      "title": "News & Updates",
+      "description": "Latest news and platform updates",
+      "path": "/news",
+      "contentPath": "news",
+      "icon": "IconBulb",
+      "order": 4,
+      "visible": false,
+      "showInNavigation": false,
+      "allowAnonymous": true
+    }
+  ],
+  "configuration": {
+    "version": "1.0",
+    "lastUpdated": "2025-07-03",
+    "defaultIcon": "IconFileText",
+    "allowCustomSections": true,
+    "maxSections": 10
+  }
+}

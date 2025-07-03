@@ -4,6 +4,7 @@ description: "Our community standards and behavioral expectations"
 order: 3
 visible: true
 lastUpdated: "2025-06-13"
+icon: "IconGavel"
 ---
 
 # Code of Conduct

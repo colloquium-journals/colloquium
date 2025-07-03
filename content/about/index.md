@@ -4,6 +4,7 @@ description: "Learn about our mission, vision, and commitment to open academic p
 order: 1
 visible: true
 lastUpdated: "2025-06-13"
+icon: "IconFileText"
 ---
 
 # About Colloquium
