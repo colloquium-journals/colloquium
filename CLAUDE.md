@@ -65,3 +65,35 @@ REDIS_PORT=6379
 - Academic naming conventions
 - Comprehensive error handling
 - No code comments unless necessary
+
+## Test Structure
+
+### Organization Patterns
+
+**Frontend (Web App)**:
+- Tests adjacent to source files in `__tests__/` directories
+- Example: `/apps/web/src/components/conversations/__tests__/`
+- Pattern: `src/[module]/__tests__/[component].test.tsx`
+
+**Backend (API)**:
+- Tests in dedicated `/tests/` directory with organized subdirectories
+- **Integration tests**: `/apps/api/tests/integration/`
+- **Route tests**: `/apps/api/tests/routes/`
+- **Service tests**: `/apps/api/tests/services/`
+- **Schema tests**: `/apps/api/tests/schemas/`
+- **Middleware tests**: `/apps/api/tests/middleware/`
+
+**Packages**:
+- Tests in `src/__tests__/` directories
+- Example: `/packages/bots/src/framework/__tests__/`
+
+### File Naming
+
+- Use `.test.ts` or `.test.tsx` extensions exclusively
+- Descriptive names: `validation-accept-reject.test.ts`, `botActionProcessor.test.ts`
+
+### Test Setup
+
+- **Setup files**: Each app/package has `tests/setup.ts` or `src/tests/setup.ts`
+- **Test utilities**: Centralized in `/tests/utils/testUtils.ts` for API
+- **Mocking**: Jest mocks for external dependencies (nodemailer, etc.)

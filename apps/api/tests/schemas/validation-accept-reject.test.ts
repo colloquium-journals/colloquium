@@ -1,4 +1,4 @@
-import { ReviewInvitationResponseSchema, ReviewSubmissionSchema } from '../../schemas/validation';
+import { ReviewInvitationResponseSchema, ReviewSubmissionSchema } from '../../src/schemas/validation';
 
 describe('Validation Schemas - Accept/Reject', () => {
   describe('ReviewInvitationResponseSchema', () => {

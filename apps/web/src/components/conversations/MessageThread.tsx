@@ -138,11 +138,6 @@ export function MessageThread({ messages, onReply, onEdit, conversationId, onSub
         </Group>
       )}
       
-      {/* Render visible messages */}
-      <Stack gap="md">
-        {visibleMessages.map(message => renderMessage(message))}
-      </Stack>
-      
       {/* Show collapse button when all messages are visible */}
       {shouldCollapse && showAllMessages && (
         <Group justify="center" py="md">
@@ -169,6 +164,11 @@ export function MessageThread({ messages, onReply, onEdit, conversationId, onSub
           </Paper>
         </Group>
       )}
+      
+      {/* Render visible messages */}
+      <Stack gap="md">
+        {visibleMessages.map(message => renderMessage(message))}
+      </Stack>
       
       {messages.length === 0 && (
         <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--mantine-color-dimmed)' }}>

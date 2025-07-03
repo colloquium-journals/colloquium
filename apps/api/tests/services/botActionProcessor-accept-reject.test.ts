@@ -1,4 +1,4 @@
-import { BotActionProcessor } from '../../services/botActionProcessor';
+import { BotActionProcessor } from '../../src/services/botActionProcessor';
 import { prisma } from '@colloquium/database';
 
 // Test utilities

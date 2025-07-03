@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../../app';
+import app from '../../src/app';
 import { prisma } from '@colloquium/database';
 import jwt from 'jsonwebtoken';
 
