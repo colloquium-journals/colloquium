@@ -448,20 +448,47 @@ router.post('/', authenticate, (req, res, next) => {
   }
 });
 
+// Custom middleware that handles both optional user auth and bot auth for manuscript viewing
+const optionalAuthWithBots = async (req: Request, res: Response, next: NextFunction) => {
+  // Check for bot service token first
+  const botToken = req.headers['x-bot-token'] as string;
+  if (botToken) {
+    try {
+      const { verifyJWT } = require('@colloquium/auth');
+      const botPayload = verifyJWT(botToken);
+      if (botPayload.type === 'BOT_SERVICE_TOKEN') {
+        req.botContext = {
+          botId: botPayload.botId,
+          manuscriptId: botPayload.manuscriptId,
+          permissions: botPayload.permissions || [],
+          type: 'BOT_SERVICE_TOKEN'
+        };
+        console.log(`DEBUG: Authenticated bot - botId: ${botPayload.botId}, manuscriptId: ${botPayload.manuscriptId}`);
+        return next();
+      }
+    } catch (botError) {
+      // Continue to optional user auth if bot token is invalid
+    }
+  }
+  
+  // Fall back to optional user authentication
+  return optionalAuth(req, res, next);
+};
+
 // GET /api/manuscripts/:id - Get manuscript details
-router.get('/:id', authenticateWithBots, async (req, res, next) => {
+router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
   try {
     const { id } = req.params;
 
     const manuscript = await prisma.manuscripts.findUnique({
       where: { id },
       include: {
-        files: {
+        manuscript_files: {
           orderBy: { uploadedAt: 'asc' }
         },
         manuscript_authors: {
           include: {
-            user: {
+            users: {
               select: {
                 id: true,
                 name: true,
@@ -477,7 +504,7 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
             _count: {
               select: {
                 messages: true,
-                participants: true
+                conversation_participants: true
               }
             }
           }
@@ -513,7 +540,7 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
     console.log('DEBUG: Manuscript status:', manuscript.status);
     
     const isPublished = manuscript.status === 'PUBLISHED' || manuscript.status === 'RETRACTED';
-    const isAuthor = req.user && manuscript.manuscript_authors.some((rel: any) => rel.usersId === req.user!.id);
+    const isAuthor = req.user && manuscript.manuscript_authors.some((rel: any) => rel.userId === req.user!.id);
     const isActionEditor = req.user && manuscript.action_editors?.editorId === req.user.id;
     const isReviewer = req.user && manuscript.review_assignments.some((review: any) => review.reviewerId === req.user!.id);
     
@@ -567,7 +594,7 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
       fileUrl: manuscript.fileUrl,
       metadata: manuscript.metadata,
       conversationCount: manuscript._count.conversations,
-      files: manuscript.files.map((file: any) => ({
+      files: manuscript.manuscript_files.map((file: any) => ({
         id: file.id,
         originalName: file.originalName,
         mimetype: file.mimetype,
@@ -581,7 +608,7 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
         type: conv.type,
         privacy: conv.privacy,
         messageCount: conv._count.messages,
-        participantCount: conv._count.participants,
+        participantCount: conv._count.conversation_participants,
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt
       })),
@@ -775,7 +802,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
         _count: {
           select: {
             messages: true,
-            participants: true
+            conversation_participants: true
           }
         }
       },
@@ -788,7 +815,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
       type: conv.type,
       privacy: conv.privacy,
       messageCount: conv._count.messages,
-      participantCount: conv._count.participants,
+      participantCount: conv._count.conversation_participants,
       createdAt: conv.createdAt,
       updatedAt: conv.updatedAt
     }));
