@@ -4,6 +4,7 @@ import { botExecutor } from '../bots/index';
 import { broadcastToConversation } from '../routes/events';
 import { generateBotServiceToken } from '../middleware/auth';
 import { BotProcessingJob } from './index';
+import { randomUUID } from 'crypto';
 
 export const processBotJob = async (job: Job<BotProcessingJob>) => {
   const { messageId, conversationId, userId, manuscriptId } = job.data;
@@ -12,10 +13,10 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
   
   try {
     // Fetch the message and related data
-    const message = await prisma.message.findUnique({
+    const message = await prisma.messages.findUnique({
       where: { id: messageId },
       include: {
-        author: {
+        users: {
           select: {
             id: true,
             name: true,
@@ -29,7 +30,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
       throw new Error(`Message ${messageId} not found`);
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: userId }
     });
 
@@ -73,17 +74,19 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
 
           // Create bot response messages
           for (const botMessage of botResponse.messages) {
-            const responseMessage = await prisma.message.create({
+            const responseMessage = await prisma.messages.create({
               data: {
+                id: randomUUID(),
                 content: botMessage.content,
                 conversationId: message.conversationId,
                 authorId: botUserId,
                 parentId: botMessage.replyTo || message.id,
                 privacy: 'AUTHOR_VISIBLE',
-                isBot: true
+                isBot: true,
+                updatedAt: new Date()
               },
               include: {
-                author: {
+                users: {
                   select: {
                     id: true,
                     name: true,
@@ -98,7 +101,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
               id: responseMessage.id,
               content: responseMessage.content,
               privacy: responseMessage.privacy,
-              author: responseMessage.author,
+              author: responseMessage.users,
               createdAt: responseMessage.createdAt,
               updatedAt: responseMessage.updatedAt,
               parentId: responseMessage.parentId,
@@ -134,17 +137,19 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
           const botUserId = botExecutor.getBotUserId(botResponse.botId || '');
           if (botUserId) {
             // Create an error message visible to users
-            const errorMessage = await prisma.message.create({
+            const errorMessage = await prisma.messages.create({
               data: {
+                id: randomUUID(),
                 content: `⚠️ **Bot Processing Warning**\n\nThe ${botResponse.botId} bot encountered some issues while processing your request. Some features may not work as expected.`,
                 conversationId: message.conversationId,
                 authorId: botUserId,
                 parentId: message.id,
                 privacy: 'AUTHOR_VISIBLE',
-                isBot: true
+                isBot: true,
+                updatedAt: new Date()
               },
               include: {
-                author: {
+                users: {
                   select: {
                     id: true,
                     name: true,
@@ -161,7 +166,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
                 id: errorMessage.id,
                 content: errorMessage.content,
                 privacy: errorMessage.privacy,
-                author: errorMessage.author,
+                author: errorMessage.users,
                 createdAt: errorMessage.createdAt,
                 updatedAt: errorMessage.updatedAt,
                 parentId: errorMessage.parentId,
@@ -196,17 +201,19 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
       }
 
       if (systemBotUserId) {
-        const errorMessage = await prisma.message.create({
+        const errorMessage = await prisma.messages.create({
           data: {
+            id: randomUUID(),
             content: `❌ **Bot Processing Failed**\n\nSorry, there was an error processing your bot command. Please try again or contact support if the issue persists.`,
             conversationId: conversationId,
             authorId: systemBotUserId,
             isBot: true,
             parentId: messageId,
-            privacy: 'AUTHOR_VISIBLE'
+            privacy: 'AUTHOR_VISIBLE',
+            updatedAt: new Date()
           },
           include: {
-            author: {
+            users: {
               select: {
                 id: true,
                 name: true,
@@ -223,7 +230,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
             id: errorMessage.id,
             content: errorMessage.content,
             privacy: errorMessage.privacy,
-            author: errorMessage.author,
+            author: errorMessage.users,
             createdAt: errorMessage.createdAt,
             updatedAt: errorMessage.updatedAt,
             parentId: errorMessage.parentId,
@@ -258,7 +265,7 @@ async function processBotAction(action: any, conversationId: string, user: any) 
     case 'STATUS_CHANGED':
       // Handle manuscript status changes
       if (action.data?.manuscriptId && action.data?.status) {
-        await prisma.manuscript.update({
+        await prisma.manuscripts.update({
           where: { id: action.data.manuscriptId },
           data: { status: action.data.status }
         });
