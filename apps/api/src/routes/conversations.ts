@@ -11,7 +11,7 @@ import { randomUUID } from 'crypto';
 const router = Router();
 
 // Helper function to determine if user can see a message based on privacy level
-async function canUserSeeMessage(userId: string | undefined, userRole: string | undefined, messagePrivacy: string, manuscriptId: string) {
+export async function canUserSeeMessage(userId: string | undefined, userRole: string | undefined, messagePrivacy: string, manuscriptId: string) {
   console.log(`Checking permissions - userId: ${userId}, userRole: ${userRole}, messagePrivacy: ${messagePrivacy}, manuscriptId: ${manuscriptId}`);
   
   if (!userId || !userRole) {
@@ -486,11 +486,11 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       isBot: message.isBot
     };
 
-    // Broadcast the new message via SSE
-    broadcastToConversation(conversationId, {
+    // Broadcast the new message via SSE with permission filtering
+    await broadcastToConversation(conversationId, {
       type: 'new-message',
       message: formattedMessage
-    });
+    }, conversation.manuscriptId);
 
     // Bot responses are now broadcast immediately when created above
 

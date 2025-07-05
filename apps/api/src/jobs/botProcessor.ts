@@ -105,11 +105,11 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
               isBot: responseMessage.isBot
             };
 
-            // Broadcast the bot response via SSE
-            broadcastToConversation(conversationId, {
+            // Broadcast the bot response via SSE with permission filtering
+            await broadcastToConversation(conversationId, {
               type: 'new-message',
               message: formattedMessage
-            });
+            }, manuscriptId);
 
             console.log(`Bot response message created and broadcasted: ${responseMessage.id}`);
           }
