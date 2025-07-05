@@ -80,11 +80,7 @@ export function MagicLinkVerification({ onSuccess }: MagicLinkVerificationProps)
 
         // Redirect after a short delay
         setTimeout(() => {
-          if (data.needsProfileCompletion) {
-            router.push('/profile/complete');
-          } else {
-            router.push(data.redirectUrl || '/profile');
-          }
+          router.push(data.redirectUrl || '/profile');
         }, 2000);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred during verification');
@@ -122,19 +118,15 @@ export function MagicLinkVerification({ onSuccess }: MagicLinkVerificationProps)
             Successfully signed in as <strong>{user.email}</strong>
           </Text>
           <Text size="sm" c="dimmed" ta="center">
-            {user.name ? 'Redirecting you to your profile...' : 'Redirecting you to complete your profile...'}
+            Redirecting you back to where you left off...
           </Text>
           <Button 
             onClick={() => {
-              if (!user.name) {
-                router.push('/profile/complete');
-              } else {
-                router.push(redirectUrl || '/profile');
-              }
+              router.push(redirectUrl || '/profile');
             }}
             variant="outline"
           >
-            {user.name ? 'Continue to Profile' : 'Complete Profile'}
+            Continue
           </Button>
         </Stack>
       </Card>

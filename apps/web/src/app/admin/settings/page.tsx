@@ -107,7 +107,7 @@ interface User {
   affiliation?: string;
   createdAt: string;
   _count?: {
-    authoredManuscripts: number;
+    manuscript_authors: number;
     reviewAssignments: number;
     authoredMessages: number;
   };
@@ -1575,7 +1575,7 @@ export default function JournalSettingsPage() {
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm">
-                                {usr._count?.authoredManuscripts || 0}
+                                {usr._count?.manuscript_authors || 0}
                               </Text>
                             </Table.Td>
                             <Table.Td>

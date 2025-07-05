@@ -426,8 +426,8 @@ router.get('/editorial-board', async (req, res, next) => {
         createdAt: true,
         _count: {
           select: {
-            authoredManuscripts: true,
-            reviewAssignments: true
+            manuscript_authors: true,
+            review_assignments: true
           }
         }
       },
@@ -449,8 +449,8 @@ router.get('/editorial-board', async (req, res, next) => {
       role: editor.role,
       memberSince: editor.createdAt,
       stats: {
-        publishedPapers: editor._count.authoredManuscripts,
-        completedReviews: editor._count.reviewAssignments
+        publishedPapers: editor._count.manuscript_authors,
+        completedReviews: editor._count.review_assignments
       },
       profileUrl: `/users/${editor.id}`
     }));

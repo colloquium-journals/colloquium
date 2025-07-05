@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Container,
@@ -22,11 +22,15 @@ import {
 } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 
-export default function ProfileCompletePage() {
+function ProfileCompleteContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Get the return URL from query parameters
+  const returnUrl = searchParams.get('returnUrl');
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -38,9 +42,9 @@ export default function ProfileCompletePage() {
   // Redirect if user already has a name
   useEffect(() => {
     if (user?.name) {
-      router.push('/profile');
+      router.push(returnUrl || '/profile');
     }
-  }, [user, router]);
+  }, [user, router, returnUrl]);
 
   const form = useForm({
     initialValues: {
@@ -85,8 +89,8 @@ export default function ProfileCompletePage() {
       // Refresh user data in auth context
       await refreshUser();
 
-      // Redirect to profile page
-      router.push('/profile');
+      // Redirect to return URL or profile page
+      router.push(returnUrl || '/profile');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while updating your profile');
     } finally {
@@ -189,5 +193,20 @@ export default function ProfileCompletePage() {
         </Card>
       </Stack>
     </Container>
+  );
+}
+
+export default function ProfileCompletePage() {
+  return (
+    <Suspense fallback={
+      <Container size="sm" py="xl">
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text>Loading...</Text>
+        </Stack>
+      </Container>
+    }>
+      <ProfileCompleteContent />
+    </Suspense>
   );
 }

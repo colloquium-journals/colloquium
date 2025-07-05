@@ -190,7 +190,7 @@ router.get('/verify', validateRequest({ query: verifySchema }), async (req, res,
     // Check if user needs to complete profile (new user without name)
     const needsProfileCompletion = !magicLink.users.name;
     const finalRedirectUrl = needsProfileCompletion 
-      ? `${process.env.FRONTEND_URL}/profile/complete`
+      ? `${process.env.FRONTEND_URL}/profile/complete?returnUrl=${encodeURIComponent(magicLink.redirectUrl || `${process.env.FRONTEND_URL}/profile`)}`
       : magicLink.redirectUrl;
 
     res.json({

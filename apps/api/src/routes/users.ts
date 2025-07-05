@@ -91,7 +91,7 @@ router.get('/', authenticate, (req, res, next) => {
           createdAt: true,
           _count: {
             select: {
-              authoredManuscripts: true,
+              manuscript_authors: true,
               reviewAssignments: true,
               authoredMessages: true
             }
@@ -163,9 +163,9 @@ router.get('/me', authenticate, async (req, res, next) => {
     const user = await prisma.users.findUnique({
       where: { id: req.user!.id },
       include: {
-        authoredManuscripts: {
+        manuscript_authors: {
           include: {
-            manuscript: {
+            manuscripts: {
               select: {
                 id: true,
                 title: true,
@@ -180,11 +180,11 @@ router.get('/me', authenticate, async (req, res, next) => {
               }
             }
           },
-          orderBy: { manuscript: { submittedAt: 'desc' } }
+          orderBy: { manuscripts: { submittedAt: 'desc' } }
         },
-        reviewAssignments: {
+        review_assignments: {
           include: {
-            manuscript: {
+            manuscripts: {
               select: {
                 id: true,
                 title: true,
@@ -197,8 +197,8 @@ router.get('/me', authenticate, async (req, res, next) => {
         },
         _count: {
           select: {
-            authoredMessages: true,
-            conversationParticipants: true
+            messages: true,
+            conversation_participants: true
           }
         }
       }
@@ -212,25 +212,25 @@ router.get('/me', authenticate, async (req, res, next) => {
     }
 
     // Format authored manuscripts
-    const authoredPapers = user.authoredManuscripts.map(am => ({
-      id: am.manuscript.id,
-      title: am.manuscript.title,
-      status: am.manuscript.status,
-      submittedAt: am.manuscript.submittedAt,
-      publishedAt: am.manuscript.publishedAt,
-      conversationCount: am.manuscript._count.conversations,
+    const authoredPapers = user.manuscript_authors.map(am => ({
+      id: am.manuscripts.id,
+      title: am.manuscripts.title,
+      status: am.manuscripts.status,
+      submittedAt: am.manuscripts.submittedAt,
+      publishedAt: am.manuscripts.publishedAt,
+      conversationCount: am.manuscripts._count.conversations,
       order: am.order,
       isCorresponding: am.isCorresponding
     }));
 
     // Format review assignments
-    const reviewAssignments = user.reviewAssignments.map(ra => ({
+    const reviewAssignments = user.review_assignments.map(ra => ({
       id: ra.id,
       manuscript: {
-        id: ra.manuscript.id,
-        title: ra.manuscript.title,
-        status: ra.manuscript.status,
-        submittedAt: ra.manuscript.submittedAt
+        id: ra.manuscripts.id,
+        title: ra.manuscripts.title,
+        status: ra.manuscripts.status,
+        submittedAt: ra.manuscripts.submittedAt
       },
       status: ra.status,
       assignedAt: ra.assignedAt,
@@ -252,8 +252,8 @@ router.get('/me', authenticate, async (req, res, next) => {
       stats: {
         authoredPapers: authoredPapers.length,
         reviewsCompleted: reviewAssignments.filter(r => r.status === 'COMPLETED').length,
-        messagesPosted: user._count.authoredMessages,
-        conversationsJoined: user._count.conversationParticipants
+        messagesPosted: user._count.messages,
+        conversationsJoined: user._count.conversation_participants
       },
       authoredPapers,
       reviewAssignments
@@ -475,14 +475,14 @@ router.get('/:id', async (req, res, next) => {
         website: true,
         role: true,
         createdAt: true,
-        authoredManuscripts: {
+        manuscript_authors: {
           where: {
-            manuscript: {
+            manuscripts: {
               status: 'PUBLISHED' // Only show published papers in public view
             }
           },
           include: {
-            manuscript: {
+            manuscripts: {
               select: {
                 id: true,
                 title: true,
@@ -500,9 +500,9 @@ router.get('/:id', async (req, res, next) => {
         },
         _count: {
           select: {
-            authoredManuscripts: {
+            manuscript_authors: {
               where: {
-                manuscript: {
+                manuscripts: {
                   status: 'PUBLISHED'
                 }
               }
@@ -520,12 +520,12 @@ router.get('/:id', async (req, res, next) => {
     }
 
     // Format published papers for public view
-    const publishedPapers = user.authoredManuscripts.map(am => ({
-      id: am.manuscript.id,
-      title: am.manuscript.title,
-      abstract: am.manuscript.abstract,
-      publishedAt: am.manuscript.publishedAt,
-      conversationCount: am.manuscript._count.conversations,
+    const publishedPapers = user.manuscript_authors.map(am => ({
+      id: am.manuscripts.id,
+      title: am.manuscripts.title,
+      abstract: am.manuscripts.abstract,
+      publishedAt: am.manuscripts.publishedAt,
+      conversationCount: am.manuscripts._count.conversations,
       order: am.order,
       isCorresponding: am.isCorresponding
     }));
@@ -540,7 +540,7 @@ router.get('/:id', async (req, res, next) => {
       role: user.role,
       memberSince: user.createdAt,
       stats: {
-        publishedPapers: user._count.authoredManuscripts
+        publishedPapers: user._count.manuscript_authors
       },
       publishedPapers
     };
