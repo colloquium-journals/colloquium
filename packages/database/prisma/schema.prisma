@@ -7,33 +7,142 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                       String                    @id @default(cuid())
-  email                    String                    @unique
-  name                     String?
-  orcidId                  String?                   @unique
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
-  affiliation              String?
-  bio                      String?
-  website                  String?
-  orcidVerified            Boolean                   @default(false)
-  orcidAccessToken         String?
-  role                     GlobalRole                @default(USER)
-  assignedActionEditors    ActionEditor[]            @relation("ActionEditorAssigner")
-  actionEditorRole         ActionEditor[]            @relation("ActionEditorRole")
-  conversationParticipants ConversationParticipant[]
-  magicLinks               MagicLink[]
-  authoredManuscripts      ManuscriptAuthor[]
-  authoredMessages         Message[]
-  reviewAssignments        ReviewAssignment[]
-  uploadedBotConfigFiles   BotConfigFile[]
-
-  @@map("users")
+model action_editors {
+  id                                     String      @id
+  manuscriptId                           String      @unique
+  editorId                               String
+  assignedAt                             DateTime    @default(now())
+  assignedBy                             String?
+  users_action_editors_assignedByTousers users?      @relation("action_editors_assignedByTousers", fields: [assignedBy], references: [id])
+  users_action_editors_editorIdTousers   users       @relation("action_editors_editorIdTousers", fields: [editorId], references: [id])
+  manuscripts                            manuscripts @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
 }
 
-model MagicLink {
-  id          String    @id @default(cuid())
+model bot_actions {
+  id              String           @id
+  botId           String
+  name            String
+  description     String
+  inputSchema     Json
+  createdAt       DateTime         @default(now())
+  bot_definitions bot_definitions  @relation(fields: [botId], references: [id], onDelete: Cascade)
+  bot_executions  bot_executions[]
+
+  @@unique([botId, name])
+}
+
+model bot_config_files {
+  id              String          @id
+  botId           String
+  filename        String
+  storedName      String
+  path            String
+  mimetype        String
+  size            Int
+  checksum        String
+  category        String
+  description     String?
+  metadata        Json?
+  uploadedBy      String
+  uploadedAt      DateTime        @default(now())
+  updatedAt       DateTime
+  bot_definitions bot_definitions @relation(fields: [botId], references: [id], onDelete: Cascade)
+  users           users           @relation(fields: [uploadedBy], references: [id])
+
+  @@unique([botId, filename])
+}
+
+model bot_definitions {
+  id                  String             @id
+  name                String
+  description         String
+  version             String
+  author              String
+  isPublic            Boolean            @default(false)
+  configSchema        Json?
+  createdAt           DateTime           @default(now())
+  supportsFileUploads Boolean            @default(false)
+  updatedAt           DateTime           @default(now())
+  bot_actions         bot_actions[]
+  bot_config_files    bot_config_files[]
+  bot_executions      bot_executions[]
+  bot_installs        bot_installs?
+  bot_permissions     bot_permissions[]
+}
+
+model bot_executions {
+  id              String             @id
+  botId           String
+  actionId        String?
+  messageId       String?
+  status          BotExecutionStatus @default(PENDING)
+  input           Json?
+  output          Json?
+  error           String?
+  executedAt      DateTime           @default(now())
+  completedAt     DateTime?
+  bot_actions     bot_actions?       @relation(fields: [actionId], references: [id])
+  bot_definitions bot_definitions    @relation(fields: [botId], references: [id], onDelete: Cascade)
+  messages        messages?          @relation(fields: [messageId], references: [id])
+}
+
+model bot_installs {
+  id              String          @id
+  botId           String          @unique
+  config          Json            @default("{}")
+  isEnabled       Boolean         @default(true)
+  installedAt     DateTime        @default(now())
+  updatedAt       DateTime        @default(now())
+  bot_definitions bot_definitions @relation(fields: [botId], references: [id], onDelete: Cascade)
+}
+
+model bot_permissions {
+  id              String          @id
+  botId           String
+  permission      String
+  description     String
+  bot_definitions bot_definitions @relation(fields: [botId], references: [id], onDelete: Cascade)
+
+  @@unique([botId, permission])
+}
+
+model conversation_participants {
+  id             String          @id
+  conversationId String
+  userId         String
+  role           ParticipantRole @default(PARTICIPANT)
+  joinedAt       DateTime        @default(now())
+  conversations  conversations   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  users          users           @relation(fields: [userId], references: [id])
+
+  @@unique([conversationId, userId])
+}
+
+model conversations {
+  id                        String                      @id
+  title                     String
+  type                      ConversationType
+  privacy                   PrivacyLevel
+  manuscriptId              String
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  conversation_participants conversation_participants[]
+  manuscripts               manuscripts                 @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  messages                  messages[]
+}
+
+model journal_settings {
+  id          String   @id @default("singleton")
+  name        String
+  description String?
+  logoUrl     String?
+  settings    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model magic_links {
+  id          String    @id
   email       String
   token       String    @unique
   expiresAt   DateTime
@@ -41,279 +150,130 @@ model MagicLink {
   redirectUrl String?
   createdAt   DateTime  @default(now())
   userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
-
-  @@map("magic_links")
+  users       users?    @relation(fields: [userId], references: [id])
 }
 
-model JournalSettings {
-  id          String   @id @default("singleton")
-  name        String
-  description String?
-  logoUrl     String?
-  settings    Json     @default("{}")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("journal_settings")
-}
-
-model Manuscript {
-  id              String             @id @default(cuid())
-  title           String
-  abstract        String?
-  content         String?
-  status          ManuscriptStatus   @default(SUBMITTED)
-  submittedAt     DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  authors         String[]
-  fileUrl         String?
-  keywords        String[]           @default([])
-  metadata        Json?
-  publishedAt     DateTime?
-  doi             String?
-  actionEditor    ActionEditor?
-  conversations   Conversation[]
-  authorRelations ManuscriptAuthor[] @relation("authorRelations")
-  files           ManuscriptFile[]
-  reviews         ReviewAssignment[]
-
-  @@map("manuscripts")
-}
-
-model ManuscriptAuthor {
-  id              String     @id @default(cuid())
+model manuscript_authors {
+  id              String      @id
   manuscriptId    String
   userId          String
-  order           Int        @default(0)
-  isCorresponding Boolean    @default(false)
-  manuscript      Manuscript @relation("authorRelations", fields: [manuscriptId], references: [id], onDelete: Cascade)
-  user            User       @relation(fields: [userId], references: [id])
+  order           Int         @default(0)
+  isCorresponding Boolean     @default(false)
+  manuscripts     manuscripts @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  users           users       @relation(fields: [userId], references: [id])
 
   @@unique([manuscriptId, userId])
-  @@map("manuscript_authors")
 }
 
-model ManuscriptFile {
-  id           String     @id @default(cuid())
-  manuscriptId String
-  filename     String
-  originalName String
-  mimetype     String
-  size         Int
-  path         String
-  uploadedAt   DateTime   @default(now())
-  
-  // Enhanced fields for submission system
-  fileType     ManuscriptFileType @default(SOURCE)
-  storageType  StorageType @default(LOCAL)
-  checksum     String?    // For integrity verification
-  encoding     String?    // Text encoding if applicable
-  
-  // Format detection
-  detectedFormat String? // e.g., "markdown", "latex", "quarto"
-  fileExtension  String? // Original file extension for format hints
-  
-  manuscript   Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-
-  @@map("manuscript_files")
+model manuscript_files {
+  id             String             @id
+  manuscriptId   String
+  filename       String
+  originalName   String
+  mimetype       String
+  size           Int
+  path           String
+  uploadedAt     DateTime           @default(now())
+  checksum       String?
+  detectedFormat String?
+  encoding       String?
+  fileExtension  String?
+  fileType       ManuscriptFileType @default(SOURCE)
+  storageType    StorageType        @default(LOCAL)
+  manuscripts    manuscripts        @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
 }
 
-model Conversation {
-  id           String                    @id @default(cuid())
-  title        String
-  type         ConversationType
-  privacy      PrivacyLevel
-  manuscriptId String
-  createdAt    DateTime                  @default(now())
-  updatedAt    DateTime                  @updatedAt
-  participants ConversationParticipant[]
-  manuscript   Manuscript                @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-  messages     Message[]
-
-  @@map("conversations")
+model manuscripts {
+  id                 String               @id
+  title              String
+  abstract           String?
+  content            String?
+  status             ManuscriptStatus     @default(SUBMITTED)
+  submittedAt        DateTime             @default(now())
+  updatedAt          DateTime
+  authors            String[]
+  fileUrl            String?
+  keywords           String[]             @default([])
+  metadata           Json?
+  publishedAt        DateTime?
+  doi                String?
+  action_editors     action_editors?
+  conversations      conversations[]
+  manuscript_authors manuscript_authors[]
+  manuscript_files   manuscript_files[]
+  review_assignments review_assignments[]
 }
 
-model ConversationParticipant {
-  id             String          @id @default(cuid())
-  conversationId String
-  userId         String
-  role           ParticipantRole @default(PARTICIPANT)
-  joinedAt       DateTime        @default(now())
-  conversation   Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User            @relation(fields: [userId], references: [id])
-
-  @@unique([conversationId, userId])
-  @@map("conversation_participants")
-}
-
-model Message {
-  id             String         @id @default(cuid())
+model messages {
+  id             String           @id
   content        String
   conversationId String
   authorId       String
   parentId       String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  isBot          Boolean        @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  isBot          Boolean          @default(false)
   metadata       Json?
-  privacy        MessagePrivacy @default(AUTHOR_VISIBLE)
-  deleted        Boolean        @default(false)
+  privacy        MessagePrivacy   @default(AUTHOR_VISIBLE)
+  deleted        Boolean          @default(false)
   deletedAt      DateTime?
   editedAt       DateTime?
-  botExecutions  BotExecution[]
-  author         User           @relation(fields: [authorId], references: [id])
-  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  parent         Message?       @relation("MessageThread", fields: [parentId], references: [id])
-  replies        Message[]      @relation("MessageThread")
-
-  @@map("messages")
+  bot_executions bot_executions[]
+  users          users            @relation(fields: [authorId], references: [id])
+  conversations  conversations    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages       messages?        @relation("messagesTomessages", fields: [parentId], references: [id])
+  other_messages messages[]       @relation("messagesTomessages")
 }
 
-model ReviewAssignment {
-  id           String       @id @default(cuid())
+model review_assignments {
+  id           String       @id
   manuscriptId String
   reviewerId   String
   status       ReviewStatus @default(PENDING)
   assignedAt   DateTime     @default(now())
   dueDate      DateTime?
   completedAt  DateTime?
-  manuscript   Manuscript   @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-  reviewer     User         @relation(fields: [reviewerId], references: [id])
+  manuscripts  manuscripts  @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  users        users        @relation(fields: [reviewerId], references: [id])
 
   @@unique([manuscriptId, reviewerId])
-  @@map("review_assignments")
 }
 
-model BotDefinition {
-  id                   String          @id
-  name                 String
-  description          String
-  version              String
-  author               String
-  isPublic             Boolean         @default(false)
-  configSchema         Json?
-  supportsFileUploads  Boolean         @default(false)
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @default(now()) @updatedAt
-  actions              BotAction[]
-  executions           BotExecution[]
-  install              BotInstall?
-  permissions          BotPermission[]
-  configFiles          BotConfigFile[]
-
-  @@map("bot_definitions")
-}
-
-model BotInstall {
-  id          String        @id @default(cuid())
-  botId       String        @unique
-  config      Json          @default("{}")
-  isEnabled   Boolean       @default(true)
-  installedAt DateTime      @default(now())
-  updatedAt   DateTime      @default(now()) @updatedAt
-  bot         BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
-
-  @@map("bot_installs")
-}
-
-model BotPermission {
-  id          String        @id @default(cuid())
-  botId       String
-  permission  String
-  description String
-  bot         BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
-
-  @@unique([botId, permission])
-  @@map("bot_permissions")
-}
-
-model BotAction {
-  id          String         @id @default(cuid())
-  botId       String
-  name        String
-  description String
-  inputSchema Json
-  createdAt   DateTime       @default(now())
-  bot         BotDefinition  @relation(fields: [botId], references: [id], onDelete: Cascade)
-  executions  BotExecution[]
-
-  @@unique([botId, name])
-  @@map("bot_actions")
-}
-
-model BotExecution {
-  id          String             @id @default(cuid())
-  botId       String
-  actionId    String?
-  messageId   String?
-  status      BotExecutionStatus @default(PENDING)
-  input       Json?
-  output      Json?
-  error       String?
-  executedAt  DateTime           @default(now())
-  completedAt DateTime?
-  action      BotAction?         @relation(fields: [actionId], references: [id])
-  bot         BotDefinition      @relation(fields: [botId], references: [id], onDelete: Cascade)
-  message     Message?           @relation(fields: [messageId], references: [id])
-
-  @@map("bot_executions")
-}
-
-model BotConfigFile {
-  id          String        @id @default(cuid())
-  botId       String
-  filename    String        // Original filename (e.g., "my-template.html")
-  storedName  String        // Unique stored filename 
-  path        String        // File path on storage
-  mimetype    String        // MIME type of the file
-  size        Int           // File size in bytes
-  checksum    String        // SHA256 checksum for integrity
-  category    String        // File category (kept for backwards compatibility)
-  description String?       // Optional description
-  metadata    Json?         // Additional metadata specific to the file type
-  uploadedBy  String        // User who uploaded the file
-  uploadedAt  DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  bot         BotDefinition @relation(fields: [botId], references: [id], onDelete: Cascade)
-  uploader    User          @relation(fields: [uploadedBy], references: [id])
-
-  @@unique([botId, filename]) // Prevent duplicate filenames per bot
-  @@map("bot_config_files")
-}
-
-// Flexible format registry for supported formats
-model SupportedFormat {
-  id           String   @id @default(cuid())
-  name         String   @unique // e.g., "markdown", "latex", "quarto"
-  displayName  String   // e.g., "Markdown", "LaTeX", "Quarto"
-  fileExtensions String[] // e.g., [".md", ".markdown"]
-  mimeTypes    String[] // e.g., ["text/markdown"]
-  description  String?  // Description of the format
-  
-  // Bot configuration
-  rendererBotId String?
+model supported_formats {
+  id             String   @id
+  name           String   @unique
+  displayName    String
+  fileExtensions String[]
+  mimeTypes      String[]
+  description    String?
+  rendererBotId  String?
   validatorBotId String?
-  
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@map("supported_formats")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
 }
 
-model ActionEditor {
-  id             String     @id @default(cuid())
-  manuscriptId   String     @unique
-  editorId       String
-  assignedAt     DateTime   @default(now())
-  assignedBy     String?
-  assignedByUser User?      @relation("ActionEditorAssigner", fields: [assignedBy], references: [id])
-  editor         User       @relation("ActionEditorRole", fields: [editorId], references: [id])
-  manuscript     Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-
-  @@map("action_editors")
+model users {
+  id                                              String                      @id
+  email                                           String                      @unique
+  name                                            String?
+  orcidId                                         String?                     @unique
+  createdAt                                       DateTime                    @default(now())
+  updatedAt                                       DateTime
+  affiliation                                     String?
+  bio                                             String?
+  website                                         String?
+  orcidVerified                                   Boolean                     @default(false)
+  orcidAccessToken                                String?
+  role                                            GlobalRole                  @default(USER)
+  action_editors_action_editors_assignedByTousers action_editors[]            @relation("action_editors_assignedByTousers")
+  action_editors_action_editors_editorIdTousers   action_editors[]            @relation("action_editors_editorIdTousers")
+  bot_config_files                                bot_config_files[]
+  conversation_participants                       conversation_participants[]
+  magic_links                                     magic_links[]
+  manuscript_authors                              manuscript_authors[]
+  messages                                        messages[]
+  review_assignments                              review_assignments[]
 }
 
 enum BotExecutionStatus {
@@ -324,18 +284,27 @@ enum BotExecutionStatus {
   CANCELLED
 }
 
+enum ConversationType {
+  EDITORIAL
+  REVIEW
+  SEMI_PUBLIC
+  PUBLIC
+  AUTHOR_ONLY
+}
+
 enum GlobalRole {
   ADMIN
   EDITOR_IN_CHIEF
-  MANAGING_EDITOR
+  ACTION_EDITOR
   USER
   BOT
 }
 
-enum ParticipantRole {
-  OBSERVER
-  PARTICIPANT
-  MODERATOR
+enum ManuscriptFileType {
+  SOURCE
+  ASSET
+  RENDERED
+  SUPPLEMENTARY
 }
 
 enum ManuscriptStatus {
@@ -349,14 +318,6 @@ enum ManuscriptStatus {
   RETRACTED
 }
 
-enum ReviewStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  IN_PROGRESS
-  COMPLETED
-}
-
 enum MessagePrivacy {
   PUBLIC
   AUTHOR_VISIBLE
@@ -365,12 +326,10 @@ enum MessagePrivacy {
   ADMIN_ONLY
 }
 
-enum ConversationType {
-  EDITORIAL
-  REVIEW
-  SEMI_PUBLIC
-  PUBLIC
-  AUTHOR_ONLY
+enum ParticipantRole {
+  OBSERVER
+  PARTICIPANT
+  MODERATOR
 }
 
 enum PrivacyLevel {
@@ -379,11 +338,12 @@ enum PrivacyLevel {
   PUBLIC
 }
 
-enum ManuscriptFileType {
-  SOURCE          // Primary source document
-  ASSET           // Supporting files (images, data, etc.)
-  RENDERED        // Bot-generated rendered outputs
-  SUPPLEMENTARY   // Supplementary materials
+enum ReviewStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  IN_PROGRESS
+  COMPLETED
 }
 
 enum StorageType {

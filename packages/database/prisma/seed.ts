@@ -1,4 +1,5 @@
 import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel, MessagePrivacy } from '@prisma/client';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -6,7 +7,7 @@ async function main() {
   console.log('🌱 Starting database seeding...');
 
   // Create journal settings
-  const journalSettings = await prisma.journalSettings.upsert({
+  const journalSettings = await prisma.journal_settings.upsert({
     where: { id: 'singleton' },
     update: {},
     create: {
@@ -19,174 +20,201 @@ async function main() {
         enableBots: true,
         reviewDeadlineDays: 30,
         revisionDeadlineDays: 60
-      }
+      },
+      updatedAt: new Date()
     }
   });
 
   console.log('✅ Journal settings created');
 
   // Create admin user
-  const adminUser = await prisma.user.upsert({
+  const adminUser = await prisma.users.upsert({
     where: { email: 'admin@colloquium.example.com' },
     update: {
       role: GlobalRole.ADMIN,
       name: 'Admin User'
     },
     create: {
+      id: randomUUID(),
       email: 'admin@colloquium.example.com',
       name: 'Admin User',
-      role: GlobalRole.ADMIN
+      role: GlobalRole.ADMIN,
+      updatedAt: new Date()
     }
   });
 
   // Create editor user
-  const editorUser = await prisma.user.upsert({
+  const editorUser = await prisma.users.upsert({
     where: { email: 'editor@colloquium.example.com' },
     update: {
       role: GlobalRole.EDITOR_IN_CHIEF,
       name: 'Editor User'
     },
     create: {
+      id: randomUUID(),
       email: 'editor@colloquium.example.com',
       name: 'Editor User',
-      role: GlobalRole.EDITOR_IN_CHIEF
+      role: GlobalRole.EDITOR_IN_CHIEF,
+      updatedAt: new Date()
     }
   });
 
   // Create sample author
-  const authorUser = await prisma.user.upsert({
+  const authorUser = await prisma.users.upsert({
     where: { email: 'author@colloquium.example.com' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'author@colloquium.example.com',
       name: 'Sample Author',
-      role: GlobalRole.USER
+      role: GlobalRole.USER,
+      updatedAt: new Date()
     }
   });
 
   // Create sample reviewer
-  const reviewerUser = await prisma.user.upsert({
+  const reviewerUser = await prisma.users.upsert({
     where: { email: 'reviewer@colloquium.example.com' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'reviewer@colloquium.example.com',
       name: 'Sample Reviewer',
-      role: GlobalRole.USER
+      role: GlobalRole.USER,
+      updatedAt: new Date()
     }
   });
 
   // Create additional authors for more realistic submissions
-  const author2 = await prisma.user.upsert({
+  const author2 = await prisma.users.upsert({
     where: { email: 'alice.researcher@university.edu' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'alice.researcher@university.edu',
       name: 'Alice Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0002-1825-0097',
       affiliation: 'University of Technology',
-      bio: 'Assistant Professor of Computer Science specializing in machine learning and academic publishing systems.'
+      bio: 'Assistant Professor of Computer Science specializing in machine learning and academic publishing systems.',
+      updatedAt: new Date()
     }
   });
 
-  const author3 = await prisma.user.upsert({
+  const author3 = await prisma.users.upsert({
     where: { email: 'bob.scientist@research.org' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'bob.scientist@research.org',
       name: 'Bob Scientist',
       role: GlobalRole.USER,
       orcidId: '0000-0003-4567-8901',
       affiliation: 'Research Institute of Advanced Studies',
-      bio: 'Senior Research Scientist with expertise in digital publishing platforms and peer review systems.'
+      bio: 'Senior Research Scientist with expertise in digital publishing platforms and peer review systems.',
+      updatedAt: new Date()
     }
   });
 
-  const author4 = await prisma.user.upsert({
+  const author4 = await prisma.users.upsert({
     where: { email: 'charlie.academic@college.edu' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'charlie.academic@college.edu',
       name: 'Charlie Academic',
       role: GlobalRole.USER,
       affiliation: 'Liberal Arts College',
-      bio: 'Professor of Information Science studying scholarly communication and open access publishing.'
+      bio: 'Professor of Information Science studying scholarly communication and open access publishing.',
+      updatedAt: new Date()
     }
   });
 
   // Create additional authors for testing multi-author manuscripts
-  const author5 = await prisma.user.upsert({
+  const author5 = await prisma.users.upsert({
     where: { email: 'diana.researcher@institute.org' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'diana.researcher@institute.org',
       name: 'Diana Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0004-5678-9012',
       affiliation: 'International Research Institute',
-      bio: 'Senior Scientist specializing in computational biology and bioinformatics.'
+      bio: 'Senior Scientist specializing in computational biology and bioinformatics.',
+      updatedAt: new Date()
     }
   });
 
-  const author6 = await prisma.user.upsert({
+  const author6 = await prisma.users.upsert({
     where: { email: 'edward.professor@university.ac.uk' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'edward.professor@university.ac.uk',
       name: 'Edward Mitchell',
       role: GlobalRole.USER,
       orcidId: '0000-0005-6789-0123',
       affiliation: 'Cambridge University',
-      bio: 'Professor of Theoretical Physics and Mathematics.'
+      bio: 'Professor of Theoretical Physics and Mathematics.',
+      updatedAt: new Date()
     }
   });
 
-  const author7 = await prisma.user.upsert({
+  const author7 = await prisma.users.upsert({
     where: { email: 'fiona.scientist@research.gov' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'fiona.scientist@research.gov',
       name: 'Fiona Chen',
       role: GlobalRole.USER,
       affiliation: 'National Science Foundation',
-      bio: 'Research Scientist in materials science and nanotechnology.'
+      bio: 'Research Scientist in materials science and nanotechnology.',
+      updatedAt: new Date()
     }
   });
 
-  const author8 = await prisma.user.upsert({
+  const author8 = await prisma.users.upsert({
     where: { email: 'george.analyst@tech.com' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'george.analyst@tech.com',
       name: 'George Williams',
       role: GlobalRole.USER,
       affiliation: 'TechCorp Research Division',
-      bio: 'Data Scientist and Machine Learning Engineer.'
+      bio: 'Data Scientist and Machine Learning Engineer.',
+      updatedAt: new Date()
     }
   });
 
-  const author9 = await prisma.user.upsert({
+  const author9 = await prisma.users.upsert({
     where: { email: 'helena.postdoc@university.de' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'helena.postdoc@university.de',
       name: 'Helena Schmidt',
       role: GlobalRole.USER,
       orcidId: '0000-0006-7890-1234',
       affiliation: 'Max Planck Institute',
-      bio: 'Postdoctoral Researcher in quantum computing and cryptography.'
+      bio: 'Postdoctoral Researcher in quantum computing and cryptography.',
+      updatedAt: new Date()
     }
   });
 
-  const author10 = await prisma.user.upsert({
+  const author10 = await prisma.users.upsert({
     where: { email: 'ivan.graduate@student.edu' },
     update: {},
     create: {
+      id: randomUUID(),
       email: 'ivan.graduate@student.edu',
       name: 'Ivan Rodriguez',
       role: GlobalRole.USER,
       affiliation: 'Stanford University',
-      bio: 'PhD Candidate in Artificial Intelligence and Machine Learning.'
+      bio: 'PhD Candidate in Artificial Intelligence and Machine Learning.',
+      updatedAt: new Date()
     }
   });
 
@@ -285,13 +313,14 @@ async function main() {
   const createdManuscripts = [];
   
   for (const manuscriptData of manuscripts) {
-    const existingManuscript = await prisma.manuscript.findFirst({
+    const existingManuscript = await prisma.manuscripts.findFirst({
       where: { title: manuscriptData.title }
     });
 
     if (!existingManuscript) {
-      const manuscript = await prisma.manuscript.create({
+      const manuscript = await prisma.manuscripts.create({
         data: {
+          id: randomUUID(),
           title: manuscriptData.title,
           abstract: manuscriptData.abstract,
           authors: manuscriptData.authors.map(authorId => {
@@ -368,8 +397,10 @@ This work demonstrates the potential for innovative approaches to academic publi
           keywords: manuscriptData.keywords,
           publishedAt: manuscriptData.publishedAt || null,
           doi: manuscriptData.doi || null,
-          authorRelations: {
+          updatedAt: new Date(),
+          manuscript_authors: {
             create: manuscriptData.authors.map((authorId, index) => ({
+              id: randomUUID(),
               userId: authorId,
               order: index,
               isCorresponding: index === 0
@@ -617,7 +648,7 @@ This work demonstrates the potential for innovative approaches to academic publi
     const manuscript = createdManuscripts[convData.manuscriptIndex];
     if (!manuscript) continue;
 
-    const existingConversation = await prisma.conversation.findFirst({
+    const existingConversation = await prisma.conversations.findFirst({
       where: { 
         manuscriptId: manuscript.id,
         title: convData.title
@@ -626,7 +657,7 @@ This work demonstrates the potential for innovative approaches to academic publi
 
     if (!existingConversation) {
       // Get the manuscript authors to add as participants
-      const manuscriptAuthors = await prisma.manuscriptAuthor.findMany({
+      const manuscriptAuthors = await prisma.manuscript_authors.findMany({
         where: { manuscriptId: manuscript.id }
       });
 
@@ -661,14 +692,20 @@ This work demonstrates the potential for innovative approaches to academic publi
       }
 
       // Create conversation with messages
-      const conversation = await prisma.conversation.create({
+      const conversation = await prisma.conversations.create({
         data: {
+          id: randomUUID(),
           title: convData.title,
           type: convData.type,
           privacy: convData.type === ConversationType.EDITORIAL ? PrivacyLevel.PRIVATE : PrivacyLevel.SEMI_PUBLIC,
           manuscriptId: manuscript.id,
-          participants: {
-            create: participants
+          updatedAt: new Date(),
+          conversation_participants: {
+            create: participants.map(p => ({
+              id: randomUUID(),
+              userId: p.userId,
+              role: p.role
+            }))
           }
         }
       });
@@ -679,8 +716,9 @@ This work demonstrates the potential for innovative approaches to academic publi
         const baseDate = new Date('2024-01-01');
         const messageDate = new Date(baseDate.getTime() + (i * 2 * 24 * 60 * 60 * 1000)); // 2 days apart
 
-        await prisma.message.create({
+        await prisma.messages.create({
           data: {
+            id: randomUUID(),
             content: message.content,
             authorId: message.authorId,
             conversationId: conversation.id,
@@ -887,7 +925,7 @@ This work demonstrates the potential for innovative approaches to academic publi
     if (!manuscriptFileData.manuscriptId) continue;
 
     for (const fileData of manuscriptFileData.files) {
-      const existingFile = await prisma.manuscriptFile.findFirst({
+      const existingFile = await prisma.manuscript_files.findFirst({
         where: {
           manuscriptId: manuscriptFileData.manuscriptId,
           filename: fileData.filename
@@ -895,8 +933,9 @@ This work demonstrates the potential for innovative approaches to academic publi
       });
 
       if (!existingFile) {
-        await prisma.manuscriptFile.create({
+        await prisma.manuscript_files.create({
           data: {
+            id: randomUUID(),
             manuscriptId: manuscriptFileData.manuscriptId,
             filename: fileData.filename,
             originalName: fileData.originalName,

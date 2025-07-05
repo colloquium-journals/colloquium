@@ -146,7 +146,7 @@ export enum ManuscriptPermission {
 export enum GlobalRole {
   ADMIN = 'ADMIN',
   EDITOR_IN_CHIEF = 'EDITOR_IN_CHIEF', 
-  MANAGING_EDITOR = 'MANAGING_EDITOR',
+  ACTION_EDITOR = 'ACTION_EDITOR',
   USER = 'USER',
   BOT = 'BOT'
 }
@@ -166,6 +166,7 @@ export const GLOBAL_ROLE_PERMISSIONS: Record<GlobalRole, GlobalPermission[]> = {
     GlobalPermission.CREATE_CONVERSATION
   ],
   [GlobalRole.EDITOR_IN_CHIEF]: [
+    GlobalPermission.MANAGE_USERS,
     GlobalPermission.VIEW_ALL_MANUSCRIPTS,
     GlobalPermission.ASSIGN_ACTION_EDITORS,
     GlobalPermission.OVERRIDE_EDITORIAL_DECISIONS,
@@ -173,10 +174,7 @@ export const GLOBAL_ROLE_PERMISSIONS: Record<GlobalRole, GlobalPermission[]> = {
     GlobalPermission.SUBMIT_MANUSCRIPT,
     GlobalPermission.CREATE_CONVERSATION
   ],
-  [GlobalRole.MANAGING_EDITOR]: [
-    GlobalPermission.ONBOARD_USERS,
-    GlobalPermission.MANAGE_REVIEWER_POOL,
-    GlobalPermission.ASSIGN_ACTION_EDITORS,
+  [GlobalRole.ACTION_EDITOR]: [
     GlobalPermission.SUBMIT_MANUSCRIPT,
     GlobalPermission.CREATE_CONVERSATION
   ],

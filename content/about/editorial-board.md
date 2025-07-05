@@ -99,6 +99,14 @@ We welcome applications from qualified researchers interested in contributing to
 **To Apply:**
 Send your CV and a brief statement of interest to: editorial-applications@colloquium.org
 
+## Current Editorial Board
+
+{{editorial-board:cards}}
+
+## Editorial Board Overview
+
+{{editorial-board:stats}}
+
 ---
 
-*The editorial board listing below is automatically updated to reflect current editorial team members.*
+*The editorial board information above is automatically updated to reflect current editorial team members and their contributions.*

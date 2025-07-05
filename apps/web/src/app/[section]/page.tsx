@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, useRouter, notFound } from 'next/navigation';
 import {
   Container,
   Stack,
@@ -124,6 +124,7 @@ async function fetchPageContent(sectionId: string, slug: string) {
 
 export default function DynamicSectionPage() {
   const params = useParams();
+  const router = useRouter();
   const { settings: journalSettings } = useJournalSettings();
   const [sectionConfig, setSectionConfig] = useState<SectionConfig | null>(null);
   const [pages, setPages] = useState<ContentPage[]>([]);
@@ -155,10 +156,18 @@ export default function DynamicSectionPage() {
         const contentData = await fetchSectionContent(section.contentPath);
         setPages(contentData.pages || []);
         
-        // Load initial content (index page)
+        // Load initial content based on URL fragment or default to index
         if (contentData.pages && contentData.pages.length > 0) {
-          const indexPage = contentData.pages.find((page: ContentPage) => page.slug === 'index') || contentData.pages[0];
-          await loadPageContent(section.contentPath, indexPage.slug);
+          const hash = window.location.hash.slice(1); // Remove # from hash
+          let initialPage: ContentPage;
+          
+          if (hash && contentData.pages.find((page: ContentPage) => page.slug === hash)) {
+            initialPage = contentData.pages.find((page: ContentPage) => page.slug === hash)!;
+          } else {
+            initialPage = contentData.pages.find((page: ContentPage) => page.slug === 'index') || contentData.pages[0];
+          }
+          
+          await loadPageContent(section.contentPath, initialPage.slug, false); // Don't update URL on initial load
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load content');
@@ -170,7 +179,7 @@ export default function DynamicSectionPage() {
     loadSectionData();
   }, [sectionSlug]);
 
-  const loadPageContent = async (sectionPath: string, slug: string) => {
+  const loadPageContent = async (sectionPath: string, slug: string, updateUrl: boolean = true) => {
     try {
       setContentLoading(true);
       const pageData = await fetchPageContent(sectionPath, slug);
@@ -182,6 +191,18 @@ export default function DynamicSectionPage() {
         }
         setCurrentContent(pageData);
         setActiveSection(slug);
+        
+        // Update URL with anchor if requested
+        if (updateUrl && sectionConfig) {
+          const newUrl = slug === 'index' ? sectionConfig.path : `${sectionConfig.path}#${slug}`;
+          window.history.pushState({}, '', newUrl);
+        }
+        
+        // Scroll to top of content area
+        const contentArea = document.querySelector('[data-content-area]');
+        if (contentArea) {
+          contentArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     } catch (err) {
       console.error('Error loading page content:', err);
@@ -189,6 +210,32 @@ export default function DynamicSectionPage() {
       setContentLoading(false);
     }
   };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (!sectionConfig) return;
+      
+      const hash = window.location.hash.slice(1);
+      if (hash && pages.find(page => page.slug === hash)) {
+        loadPageContent(sectionConfig.contentPath, hash, false);
+      } else if (!hash || hash === '') {
+        // If no hash, load index page
+        loadPageContent(sectionConfig.contentPath, 'index', false);
+      }
+    };
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Listen for popstate (back/forward buttons)
+    window.addEventListener('popstate', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, [pages, sectionConfig]);
 
   const formatDate = (timestamp: number | string) => {
     const date = typeof timestamp === 'string' ? new Date(timestamp) : new Date(timestamp);
@@ -297,7 +344,7 @@ export default function DynamicSectionPage() {
           </Paper>
 
           {/* Main Content */}
-          <Box style={{ flex: 1 }}>
+          <Box style={{ flex: 1 }} data-content-area>
             {contentLoading ? (
               <Stack align="center" gap="md" py="xl">
                 <Loader size="lg" />

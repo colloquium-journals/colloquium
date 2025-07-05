@@ -104,7 +104,7 @@ export function AdminRoute({ children }: { children: ReactNode }) {
 
 export function EditorRoute({ children }: { children: ReactNode }) {
   return (
-    <ProtectedRoute allowedRoles={['ADMIN', 'EDITOR']}>
+    <ProtectedRoute allowedRoles={['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR']}>
       {children}
     </ProtectedRoute>
   );

@@ -64,7 +64,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
     }
 
     // Verify bot exists and user has permission
-    const bot = await prisma.botDefinition.findUnique({
+    const bot = await prisma.bot_definitions.findUnique({
       where: { id: botId },
       include: { install: true }
     });
@@ -158,7 +158,7 @@ router.get('/:botId/files', authenticate, async (req, res, next) => {
     const { botId } = req.params;
 
     // Verify bot exists
-    const bot = await prisma.botDefinition.findUnique({
+    const bot = await prisma.bot_definitions.findUnique({
       where: { id: botId }
     });
 

@@ -10,13 +10,30 @@ import { useSSE } from '../../hooks/useSSE';
 interface ConversationData {
   id: string;
   title: string;
-  type: string;
-  privacy: string;
   manuscript: {
+    id: string;
     title: string;
     authors: string[];
+    status: string;
   } | null;
   messages: MessageData[];
+  totalMessageCount?: number;
+  visibleMessageCount?: number;
+  messageVisibilityMap?: Array<{
+    id: string;
+    visible: boolean;
+    createdAt: string;
+  }>;
+  participants?: Array<{
+    id: string;
+    role: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+    };
+  }>;
 }
 
 interface MessageData {
@@ -48,16 +65,29 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug logging for conversation state changes
+  useEffect(() => {
+    console.log('🎪 ConversationThread: Conversation state updated');
+    console.log('🎪 ConversationThread: Message count:', conversation?.messages?.length || 0);
+    console.log('🎪 ConversationThread: Message IDs:', conversation?.messages?.map(m => m.id) || []);
+  }, [conversation]);
+
   // Handle real-time messages
   const handleNewMessage = useCallback((newMessage: MessageData) => {
+    console.log('🎯 ConversationThread: ===== NEW MESSAGE HANDLER CALLED =====');
     console.log('🎯 ConversationThread: Received new message via SSE:', newMessage);
     console.log('🎯 ConversationThread: Message details:', {
       id: newMessage.id,
       content: newMessage.content,
-      author: newMessage.author
+      author: newMessage.author,
+      createdAt: newMessage.createdAt,
+      privacy: newMessage.privacy
     });
     
     setConversation(prev => {
+      console.log('🎯 ConversationThread: Current conversation state:', prev ? 'exists' : 'null');
+      console.log('🎯 ConversationThread: Current messages count:', prev?.messages?.length || 0);
+      
       if (!prev) {
         console.log('🎯 ConversationThread: No conversation state, skipping message');
         return prev;
@@ -65,6 +95,9 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       
       // Check if message already exists (avoid duplicates)
       const messageExists = prev.messages.some(msg => msg.id === newMessage.id);
+      console.log('🎯 ConversationThread: Message exists check:', messageExists);
+      console.log('🎯 ConversationThread: Existing message IDs:', prev.messages.map(m => m.id));
+      
       if (messageExists) {
         console.log('🎯 ConversationThread: Message already exists, skipping');
         return prev;
@@ -77,6 +110,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
         messages: [...prev.messages, newMessage]
       };
       console.log('🎯 ConversationThread: New message count:', updatedConversation.messages.length);
+      console.log('🎯 ConversationThread: ===== MESSAGE HANDLER COMPLETE =====');
       return updatedConversation;
     });
   }, []);
@@ -117,13 +151,12 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
         const formattedConversation: ConversationData = {
           id: data.id,
           title: data.title,
-          type: data.type,
-          privacy: data.privacy,
-          manuscript: data.manuscript ? {
-            title: data.manuscript.title,
-            authors: data.manuscript.authors
-          } : null,
-          messages: data.messages || []
+          manuscript: data.manuscript,
+          messages: data.messages || [],
+          totalMessageCount: data.totalMessageCount,
+          visibleMessageCount: data.visibleMessageCount,
+          messageVisibilityMap: data.messageVisibilityMap,
+          participants: data.participants
         };
         
         setConversation(formattedConversation);
@@ -273,6 +306,9 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
         onEdit={handleEditMessage}
         onSubmit={(content, privacy) => handlePostMessage(content, undefined, privacy)}
         conversationId={conversationId}
+        totalMessageCount={conversation.totalMessageCount}
+        visibleMessageCount={conversation.visibleMessageCount}
+        messageVisibilityMap={conversation.messageVisibilityMap}
       />
     </Stack>
   );

@@ -39,6 +39,7 @@ import {
   IconQuestionMark
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
@@ -130,6 +131,7 @@ const FALLBACK_ICONS = {
 
 export default function AboutPage() {
   const { settings: journalSettings } = useJournalSettings();
+  const router = useRouter();
   const [sections, setSections] = useState<ContentSection[]>([]);
   const [aboutPages, setAboutPages] = useState<ContentPage[]>([]);
   const [activeSection, setActiveSection] = useState<string>('index');
@@ -146,10 +148,18 @@ export default function AboutPage() {
         setSections(contentData.sections);
         setAboutPages(contentData.aboutPages);
         
-        // Load initial content (index page)
+        // Load initial content based on URL fragment or default to index
         if (contentData.aboutPages.length > 0) {
-          const indexPage = contentData.aboutPages.find((page: ContentPage) => page.slug === 'index') || contentData.aboutPages[0];
-          await loadPageContent(indexPage.slug);
+          const hash = window.location.hash.slice(1); // Remove # from hash
+          let initialPage: ContentPage;
+          
+          if (hash && contentData.aboutPages.find((page: ContentPage) => page.slug === hash)) {
+            initialPage = contentData.aboutPages.find((page: ContentPage) => page.slug === hash)!;
+          } else {
+            initialPage = contentData.aboutPages.find((page: ContentPage) => page.slug === 'index') || contentData.aboutPages[0];
+          }
+          
+          await loadPageContent(initialPage.slug, false); // Don't update URL on initial load
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load content');
@@ -161,7 +171,7 @@ export default function AboutPage() {
     loadContent();
   }, []);
 
-  const loadPageContent = async (slug: string) => {
+  const loadPageContent = async (slug: string, updateUrl: boolean = true) => {
     try {
       setContentLoading(true);
       const pageData = await fetchPageContent(slug);
@@ -173,6 +183,18 @@ export default function AboutPage() {
         }
         setCurrentContent(pageData);
         setActiveSection(slug);
+        
+        // Update URL with anchor if requested
+        if (updateUrl) {
+          const newUrl = slug === 'index' ? '/about' : `/about#${slug}`;
+          window.history.pushState({}, '', newUrl);
+        }
+        
+        // Scroll to top of content area
+        const contentArea = document.querySelector('[data-content-area]');
+        if (contentArea) {
+          contentArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     } catch (err) {
       console.error('Error loading page content:', err);
@@ -180,6 +202,30 @@ export default function AboutPage() {
       setContentLoading(false);
     }
   };
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && aboutPages.find(page => page.slug === hash)) {
+        loadPageContent(hash, false);
+      } else if (!hash || hash === '') {
+        // If no hash, load index page
+        loadPageContent('index', false);
+      }
+    };
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Listen for popstate (back/forward buttons)
+    window.addEventListener('popstate', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, [aboutPages]);
 
   const formatDate = (timestamp: number | string) => {
     const date = typeof timestamp === 'string' ? new Date(timestamp) : new Date(timestamp);
@@ -289,7 +335,7 @@ export default function AboutPage() {
           </Paper>
 
           {/* Main Content */}
-          <Box style={{ flex: 1 }}>
+          <Box style={{ flex: 1 }} data-content-area>
             {contentLoading ? (
               <Stack align="center" gap="md" py="xl">
                 <Loader size="lg" />

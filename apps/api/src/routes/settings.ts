@@ -130,18 +130,19 @@ const defaultSettings = {
 // Helper function to get or create journal settings
 async function getJournalSettings() {
   try {
-    let settings = await prisma.journalSettings.findFirst({
+    let settings = await prisma.journal_settings.findFirst({
       where: { id: 'singleton' }
     });
     
     if (!settings) {
       // Create default settings if none exist
-      settings = await prisma.journalSettings.create({
+      settings = await prisma.journal_settings.create({
         data: {
           id: 'singleton',
           name: defaultSettings.name,
           description: defaultSettings.description,
-          settings: defaultSettings
+          settings: defaultSettings,
+          updatedAt: new Date(),
         }
       });
     }
@@ -161,7 +162,7 @@ async function updateJournalSettings(newSettings: any) {
     const currentSettings = await getJournalSettings();
     const mergedSettings = { ...currentSettings, ...newSettings };
     
-    await prisma.journalSettings.upsert({
+    await prisma.journal_settings.upsert({
       where: { id: 'singleton' },
       update: {
         name: mergedSettings.name,

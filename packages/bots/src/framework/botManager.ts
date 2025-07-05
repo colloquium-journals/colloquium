@@ -39,16 +39,18 @@ export class DatabaseBotManager implements BotManager {
 
       // Create bot user in database
       const botEmail = `${bot.id}@colloquium.bot`;
-      let botUser = await prisma.user.findUnique({
+      let botUser = await prisma.users.findUnique({
         where: { email: botEmail },
       });
 
       if (!botUser) {
-        botUser = await prisma.user.create({
+        botUser = await prisma.users.create({
           data: {
+            id: `bot-${bot.id}`,
             email: botEmail,
             name: bot.name,
             role: "BOT",
+            updatedAt: new Date(),
           },
         });
       }
@@ -60,7 +62,7 @@ export class DatabaseBotManager implements BotManager {
       };
 
       // Store package information in bot definition FIRST
-      await prisma.botDefinition.upsert({
+      await prisma.bot_definitions.upsert({
         where: { id: bot.id },
         create: {
           id: bot.id,
@@ -71,12 +73,6 @@ export class DatabaseBotManager implements BotManager {
           isPublic: true,
           configSchema: this.generateConfigSchema(bot),
           supportsFileUploads: bot.supportsFileUploads || false,
-          permissions: {
-            create: bot.permissions.map((permission) => ({
-              permission,
-              description: `Permission: ${permission}`,
-            })),
-          },
         },
         update: {
           name: bot.name,
@@ -89,8 +85,9 @@ export class DatabaseBotManager implements BotManager {
       });
 
       // Create installation record AFTER bot definition exists
-      const installation = await prisma.botInstall.create({
+      const installation = await prisma.bot_installs.create({
         data: {
+          id: `install-${bot.id}-${Date.now()}`,
           botId: bot.id,
           config: finalConfig,
           isEnabled: true,
@@ -157,17 +154,17 @@ export class DatabaseBotManager implements BotManager {
       this.botExecutor.unregisterBot(botId);
 
       // Remove from database
-      await prisma.botInstall.delete({
+      await prisma.bot_installs.delete({
         where: { botId },
       });
 
       // Optionally remove bot definition if no other installations exist
-      const otherInstalls = await prisma.botInstall.findFirst({
+      const otherInstalls = await prisma.bot_installs.findFirst({
         where: { botId },
       });
 
       if (!otherInstalls) {
-        await prisma.botDefinition
+        await prisma.bot_definitions
           .delete({
             where: { id: botId },
           })
@@ -240,7 +237,7 @@ export class DatabaseBotManager implements BotManager {
       return; // Already enabled
     }
 
-    await prisma.botInstall.update({
+    await prisma.bot_installs.update({
       where: { botId },
       data: { isEnabled: true },
     });
@@ -264,7 +261,7 @@ export class DatabaseBotManager implements BotManager {
       return; // Already disabled
     }
 
-    await prisma.botInstall.update({
+    await prisma.bot_installs.update({
       where: { botId },
       data: { isEnabled: false },
     });
@@ -285,7 +282,7 @@ export class DatabaseBotManager implements BotManager {
     }
 
     // Update configuration in database
-    await prisma.botInstall.update({
+    await prisma.bot_installs.update({
       where: { botId },
       data: {
         config,
@@ -303,9 +300,9 @@ export class DatabaseBotManager implements BotManager {
   }
 
   async list(): Promise<BotInstallation[]> {
-    const installations = await prisma.botInstall.findMany({
+    const installations = await prisma.bot_installs.findMany({
       include: {
-        bot: true,
+        bot_definitions: true,
       },
     });
 
@@ -313,8 +310,8 @@ export class DatabaseBotManager implements BotManager {
     return installations.map((install: any) => ({
       id: install.id,
       packageName: `@colloquium/bot-${install.botId}`, // Default package name format
-      version: install.bot.version,
-      manifest: this.createManifestFromBot(install.bot),
+      version: install.bot_definitions.version,
+      manifest: this.createManifestFromBot(install.bot_definitions),
       config: install.config as Record<string, any>,
       isEnabled: install.isEnabled,
       isDefault: false, // Would need to store this in database
@@ -324,10 +321,10 @@ export class DatabaseBotManager implements BotManager {
   }
 
   async get(botId: string): Promise<BotInstallation | null> {
-    const installation = await prisma.botInstall.findUnique({
+    const installation = await prisma.bot_installs.findUnique({
       where: { botId },
       include: {
-        bot: true,
+        bot_definitions: true,
       },
     });
 
@@ -338,8 +335,8 @@ export class DatabaseBotManager implements BotManager {
     return {
       id: installation.id,
       packageName: `@colloquium/bot-${installation.botId}`,
-      version: installation.bot.version,
-      manifest: this.createManifestFromBot(installation.bot),
+      version: installation.bot_definitions.version,
+      manifest: this.createManifestFromBot(installation.bot_definitions),
       config: installation.config as Record<string, any>,
       isEnabled: installation.isEnabled,
       isDefault: false,
@@ -643,7 +640,7 @@ export class DatabaseBotManager implements BotManager {
           
           // Ensure bot user exists (create user ID mapping)
           const botEmail = `${plugin.bot.id}@colloquium.bot`;
-          let botUser = await prisma.user.findUnique({
+          let botUser = await prisma.users.findUnique({
             where: { email: botEmail }
           });
           

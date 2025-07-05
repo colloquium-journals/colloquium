@@ -6,6 +6,7 @@ import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
 import { botActionProcessor } from '../services/botActionProcessor';
 import { getBotQueue } from '../jobs';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 
@@ -29,10 +30,10 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
     
     case 'AUTHOR_VISIBLE':
       // Check if user is author, reviewer, editor, or admin
-      if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR') return true;
+      if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'ACTION_EDITOR') return true;
       
       // Check if user is an author of the manuscript
-      const authorRelation = await prisma.manuscriptAuthor.findFirst({
+      const authorRelation = await prisma.manuscript_authors.findFirst({
         where: { 
           manuscriptId,
           userId 
@@ -41,7 +42,7 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
       if (authorRelation) return true;
       
       // Check if user is assigned as reviewer
-      const reviewerAssignment = await prisma.reviewAssignment.findFirst({
+      const reviewerAssignment = await prisma.review_assignments.findFirst({
         where: {
           manuscriptId,
           reviewerId: userId
@@ -51,9 +52,9 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
     
     case 'REVIEWER_ONLY':
       // Only reviewers, editors, and admins
-      if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR') return true;
+      if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'ACTION_EDITOR') return true;
       
-      const reviewAssignment = await prisma.reviewAssignment.findFirst({
+      const reviewAssignment = await prisma.review_assignments.findFirst({
         where: {
           manuscriptId,
           reviewerId: userId
@@ -62,7 +63,7 @@ async function canUserSeeMessage(userId: string | undefined, userRole: string | 
       return !!reviewAssignment;
     
     case 'EDITOR_ONLY':
-      return userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR';
+      return userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'ACTION_EDITOR';
     
     case 'ADMIN_ONLY':
       return userRole === 'ADMIN';
@@ -77,7 +78,7 @@ function getDefaultPrivacyLevel(userRole: string | undefined): string {
   switch (userRole) {
     case 'ADMIN':
     case 'EDITOR_IN_CHIEF':
-    case 'MANAGING_EDITOR':
+    case 'ACTION_EDITOR':
       return 'AUTHOR_VISIBLE';
     case 'USER':
     default:
@@ -129,10 +130,10 @@ router.get('/', optionalAuth, async (req, res, next) => {
             contains: searchTerm,
             mode: 'insensitive'
           },
-          ...(Object.keys(manuscriptFilter).length > 0 && { manuscript: manuscriptFilter })
+          ...(Object.keys(manuscriptFilter).length > 0 && { manuscripts: manuscriptFilter })
         },
         {
-          manuscript: {
+          manuscripts: {
             title: {
               contains: searchTerm,
               mode: 'insensitive'
@@ -141,7 +142,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
           }
         },
         {
-          manuscript: {
+          manuscripts: {
             authors: {
               hasSome: [searchTerm]
             },
@@ -151,18 +152,18 @@ router.get('/', optionalAuth, async (req, res, next) => {
       ];
     } else if (Object.keys(manuscriptFilter).length > 0) {
       // Apply manuscript filter when no search term
-      where.manuscript = manuscriptFilter;
+      where.manuscripts = manuscriptFilter;
     }
 
     // Get conversations with related data
     const [conversations, total] = await Promise.all([
-      prisma.conversation.findMany({
+      prisma.conversations.findMany({
         where,
         skip,
         take: limitNum,
         orderBy: { updatedAt: 'desc' },
         include: {
-          manuscript: {
+          manuscripts: {
             select: {
               id: true,
               title: true,
@@ -173,14 +174,14 @@ router.get('/', optionalAuth, async (req, res, next) => {
           _count: {
             select: {
               messages: true,
-              participants: true
+              conversation_participants: true
             }
           },
           messages: {
             take: 1,
             orderBy: { createdAt: 'desc' },
             include: {
-              author: {
+              users: {
                 select: {
                   id: true,
                   name: true,
@@ -191,20 +192,20 @@ router.get('/', optionalAuth, async (req, res, next) => {
           }
         }
       }),
-      prisma.conversation.count({ where })
+      prisma.conversations.count({ where })
     ]);
 
     // Format response
     const formattedConversations = conversations.map(conv => ({
       id: conv.id,
       title: conv.title,
-      manuscript: conv.manuscript,
+      manuscript: conv.manuscripts,
       messageCount: conv._count.messages,
-      participantCount: conv._count.participants,
+      participantCount: conv._count.conversation_participants,
       lastMessage: conv.messages[0] ? {
         id: conv.messages[0].id,
         content: conv.messages[0].content,
-        author: conv.messages[0].author,
+        author: conv.messages[0].users,
         createdAt: conv.messages[0].createdAt,
         isBot: conv.messages[0].isBot
       } : null,
@@ -231,22 +232,20 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const conversation = await prisma.conversation.findUnique({
+    const conversation = await prisma.conversations.findUnique({
       where: { id },
       include: {
-        manuscript: {
+        manuscripts: {
           select: {
             id: true,
             title: true,
             authors: true,
-            files: {
-              orderBy: { uploadedAt: 'asc' }
-            }
+            status: true
           }
         },
-        participants: {
+        conversation_participants: {
           include: {
-            user: {
+            users: {
               select: {
                 id: true,
                 name: true,
@@ -259,7 +258,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         messages: {
           orderBy: { createdAt: 'asc' },
           include: {
-            author: {
+            users: {
               select: {
                 id: true,
                 name: true,
@@ -281,6 +280,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     // Filter messages based on user's permission to see them
     console.log(`Found ${conversation.messages.length} total messages for conversation ${id}`);
     const visibleMessages = [];
+    const messageVisibilityMap = [];
+    
     for (const msg of conversation.messages) {
       const canSee = await canUserSeeMessage(
         req.user?.id, 
@@ -289,6 +290,13 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         conversation.manuscriptId
       );
       console.log(`Message ${msg.id} (privacy: ${msg.privacy}) - can user see: ${canSee}`);
+      
+      messageVisibilityMap.push({
+        id: msg.id,
+        visible: canSee,
+        createdAt: msg.createdAt
+      });
+      
       if (canSee) {
         visibleMessages.push(msg);
       }
@@ -299,29 +307,20 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     const formattedConversation = {
       id: conversation.id,
       title: conversation.title,
-      manuscript: {
-        ...conversation.manuscript,
-        files: conversation.manuscript.files?.map((file: any) => ({
-          id: file.id,
-          filename: file.filename,
-          originalName: file.originalName,
-          mimetype: file.mimetype,
-          size: file.size,
-          fileType: file.fileType,
-          uploadedAt: file.uploadedAt,
-          downloadUrl: `/api/articles/${conversation.manuscript.id}/files/${file.id}/download`
-        })) || []
-      },
-      participants: conversation.participants.map(p => ({
+      manuscript: conversation.manuscripts,
+      participants: conversation.conversation_participants.map(p => ({
         id: p.id,
         role: p.role,
-        user: p.user
+        user: p.users
       })),
+      totalMessageCount: conversation.messages.length,
+      visibleMessageCount: visibleMessages.length,
+      messageVisibilityMap,
       messages: visibleMessages.map(msg => ({
         id: msg.id,
         content: msg.content,
         privacy: msg.privacy,
-        author: msg.author,
+        author: msg.users,
         createdAt: msg.createdAt,
         updatedAt: msg.updatedAt,
         parentId: msg.parentId,
@@ -365,7 +364,7 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
     }
 
     // Verify conversation exists and get manuscript info
-    const conversation = await prisma.conversation.findUnique({
+    const conversation = await prisma.conversations.findUnique({
       where: { id: conversationId },
       select: { 
         id: true, 
@@ -383,7 +382,7 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
 
     // Verify parent message exists if provided
     if (parentId) {
-      const parentMessage = await prisma.message.findUnique({
+      const parentMessage = await prisma.messages.findUnique({
         where: { id: parentId },
         select: { id: true, conversationId: true }
       });
@@ -409,17 +408,19 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       isBot: false
     });
 
-    const message = await prisma.message.create({
+    const message = await prisma.messages.create({
       data: {
+        id: randomUUID(),
         content: content.trim(),
         conversationId,
         authorId: req.user!.id,
         parentId: parentId || null,
         privacy: messagePrivacy,
-        isBot: false
+        isBot: false,
+        updatedAt: new Date()
       },
       include: {
-        author: {
+        users: {
           select: {
             id: true,
             name: true,
@@ -432,7 +433,7 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
     console.log('Message created successfully:', message.id);
 
     // Update conversation's updatedAt timestamp
-    await prisma.conversation.update({
+    await prisma.conversations.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() }
     });
@@ -478,7 +479,7 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       id: message.id,
       content: message.content,
       privacy: message.privacy,
-      author: message.author,
+      author: message.users,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       parentId: message.parentId,

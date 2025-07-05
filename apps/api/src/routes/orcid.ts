@@ -140,7 +140,7 @@ router.get('/callback', async (req, res) => {
     }
 
     // Check if this ORCID is already associated with another user
-    const existingUser = await prisma.user.findFirst({
+    const existingUser = await prisma.users.findFirst({
       where: {
         orcidId: orcid,
         id: { not: userId }
@@ -155,7 +155,7 @@ router.get('/callback', async (req, res) => {
     const encryptedToken = encryptToken(access_token);
 
     // Update user with verified ORCID data
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: userId },
       data: {
         orcidId: orcid,
@@ -179,7 +179,7 @@ router.get('/callback', async (req, res) => {
 // Unlink ORCID account
 router.delete('/unlink', authenticate, async (req, res) => {
   try {
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: req.user!.id },
       data: {
         orcidId: null,
@@ -207,7 +207,7 @@ router.delete('/unlink', authenticate, async (req, res) => {
 // Get ORCID verification status
 router.get('/status', authenticate, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: req.user!.id },
       select: {
         orcidId: true,

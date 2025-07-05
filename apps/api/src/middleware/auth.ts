@@ -42,7 +42,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       const payload = verifyJWT(token);
       
       // Get fresh user data from database
-      const user = await prisma.user.findUnique({
+      const user = await prisma.users.findUnique({
         where: { id: payload.userId },
         select: {
           id: true,
@@ -170,7 +170,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
       try {
         const payload = verifyJWT(token);
         
-        const user = await prisma.user.findUnique({
+        const user = await prisma.users.findUnique({
           where: { id: payload.userId },
           select: {
             id: true,

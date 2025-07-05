@@ -101,7 +101,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
     }
 
     // If user is not authenticated or not an editor/admin, only show published and retracted manuscripts
-    if (!req.user || (req.user.role !== GlobalRole.EDITOR_IN_CHIEF && req.user.role !== GlobalRole.MANAGING_EDITOR && req.user.role !== GlobalRole.ADMIN)) {
+    if (!req.user || (req.user.role !== GlobalRole.EDITOR_IN_CHIEF && req.user.role !== GlobalRole.ACTION_EDITOR && req.user.role !== GlobalRole.ADMIN)) {
       where.status = { in: ['PUBLISHED', 'RETRACTED'] };
     }
 
@@ -110,11 +110,11 @@ router.get('/', optionalAuth, async (req, res, next) => {
       where.OR = [
         { title: { contains: search as string, mode: 'insensitive' } },
         { abstract: { contains: search as string, mode: 'insensitive' } },
-        // Search in the authorRelations -> user name for partial author name matches
+        // Search in the manuscript_authors -> user name for partial author name matches
         {
-          authorRelations: {
+          manuscript_authors: {
             some: {
-              user: {
+                users: {
                 name: { contains: search as string, mode: 'insensitive' }
               }
             }
@@ -132,7 +132,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
 
     // Get manuscripts with related data
     const [manuscripts, total] = await Promise.all([
-      prisma.manuscript.findMany({
+      prisma.manuscripts.findMany({
         where,
         skip,
         take: limitNum,
@@ -143,9 +143,9 @@ router.get('/', optionalAuth, async (req, res, next) => {
               conversations: true
             }
           },
-          authorRelations: {
+          manuscript_authors: {
             include: {
-              user: {
+                users: {
                 select: {
                   id: true,
                   name: true,
@@ -158,7 +158,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
           }
         }
       }),
-      prisma.manuscript.count({ where })
+      prisma.manuscripts.count({ where })
     ]);
 
     // Format response
@@ -167,11 +167,11 @@ router.get('/', optionalAuth, async (req, res, next) => {
       title: manuscript.title,
       abstract: manuscript.abstract,
       authors: manuscript.authors, // Legacy field
-      authorDetails: manuscript.authorRelations.map((rel: any) => ({
-        id: rel.user.id,
-        name: rel.user.name,
-        email: rel.user.email,
-        orcidId: rel.user.orcidId,
+      authorDetails: manuscript.manuscript_authors.map((rel: any) => ({
+        id: rel.users.id,
+        name: rel.users.name,
+        email: rel.users.email,
+        orcidId: rel.users.orcidId,
         order: rel.order,
         isCorresponding: rel.isCorresponding
       })),
@@ -240,13 +240,13 @@ router.post('/', authenticate, (req, res, next) => {
         const authorData = manuscriptData.authors[i];
         
         // Look for existing user
-        let user = await tx.user.findUnique({
+        let user = await tx.users.findUnique({
           where: { email: authorData.email.toLowerCase() }
         });
         
         // Create new user if they don't exist
         if (!user) {
-          user = await tx.user.create({
+          user = await tx.users.create({
             data: {
               email: authorData.email.toLowerCase(),
               name: authorData.name,
@@ -265,7 +265,7 @@ router.post('/', authenticate, (req, res, next) => {
       }
       
       // Create the manuscript
-      const manuscript = await tx.manuscript.create({
+      const manuscript = await tx.manuscripts.create({
         data: {
           title: manuscriptData.title.trim(),
           abstract: manuscriptData.abstract.trim(),
@@ -357,7 +357,7 @@ router.post('/', authenticate, (req, res, next) => {
 
         // Set the primary file URL (first uploaded file)
         if (manuscriptFiles.length > 0) {
-          await tx.manuscript.update({
+          await tx.manuscripts.update({
             where: { id: manuscript.id },
             data: { 
               fileUrl: `/api/manuscripts/${manuscript.id}/files/${manuscriptFiles[0].id}/download`
@@ -453,13 +453,13 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id },
       include: {
         files: {
           orderBy: { uploadedAt: 'asc' }
         },
-        authorRelations: {
+        manuscript_authors: {
           include: {
             user: {
               select: {
@@ -482,12 +482,12 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
             }
           }
         },
-        actionEditor: {
+        action_editors: {
           select: {
             editorId: true
           }
         },
-        reviews: {
+        review_assignments: {
           select: {
             reviewerId: true
           }
@@ -513,9 +513,9 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
     console.log('DEBUG: Manuscript status:', manuscript.status);
     
     const isPublished = manuscript.status === 'PUBLISHED' || manuscript.status === 'RETRACTED';
-    const isAuthor = req.user && manuscript.authorRelations.some((rel: any) => rel.userId === req.user!.id);
-    const isActionEditor = req.user && manuscript.actionEditor?.editorId === req.user.id;
-    const isReviewer = req.user && manuscript.reviews.some((review: any) => review.reviewerId === req.user!.id);
+    const isAuthor = req.user && manuscript.manuscript_authors.some((rel: any) => rel.usersId === req.user!.id);
+    const isActionEditor = req.user && manuscript.action_editors?.editorId === req.user.id;
+    const isReviewer = req.user && manuscript.review_assignments.some((review: any) => review.reviewerId === req.user!.id);
     
     console.log('DEBUG: Permission context - isPublished:', isPublished, 'isAuthor:', isAuthor, 'isActionEditor:', isActionEditor, 'isReviewer:', isReviewer);
     console.log('DEBUG: Bot context:', req.botContext);
@@ -550,11 +550,11 @@ router.get('/:id', authenticateWithBots, async (req, res, next) => {
       title: manuscript.title,
       abstract: manuscript.abstract,
       authors: manuscript.authors, // Legacy field
-      authorDetails: manuscript.authorRelations.map((rel: any) => ({
-        id: rel.user.id,
-        name: rel.user.name,
-        email: rel.user.email,
-        orcidId: rel.user.orcidId,
+      authorDetails: manuscript.manuscript_authors.map((rel: any) => ({
+        id: rel.users.id,
+        name: rel.users.name,
+        email: rel.users.email,
+        orcidId: rel.users.orcidId,
         order: rel.order,
         isCorresponding: rel.isCorresponding
       })),
@@ -640,7 +640,7 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
     
     if (!isBotWithAccess && !req.user) {
       // No authentication at all - check if file is from a published manuscript
-      const manuscript = await prisma.manuscript.findUnique({
+      const manuscript = await prisma.manuscripts.findUnique({
         where: { id }
       });
       
@@ -695,10 +695,10 @@ router.put('/:id', authenticate, async (req, res, next) => {
     const { title, abstract, content, keywords, status } = req.body;
 
     // Validate that manuscript exists and check permissions
-    const existingManuscript = await prisma.manuscript.findUnique({
+    const existingManuscript = await prisma.manuscripts.findUnique({
       where: { id },
       include: {
-        authorRelations: {
+        manuscript_authors: {
           where: { userId: req.user!.id }
         }
       }
@@ -712,7 +712,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     }
 
     // Check if user can edit this manuscript
-    const isAuthor = existingManuscript.authorRelations.length > 0;
+    const isAuthor = existingManuscript.manuscript_authors.length > 0;
     const isEditor = req.user!.role === GlobalRole.EDITOR_IN_CHIEF || req.user!.role === GlobalRole.ADMIN;
     
     if (!isAuthor && !isEditor) {
@@ -723,7 +723,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     }
 
     // Update manuscript
-    const manuscript = await prisma.manuscript.update({
+    const manuscript = await prisma.manuscripts.update({
       where: { id },
       data: {
         ...(title && { title: title.trim() }),
@@ -758,7 +758,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
     const { id } = req.params;
 
     // Verify manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id }
     });
 
@@ -852,7 +852,7 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
     const { fileType = 'SUPPLEMENTARY', renderedBy } = req.body;
     
     // Verify manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id }
     });
 
@@ -962,16 +962,16 @@ router.delete('/:id/files/:fileId', authenticate, async (req, res, next) => {
     }
 
     // Check permissions (authors and editors can delete files)
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        authorRelations: {
+        manuscript_authors: {
           where: { userId: req.user!.id }
         }
       }
     });
 
-    const isAuthor = manuscript?.authorRelations.length ?? 0 > 0;
+    const isAuthor = manuscript?.manuscript_authors.length ?? 0 > 0;
     const isEditor = req.user!.role === GlobalRole.EDITOR_IN_CHIEF || req.user!.role === GlobalRole.ADMIN;
     
     if (!isAuthor && !isEditor) {
@@ -1030,10 +1030,10 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
     const validatedData = assignmentSchema.parse({ editorId });
 
     // Check if manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        actionEditor: {
+        action_editors: {
           include: {
             editor: {
               select: {
@@ -1055,7 +1055,7 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
     }
 
     // Verify the editor exists and has appropriate role
-    const editor = await prisma.user.findUnique({
+    const editor = await prisma.users.findUnique({
       where: { id: validatedData.editorId },
       select: {
         id: true,
@@ -1082,9 +1082,9 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
     }
 
     // Check if action editor already assigned
-    if (manuscript.actionEditor) {
+    if (manuscript.action_editors) {
       // Update existing assignment
-      const updatedAssignment = await prisma.actionEditor.update({
+      const updatedAssignment = await prisma.action_editors.update({
         where: { manuscriptId },
         data: {
           editorId: validatedData.editorId,
@@ -1108,12 +1108,12 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
           manuscriptId,
           editor: updatedAssignment.editor,
           assignedAt: updatedAssignment.assignedAt,
-          previousEditor: manuscript.actionEditor.editor
+          previousEditor: manuscript.action_editors.editor
         }
       });
     } else {
       // Create new assignment
-      const newAssignment = await prisma.actionEditor.create({
+      const newAssignment = await prisma.action_editors.create({
         data: {
           manuscriptId,
           editorId: validatedData.editorId,
@@ -1170,7 +1170,7 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
     const validatedData = updateSchema.parse({ editorId });
 
     // Check if assignment exists
-    const existingAssignment = await prisma.actionEditor.findUnique({
+    const existingAssignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
         editor: {
@@ -1191,7 +1191,7 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
     }
 
     // Verify the new editor exists and has appropriate role
-    const newEditor = await prisma.user.findUnique({
+    const newEditor = await prisma.users.findUnique({
       where: { id: validatedData.editorId },
       select: {
         id: true,
@@ -1217,7 +1217,7 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
     }
 
     // Update assignment
-    const updatedAssignment = await prisma.actionEditor.update({
+    const updatedAssignment = await prisma.action_editors.update({
       where: { manuscriptId },
       data: {
         editorId: validatedData.editorId,
@@ -1266,7 +1266,7 @@ router.delete('/:id/action-editor', authenticate, requireActionEditorPermission,
     const { id: manuscriptId } = req.params;
 
     // Check if assignment exists
-    const existingAssignment = await prisma.actionEditor.findUnique({
+    const existingAssignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
         editor: {
@@ -1287,7 +1287,7 @@ router.delete('/:id/action-editor', authenticate, requireActionEditorPermission,
     }
 
     // Remove assignment
-    await prisma.actionEditor.delete({
+    await prisma.action_editors.delete({
       where: { manuscriptId }
     });
 
@@ -1328,7 +1328,7 @@ router.get('/:id/action-editor', authenticate, async (req, res, next) => {
     }
 
     // Get assignment
-    const assignment = await prisma.actionEditor.findUnique({
+    const assignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
         editor: {

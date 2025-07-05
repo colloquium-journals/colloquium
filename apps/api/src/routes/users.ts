@@ -11,7 +11,7 @@ const router = Router();
 
 // Additional validation schemas specific to users
 const updateRoleSchema = z.object({
-  role: z.enum(['AUTHOR', 'REVIEWER', 'EDITOR', 'ADMIN'])
+  role: z.enum(['USER', 'ACTION_EDITOR', 'EDITOR_IN_CHIEF', 'ADMIN'])
 });
 
 const updateProfileSchema = z.object({
@@ -76,7 +76,7 @@ router.get('/', authenticate, (req, res, next) => {
     }
 
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      prisma.users.findMany({
         where,
         skip,
         take: limitNum,
@@ -98,7 +98,7 @@ router.get('/', authenticate, (req, res, next) => {
           }
         }
       }),
-      prisma.user.count({ where })
+      prisma.users.count({ where })
     ]);
 
     res.json({
@@ -127,7 +127,7 @@ router.get('/lookup', authenticate, async (req, res, next) => {
       });
     }
     
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email: email.toLowerCase() },
       select: {
         id: true,
@@ -160,7 +160,7 @@ router.get('/lookup', authenticate, async (req, res, next) => {
 // GET /api/users/me - Get current user profile
 router.get('/me', authenticate, async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: req.user!.id },
       include: {
         authoredManuscripts: {
@@ -305,7 +305,7 @@ router.get('/profile/:identifier', authenticate, async (req, res, next) => {
     }
     
     // Look up user by ID or email
-    const user = await prisma.user.findFirst({
+    const user = await prisma.users.findFirst({
       where: {
         OR: [
           { id: identifier },
@@ -397,7 +397,7 @@ router.put('/me', authenticate, async (req, res, next) => {
     if (orcidId !== undefined) {
       if (orcidId) {
         // Check if ORCID ID is already taken by another user
-        const existingUser = await prisma.user.findFirst({
+        const existingUser = await prisma.users.findFirst({
           where: {
             orcidId,
             id: { not: req.user!.id }
@@ -434,7 +434,7 @@ router.put('/me', authenticate, async (req, res, next) => {
       }
     }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.users.update({
       where: { id: req.user!.id },
       data: updates,
       select: {
@@ -464,7 +464,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id },
       select: {
         id: true,
@@ -551,10 +551,10 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST /api/users/:id/role - Update user role (admin only)
+// POST /api/users/:id/role - Update user role (admin or editor-in-chief only)
 router.post('/:id/role', authenticate, (req, res, next) => {
   const { GlobalRole } = require('@colloquium/auth');
-  return requireRole(GlobalRole.ADMIN)(req, res, next);
+  return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF])(req, res, next);
 }, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -573,10 +573,33 @@ router.post('/:id/role', authenticate, (req, res, next) => {
     // Map string role to PrismaGlobalRole enum
     const roleMapping: Record<string, PrismaGlobalRole> = {
       'ADMIN': PrismaGlobalRole.ADMIN,
-      'EDITOR': PrismaGlobalRole.EDITOR_IN_CHIEF,
-      'AUTHOR': PrismaGlobalRole.USER,
-      'REVIEWER': PrismaGlobalRole.USER
+      'EDITOR_IN_CHIEF': PrismaGlobalRole.EDITOR_IN_CHIEF,
+      'ACTION_EDITOR': PrismaGlobalRole.ACTION_EDITOR,
+      'USER': PrismaGlobalRole.USER
     };
+
+    // Check if user has permission to assign this role
+    const currentUserRole = req.user!.role;
+    const targetRole = roleMapping[role];
+    
+    // Only ADMIN can assign ADMIN or EDITOR_IN_CHIEF roles
+    if ((targetRole === PrismaGlobalRole.ADMIN || targetRole === PrismaGlobalRole.EDITOR_IN_CHIEF) && 
+        currentUserRole !== PrismaGlobalRole.ADMIN) {
+      return res.status(403).json({
+        error: 'Insufficient Permissions',
+        message: 'Only administrators can assign ADMIN or EDITOR_IN_CHIEF roles'
+      });
+    }
+    
+    // EDITOR_IN_CHIEF can assign ACTION_EDITOR and USER roles
+    if (currentUserRole === PrismaGlobalRole.EDITOR_IN_CHIEF && 
+        targetRole !== PrismaGlobalRole.ACTION_EDITOR && 
+        targetRole !== PrismaGlobalRole.USER) {
+      return res.status(403).json({
+        error: 'Insufficient Permissions',
+        message: 'Editors-in-Chief can only assign ACTION_EDITOR and USER roles'
+      });
+    }
 
     const mappedRole = roleMapping[role];
     if (!mappedRole) {
@@ -586,15 +609,24 @@ router.post('/:id/role', authenticate, (req, res, next) => {
       });
     }
 
-    // Prevent admins from removing their own admin role
-    if (id === req.user!.id && role !== 'ADMIN') {
+    // Prevent users from removing their own admin role
+    if (id === req.user!.id && req.user!.role === PrismaGlobalRole.ADMIN && role !== 'ADMIN') {
       return res.status(400).json({
         error: 'Cannot Modify Own Role',
         message: 'Administrators cannot remove their own admin privileges'
       });
     }
+    
+    // Prevent users from removing their own editor-in-chief role unless they're also admin
+    if (id === req.user!.id && req.user!.role === PrismaGlobalRole.EDITOR_IN_CHIEF && 
+        role !== 'EDITOR_IN_CHIEF' && currentUserRole !== PrismaGlobalRole.ADMIN) {
+      return res.status(400).json({
+        error: 'Cannot Modify Own Role',
+        message: 'Editors-in-Chief cannot remove their own role unless they are also administrators'
+      });
+    }
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.users.update({
       where: { id },
       data: { role: mappedRole, updatedAt: new Date() },
       select: {

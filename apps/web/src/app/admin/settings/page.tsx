@@ -200,7 +200,9 @@ export default function JournalSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string | null>('basic');
+  const [activeTab, setActiveTab] = useState<string | null>(
+    user?.role === 'EDITOR_IN_CHIEF' ? 'users' : 'basic'
+  );
 
   // Bot management state
   const [bots, setBots] = useState<BotInstallation[]>([]);
@@ -814,13 +816,14 @@ export default function JournalSettingsPage() {
   };
 
   // Change user role
-  const handleChangeUserRole = async (userId: string, newRole: 'ADMIN' | 'EDITOR' | 'USER') => {
+  const handleChangeUserRole = async (userId: string, newRole: 'ADMIN' | 'EDITOR_IN_CHIEF' | 'ACTION_EDITOR' | 'USER') => {
     try {
       // Map frontend roles to backend roles
       const roleMapping = {
         'ADMIN': 'ADMIN',
-        'EDITOR': 'EDITOR', 
-        'USER': 'AUTHOR'
+        'EDITOR_IN_CHIEF': 'EDITOR_IN_CHIEF',
+        'ACTION_EDITOR': 'ACTION_EDITOR',
+        'USER': 'USER'
       };
       
       const response = await fetch(`http://localhost:4000/api/users/${userId}/role`, {
@@ -854,11 +857,11 @@ export default function JournalSettingsPage() {
 
 
   // Check if user is admin
-  if (!isAuthenticated || user?.role !== 'ADMIN') {
+  if (!isAuthenticated || (user?.role !== 'ADMIN' && user?.role !== 'EDITOR_IN_CHIEF')) {
     return (
       <Container size="md" py="xl">
         <Alert icon={<IconAlertCircle size={16} />} color="red">
-          Admin access required to manage journal settings.
+          Admin or Editor-in-Chief access required to manage journal settings.
         </Alert>
       </Container>
     );
@@ -905,27 +908,41 @@ export default function JournalSettingsPage() {
         {/* Settings Tabs */}
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Tab value="basic" leftSection={<IconSettings size={16} />}>
-              Basic Info
-            </Tabs.Tab>
-            <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
-              Appearance
-            </Tabs.Tab>
-            <Tabs.Tab value="submissions" leftSection={<IconUsers size={16} />}>
-              Submissions
-            </Tabs.Tab>
-            <Tabs.Tab value="publishing" leftSection={<IconWorld size={16} />}>
-              Publishing
-            </Tabs.Tab>
-            <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
-              Email
-            </Tabs.Tab>
-            <Tabs.Tab value="advanced" leftSection={<IconShield size={16} />}>
-              Advanced
-            </Tabs.Tab>
-            <Tabs.Tab value="bots" leftSection={<IconRobot size={16} />}>
-              Bots
-            </Tabs.Tab>
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="basic" leftSection={<IconSettings size={16} />}>
+                Basic Info
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="appearance" leftSection={<IconPalette size={16} />}>
+                Appearance
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="submissions" leftSection={<IconUsers size={16} />}>
+                Submissions
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="publishing" leftSection={<IconWorld size={16} />}>
+                Publishing
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="email" leftSection={<IconMail size={16} />}>
+                Email
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="advanced" leftSection={<IconShield size={16} />}>
+                Advanced
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="bots" leftSection={<IconRobot size={16} />}>
+                Bots
+              </Tabs.Tab>
+            )}
             <Tabs.Tab value="users" leftSection={<IconUsers size={16} />}>
               Users
             </Tabs.Tab>
@@ -1466,7 +1483,8 @@ export default function JournalSettingsPage() {
                       data={[
                         { value: 'all', label: 'All Users' },
                         { value: 'ADMIN', label: 'Admins' },
-                        { value: 'EDITOR_IN_CHIEF', label: 'Editors' },
+                        { value: 'EDITOR_IN_CHIEF', label: 'Editors-in-Chief' },
+                        { value: 'ACTION_EDITOR', label: 'Action Editors' },
                         { value: 'USER', label: 'Users' }
                       ]}
                       style={{ width: 150 }}
@@ -1546,11 +1564,13 @@ export default function JournalSettingsPage() {
                               <Badge 
                                 color={
                                   usr.role === 'ADMIN' ? 'red' : 
-                                  usr.role === 'EDITOR_IN_CHIEF' ? 'blue' : 'gray'
+                                  usr.role === 'EDITOR_IN_CHIEF' ? 'blue' : 
+                                  usr.role === 'ACTION_EDITOR' ? 'green' : 'gray'
                                 }
                                 variant="light"
                               >
-                                {usr.role === 'EDITOR_IN_CHIEF' ? 'EDITOR' : usr.role}
+                                {usr.role === 'EDITOR_IN_CHIEF' ? 'EDITOR-IN-CHIEF' : 
+                                 usr.role === 'ACTION_EDITOR' ? 'ACTION EDITOR' : usr.role}
                               </Badge>
                             </Table.Td>
                             <Table.Td>
@@ -1580,9 +1600,14 @@ export default function JournalSettingsPage() {
                                         Make Admin
                                       </Menu.Item>
                                       <Menu.Item
-                                        onClick={() => handleChangeUserRole(usr.id, 'EDITOR')}
+                                        onClick={() => handleChangeUserRole(usr.id, 'EDITOR_IN_CHIEF')}
                                       >
-                                        Make Editor
+                                        Make Editor-in-Chief
+                                      </Menu.Item>
+                                      <Menu.Item
+                                        onClick={() => handleChangeUserRole(usr.id, 'ACTION_EDITOR')}
+                                      >
+                                        Make Action Editor
                                       </Menu.Item>
                                     </>
                                   )}
@@ -1599,7 +1624,15 @@ export default function JournalSettingsPage() {
                                       onClick={() => handleChangeUserRole(usr.id, 'USER')}
                                       color="orange"
                                     >
-                                      Remove Editor Role
+                                      Remove Editor-in-Chief Role
+                                    </Menu.Item>
+                                  )}
+                                  {usr.role === 'ACTION_EDITOR' && (
+                                    <Menu.Item
+                                      onClick={() => handleChangeUserRole(usr.id, 'USER')}
+                                      color="orange"
+                                    >
+                                      Remove Action Editor Role
                                     </Menu.Item>
                                   )}
                                 </Menu.Dropdown>

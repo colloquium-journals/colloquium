@@ -81,12 +81,12 @@ async function getManuscriptData(manuscriptId: string, context: any) {
     const { prisma } = await import('@colloquium/database');
     
     // Fetch manuscript with all related assignment data
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        actionEditor: {
+        action_editors: {
           include: {
-            editor: {
+            users_action_editors_editorIdTousers: {
               select: {
                 id: true,
                 name: true,
@@ -96,9 +96,9 @@ async function getManuscriptData(manuscriptId: string, context: any) {
             }
           }
         },
-        reviews: {
+        review_assignments: {
           include: {
-            reviewer: {
+            users: {
               select: {
                 id: true,
                 name: true,
@@ -116,23 +116,23 @@ async function getManuscriptData(manuscriptId: string, context: any) {
     }
 
     // Process reviewer data with real status information
-    const reviewers = manuscript.reviews.map(review => ({
-      mention: `@${review.reviewer.name}`,
+    const reviewers = manuscript.review_assignments.map((review: any) => ({
+      mention: `@${review.users.name}`,
       status: review.completedAt ? 'completed' : 'pending',
       assignedDate: review.assignedAt.toISOString().split('T')[0],
-      userId: review.reviewer.id,
+      userId: review.users.id,
       reviewId: review.id,
       deadline: review.dueDate ? review.dueDate.toISOString().split('T')[0] : null
     }));
 
     // Calculate completion statistics
-    const completedReviews = reviewers.filter(r => r.status === 'completed').length;
+    const completedReviews = reviewers.filter((r: any) => r.status === 'completed').length;
     const totalReviews = reviewers.length;
 
     // Determine the most recent activity date
     const activityDates = [
       manuscript.updatedAt,
-      ...manuscript.reviews.map(r => r.assignedAt)
+      ...manuscript.review_assignments.map((r: any) => r.assignedAt)
     ].filter(Boolean);
     
     const lastActivity = activityDates.length > 0 
@@ -140,21 +140,21 @@ async function getManuscriptData(manuscriptId: string, context: any) {
       : manuscript.submittedAt.toISOString().split('T')[0];
 
     // Find the earliest review deadline if any
-    const reviewDeadlines = manuscript.reviews
-      .map(r => r.dueDate)
+    const reviewDeadlines = manuscript.review_assignments
+      .map((r: any) => r.dueDate)
       .filter(Boolean)
-      .map(d => new Date(d!));
+      .map((d: any) => new Date(d!));
     
     const earliestDeadline = reviewDeadlines.length > 0 
-      ? new Date(Math.min(...reviewDeadlines.map(d => d.getTime()))).toISOString().split('T')[0]
+      ? new Date(Math.min(...reviewDeadlines.map((d: any) => d.getTime()))).toISOString().split('T')[0]
       : null;
 
     return {
       id: manuscriptId,
       status: manuscript.status,
       submittedDate: manuscript.submittedAt.toISOString().split('T')[0],
-      assignedEditor: manuscript.actionEditor 
-        ? `@${manuscript.actionEditor.editor.name}`
+      assignedEditor: manuscript.action_editors 
+        ? `@${manuscript.action_editors.users_action_editors_editorIdTousers.name}`
         : null,
       reviewers,
       completedReviews,
@@ -201,7 +201,7 @@ async function checkActionEditorAssignmentPermission(userId: string, context: an
     const { GlobalRole } = await import('@prisma/client');
 
     // Get user with role information
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: userId },
       select: { id: true, role: true }
     });
@@ -216,10 +216,10 @@ async function checkActionEditorAssignmentPermission(userId: string, context: an
     // Only admin, editor-in-chief, and managing editor can assign action editors
     const hasPermission = user.role === GlobalRole.ADMIN || 
            user.role === GlobalRole.EDITOR_IN_CHIEF || 
-           user.role === GlobalRole.MANAGING_EDITOR;
+           user.role === GlobalRole.ACTION_EDITOR;
     
     console.log('🔍 User role:', user.role);
-    console.log('🔍 Valid roles:', [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR]);
+    console.log('🔍 Valid roles:', [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ACTION_EDITOR]);
     console.log('🔍 Has permission:', hasPermission);
     
     return hasPermission;
@@ -241,7 +241,7 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
     const username = mention.replace('@', '');
 
     // Find user by name
-    const user = await prisma.user.findFirst({
+    const user = await prisma.users.findFirst({
       where: { name: username },
       select: {
         id: true,
@@ -259,7 +259,7 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
     }
 
     // Check if user has appropriate role to be an action editor
-    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR];
+    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ACTION_EDITOR];
     if (!validEditorRoles.includes(user.role as any)) {
       return {
         isValid: false,
@@ -268,10 +268,10 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
     }
 
     // Check if an action editor is already assigned to this manuscript
-    const existingAssignment = await prisma.actionEditor.findUnique({
+    const existingAssignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
-        editor: {
+        users_action_editors_editorIdTousers: {
           select: { name: true }
         }
       }
@@ -280,17 +280,17 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
     if (existingAssignment) {
       return {
         isValid: false,
-        error: `An action editor (@${existingAssignment.editor.name}) is already assigned to this manuscript. Please use an update command to change the assignment.`
+        error: `An action editor (@${existingAssignment.users_action_editors_editorIdTousers.name}) is already assigned to this manuscript. Please use an update command to change the assignment.`
       };
     }
 
     // Check if this user is an author of the manuscript (conflict of interest)
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        authorRelations: {
+        manuscript_authors: {
           include: {
-            user: {
+            users: {
               select: { id: true, name: true }
             }
           }
@@ -299,7 +299,7 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
     });
 
     if (manuscript) {
-      const authorIds = manuscript.authorRelations.map(ar => ar.user.id);
+      const authorIds = manuscript.manuscript_authors.map((ar: any) => ar.users.id);
       if (authorIds.includes(user.id)) {
         return {
           isValid: false,
@@ -327,7 +327,7 @@ async function checkReviewerAssignmentPermission(userId: string, manuscriptId: s
     const { GlobalRole } = await import('@prisma/client');
 
     // Get user with role information
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: userId },
       select: { id: true, role: true }
     });
@@ -337,12 +337,12 @@ async function checkReviewerAssignmentPermission(userId: string, manuscriptId: s
     }
 
     // Admin and editor-in-chief always have permission
-    if (user.role === GlobalRole.ADMIN || user.role === GlobalRole.EDITOR_IN_CHIEF || user.role === GlobalRole.MANAGING_EDITOR) {
+    if (user.role === GlobalRole.ADMIN || user.role === GlobalRole.EDITOR_IN_CHIEF || user.role === GlobalRole.ACTION_EDITOR) {
       return true;
     }
 
     // Check if user is the action editor for this manuscript
-    const actionEditor = await prisma.actionEditor.findUnique({
+    const actionEditor = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       select: { editorId: true }
     });
@@ -365,7 +365,7 @@ async function validateReviewers(mentions: string[], manuscriptId: string): Prom
     const usernames = mentions.map(mention => mention.replace('@', ''));
 
     // Find users by name (this assumes names are unique - in production you might want email-based lookup)
-    const users = await prisma.user.findMany({
+    const users = await prisma.users.findMany({
       where: {
         name: { in: usernames }
       },
@@ -378,7 +378,7 @@ async function validateReviewers(mentions: string[], manuscriptId: string): Prom
     });
 
     // Check if all mentioned users were found
-    const foundUsernames = users.map(u => u.name);
+    const foundUsernames = users.map((u: any) => u.name);
     const missingUsers = usernames.filter(name => !foundUsernames.includes(name));
 
     if (missingUsers.length > 0) {
@@ -389,12 +389,12 @@ async function validateReviewers(mentions: string[], manuscriptId: string): Prom
     }
 
     // Check if any of the users are authors of this manuscript (conflict of interest)
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        authorRelations: {
+        manuscript_authors: {
           include: {
-            user: {
+            users: {
               select: { id: true, name: true }
             }
           }
@@ -403,32 +403,32 @@ async function validateReviewers(mentions: string[], manuscriptId: string): Prom
     });
 
     if (manuscript) {
-      const authorIds = manuscript.authorRelations.map(ar => ar.user.id);
-      const conflictUsers = users.filter(user => authorIds.includes(user.id));
+      const authorIds = manuscript.manuscript_authors.map((ar: any) => ar.users.id);
+      const conflictUsers = users.filter((user: any) => authorIds.includes(user.id));
 
       if (conflictUsers.length > 0) {
         return {
           isValid: false,
-          error: `Cannot assign authors as reviewers: ${conflictUsers.map(u => `@${u.name}`).join(', ')}. This would create a conflict of interest.`
+          error: `Cannot assign authors as reviewers: ${conflictUsers.map((u: any) => `@${u.name}`).join(', ')}. This would create a conflict of interest.`
         };
       }
     }
 
     // Check if any users are already assigned as reviewers
-    const existingReviews = await prisma.reviewAssignment.findMany({
+    const existingReviews = await prisma.review_assignments.findMany({
       where: {
         manuscriptId,
-        reviewerId: { in: users.map(u => u.id) }
+        reviewerId: { in: users.map((u: any) => u.id) }
       },
       include: {
-        reviewer: {
+        users: {
           select: { name: true }
         }
       }
     });
 
     if (existingReviews.length > 0) {
-      const alreadyAssigned = existingReviews.map(r => `@${r.reviewer.name}`).join(', ');
+      const alreadyAssigned = existingReviews.map((r: any) => `@${r.users.name}`).join(', ');
       return {
         isValid: false,
         error: `The following users are already assigned as reviewers: ${alreadyAssigned}. Please remove them from the list or use a different command to update existing assignments.`
@@ -804,7 +804,7 @@ const summaryCommand: BotCommand = {
     summary += `**Assigned Editor:** ${manuscriptData.assignedEditor || 'No editor assigned'}\n`;
     
     if (manuscriptData.reviewers.length > 0) {
-      summary += `**Assigned Reviewers:** ${manuscriptData.reviewers.map(r => r.mention).join(', ')}\n`;
+      summary += `**Assigned Reviewers:** ${manuscriptData.reviewers.map((r: any) => r.mention).join(', ')}\n`;
       summary += `**Review Progress:** ${manuscriptData.completedReviews}/${manuscriptData.totalReviews} reviews completed\n`;
     } else {
       summary += `**Assigned Reviewers:** No reviewers assigned\n`;
@@ -819,7 +819,7 @@ const summaryCommand: BotCommand = {
 
     if (format === 'detailed') {
       summary += `\n**Reviewer Status:**\n`;
-      manuscriptData.reviewers.forEach((reviewer, index) => {
+      manuscriptData.reviewers.forEach((reviewer: any, index: number) => {
         const statusIcon = reviewer.status === 'completed' ? '✅' : '⏳';
         const statusText = reviewer.status === 'completed' ? 'Complete' : 'Pending';
         summary += `${index + 1}. ${reviewer.mention} - ${statusIcon} ${statusText} (assigned ${reviewer.assignedDate})\n`;

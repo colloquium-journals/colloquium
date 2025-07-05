@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma, GlobalRole } from '@colloquium/database';
 import { generateJWT, generateSecureToken } from '@colloquium/auth';
 import * as nodemailer from 'nodemailer';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { validateRequest } from '../middleware/validation';
 
@@ -42,23 +43,26 @@ router.post('/login', validateRequest({ body: loginSchema }), async (req, res, n
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     // Find or create user
-    let user = await prisma.user.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email: email.toLowerCase() }
     });
 
     if (!user) {
       // Create new user with AUTHOR role by default
-      user = await prisma.user.create({
+      user = await prisma.users.create({
         data: {
+          id: randomUUID(),
           email: email.toLowerCase(),
-          role: GlobalRole.USER
+          role: GlobalRole.USER,
+          updatedAt: new Date()
         }
       });
     }
 
     // Create magic link record
-    await prisma.magicLink.create({
+    await prisma.magic_links.create({
       data: {
+        id: randomUUID(),
         email: email.toLowerCase(),
         token,
         expiresAt,
@@ -126,12 +130,12 @@ router.get('/verify', validateRequest({ query: verifySchema }), async (req, res,
     const { token, email } = req.query as { token: string; email: string };
 
     // Find the magic link
-    const magicLink = await prisma.magicLink.findUnique({
+    const magicLink = await prisma.magic_links.findUnique({
       where: { token },
-      include: { user: true }
+      include: { users: true }
     });
 
-    if (!magicLink || !magicLink.user) {
+    if (!magicLink || !magicLink.users) {
       return res.status(400).json({
         error: 'Invalid Token',
         message: 'This magic link is invalid or has already been used'
@@ -163,16 +167,16 @@ router.get('/verify', validateRequest({ query: verifySchema }), async (req, res,
     }
 
     // Mark magic link as used
-    await prisma.magicLink.update({
+    await prisma.magic_links.update({
       where: { token },
       data: { usedAt: new Date() }
     });
 
     // Generate JWT
     const jwtToken = generateJWT({
-      userId: magicLink.user.id,
-      email: magicLink.user.email,
-      role: magicLink.user.role
+      userId: magicLink.users.id,
+      email: magicLink.users.email,
+      role: magicLink.users.role
     });
 
     // Set HTTP-only cookie for security
@@ -184,7 +188,7 @@ router.get('/verify', validateRequest({ query: verifySchema }), async (req, res,
     });
 
     // Check if user needs to complete profile (new user without name)
-    const needsProfileCompletion = !magicLink.user.name;
+    const needsProfileCompletion = !magicLink.users.name;
     const finalRedirectUrl = needsProfileCompletion 
       ? `${process.env.FRONTEND_URL}/profile/complete`
       : magicLink.redirectUrl;
@@ -192,10 +196,10 @@ router.get('/verify', validateRequest({ query: verifySchema }), async (req, res,
     res.json({
       message: 'Successfully authenticated',
       user: {
-        id: magicLink.user.id,
-        email: magicLink.user.email,
-        name: magicLink.user.name,
-        role: magicLink.user.role
+        id: magicLink.users.id,
+        email: magicLink.users.email,
+        name: magicLink.users.name,
+        role: magicLink.users.role
       },
       token: jwtToken,
       redirectUrl: finalRedirectUrl,
@@ -226,7 +230,7 @@ router.get('/me', async (req, res, next) => {
       const payload = verifyJWT(token);
       
       // Get fresh user data from database
-      const user = await prisma.user.findUnique({
+      const user = await prisma.users.findUnique({
         where: { id: payload.userId },
         select: {
           id: true,
@@ -247,6 +251,7 @@ router.get('/me', async (req, res, next) => {
 
       res.json({
         user,
+        token, // Include token for SSE authentication
         permissions: [] // TODO: Add role-based permissions
       });
     } catch (jwtError) {

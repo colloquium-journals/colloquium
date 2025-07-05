@@ -99,6 +99,12 @@ A: Typically 8-12 weeks from submission to decision.
 **Q: Can I withdraw my submission?**
 A: Yes, you can withdraw at any time before publication.
 
+## Editorial Team
+
+Our submissions are handled by our expert editorial board:
+
+{{editorial-board:list}}
+
 ## Getting Help
 
 If you need assistance during the submission or review process:

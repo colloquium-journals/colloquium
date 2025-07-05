@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UseSSEOptions {
   enabled?: boolean;
@@ -7,6 +8,7 @@ interface UseSSEOptions {
 
 export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
   const { enabled = true, onNewMessage } = options;
+  const { token } = useAuth();
   const eventSourceRef = useRef<EventSource | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,9 +36,11 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
 
     // Use 127.0.0.1 instead of localhost to avoid potential DNS issues
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
-    const sseUrl = `${baseUrl}/api/events/conversations/${conversationId}`;
+    const sseUrl = token 
+      ? `${baseUrl}/api/events/conversations/${conversationId}?token=${encodeURIComponent(token)}`
+      : `${baseUrl}/api/events/conversations/${conversationId}`;
     console.log(`📡 SSE: Creating new connection to conversation ${conversationId}`);
-    console.log(`📡 SSE: URL: ${sseUrl}`);
+    console.log(`📡 SSE: URL: ${sseUrl} (token: ${token ? 'present' : 'missing'})`);
     setConnectionStatus('connecting');
 
     // Add a small delay to avoid React Strict Mode double execution issues
@@ -69,20 +73,36 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
       };
 
       eventSource.onmessage = (event) => {
+        console.log('📡 SSE: Raw message received:', event);
+        console.log('📡 SSE: Raw event data:', event.data);
+        
         try {
           const data = JSON.parse(event.data);
-          console.log('📡 SSE: Received event:', data);
+          console.log('📡 SSE: Parsed event data:', data);
+          console.log('📡 SSE: Event type:', data.type);
 
-          if (data.type === 'new-message' && onNewMessageRef.current) {
-            console.log('📡 SSE: Calling onNewMessage with:', data.message);
-            onNewMessageRef.current(data.message);
+          if (data.type === 'new-message') {
+            console.log('📡 SSE: New message event detected');
+            console.log('📡 SSE: onNewMessage callback exists:', !!onNewMessageRef.current);
+            console.log('📡 SSE: Message data:', data.message);
+            
+            if (onNewMessageRef.current) {
+              console.log('📡 SSE: Calling onNewMessage callback');
+              onNewMessageRef.current(data.message);
+              console.log('📡 SSE: onNewMessage callback completed');
+            } else {
+              console.warn('📡 SSE: No onNewMessage callback available');
+            }
           } else if (data.type === 'connected') {
             console.log('📡 SSE: Successfully joined conversation');
           } else if (data.type === 'heartbeat') {
             console.log('📡 SSE: Heartbeat received');
+          } else {
+            console.log('📡 SSE: Unknown event type:', data.type);
           }
         } catch (error) {
           console.error('📡 SSE: Error parsing message:', error);
+          console.error('📡 SSE: Raw data that failed to parse:', event.data);
         }
       };
 
@@ -136,7 +156,7 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
         setConnectionStatus('disconnected');
       }
     };
-  }, [enabled, conversationId]);
+  }, [enabled, conversationId, token]);
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {

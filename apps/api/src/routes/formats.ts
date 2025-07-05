@@ -111,7 +111,7 @@ router.post('/', authenticate, (req, res, next) => {
 
     // Validate bot IDs if provided
     if (formatData.rendererBotId) {
-      const rendererBot = await prisma.botDefinition.findUnique({
+      const rendererBot = await prisma.bot_definitions.findUnique({
         where: { id: formatData.rendererBotId }
       });
       if (!rendererBot) {
@@ -123,7 +123,7 @@ router.post('/', authenticate, (req, res, next) => {
     }
 
     if (formatData.validatorBotId) {
-      const validatorBot = await prisma.botDefinition.findUnique({
+      const validatorBot = await prisma.bot_definitions.findUnique({
         where: { id: formatData.validatorBotId }
       });
       if (!validatorBot) {
@@ -202,7 +202,7 @@ router.put('/:id', authenticate, (req, res, next) => {
     // Validate bot IDs if provided
     if (updateData.rendererBotId !== undefined) {
       if (updateData.rendererBotId && updateData.rendererBotId !== existingFormat.rendererBotId) {
-        const rendererBot = await prisma.botDefinition.findUnique({
+        const rendererBot = await prisma.bot_definitions.findUnique({
           where: { id: updateData.rendererBotId }
         });
         if (!rendererBot) {
@@ -216,7 +216,7 @@ router.put('/:id', authenticate, (req, res, next) => {
 
     if (updateData.validatorBotId !== undefined) {
       if (updateData.validatorBotId && updateData.validatorBotId !== existingFormat.validatorBotId) {
-        const validatorBot = await prisma.botDefinition.findUnique({
+        const validatorBot = await prisma.bot_definitions.findUnique({
           where: { id: updateData.validatorBotId }
         });
         if (!validatorBot) {

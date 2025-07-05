@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -14,7 +14,7 @@ router.get('/test', (req: Request, res: Response) => {
   });
 });
 
-// SSE endpoint for conversation events
+// SSE endpoint for conversation events  
 router.get('/conversations/:conversationId', async (req: Request, res: Response) => {
   console.log(`🔥 SSE: Endpoint hit! ConversationId: ${req.params.conversationId}`);
   console.log(`🔥 SSE: Request headers:`, {
@@ -26,24 +26,47 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
   
   const conversationId = req.params.conversationId;
   
-  // Try to authenticate but don't fail if no auth
-  let userId = 'anonymous';
+  // Try to authenticate using cookies or query parameter
+  let authenticatedUser = null;
   try {
+    // First try cookie authentication
     const token = req.cookies['auth-token'] || 
+                  req.query.token || // Allow token via query parameter for SSE
                   (req.headers.authorization?.startsWith('Bearer ') ? 
                    req.headers.authorization.slice(7) : null);
     
     if (token) {
       const { verifyJWT } = await import('@colloquium/auth');
-      const payload = verifyJWT(token);
-      userId = payload.userId;
-      console.log(`📡 SSE: Authenticated user ${userId} connecting to conversation ${conversationId}`);
-    } else {
-      console.log(`📡 SSE: Anonymous user connecting to conversation ${conversationId} (no auth token)`);
+      const { prisma } = await import('@colloquium/database');
+      
+      const payload = verifyJWT(token as string);
+      
+      // Get user from database
+      const user = await prisma.users.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true
+        }
+      });
+      
+      if (user) {
+        authenticatedUser = user;
+        console.log(`📡 SSE: Authenticated user ${user.email} (${user.id}) connecting to conversation ${conversationId}`);
+      }
+    }
+    
+    if (!authenticatedUser) {
+      console.log(`📡 SSE: Anonymous user connecting to conversation ${conversationId} (no valid auth token)`);
     }
   } catch (error) {
     console.log(`📡 SSE: Auth failed for conversation ${conversationId}:`, (error as Error).message);
   }
+  
+  const userId = authenticatedUser?.id || 'anonymous';
+  const userEmail = authenticatedUser?.email || 'anonymous';
 
   // Check if this is a proper EventSource request
   const isEventSource = req.headers.accept?.includes('text/event-stream');
@@ -132,17 +155,21 @@ export function broadcastToConversation(conversationId: string, eventData: any) 
   }
 
   console.log(`📡 SSE: Broadcasting to ${conversationConnections.length} connections in conversation ${conversationId}`);
+  console.log(`📡 SSE: Event data being sent:`, eventData);
   
   const data = JSON.stringify(eventData);
+  console.log(`📡 SSE: Serialized data:`, data);
   const deadConnections: Response[] = [];
 
   // Send to all connections
-  conversationConnections.forEach((connection) => {
+  conversationConnections.forEach((connection, index) => {
     try {
+      console.log(`📡 SSE: Sending to connection ${index}:`, `data: ${data}\\n\\n`);
       connection.write(`data: ${data}\n\n`);
       connection.flush(); // Force flush the data
+      console.log(`📡 SSE: Successfully sent to connection ${index}`);
     } catch (error) {
-      console.error('📡 SSE: Failed to write to connection:', error);
+      console.error(`📡 SSE: Failed to write to connection ${index}:`, error);
       deadConnections.push(connection);
     }
   });

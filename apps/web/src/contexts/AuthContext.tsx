@@ -13,6 +13,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   loading: boolean;
   login: (email: string, redirectUrl?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -28,6 +29,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = async () => {
@@ -39,14 +41,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        setToken(data.token);
       } else {
         setUser(null);
+        setToken(null);
         // Clear any stored token
         localStorage.removeItem('auth-token');
       }
     } catch (error) {
       console.error('Failed to fetch user:', error);
       setUser(null);
+      setToken(null);
     } finally {
       setLoading(false);
     }
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('Logout error:', error);
     } finally {
       setUser(null);
+      setToken(null);
       localStorage.removeItem('auth-token');
     }
   };
@@ -89,6 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
+    token,
     loading,
     login,
     logout,

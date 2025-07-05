@@ -137,6 +137,28 @@ function parseMarkdownFile(filePath: string) {
   }
 }
 
+// Helper function to read and parse markdown files with dynamic content processing
+async function parseMarkdownFileWithDynamicContent(filePath: string) {
+  try {
+    const fileContent = readFileSync(filePath, 'utf-8');
+    const { data: frontmatter, content } = matter(fileContent);
+    
+    // Process dynamic content inserts
+    const processedContent = await processDynamicContent(content);
+    const html = marked(processedContent);
+    
+    return {
+      frontmatter,
+      content: processedContent,
+      html,
+      lastModified: require('fs').statSync(filePath).mtime
+    };
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error);
+    return null;
+  }
+}
+
 // Helper function to list content files in a directory
 function listContentFiles(dirPath: string) {
   try {
@@ -172,15 +194,220 @@ function listContentFiles(dirPath: string) {
   }
 }
 
+// Dynamic content processing functions
+async function getEditorialBoardMembers() {
+  try {
+    const { GlobalRole } = require('@colloquium/database');
+    const editors = await prisma.users.findMany({
+      where: {
+        role: {
+          in: [GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR, GlobalRole.ADMIN]
+        },
+        name: {
+          not: null
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        orcidId: true,
+        affiliation: true,
+        website: true,
+        role: true,
+        createdAt: true,
+        _count: {
+          select: {
+            authoredArticles: {
+              where: {
+                status: 'PUBLISHED'
+              }
+            },
+            assignedReviews: {
+              where: {
+                status: 'COMPLETED'
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return editors.map(editor => ({
+      ...editor,
+      publishedPapers: editor._count.authoredArticles,
+      completedReviews: editor._count.assignedReviews
+    }));
+  } catch (error) {
+    console.error('Error fetching editorial board members:', error);
+    return [];
+  }
+}
+
+// Template functions for different editorial board displays
+function generateEditorialBoardHTML(members: any[], template: string = 'cards') {
+  if (members.length === 0) {
+    return '<p><em>No editorial board members found.</em></p>';
+  }
+
+  switch (template) {
+    case 'list':
+      return generateEditorialList(members);
+    case 'cards':
+      return generateEditorialCards(members);
+    case 'compact':
+      return generateEditorialCompact(members);
+    case 'stats':
+      return generateEditorialStats(members);
+    default:
+      return generateEditorialCards(members);
+  }
+}
+
+function generateEditorialList(members: any[]) {
+  const { GlobalRole } = require('@colloquium/database');
+  
+  const admins = members.filter(m => m.role === GlobalRole.ADMIN);
+  const editors = members.filter(m => m.role === GlobalRole.EDITOR_IN_CHIEF);
+
+  let html = '';
+
+  if (admins.length > 0) {
+    html += '<h3>Editors-in-Chief</h3>\n<ul>\n';
+    admins.forEach(admin => {
+      html += `<li><strong>${admin.name}</strong>`;
+      if (admin.affiliation) html += ` - ${admin.affiliation}`;
+      if (admin.orcidId) html += ` (<a href="https://orcid.org/${admin.orcidId}" target="_blank">ORCID</a>)`;
+      html += '</li>\n';
+    });
+    html += '</ul>\n';
+  }
+
+  if (editors.length > 0) {
+    html += '<h3>Editorial Board Members</h3>\n<ul>\n';
+    editors.forEach(editor => {
+      html += `<li><strong>${editor.name}</strong>`;
+      if (editor.affiliation) html += ` - ${editor.affiliation}`;
+      if (editor.orcidId) html += ` (<a href="https://orcid.org/${editor.orcidId}" target="_blank">ORCID</a>)`;
+      html += '</li>\n';
+    });
+    html += '</ul>\n';
+  }
+
+  return html;
+}
+
+function generateEditorialCards(members: any[]) {
+  let html = '<div class="editorial-board-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin: 1rem 0;">\n';
+  
+  members.forEach(member => {
+    html += `
+    <div style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; background: #fafafa;">
+      <h4 style="margin: 0 0 0.5rem 0; color: #333;">${member.name}</h4>
+      ${member.affiliation ? `<p style="margin: 0 0 0.5rem 0; color: #666; font-size: 0.9rem;"><em>${member.affiliation}</em></p>` : ''}
+      ${member.bio ? `<p style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">${member.bio.substring(0, 150)}${member.bio.length > 150 ? '...' : ''}</p>` : ''}
+      <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #666;">
+        ${member.publishedPapers > 0 ? `<span>📄 ${member.publishedPapers} papers</span>` : ''}
+        ${member.completedReviews > 0 ? `<span>📝 ${member.completedReviews} reviews</span>` : ''}
+      </div>
+      ${member.orcidId || member.website ? `
+      <div style="margin-top: 0.5rem;">
+        ${member.orcidId ? `<a href="https://orcid.org/${member.orcidId}" target="_blank" style="font-size: 0.8rem; margin-right: 0.5rem;">ORCID</a>` : ''}
+        ${member.website ? `<a href="${member.website}" target="_blank" style="font-size: 0.8rem;">Website</a>` : ''}
+      </div>` : ''}
+    </div>`;
+  });
+  
+  html += '</div>\n';
+  return html;
+}
+
+function generateEditorialCompact(members: any[]) {
+  let html = '<div class="editorial-compact">\n';
+  
+  members.forEach((member, index) => {
+    html += `<span><strong>${member.name}</strong>`;
+    if (member.affiliation) html += ` (${member.affiliation})`;
+    if (index < members.length - 1) html += ', ';
+    html += '</span>';
+  });
+  
+  html += '</div>\n';
+  return html;
+}
+
+function generateEditorialStats(members: any[]) {
+  const { GlobalRole } = require('@colloquium/database');
+  
+  const totalMembers = members.length;
+  const admins = members.filter(m => m.role === GlobalRole.ADMIN).length;
+  const editors = members.filter(m => m.role === GlobalRole.EDITOR_IN_CHIEF).length;
+  const totalPapers = members.reduce((sum, m) => sum + m.publishedPapers, 0);
+  const totalReviews = members.reduce((sum, m) => sum + m.completedReviews, 0);
+
+  return `
+<div class="editorial-stats" style="background: #f5f5f5; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+  <h4 style="margin: 0 0 1rem 0;">Editorial Board Statistics</h4>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: bold; color: #2563eb;">${totalMembers}</div>
+      <div style="font-size: 0.9rem; color: #666;">Total Members</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: bold; color: #059669;">${admins}</div>
+      <div style="font-size: 0.9rem; color: #666;">Editors-in-Chief</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: bold; color: #dc2626;">${editors}</div>
+      <div style="font-size: 0.9rem; color: #666;">Board Members</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: bold; color: #7c3aed;">${totalPapers}</div>
+      <div style="font-size: 0.9rem; color: #666;">Published Papers</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="font-size: 2rem; font-weight: bold; color: #ea580c;">${totalReviews}</div>
+      <div style="font-size: 0.9rem; color: #666;">Completed Reviews</div>
+    </div>
+  </div>
+</div>`;
+}
+
+// Process dynamic content inserts in markdown
+async function processDynamicContent(content: string): Promise<string> {
+  // Match patterns like {{editorial-board:template}} or {{editorial-board}}
+  const insertPattern = /\{\{editorial-board(?::([^}]+))?\}\}/g;
+  
+  let processedContent = content;
+  const matches = Array.from(content.matchAll(insertPattern));
+  
+  for (const match of matches) {
+    const fullMatch = match[0];
+    const template = match[1] || 'cards'; // Default to 'cards' template
+    
+    try {
+      const members = await getEditorialBoardMembers();
+      const htmlContent = generateEditorialBoardHTML(members, template);
+      processedContent = processedContent.replace(fullMatch, htmlContent);
+    } catch (error) {
+      console.error('Error processing editorial board insert:', error);
+      processedContent = processedContent.replace(fullMatch, '<p><em>Error loading editorial board data.</em></p>');
+    }
+  }
+  
+  return processedContent;
+}
+
 // GET /api/content/editorial-board - Get editorial board members (special route)
 router.get('/editorial-board', async (req, res, next) => {
   try {
     // Get users with EDITOR or ADMIN roles
     const { GlobalRole } = require('@colloquium/database');
-    const editors = await prisma.user.findMany({
+    const editors = await prisma.users.findMany({
       where: {
         role: {
-          in: [GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ADMIN]
+          in: [GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR, GlobalRole.ADMIN]
         },
         // Only include users with names (more professional presentation)
         name: {
@@ -344,7 +571,7 @@ router.get('/:section/:page', async (req, res, next) => {
     const fileName = page === 'index' ? 'index.md' : `${page}.md`;
     const filePath = join(CONTENT_DIR, section, fileName);
     
-    const parsed = parseMarkdownFile(filePath);
+    const parsed = await parseMarkdownFileWithDynamicContent(filePath);
     
     if (!parsed) {
       return res.status(404).json({
@@ -395,7 +622,7 @@ router.get('/:section/index', async (req, res, next) => {
     }
 
     const filePath = join(CONTENT_DIR, section, 'index.md');
-    const content = parseMarkdownFile(filePath);
+    const content = await parseMarkdownFileWithDynamicContent(filePath);
     
     if (!content) {
       return res.status(404).json({

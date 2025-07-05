@@ -57,7 +57,7 @@ router.get('/search',
 
     // Exclude users who already have assignments for this manuscript
     if (manuscriptId && excludeConflicts) {
-      const existingAssignments = await prisma.reviewAssignment.findMany({
+      const existingAssignments = await prisma.review_assignments.findMany({
         where: { manuscriptId },
         select: { reviewerId: true }
       });
@@ -68,7 +68,7 @@ router.get('/search',
       }
 
       // Also exclude manuscript authors
-      const manuscript = await prisma.manuscript.findUnique({
+      const manuscript = await prisma.manuscripts.findUnique({
         where: { id: manuscriptId },
         include: { authorRelations: true }
       });
@@ -82,7 +82,7 @@ router.get('/search',
       }
     }
 
-    const reviewers = await prisma.user.findMany({
+    const reviewers = await prisma.users.findMany({
       where: searchConditions,
       select: {
         id: true,
@@ -128,7 +128,7 @@ router.post('/invite',
     const inviterId = req.user.id;
 
     // Verify manuscript exists and user has permission
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
         authorRelations: {
@@ -155,13 +155,13 @@ router.post('/invite',
     for (const email of reviewerEmails) {
       try {
         // Check if user exists
-        let reviewer = await prisma.user.findUnique({
+        let reviewer = await prisma.users.findUnique({
           where: { email: email.toLowerCase() }
         });
 
         // If user doesn't exist, create them as a potential reviewer
         if (!reviewer) {
-          reviewer = await prisma.user.create({
+          reviewer = await prisma.users.create({
             data: {
               email: email.toLowerCase(),
               role: 'USER'
@@ -170,7 +170,7 @@ router.post('/invite',
         }
 
         // Check if already assigned to this manuscript
-        const existingAssignment = await prisma.reviewAssignment.findUnique({
+        const existingAssignment = await prisma.review_assignments.findUnique({
           where: {
             manuscriptId_reviewerId: {
               manuscriptId,
@@ -189,7 +189,7 @@ router.post('/invite',
         }
 
         // Create review assignment
-        const assignment = await prisma.reviewAssignment.create({
+        const assignment = await prisma.review_assignments.create({
           data: {
             manuscriptId,
             reviewerId: reviewer.id,
@@ -293,7 +293,7 @@ router.post('/assign',
     const { manuscriptId, reviewerId, dueDate, message } = req.body;
 
     // Verify manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId }
     });
 
@@ -307,7 +307,7 @@ router.post('/assign',
     }
 
     // Verify reviewer exists
-    const reviewer = await prisma.user.findUnique({
+    const reviewer = await prisma.users.findUnique({
       where: { id: reviewerId }
     });
 
@@ -321,7 +321,7 @@ router.post('/assign',
     }
 
     // Check if already assigned
-    const existingAssignment = await prisma.reviewAssignment.findUnique({
+    const existingAssignment = await prisma.review_assignments.findUnique({
       where: {
         manuscriptId_reviewerId: {
           manuscriptId,
@@ -340,7 +340,7 @@ router.post('/assign',
     }
 
     // Create assignment
-    const assignment = await prisma.reviewAssignment.create({
+    const assignment = await prisma.review_assignments.create({
       data: {
         manuscriptId,
         reviewerId,
@@ -377,7 +377,7 @@ router.get('/assignments/:manuscriptId',
   asyncHandler(async (req: any, res: any) => {
     const { manuscriptId } = req.params;
 
-    const assignments = await prisma.reviewAssignment.findMany({
+    const assignments = await prisma.review_assignments.findMany({
       where: { manuscriptId },
       include: {
         reviewer: {
@@ -421,7 +421,7 @@ router.put('/assignments/:id',
     const userRole = req.user.role;
 
     // Get the assignment
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
         reviewer: true,
@@ -462,7 +462,7 @@ router.put('/assignments/:id',
       updateData.completedAt = new Date();
     }
 
-    const updatedAssignment = await prisma.reviewAssignment.update({
+    const updatedAssignment = await prisma.review_assignments.update({
       where: { id },
       data: updateData,
       include: {
@@ -495,7 +495,7 @@ router.delete('/assignments/:id',
   asyncHandler(async (req: any, res: any) => {
     const { id } = req.params;
 
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id }
     });
 
@@ -508,7 +508,7 @@ router.delete('/assignments/:id',
       });
     }
 
-    await prisma.reviewAssignment.delete({
+    await prisma.review_assignments.delete({
       where: { id }
     });
 
@@ -532,7 +532,7 @@ router.post('/bulk-assign',
     const { manuscriptId, assignments } = req.body;
 
     // Verify manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId }
     });
 
@@ -554,7 +554,7 @@ router.post('/bulk-assign',
     for (const assignment of assignments) {
       try {
         // Check if reviewer exists
-        const reviewer = await prisma.user.findUnique({
+        const reviewer = await prisma.users.findUnique({
           where: { id: assignment.reviewerId }
         });
 
@@ -567,7 +567,7 @@ router.post('/bulk-assign',
         }
 
         // Check if already assigned
-        const existing = await prisma.reviewAssignment.findUnique({
+        const existing = await prisma.review_assignments.findUnique({
           where: {
             manuscriptId_reviewerId: {
               manuscriptId,
@@ -585,7 +585,7 @@ router.post('/bulk-assign',
         }
 
         // Create assignment
-        const newAssignment = await prisma.reviewAssignment.create({
+        const newAssignment = await prisma.review_assignments.create({
           data: {
             manuscriptId,
             reviewerId: assignment.reviewerId,
@@ -629,7 +629,7 @@ router.post('/invitations/:id/respond',
     const userId = req.user.id;
 
     // Find the review assignment
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
         reviewer: true,
@@ -674,7 +674,7 @@ router.post('/invitations/:id/respond',
 
     // Update the assignment status
     const newStatus = response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED';
-    const updatedAssignment = await prisma.reviewAssignment.update({
+    const updatedAssignment = await prisma.review_assignments.update({
       where: { id },
       data: {
         status: newStatus,
@@ -720,7 +720,7 @@ router.post('/invitations/:id/respond',
 
     // Send notification email to editors
     try {
-      const editors = await prisma.user.findMany({
+      const editors = await prisma.users.findMany({
         where: {
           role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
         },
@@ -778,7 +778,7 @@ router.post('/assignments/:id/submit',
     const userId = req.user.id;
 
     // Find the review assignment
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
         reviewer: true,
@@ -822,7 +822,7 @@ router.post('/assignments/:id/submit',
     }
 
     // Update assignment to completed
-    const updatedAssignment = await prisma.reviewAssignment.update({
+    const updatedAssignment = await prisma.review_assignments.update({
       where: { id },
       data: {
         status: 'COMPLETED',
@@ -885,7 +885,7 @@ router.post('/assignments/:id/submit',
 
     // Notify editors
     try {
-      const editors = await prisma.user.findMany({
+      const editors = await prisma.users.findMany({
         where: {
           role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
         },
@@ -934,7 +934,7 @@ router.get('/invitations/:id',
     const { id } = req.params;
     const userId = req.user.id;
 
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
         reviewer: {
