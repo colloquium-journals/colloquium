@@ -5,11 +5,11 @@ import { broadcastToConversation } from '../routes/events';
 import { generateBotServiceToken } from '../middleware/auth';
 import { BotProcessingJob } from './index';
 import { randomUUID } from 'crypto';
+import { BotActionProcessor } from '../services/botActionProcessor';
 
 export const processBotJob = async (job: Job<BotProcessingJob>) => {
   const { messageId, conversationId, userId, manuscriptId } = job.data;
   
-  console.log(`Processing bot job for message ${messageId} in conversation ${conversationId}`);
   
   try {
     // Fetch the message and related data
@@ -38,8 +38,6 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
       throw new Error(`User ${userId} not found`);
     }
 
-    console.log(`Processing bot mentions for message: "${message.content.substring(0, 100)}..."`);
-
     // Generate service token for bot API calls
     const serviceToken = generateBotServiceToken('system', manuscriptId || '', ['read_manuscript_files', 'upload_files']);
 
@@ -61,7 +59,6 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
     });
 
     if (botResponses && botResponses.length > 0) {
-      console.log(`Bot processing completed with ${botResponses.length} results`);
       
       // Process each bot response
       for (const botResponse of botResponses) {
@@ -114,19 +111,23 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
               message: formattedMessage
             }, manuscriptId);
 
-            console.log(`Bot response message created and broadcasted: ${responseMessage.id}`);
           }
         }
 
         // Process bot actions (file uploads, status changes, etc.)
         if (botResponse.actions && botResponse.actions.length > 0) {
-          for (const action of botResponse.actions) {
-            try {
-              await processBotAction(action, conversationId, user);
-            } catch (actionError) {
-              console.error(`Failed to process bot action:`, actionError);
-              // Continue with other actions even if one fails
-            }
+          const actionProcessor = new BotActionProcessor();
+          const actionContext = {
+            manuscriptId: manuscriptId || '',
+            userId: userId,
+            conversationId: conversationId
+          };
+          
+          try {
+            await actionProcessor.processActions(botResponse.actions, actionContext);
+          } catch (actionError) {
+            console.error(`Failed to process bot actions:`, actionError);
+            // Continue with other processing even if actions fail
           }
         }
 
@@ -176,8 +177,6 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
           }
         }
       }
-    } else {
-      console.log('No bot results generated for this message');
     }
 
     return {
@@ -246,50 +245,3 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
   }
 };
 
-// Helper function to process bot actions (file uploads, status changes, etc.)
-async function processBotAction(action: any, conversationId: string, user: any) {
-  console.log(`Processing bot action:`, action.type);
-  
-  switch (action.type) {
-    case 'FILE_UPLOADED':
-      // Handle file upload actions
-      console.log(`Bot uploaded file: ${action.data?.filename}`);
-      
-      // Broadcast file upload event
-      broadcastToConversation(conversationId, {
-        type: 'file_uploaded',
-        data: action.data
-      });
-      break;
-      
-    case 'STATUS_CHANGED':
-      // Handle manuscript status changes
-      if (action.data?.manuscriptId && action.data?.status) {
-        await prisma.manuscripts.update({
-          where: { id: action.data.manuscriptId },
-          data: { status: action.data.status }
-        });
-        
-        // Broadcast status change
-        broadcastToConversation(conversationId, {
-          type: 'manuscript_status_changed',
-          data: action.data
-        });
-      }
-      break;
-      
-    case 'REVIEWER_ASSIGNED':
-      // Handle reviewer assignment actions
-      console.log(`Bot assigned reviewer: ${action.data?.reviewerId}`);
-      
-      // Broadcast reviewer assignment
-      broadcastToConversation(conversationId, {
-        type: 'reviewer_assigned',
-        data: action.data
-      });
-      break;
-      
-    default:
-      console.log(`Unknown bot action type: ${action.type}`);
-  }
-}

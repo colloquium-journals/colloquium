@@ -22,13 +22,6 @@ router.get('/test', (req: Request, res: Response) => {
 
 // SSE endpoint for conversation events  
 router.get('/conversations/:conversationId', async (req: Request, res: Response) => {
-  console.log(`🔥 SSE: Endpoint hit! ConversationId: ${req.params.conversationId}`);
-  console.log(`🔥 SSE: Request headers:`, {
-    userAgent: req.headers['user-agent'],
-    accept: req.headers.accept,
-    origin: req.headers.origin,
-    cookie: req.headers.cookie ? 'present' : 'missing'
-  });
   
   const conversationId = req.params.conversationId;
   
@@ -60,29 +53,18 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
       
       if (user) {
         authenticatedUser = user;
-        console.log(`📡 SSE: Authenticated user ${user.email} (${user.id}) connecting to conversation ${conversationId}`);
       }
     }
-    
-    if (!authenticatedUser) {
-      console.log(`📡 SSE: Anonymous user connecting to conversation ${conversationId} (no valid auth token)`);
-    }
   } catch (error) {
-    console.log(`📡 SSE: Auth failed for conversation ${conversationId}:`, (error as Error).message);
+    // Keep this error log as it's important for debugging auth issues
+    console.error(`SSE authentication failed for conversation ${conversationId}:`, (error as Error).message);
   }
   
-  const userId = authenticatedUser?.id || 'anonymous';
-  const userEmail = authenticatedUser?.email || 'anonymous';
-
-  // Check if this is a proper EventSource request
-  const isEventSource = req.headers.accept?.includes('text/event-stream');
-  console.log(`📡 SSE: Is EventSource request: ${isEventSource}`);
-  console.log(`📡 SSE: Accept header: ${req.headers.accept}`);
+  const userId = authenticatedUser?.id || null;
 
   // Define a whitelist of allowed origins for security
   const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001']; // Add your web app's URL
   const origin = req.headers.origin || '';
-  console.log(`📡 SSE: Request origin: "${origin}", allowed origins:`, allowedOrigins);
   
   if (!allowedOrigins.includes(origin)) {
     console.error(`📡 SSE: Origin not allowed: ${origin}`);
@@ -101,20 +83,14 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
   // Flush the headers to establish the connection immediately
   res.flushHeaders();
 
-  console.log(`📡 SSE: Headers sent, sending initial connection event`);
-
   // Send initial connection event
   const connectionEvent = JSON.stringify({ type: 'connected', conversationId });
-  console.log(`📡 SSE: About to send connection event: ${connectionEvent}`);
   
   try {
     res.write(`data: ${connectionEvent}\n\n`);
     res.flush(); // Force flush the data
-    console.log(`📡 SSE: Sent connection event: ${connectionEvent}`);
-    
-    
   } catch (error) {
-    console.error(`📡 SSE: Failed to send connection event:`, error);
+    console.error(`SSE: Failed to send connection event:`, error);
   }
 
   // Store this connection with user context
@@ -127,8 +103,6 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
     userRole: authenticatedUser?.role || null
   });
 
-  console.log(`📡 SSE: User ${userId} connected to conversation ${conversationId}`);
-  console.log(`📡 SSE: ${connections.get(conversationId)!.length} total connections for conversation ${conversationId}`);
 
 
   // Handle client disconnect
@@ -147,7 +121,6 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
       }
     }
     
-    console.log(`📡 SSE: User ${userId} disconnected from conversation ${conversationId}`);
   });
 
   req.on('error', (error) => {
@@ -163,17 +136,12 @@ export async function broadcastToConversation(conversationId: string, eventData:
   const conversationConnections = connections.get(conversationId);
   
   if (!conversationConnections || conversationConnections.length === 0) {
-    console.log(`📡 SSE: No connections to broadcast to for conversation ${conversationId}`);
     return;
   }
 
-  console.log(`📡 SSE: Broadcasting to ${conversationConnections.length} connections in conversation ${conversationId}`);
-  console.log(`📡 SSE: Event data being sent:`, eventData);
-  
   // For message events, we need to check permissions per user
   if (eventData.type === 'new-message' && eventData.message && manuscriptId) {
     const message = eventData.message;
-    console.log(`📡 SSE: Filtering message broadcast based on privacy level: ${message.privacy}`);
     
     const deadConnections: AuthenticatedConnection[] = [];
     
@@ -184,19 +152,16 @@ export async function broadcastToConversation(conversationId: string, eventData:
       try {
         // Check if this user can see the message
         const canSee = await canUserSeeMessage(
-          connection.userId,
-          connection.userRole,
+          connection.userId || undefined,
+          connection.userRole || undefined,
           message.privacy,
           manuscriptId
         );
         
         if (canSee) {
-          console.log(`📡 SSE: Sending message to user ${connection.userId || 'anonymous'} (authorized)`);
           const data = JSON.stringify(eventData);
           connection.response.write(`data: ${data}\n\n`);
           connection.response.flush();
-        } else {
-          console.log(`📡 SSE: Skipping message for user ${connection.userId || 'anonymous'} (not authorized for privacy level: ${message.privacy})`);
         }
       } catch (error) {
         console.error(`📡 SSE: Failed to write to connection ${index}:`, error);

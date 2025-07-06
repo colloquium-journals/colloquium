@@ -4,33 +4,40 @@ import { useAuth } from '../contexts/AuthContext';
 interface UseSSEOptions {
   enabled?: boolean;
   onNewMessage?: (message: any) => void;
+  onActionEditorAssigned?: (assignment: any) => void;
+  onReviewerAssigned?: (assignment: any) => void;
 }
 
 export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
-  const { enabled = true, onNewMessage } = options;
+  const { enabled = true, onNewMessage, onActionEditorAssigned, onReviewerAssigned } = options;
   const { token } = useAuth();
   const eventSourceRef = useRef<EventSource | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
+  const onActionEditorAssignedRef = useRef(onActionEditorAssigned);
+  const onReviewerAssignedRef = useRef(onReviewerAssigned);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
-  // Keep callback reference up to date
+  // Keep callback references up to date
   useEffect(() => {
     onNewMessageRef.current = onNewMessage;
   }, [onNewMessage]);
 
   useEffect(() => {
+    onActionEditorAssignedRef.current = onActionEditorAssigned;
+  }, [onActionEditorAssigned]);
+
+  useEffect(() => {
+    onReviewerAssignedRef.current = onReviewerAssigned;
+  }, [onReviewerAssigned]);
+
+  useEffect(() => {
     if (!enabled || !conversationId) {
-      console.log('📡 SSE: Not connecting - enabled:', enabled, 'conversationId:', conversationId);
       return;
     }
 
     // Avoid recreating connection if one already exists for this conversation
     if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
-      console.log('📡 SSE: Connection already exists, skipping', {
-        url: eventSourceRef.current.url,
-        readyState: eventSourceRef.current.readyState
-      });
       return;
     }
 
@@ -39,33 +46,20 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
     const sseUrl = token 
       ? `${baseUrl}/api/events/conversations/${conversationId}?token=${encodeURIComponent(token)}`
       : `${baseUrl}/api/events/conversations/${conversationId}`;
-    console.log(`📡 SSE: Creating new connection to conversation ${conversationId}`);
-    console.log(`📡 SSE: URL: ${sseUrl} (token: ${token ? 'present' : 'missing'})`);
     setConnectionStatus('connecting');
 
     // Add a small delay to avoid React Strict Mode double execution issues
     const timeoutId = setTimeout(() => {
       // Double-check if connection still needed
       if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
-        console.log('📡 SSE: Connection already exists after delay, aborting');
         return;
       }
-
-      console.log('📡 SSE: Creating EventSource with options:', {
-        url: sseUrl,
-        withCredentials: true,
-        timestamp: new Date().toISOString()
-      });
 
       // Create EventSource connection
       const eventSource = new EventSource(sseUrl, { withCredentials: true });
       eventSourceRef.current = eventSource;
 
-      // Log initial state
-      console.log('📡 SSE: EventSource created, initial readyState:', eventSource.readyState);
-
       eventSource.onopen = (event) => {
-        console.log('📡 SSE: Connected to server, readyState:', eventSource.readyState);
         if (connectionTimeoutRef.current) {
           clearTimeout(connectionTimeoutRef.current);
         }
@@ -73,32 +67,25 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
       };
 
       eventSource.onmessage = (event) => {
-        console.log('📡 SSE: Raw message received:', event);
-        console.log('📡 SSE: Raw event data:', event.data);
-        
         try {
           const data = JSON.parse(event.data);
-          console.log('📡 SSE: Parsed event data:', data);
-          console.log('📡 SSE: Event type:', data.type);
 
           if (data.type === 'new-message') {
-            console.log('📡 SSE: New message event detected');
-            console.log('📡 SSE: onNewMessage callback exists:', !!onNewMessageRef.current);
-            console.log('📡 SSE: Message data:', data.message);
-            
             if (onNewMessageRef.current) {
-              console.log('📡 SSE: Calling onNewMessage callback');
               onNewMessageRef.current(data.message);
-              console.log('📡 SSE: onNewMessage callback completed');
-            } else {
-              console.warn('📡 SSE: No onNewMessage callback available');
             }
           } else if (data.type === 'connected') {
-            console.log('📡 SSE: Successfully joined conversation');
+            // Connection established
           } else if (data.type === 'heartbeat') {
-            console.log('📡 SSE: Heartbeat received');
-          } else {
-            console.log('📡 SSE: Unknown event type:', data.type);
+            // Heartbeat received
+          } else if (data.type === 'action-editor-assigned') {
+            if (onActionEditorAssignedRef.current) {
+              onActionEditorAssignedRef.current(data.assignment);
+            }
+          } else if (data.type === 'reviewer-assigned') {
+            if (onReviewerAssignedRef.current) {
+              onReviewerAssignedRef.current(data.assignment);
+            }
           }
         } catch (error) {
           console.error('📡 SSE: Error parsing message:', error);

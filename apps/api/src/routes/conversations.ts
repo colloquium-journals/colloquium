@@ -12,17 +12,11 @@ const router = Router();
 
 // Helper function to determine if user can see a message based on privacy level
 export async function canUserSeeMessage(userId: string | undefined, userRole: string | undefined, messagePrivacy: string, manuscriptId: string) {
-  console.log(`Checking permissions - userId: ${userId}, userRole: ${userRole}, messagePrivacy: ${messagePrivacy}, manuscriptId: ${manuscriptId}`);
   
   if (!userId || !userRole) {
-    console.log('No user ID or role, only allowing PUBLIC messages');
     return messagePrivacy === 'PUBLIC';
   }
 
-  // Special debug logging for this specific case
-  if (messagePrivacy === 'AUTHOR_VISIBLE') {
-    console.log(`DEBUG: Checking AUTHOR_VISIBLE message - userRole is '${userRole}', checking if it matches ADMIN, EDITOR_IN_CHIEF, or MANAGING_EDITOR`);
-  }
 
   switch (messagePrivacy) {
     case 'PUBLIC':

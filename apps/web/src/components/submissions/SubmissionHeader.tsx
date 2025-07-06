@@ -34,6 +34,7 @@ import {
   IconChevronDown,
   IconChevronRight
 } from '@tabler/icons-react';
+import { useSSE } from '../../hooks/useSSE';
 
 interface SubmissionData {
   id: string;
@@ -87,6 +88,49 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(false);
+
+  // Handle real-time action editor assignment updates
+  const handleActionEditorAssigned = (assignment: any) => {
+    setSubmission(prev => prev ? {
+      ...prev,
+      assignedEditor: {
+        id: assignment.editor.id,
+        name: assignment.editor.name,
+        email: assignment.editor.email,
+        affiliation: assignment.editor.affiliation,
+        assignedAt: assignment.assignedAt
+      }
+    } : prev);
+  };
+
+  // Handle real-time reviewer assignment updates
+  const handleReviewerAssigned = (assignment: any) => {
+    setSubmission(prev => prev ? {
+      ...prev,
+      reviewAssignments: [
+        ...(prev.reviewAssignments || []),
+        {
+          id: assignment.assignmentId,
+          reviewer: {
+            id: assignment.reviewer.id,
+            name: assignment.reviewer.name || assignment.reviewer.email,
+            email: assignment.reviewer.email,
+            affiliation: assignment.reviewer.affiliation
+          },
+          status: assignment.status,
+          assignedAt: assignment.assignedAt,
+          dueDate: assignment.dueDate
+        }
+      ]
+    } : prev);
+  };
+
+  // Initialize SSE connection for real-time updates
+  useSSE(submissionId, {
+    enabled: !!submissionId,
+    onActionEditorAssigned: handleActionEditorAssigned,
+    onReviewerAssigned: handleReviewerAssigned
+  });
 
   useEffect(() => {
     const fetchSubmission = async () => {

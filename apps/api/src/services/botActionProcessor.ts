@@ -1,6 +1,8 @@
 import { prisma } from '@colloquium/database';
 import { BotAction } from '@colloquium/types';
 import * as nodemailer from 'nodemailer';
+import { randomUUID } from 'crypto';
+import { broadcastToConversation } from '../routes/events';
 
 // Email transporter (should be configured centrally)
 const transporter = nodemailer.createTransport({
@@ -74,7 +76,7 @@ export class BotActionProcessor {
     const { manuscriptId } = context;
 
     // Verify manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
         authorRelations: {
@@ -96,13 +98,13 @@ export class BotActionProcessor {
     for (const email of reviewers) {
       try {
         // Check if user exists
-        let reviewer = await prisma.user.findUnique({
+        let reviewer = await prisma.users.findUnique({
           where: { email: email.toLowerCase() }
         });
 
         // If user doesn't exist, create them as a potential reviewer
         if (!reviewer) {
-          reviewer = await prisma.user.create({
+          reviewer = await prisma.users.create({
             data: {
               email: email.toLowerCase(),
               role: 'USER'
@@ -111,7 +113,7 @@ export class BotActionProcessor {
         }
 
         // Check if already assigned to this manuscript
-        const existingAssignment = await prisma.reviewAssignment.findUnique({
+        const existingAssignment = await prisma.review_assignments.findUnique({
           where: {
             manuscriptId_reviewerId: {
               manuscriptId,
@@ -130,7 +132,7 @@ export class BotActionProcessor {
         }
 
         // Create review assignment
-        const assignment = await prisma.reviewAssignment.create({
+        const assignment = await prisma.review_assignments.create({
           data: {
             manuscriptId,
             reviewerId: reviewer.id,
@@ -202,6 +204,23 @@ Decline: ${invitationUrl}?action=decline
           status: assignment.status
         });
 
+        // Broadcast reviewer assignment to all conversation participants
+        await broadcastToConversation(context.conversationId, {
+          type: 'reviewer-assigned',
+          assignment: {
+            manuscriptId,
+            reviewer: {
+              id: reviewer.id,
+              email: reviewer.email,
+              name: reviewer.name || reviewer.email
+            },
+            assignmentId: assignment.id,
+            status: assignment.status,
+            dueDate: assignment.dueDate?.toISOString(),
+            assignedAt: new Date().toISOString()
+          }
+        }, manuscriptId);
+
       } catch (error) {
         console.error(`Failed to assign reviewer ${email}:`, error);
         results.failed.push({
@@ -225,7 +244,7 @@ Decline: ${invitationUrl}?action=decline
     }
 
     // Get current manuscript to check state transitions
-    const currentManuscript = await prisma.manuscript.findUnique({
+    const currentManuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       select: { status: true }
     });
@@ -244,7 +263,7 @@ Decline: ${invitationUrl}?action=decline
     }
 
     // Update the manuscript status
-    const updatedManuscript = await prisma.manuscript.update({
+    const updatedManuscript = await prisma.manuscripts.update({
       where: { id: manuscriptId },
       data: {
         status,
@@ -258,7 +277,7 @@ Decline: ${invitationUrl}?action=decline
     });
 
     // Create a system message in the conversation documenting the status change
-    await prisma.message.create({
+    await prisma.messages.create({
       data: {
         content: `📋 **Manuscript Status Updated by Editorial Bot**\n\n**New Status:** ${status.replace('_', ' ')}\n${reason ? `**Reason:** ${reason}\n` : ''}**Updated:** ${new Date().toLocaleString()}`,
         conversationId: context.conversationId,
@@ -282,7 +301,7 @@ Decline: ${invitationUrl}?action=decline
     const { manuscriptId, userId } = context;
 
     // Create the conversation
-    const conversation = await prisma.conversation.create({
+    const conversation = await prisma.conversations.create({
       data: {
         title,
         type: type || 'EDITORIAL',
@@ -296,7 +315,7 @@ Decline: ${invitationUrl}?action=decline
     const uniqueParticipants = [...new Set(participants)]; // Remove duplicates
 
     for (const participantId of uniqueParticipants) {
-      await prisma.conversationParticipant.create({
+      await prisma.conversation_participants.create({
         data: {
           conversationId: conversation.id,
           userId: participantId,
@@ -313,7 +332,7 @@ Decline: ${invitationUrl}?action=decline
     const { userId } = context;
 
     // Find the review assignment
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id: assignmentId },
       include: {
         reviewer: true,
@@ -337,13 +356,13 @@ Decline: ${invitationUrl}?action=decline
 
     // Update the assignment status
     const newStatus = response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED';
-    await prisma.reviewAssignment.update({
+    await prisma.review_assignments.update({
       where: { id: assignmentId },
       data: { status: newStatus }
     });
 
     // Create notification message in editorial conversation
-    const editorialConversation = await prisma.conversation.findFirst({
+    const editorialConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId: assignment.manuscriptId,
         type: 'EDITORIAL'
@@ -355,7 +374,7 @@ Decline: ${invitationUrl}?action=decline
         ? `✅ **Review Invitation Accepted via Bot**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n**Manuscript:** ${assignment.manuscript.title}${message ? `\n**Message:** ${message}` : ''}`
         : `❌ **Review Invitation Declined via Bot**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n**Manuscript:** ${assignment.manuscript.title}${message ? `\n**Reason:** ${message}` : ''}`;
 
-      await prisma.message.create({
+      await prisma.messages.create({
         data: {
           content: responseMessage,
           conversationId: editorialConversation.id,
@@ -380,7 +399,7 @@ Decline: ${invitationUrl}?action=decline
     const { userId } = context;
 
     // Find the review assignment
-    const assignment = await prisma.reviewAssignment.findUnique({
+    const assignment = await prisma.review_assignments.findUnique({
       where: { id: assignmentId },
       include: {
         reviewer: true,
@@ -403,7 +422,7 @@ Decline: ${invitationUrl}?action=decline
     }
 
     // Update assignment to completed
-    await prisma.reviewAssignment.update({
+    await prisma.review_assignments.update({
       where: { id: assignmentId },
       data: {
         status: 'COMPLETED',
@@ -412,7 +431,7 @@ Decline: ${invitationUrl}?action=decline
     });
 
     // Create message in review conversation
-    const reviewConversation = await prisma.conversation.findFirst({
+    const reviewConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId: assignment.manuscriptId,
         type: 'REVIEW'
@@ -420,7 +439,7 @@ Decline: ${invitationUrl}?action=decline
     });
 
     if (reviewConversation) {
-      await prisma.message.create({
+      await prisma.messages.create({
         data: {
           content: `📝 **Review Submitted via Bot**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n\n**Recommendation:** ${recommendation}\n\n**Review:**\n${reviewContent}${score ? `\n\n**Score:** ${score}/10` : ''}`,
           conversationId: reviewConversation.id,
@@ -440,7 +459,7 @@ Decline: ${invitationUrl}?action=decline
 
       // Create confidential comments for editors only
       if (confidentialComments) {
-        await prisma.message.create({
+        await prisma.messages.create({
           data: {
             content: `🔒 **Confidential Comments (via Bot)**\n\n${confidentialComments}`,
             conversationId: reviewConversation.id,
@@ -465,7 +484,7 @@ Decline: ${invitationUrl}?action=decline
     const { manuscriptId, userId, conversationId } = context;
 
     // Get manuscript with all related data
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
         authorRelations: {
@@ -487,7 +506,7 @@ Decline: ${invitationUrl}?action=decline
     }
 
     // Update manuscript status
-    const updatedManuscript = await prisma.manuscript.update({
+    const updatedManuscript = await prisma.manuscripts.update({
       where: { id: manuscriptId },
       data: {
         status,
@@ -498,7 +517,7 @@ Decline: ${invitationUrl}?action=decline
     });
 
     // Create decision message in editorial conversation
-    const editorialConversation = await prisma.conversation.findFirst({
+    const editorialConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId,
         type: 'EDITORIAL'
@@ -531,7 +550,7 @@ Decline: ${invitationUrl}?action=decline
         });
       }
 
-      await prisma.message.create({
+      await prisma.messages.create({
         data: {
           content: decisionMessage,
           conversationId: editorialConversation.id,
@@ -644,7 +663,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
 
   private async createRevisionConversation(manuscriptId: string, editorId: string, revisionType?: string): Promise<void> {
     // Check if revision conversation already exists
-    const existingConversation = await prisma.conversation.findFirst({
+    const existingConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId,
         title: { contains: 'Revision' }
@@ -656,7 +675,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     }
 
     // Create revision conversation
-    const conversation = await prisma.conversation.create({
+    const conversation = await prisma.conversations.create({
       data: {
         title: `${revisionType || 'Manuscript'} Revision Discussion`,
         type: 'SEMI_PUBLIC',
@@ -666,7 +685,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     });
 
     // Add editor as moderator
-    await prisma.conversationParticipant.create({
+    await prisma.conversation_participants.create({
       data: {
         conversationId: conversation.id,
         userId: editorId,
@@ -675,7 +694,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     });
 
     // Add authors as participants
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
         authorRelations: true
@@ -684,7 +703,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
 
     if (manuscript) {
       for (const authorRel of manuscript.authorRelations) {
-        await prisma.conversationParticipant.create({
+        await prisma.conversation_participants.create({
           data: {
             conversationId: conversation.id,
             userId: authorRel.userId,
@@ -695,7 +714,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     }
 
     // Create initial message
-    await prisma.message.create({
+    await prisma.messages.create({
       data: {
         content: `📝 **Revision Discussion Created**\n\nThis conversation is for discussing the ${revisionType || 'manuscript'} revisions. Please use this space to:\n\n- Address reviewer comments\n- Discuss specific changes\n- Ask questions about the revision requirements\n\nUse @editorial-bot commands to update manuscript status when revisions are complete.`,
         conversationId: conversation.id,
@@ -718,7 +737,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     const username = editor.replace('@', '');
 
     // Find user by name
-    const user = await prisma.user.findFirst({
+    const user = await prisma.users.findFirst({
       where: { name: username },
       select: {
         id: true,
@@ -733,12 +752,12 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     }
 
     // Verify manuscript exists
-    const manuscript = await prisma.manuscript.findUnique({
+    const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        actionEditor: {
+        action_editors: {
           include: {
-            editor: {
+            users_action_editors_editorIdTousers: {
               select: {
                 id: true,
                 name: true,
@@ -755,16 +774,16 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     }
 
     // Check if action editor already assigned
-    if (manuscript.actionEditor) {
+    if (manuscript.action_editors) {
       // Update existing assignment
-      const updatedAssignment = await prisma.actionEditor.update({
+      const updatedAssignment = await prisma.action_editors.update({
         where: { manuscriptId },
         data: {
           editorId: user.id,
           assignedAt: new Date()
         },
         include: {
-          editor: {
+          users_action_editors_editorIdTousers: {
             select: {
               id: true,
               name: true,
@@ -775,17 +794,18 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
         }
       });
 
-      console.log(`Action editor updated for manuscript ${manuscriptId}: ${user.name} (was ${manuscript.actionEditor.editor.name})`);
+      console.log(`Action editor updated for manuscript ${manuscriptId}: ${user.name} (was ${manuscript.action_editors.users_action_editors_editorIdTousers.name})`);
     } else {
       // Create new assignment
-      const newAssignment = await prisma.actionEditor.create({
+      const newAssignment = await prisma.action_editors.create({
         data: {
+          id: randomUUID(),
           manuscriptId,
           editorId: user.id,
           assignedAt: new Date()
         },
         include: {
-          editor: {
+          users_action_editors_editorIdTousers: {
             select: {
               id: true,
               name: true,
@@ -799,8 +819,22 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
       console.log(`Action editor assigned for manuscript ${manuscriptId}: ${user.name}`);
     }
 
+    // Broadcast action editor assignment to all conversation participants
+    await broadcastToConversation(context.conversationId, {
+      type: 'action-editor-assigned',
+      assignment: {
+        manuscriptId,
+        editor: {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        },
+        assignedAt: new Date().toISOString()
+      }
+    }, manuscriptId);
+
     // Create notification message in editorial conversation
-    const editorialConversation = await prisma.conversation.findFirst({
+    const editorialConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId,
         type: 'EDITORIAL'
@@ -818,7 +852,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
       
       notificationMessage += `**Assigned:** ${new Date().toLocaleString()}\n`;
 
-      await prisma.message.create({
+      await prisma.messages.create({
         data: {
           content: notificationMessage,
           conversationId: editorialConversation.id,
