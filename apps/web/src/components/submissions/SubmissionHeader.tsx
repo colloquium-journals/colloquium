@@ -198,12 +198,12 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             mimetype: file.mimetype,
             uploadedAt: file.uploadedAt
           })) || [],
-          assignedEditor: manuscriptData.actionEditor ? {
-            id: manuscriptData.actionEditor.editor.id,
-            name: manuscriptData.actionEditor.editor.name,
-            email: manuscriptData.actionEditor.editor.email,
-            affiliation: manuscriptData.actionEditor.editor.affiliation,
-            assignedAt: manuscriptData.actionEditor.assignedAt
+          assignedEditor: manuscriptData.action_editors ? {
+            id: manuscriptData.action_editors.users_action_editors_editorIdTousers.id,
+            name: manuscriptData.action_editors.users_action_editors_editorIdTousers.name,
+            email: manuscriptData.action_editors.users_action_editors_editorIdTousers.email,
+            affiliation: manuscriptData.action_editors.users_action_editors_editorIdTousers.affiliation,
+            assignedAt: manuscriptData.action_editors.assignedAt
           } : undefined,
           reviewAssignments: manuscriptData.reviewAssignments?.map((assignment: any) => ({
             id: assignment.id,

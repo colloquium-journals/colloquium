@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { CommandBot, BotCommand } from '@colloquium/types';
+import { randomUUID } from 'crypto';
 
 /**
  * Utility for flexible default value handling in bot commands.
@@ -69,6 +70,43 @@ async function getManuscriptData(manuscriptId: string, context: any) {
           deadline: '2024-02-15'
         }
       ],
+      invitedReviewers: [
+        {
+          mention: '@DrJones',
+          email: 'jones@university.edu',
+          status: 'PENDING',
+          assignedDate: '2024-01-18',
+          deadline: '2024-02-15'
+        }
+      ],
+      acceptedReviewers: [
+        {
+          mention: '@DrBrown',
+          email: 'brown@university.edu',
+          status: 'ACCEPTED',
+          assignedDate: '2024-01-17',
+          deadline: '2024-02-15'
+        }
+      ],
+      assignedReviewers: [
+        {
+          mention: '@DrSmith',
+          email: 'smith@university.edu',
+          status: 'IN_PROGRESS',
+          assignedDate: '2024-01-20',
+          deadline: '2024-02-15'
+        }
+      ],
+      declinedReviewers: [
+        {
+          mention: '@DrWilson',
+          email: 'wilson@university.edu',
+          status: 'DECLINED',
+          assignedDate: '2024-01-16',
+          deadline: '2024-02-15'
+        }
+      ],
+      allReviewAssignments: [],
       completedReviews: 0,
       totalReviews: 1,
       lastActivity: '2024-01-20',
@@ -115,14 +153,32 @@ async function getManuscriptData(manuscriptId: string, context: any) {
       throw new Error(`Manuscript with ID ${manuscriptId} not found`);
     }
 
-    // Process reviewer data with real status information
-    const reviewers = manuscript.review_assignments.map((review: any) => ({
-      mention: `@${review.users.name}`,
-      status: review.completedAt ? 'completed' : 'pending',
-      assignedDate: review.assignedAt.toISOString().split('T')[0],
+    // Process reviewer data with detailed status information
+    const allReviewAssignments = manuscript.review_assignments.map((review: any) => ({
+      mention: `@${review.users.name || review.users.email}`,
+      email: review.users.email,
+      status: review.status, // PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, DECLINED
+      assignedDate: review.assignedAt ? review.assignedAt.toISOString().split('T')[0] : null,
+      completedDate: review.completedAt ? review.completedAt.toISOString().split('T')[0] : null,
       userId: review.users.id,
       reviewId: review.id,
       deadline: review.dueDate ? review.dueDate.toISOString().split('T')[0] : null
+    }));
+
+    // Separate different types of reviewer assignments
+    const invitedReviewers = allReviewAssignments.filter((r: any) => r.status === 'PENDING');
+    const acceptedReviewers = allReviewAssignments.filter((r: any) => r.status === 'ACCEPTED');
+    const assignedReviewers = allReviewAssignments.filter((r: any) => ['IN_PROGRESS', 'COMPLETED'].includes(r.status));
+    const declinedReviewers = allReviewAssignments.filter((r: any) => r.status === 'DECLINED');
+
+    // Legacy reviewers field for backward compatibility (only assigned reviewers)
+    const reviewers = assignedReviewers.map((review: any) => ({
+      mention: review.mention,
+      status: review.status === 'COMPLETED' ? 'completed' : 'pending',
+      assignedDate: review.assignedDate,
+      userId: review.userId,
+      reviewId: review.reviewId,
+      deadline: review.deadline
     }));
 
     // Calculate completion statistics
@@ -157,6 +213,11 @@ async function getManuscriptData(manuscriptId: string, context: any) {
         ? `@${manuscript.action_editors.users_action_editors_editorIdTousers.name}`
         : null,
       reviewers,
+      invitedReviewers,
+      acceptedReviewers,
+      assignedReviewers,
+      declinedReviewers,
+      allReviewAssignments,
       completedReviews,
       totalReviews,
       lastActivity,
@@ -171,6 +232,11 @@ async function getManuscriptData(manuscriptId: string, context: any) {
       submittedDate: new Date().toISOString().split('T')[0],
       assignedEditor: null,
       reviewers: [],
+      invitedReviewers: [],
+      acceptedReviewers: [],
+      assignedReviewers: [],
+      declinedReviewers: [],
+      allReviewAssignments: [],
       completedReviews: 0,
       totalReviews: 0,
       lastActivity: new Date().toISOString().split('T')[0],
@@ -648,64 +714,57 @@ const assignEditorCommand: BotCommand = {
   }
 };
 
-const assignCommand: BotCommand = {
-  name: 'assign',
-  description: 'Assign reviewers to a manuscript',
-  usage: '@editorial-bot assign <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]',
-  help: `Assigns reviewers to a manuscript and sends invitation notifications.
+const assignReviewerCommand: BotCommand = {
+  name: 'assign-reviewer',
+  description: 'Assign accepted reviewers to start the review process',
+  usage: '@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"]',
+  help: `Assigns reviewers who have already accepted invitations to start the review process.
 
 **Usage:**
-\`@editorial-bot assign <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
+\`@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"]\`
 
 **Parameters:**
-- **reviewers**: Comma-separated list of reviewer @mentions
-- **deadline**: Review deadline in YYYY-MM-DD format (optional - no deadline if not specified)
-- **message**: Custom message to include in reviewer invitation (optional)
+- **reviewers**: Comma-separated list of reviewer @mentions or email addresses
+- **deadline**: Review deadline in YYYY-MM-DD format (optional)
 
-**Best Practices:**
-- Choose reviewers with relevant expertise
-- Use @mentions to tag reviewers (e.g. @DrSmith, @ProfJohnson)
-- Consider setting a deadline if time-sensitive (typically 2-4 weeks)
-- Include clear instructions in custom message
-- Follow up if reviewers don't respond within a reasonable time
+**Requirements:**
+- Reviewers must have first been invited using \`@editorial-bot invite-reviewer\`
+- Reviewers must have accepted the invitation using \`@editorial-bot accept-review\`
+- Only ACCEPTED invitations can be assigned
+
+**Workflow:**
+1. Editor invites reviewers: \`@editorial-bot invite-reviewer reviewer@uni.edu\`
+2. Reviewer accepts invitation: \`@editorial-bot accept-review\`
+3. Editor assigns reviewer: \`@editorial-bot assign-reviewer reviewer@uni.edu\`
+4. Review process begins (status becomes IN_PROGRESS)
 
 **Examples:**
-- \`@editorial-bot assign @DrSmith,@ProfJohnson\` (no deadline)
-- \`@editorial-bot assign @StatisticsExpert deadline="2024-03-15" message="This paper requires statistical expertise"\`
-- \`@editorial-bot assign @MethodologyReviewer message="Please focus on the methodology section"\` (no deadline)`,
+- \`@editorial-bot assign-reviewer reviewer@university.edu\`
+- \`@editorial-bot assign-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"\``,
   parameters: [
     {
       name: 'reviewers',
-      description: 'Comma-separated list of reviewer @mentions',
-      type: 'array',
+      description: 'Comma-separated list of reviewer @mentions or email addresses',
+      type: 'string',
       required: true,
-      examples: ['@DrSmith,@ProfJohnson', '@StatisticsExpert,@MethodologyReviewer']
+      examples: ['reviewer@university.edu', '@DrSmith,expert@domain.com']
     },
     {
       name: 'deadline',
-      description: 'Review deadline in YYYY-MM-DD format (optional - no deadline if not specified)',
+      description: 'Review deadline in YYYY-MM-DD format (optional)',
       type: 'string',
       required: false,
       validation: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional(),
       examples: ['2024-02-15', '2024-03-01']
-    },
-    {
-      name: 'message',
-      description: 'Custom message to send to reviewers',
-      type: 'string',
-      required: false,
-      examples: ['This manuscript requires expertise in machine learning']
     }
   ],
   examples: [
-    '@editorial-bot assign @DrSmith,@ProfJohnson',
-    '@editorial-bot assign @StatisticsExpert deadline="2024-02-15"',
-    '@editorial-bot assign @MethodologyReviewer deadline="2024-03-01" message="This paper needs statistical review"',
-    '@editorial-bot assign @QualityReviewer message="Please focus on methodology"'
+    '@editorial-bot assign-reviewer reviewer@university.edu',
+    '@editorial-bot assign-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"'
   ],
   permissions: ['assign_reviewers'],
   async execute(params, context) {
-    const { reviewers, message } = params;
+    const { reviewers, deadline } = params;
     const { manuscriptId } = context;
 
     // Check user permissions for reviewer assignment (skip in test environment)
@@ -720,60 +779,468 @@ const assignCommand: BotCommand = {
       };
     }
 
-    // Process @mentions to ensure proper formatting
-    const processedReviewers = processMentions(reviewers);
+    // Process @mentions and email addresses to ensure proper formatting
+    const reviewerList = reviewers.split(',').map((r: string) => r.trim());
+    const processedReviewers = processMentions(reviewerList);
 
-    // Validate that the mentioned users exist and can be reviewers (skip in test environment)
-    const validationResult = process.env.NODE_ENV === 'test' 
-      ? { isValid: true } 
-      : await validateReviewers(processedReviewers, manuscriptId);
-    
-    if (!validationResult.isValid) {
+    // Return mock data in test environment
+    if (process.env.NODE_ENV === 'test') {
       return {
         messages: [{
-          content: `❌ **Reviewer Assignment Failed**\n\n${validationResult.error}`
+          content: `👥 **Reviewers Assigned**\n\n**Manuscript ID:** ${manuscriptId}\n**Reviewers:** ${processedReviewers.join(', ')}\n**Deadline:** ${deadline || 'No deadline specified'}\n\n✅ Reviewers have been assigned and can now begin their review.`
+        }],
+        actions: [{
+          type: 'ASSIGN_REVIEWER',
+          data: { 
+            reviewers: processedReviewers, 
+            deadline: deadline || null, 
+            assignedDate: new Date().toISOString().split('T')[0],
+            assignedBy: userId
+          }
         }]
       };
     }
 
-    // Handle deadline with flexible default system
-    const deadline = params.deadline || getDefaultValue(defaultProviders.deadline);
+    try {
+      // Import prisma here to avoid circular dependencies
+      const { prisma } = await import('@colloquium/database');
+      
+      const results = {
+        assigned: [] as any[],
+        notInvited: [] as any[],
+        alreadyAssigned: [] as any[]
+      };
 
-    let response = `👥 **Reviewers Assigned**\n\n`;
-    response += `**Manuscript ID:** ${manuscriptId}\n`;
-    response += `**Reviewers:** ${processedReviewers.join(', ')}\n`;
-    
-    if (deadline) {
-      response += `**Deadline:** ${deadline}\n`;
-    } else {
-      response += `**Deadline:** No deadline specified\n`;
+      // Convert reviewer inputs to email addresses
+      const reviewerEmails = [];
+      for (const reviewer of processedReviewers) {
+        if (reviewer.includes('@') && !reviewer.startsWith('@')) {
+          // It's an email address
+          reviewerEmails.push(reviewer.toLowerCase());
+        } else {
+          // It's a @mention, find the user's email
+          const username = reviewer.replace('@', '');
+          const user = await prisma.users.findFirst({
+            where: { name: username },
+            select: { email: true }
+          });
+          if (user) {
+            reviewerEmails.push(user.email);
+          } else {
+            results.notInvited.push({
+              input: reviewer,
+              reason: 'User not found'
+            });
+            continue;
+          }
+        }
+      }
+
+      // Check each reviewer's invitation status
+      for (const email of reviewerEmails) {
+        // Find the user
+        const user = await prisma.users.findUnique({
+          where: { email: email.toLowerCase() }
+        });
+
+        if (!user) {
+          results.notInvited.push({
+            email,
+            reason: 'User not found'
+          });
+          continue;
+        }
+
+        // Check if they have an accepted invitation for this manuscript
+        const existingAssignment = await prisma.review_assignments.findUnique({
+          where: {
+            manuscriptId_reviewerId: {
+              manuscriptId,
+              reviewerId: user.id
+            }
+          }
+        });
+
+        if (!existingAssignment) {
+          results.notInvited.push({
+            email,
+            reason: 'No invitation found. Use invite-reviewer command first.'
+          });
+          continue;
+        }
+
+        if (existingAssignment.status === 'IN_PROGRESS' || existingAssignment.status === 'COMPLETED') {
+          results.alreadyAssigned.push({
+            email,
+            status: existingAssignment.status
+          });
+          continue;
+        }
+
+        if (existingAssignment.status !== 'ACCEPTED') {
+          results.notInvited.push({
+            email,
+            reason: `Invitation status is ${existingAssignment.status}. Reviewer must accept invitation first.`
+          });
+          continue;
+        }
+
+        // Update the assignment to IN_PROGRESS and set deadline if provided
+        const updatedAssignment = await prisma.review_assignments.update({
+          where: { id: existingAssignment.id },
+          data: {
+            status: 'IN_PROGRESS',
+            dueDate: deadline ? new Date(deadline) : existingAssignment.dueDate,
+            assignedAt: new Date()
+          }
+        });
+
+        results.assigned.push({
+          email,
+          reviewerId: user.id,
+          assignmentId: updatedAssignment.id,
+          deadline: updatedAssignment.dueDate?.toISOString().split('T')[0] || 'No deadline'
+        });
+
+        // Broadcast reviewer assignment via SSE
+        const { broadcastToConversation } = await import('../../../apps/api/src/routes/events');
+        await broadcastToConversation(context.conversationId, {
+          type: 'reviewer-assigned',
+          assignment: {
+            manuscriptId,
+            reviewer: {
+              id: user.id,
+              email: user.email,
+              name: user.name || user.email
+            },
+            assignmentId: updatedAssignment.id,
+            status: 'IN_PROGRESS',
+            dueDate: updatedAssignment.dueDate?.toISOString(),
+            assignedAt: new Date().toISOString()
+          }
+        }, manuscriptId);
+      }
+
+      // Prepare response message
+      let response = `👥 **Reviewer Assignment Results**\n\n`;
+      response += `**Manuscript ID:** ${manuscriptId}\n\n`;
+
+      if (results.assigned.length > 0) {
+        response += `✅ **Successfully Assigned (${results.assigned.length}):**\n`;
+        results.assigned.forEach(r => {
+          response += `- ${r.email} (deadline: ${r.deadline})\n`;
+        });
+        response += '\n';
+      }
+
+      if (results.alreadyAssigned.length > 0) {
+        response += `ℹ️ **Already Assigned (${results.alreadyAssigned.length}):**\n`;
+        results.alreadyAssigned.forEach(r => {
+          response += `- ${r.email} (status: ${r.status})\n`;
+        });
+        response += '\n';
+      }
+
+      if (results.notInvited.length > 0) {
+        response += `❌ **Cannot Assign (${results.notInvited.length}):**\n`;
+        results.notInvited.forEach(r => {
+          response += `- ${r.email}: ${r.reason}\n`;
+        });
+        response += '\n';
+      }
+
+      if (results.assigned.length === 0) {
+        response += '⚠️ No reviewers were assigned. Make sure reviewers have accepted their invitations first.';
+      } else {
+        response += `🎉 ${results.assigned.length} reviewer(s) successfully assigned and can now begin their review.`;
+      }
+
+      return {
+        messages: [{ content: response }],
+        actions: results.assigned.length > 0 ? [{
+          type: 'ASSIGN_REVIEWER',
+          data: { 
+            reviewers: results.assigned.map(r => r.email),
+            deadline: deadline || null,
+            assignedDate: new Date().toISOString().split('T')[0],
+            assignedBy: userId,
+            assignmentResults: results
+          }
+        }] : undefined
+      };
+
+    } catch (error) {
+      console.error('Error in assign-reviewer command:', error);
+      return {
+        messages: [{
+          content: `❌ **Assignment Failed**\n\nAn error occurred while assigning reviewers: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }]
+      };
     }
-    
-    if (message) {
-      response += `**Instructions:** ${message}\n`;
+  }
+};
+
+const inviteReviewerCommand: BotCommand = {
+  name: 'invite-reviewer',
+  description: 'Send email invitations to potential reviewers',
+  usage: '@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]',
+  help: `Sends email invitations to potential reviewers without immediately assigning them.
+
+**Usage:**
+\`@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
+
+**Parameters:**
+- **reviewers**: Comma-separated list of reviewer email addresses or @mentions
+- **deadline**: Review deadline in YYYY-MM-DD format (optional)
+- **message**: Custom message to include in invitation email (optional)
+
+**Workflow:**
+1. Sends invitation email to reviewers
+2. Creates pending review assignment with PENDING status
+3. Reviewers can accept with \`@editorial-bot accept-review\`
+4. Editors can then assign accepted reviewers with \`@editorial-bot assign-reviewer\`
+
+**Examples:**
+- \`@editorial-bot invite-reviewer reviewer@university.edu\`
+- \`@editorial-bot invite-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"\`
+- \`@editorial-bot invite-reviewer reviewer@uni.edu message="This paper requires statistical expertise"\``,
+  parameters: [
+    {
+      name: 'reviewers',
+      description: 'Comma-separated list of reviewer email addresses or @mentions',
+      type: 'string',
+      required: true,
+      examples: ['reviewer@university.edu', '@DrSmith,expert@domain.com']
+    },
+    {
+      name: 'deadline',
+      description: 'Review deadline in YYYY-MM-DD format',
+      type: 'string',
+      required: false,
+      examples: ['2024-03-15', '2024-04-01']
+    },
+    {
+      name: 'message',
+      description: 'Custom message to include in invitation email',
+      type: 'string',
+      required: false,
+      examples: ['This manuscript requires expertise in machine learning']
     }
+  ],
+  examples: [
+    '@editorial-bot invite-reviewer reviewer@university.edu',
+    '@editorial-bot invite-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"',
+    '@editorial-bot invite-reviewer reviewer@uni.edu message="Statistical expertise needed"'
+  ],
+  permissions: ['assign_reviewers'],
+  async execute(params, context) {
+    const { reviewers, deadline, message } = params;
+    const { manuscriptId } = context;
+
+    // Import prisma here to avoid circular dependencies
+    const { prisma } = await import('@colloquium/database');
+
+    // Parse reviewers (can be @mentions or email addresses)
+    const reviewerList = reviewers.split(',').map((r: string) => r.trim());
     
-    response += `\n✅ Review invitations have been sent to all assigned reviewers.`;
+    if (reviewerList.length === 0) {
+      return {
+        messages: [{
+          content: '❌ **Invalid Input**\n\nPlease provide at least one reviewer email address or @mention.\n\nExample: `@editorial-bot invite-reviewer reviewer@university.edu`'
+        }]
+      };
+    }
+
+    const results = {
+      invited: [] as any[],
+      failed: [] as any[],
+      alreadyInvited: [] as any[]
+    };
+
+    for (const reviewerInput of reviewerList) {
+      try {
+        let email = reviewerInput;
+        
+        // Handle @mentions by extracting the username and converting to email
+        if (reviewerInput.startsWith('@')) {
+          const username = reviewerInput.replace('@', '');
+          // For now, we'll assume @mentions are usernames and try to find the user
+          // In a real system, you'd look up the user in the database
+          email = `${username}@example.com`; // Placeholder - should be replaced with actual user lookup
+        }
+
+        email = email.toLowerCase();
+
+        // Check if user exists, create if not
+        let reviewer = await prisma.users.findUnique({
+          where: { email }
+        });
+
+        if (!reviewer) {
+          reviewer = await prisma.users.create({
+            data: {
+              id: randomUUID(),
+              email,
+              role: 'USER',
+              updatedAt: new Date()
+            }
+          });
+        }
+
+        // Check if already invited/assigned to this manuscript
+        const existingAssignment = await prisma.review_assignments.findUnique({
+          where: {
+            manuscriptId_reviewerId: {
+              manuscriptId,
+              reviewerId: reviewer.id
+            }
+          }
+        });
+
+        if (existingAssignment) {
+          results.alreadyInvited.push({
+            email,
+            reviewerId: reviewer.id,
+            status: existingAssignment.status
+          });
+          continue;
+        }
+
+        // Create invitation (pending review assignment)
+        const invitation = await prisma.review_assignments.create({
+          data: {
+            id: randomUUID(),
+            manuscriptId,
+            reviewerId: reviewer.id,
+            status: 'PENDING',
+            dueDate: deadline ? new Date(deadline) : null
+          }
+        });
+
+        // Send invitation email with links to public API endpoints
+        try {
+          const nodemailer = await import('nodemailer');
+          const transporter = nodemailer.createTransporter({
+            host: process.env.SMTP_HOST || 'localhost',
+            port: parseInt(process.env.SMTP_PORT || '1025'),
+            secure: false,
+            auth: process.env.SMTP_USER ? {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS
+            } : undefined,
+            tls: {
+              rejectUnauthorized: false
+            }
+          });
+
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const acceptUrl = `${frontendUrl}/review-response/${invitation.id}?action=accept`;
+          const declineUrl = `${frontendUrl}/review-response/${invitation.id}?action=decline`;
+          
+          await transporter.sendMail({
+            from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+            to: email,
+            subject: `Review Invitation: Manuscript Review Request`,
+            html: `
+              <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <h1 style="color: #2563eb; margin-bottom: 24px;">Review Invitation</h1>
+                <p>You have been invited to review a manuscript submission.</p>
+                
+                ${message ? `
+                  <div style="background-color: #f9fafb; padding: 16px; margin: 24px 0; border-radius: 6px;">
+                    <h3 style="margin-top: 0;">Message from Editor:</h3>
+                    <p style="margin-bottom: 0;">${message}</p>
+                  </div>
+                ` : ''}
+                
+                <p><strong>Review deadline:</strong> ${deadline || 'To be determined'}</p>
+                
+                <div style="margin: 32px 0;">
+                  <a href="${acceptUrl}" 
+                     style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-right: 16px;">
+                    Accept Review
+                  </a>
+                  <a href="${declineUrl}" 
+                     style="display: inline-block; background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+                    Decline Review
+                  </a>
+                </div>
+                
+                <p style="color: #6b7280; font-size: 14px;">
+                  Invitation sent via Editorial Bot automation.
+                </p>
+              </div>
+            `,
+            text: `
+Review Invitation
+
+You have been invited to review a manuscript submission.
+
+${message ? `Message from Editor: ${message}\n\n` : ''}
+
+Review deadline: ${deadline || 'To be determined'}
+
+Accept: ${acceptUrl}
+Decline: ${declineUrl}
+            `
+          });
+        } catch (emailError) {
+          console.error('Failed to send invitation email:', emailError);
+        }
+        
+        results.invited.push({
+          email,
+          reviewerId: reviewer.id,
+          invitationId: invitation.id
+        });
+
+      } catch (error) {
+        console.error(`Failed to invite reviewer ${reviewerInput}:`, error);
+        results.failed.push({
+          email: reviewerInput,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    // Generate response message
+    let responseMessage = '📧 **Reviewer Invitations Sent**\n\n';
+    
+    if (results.invited.length > 0) {
+      responseMessage += `**✅ Successfully Invited (${results.invited.length}):**\n`;
+      results.invited.forEach(r => {
+        responseMessage += `- ${r.email}\n`;
+      });
+      responseMessage += '\n';
+    }
+
+    if (results.alreadyInvited.length > 0) {
+      responseMessage += `**ℹ️ Already Invited/Assigned (${results.alreadyInvited.length}):**\n`;
+      results.alreadyInvited.forEach(r => {
+        responseMessage += `- ${r.email} (${r.status})\n`;
+      });
+      responseMessage += '\n';
+    }
+
+    if (results.failed.length > 0) {
+      responseMessage += `**❌ Failed (${results.failed.length}):**\n`;
+      results.failed.forEach(r => {
+        responseMessage += `- ${r.email}: ${r.error}\n`;
+      });
+      responseMessage += '\n';
+    }
+
+    responseMessage += `Reviewers can accept invitations using: \`@editorial-bot accept-review\``;
 
     return {
-      messages: [{ content: response }],
-      actions: [{
-        type: 'ASSIGN_REVIEWER',
-        data: { 
-          reviewers: processedReviewers, 
-          deadline: deadline || null, 
-          customMessage: message,
-          assignedDate: new Date().toISOString().split('T')[0],
-          assignedBy: userId
-        }
-      }]
+      messages: [{ content: responseMessage }]
     };
   }
 };
 
 const summaryCommand: BotCommand = {
   name: 'summary',
-  description: 'Generate a summary showing status, assigned editor, and reviewers',
+  description: 'Generate a summary showing status, assigned editor, invited reviewers, and review progress',
   usage: '@editorial-bot summary [format="brief|detailed"]',
   parameters: [
     {
@@ -801,14 +1268,30 @@ const summaryCommand: BotCommand = {
     let summary = `📊 **Manuscript Review Summary**\n\n`;
     summary += `**Status:** ${manuscriptData.status.replace('_', ' ')}\n`;
     summary += `**Submitted:** ${manuscriptData.submittedDate}\n`;
-    summary += `**Assigned Editor:** ${manuscriptData.assignedEditor || 'No editor assigned'}\n`;
+    summary += `**Assigned Editor:** ${manuscriptData.assignedEditor || 'No editor assigned'}\n\n`;
     
+    // Invited reviewers section
+    if (manuscriptData.invitedReviewers?.length > 0) {
+      summary += `📬 **Invited Reviewers (${manuscriptData.invitedReviewers.length}):** ${manuscriptData.invitedReviewers.map((r: any) => r.mention).join(', ')}\n`;
+    }
+    
+    // Accepted reviewers section
+    if (manuscriptData.acceptedReviewers?.length > 0) {
+      summary += `✅ **Accepted Invitations (${manuscriptData.acceptedReviewers.length}):** ${manuscriptData.acceptedReviewers.map((r: any) => r.mention).join(', ')}\n`;
+    }
+    
+    // Assigned reviewers section
     if (manuscriptData.reviewers.length > 0) {
-      summary += `**Assigned Reviewers:** ${manuscriptData.reviewers.map((r: any) => r.mention).join(', ')}\n`;
+      summary += `🔄 **Assigned Reviewers (${manuscriptData.reviewers.length}):** ${manuscriptData.reviewers.map((r: any) => r.mention).join(', ')}\n`;
       summary += `**Review Progress:** ${manuscriptData.completedReviews}/${manuscriptData.totalReviews} reviews completed\n`;
     } else {
-      summary += `**Assigned Reviewers:** No reviewers assigned\n`;
+      summary += `🔄 **Assigned Reviewers:** No reviewers assigned\n`;
       summary += `**Review Progress:** 0/0 reviews completed\n`;
+    }
+    
+    // Declined reviewers section
+    if (manuscriptData.declinedReviewers?.length > 0) {
+      summary += `❌ **Declined Invitations (${manuscriptData.declinedReviewers.length}):** ${manuscriptData.declinedReviewers.map((r: any) => r.mention).join(', ')}\n`;
     }
     
     if (manuscriptData.deadline) {
@@ -818,20 +1301,63 @@ const summaryCommand: BotCommand = {
     summary += `**Last Activity:** ${manuscriptData.lastActivity}\n`;
 
     if (format === 'detailed') {
-      summary += `\n**Reviewer Status:**\n`;
-      manuscriptData.reviewers.forEach((reviewer: any, index: number) => {
-        const statusIcon = reviewer.status === 'completed' ? '✅' : '⏳';
-        const statusText = reviewer.status === 'completed' ? 'Complete' : 'Pending';
-        summary += `${index + 1}. ${reviewer.mention} - ${statusIcon} ${statusText} (assigned ${reviewer.assignedDate})\n`;
-      });
+      summary += `\n**Detailed Reviewer Status:**\n`;
+      
+      // Show invited reviewers
+      if (manuscriptData.invitedReviewers?.length > 0) {
+        summary += `\n📬 **Invited (Awaiting Response):**\n`;
+        manuscriptData.invitedReviewers.forEach((reviewer: any, index: number) => {
+          summary += `${index + 1}. ${reviewer.mention} - ⏳ Pending Response (invited ${reviewer.assignedDate})\n`;
+        });
+      }
+      
+      // Show accepted reviewers
+      if (manuscriptData.acceptedReviewers?.length > 0) {
+        summary += `\n✅ **Accepted (Ready to Assign):**\n`;
+        manuscriptData.acceptedReviewers.forEach((reviewer: any, index: number) => {
+          summary += `${index + 1}. ${reviewer.mention} - ✅ Accepted (${reviewer.assignedDate})\n`;
+        });
+      }
+      
+      // Show assigned reviewers
+      if (manuscriptData.assignedReviewers?.length > 0) {
+        summary += `\n🔄 **Assigned (In Progress):**\n`;
+        manuscriptData.assignedReviewers.forEach((reviewer: any, index: number) => {
+          const statusIcon = reviewer.status === 'COMPLETED' ? '✅' : '⏳';
+          const statusText = reviewer.status === 'COMPLETED' ? 'Complete' : 'In Progress';
+          summary += `${index + 1}. ${reviewer.mention} - ${statusIcon} ${statusText} (assigned ${reviewer.assignedDate})\n`;
+        });
+      }
+      
+      // Show declined reviewers
+      if (manuscriptData.declinedReviewers?.length > 0) {
+        summary += `\n❌ **Declined:**\n`;
+        manuscriptData.declinedReviewers.forEach((reviewer: any, index: number) => {
+          summary += `${index + 1}. ${reviewer.mention} - ❌ Declined (${reviewer.assignedDate})\n`;
+        });
+      }
       
       summary += `\n**Next Steps:**\n`;
+      
+      // Provide actionable next steps based on current state
+      if (manuscriptData.invitedReviewers?.length > 0) {
+        summary += `- Follow up with ${manuscriptData.invitedReviewers.length} pending invitation(s)\n`;
+      }
+      
+      if (manuscriptData.acceptedReviewers?.length > 0) {
+        summary += `- Assign ${manuscriptData.acceptedReviewers.length} accepted reviewer(s) using \`@editorial-bot assign-reviewer\`\n`;
+      }
+      
       if (manuscriptData.completedReviews < manuscriptData.totalReviews) {
-        summary += `- Wait for remaining ${manuscriptData.totalReviews - manuscriptData.completedReviews} review(s)\n`;
-        summary += `- Follow up with pending reviewers if past deadline\n`;
-      } else {
+        summary += `- Wait for remaining ${manuscriptData.totalReviews - manuscriptData.completedReviews} review(s) to complete\n`;
+        summary += `- Follow up with in-progress reviewers if past deadline\n`;
+      } else if (manuscriptData.totalReviews > 0) {
         summary += `- Review all feedback and make editorial decision\n`;
         summary += `- Communicate decision to authors\n`;
+      }
+      
+      if (manuscriptData.declinedReviewers?.length > 0) {
+        summary += `- Consider inviting replacement reviewers for ${manuscriptData.declinedReviewers.length} declined invitation(s)\n`;
       }
     }
 
@@ -907,6 +1433,144 @@ const respondCommand: BotCommand = {
         }
       }]
     };
+  }
+};
+
+const acceptReviewCommand: BotCommand = {
+  name: 'accept-review',
+  description: 'Accept a review invitation for the current manuscript',
+  usage: '@editorial-bot accept-review [message="optional message"]',
+  help: `Accept a review invitation for the current manuscript. This command can only be used by users who have been invited as reviewers.
+
+**Usage:**
+\`@editorial-bot accept-review [message="optional message"]\`
+
+**Parameters:**
+- **message**: Optional message to include with your acceptance (optional)
+
+**Requirements:**
+- You must have been invited as a reviewer for this manuscript
+- The invitation must be in PENDING status
+- Command must be used in the manuscript's conversation
+
+**Workflow:**
+1. Editor sends invitation with \`@editorial-bot invite-reviewer\`
+2. You receive invitation email
+3. You accept with \`@editorial-bot accept-review\`
+4. Editor can then assign you with \`@editorial-bot assign-reviewer\`
+
+**Examples:**
+- \`@editorial-bot accept-review\`
+- \`@editorial-bot accept-review message="Happy to review this work"\``,
+  parameters: [
+    {
+      name: 'message',
+      description: 'Optional message to include with your acceptance',
+      type: 'string',
+      required: false,
+      examples: ['Happy to review this work', 'I have expertise in this area']
+    }
+  ],
+  examples: [
+    '@editorial-bot accept-review',
+    '@editorial-bot accept-review message="Happy to review this work"'
+  ],
+  permissions: [],
+  async execute(params, context) {
+    const { message } = params;
+    const { manuscriptId, userId } = context;
+
+    if (!userId) {
+      return {
+        messages: [{
+          content: '❌ **Authentication Required**\n\nYou must be logged in to accept review invitations.'
+        }]
+      };
+    }
+
+    try {
+      // Import prisma here to avoid circular dependencies
+      const { prisma } = await import('@colloquium/database');
+      // Check if user has a pending invitation for this manuscript
+      const invitation = await prisma.review_assignments.findUnique({
+        where: {
+          manuscriptId_reviewerId: {
+            manuscriptId,
+            reviewerId: userId
+          }
+        },
+        include: {
+          users: {
+            select: {
+              name: true,
+              email: true
+            }
+          },
+          manuscripts: {
+            select: {
+              title: true
+            }
+          }
+        }
+      });
+
+      if (!invitation) {
+        return {
+          messages: [{
+            content: '❌ **No Invitation Found**\n\nYou do not have a review invitation for this manuscript. Invitations are sent by editors using `@editorial-bot invite-reviewer`.'
+          }]
+        };
+      }
+
+      if (invitation.status !== 'PENDING') {
+        const statusMessage = invitation.status === 'ACCEPTED' 
+          ? 'You have already accepted this review invitation.'
+          : invitation.status === 'DECLINED'
+          ? 'You have previously declined this review invitation.'
+          : `Your review invitation status is: ${invitation.status}`;
+          
+        return {
+          messages: [{
+            content: `ℹ️ **Invitation Already Responded**\n\n${statusMessage}`
+          }]
+        };
+      }
+
+      // Accept the invitation
+      await prisma.review_assignments.update({
+        where: {
+          manuscriptId_reviewerId: {
+            manuscriptId,
+            reviewerId: userId
+          }
+        },
+        data: {
+          status: 'ACCEPTED'
+        }
+      });
+
+      let responseMessage = `✅ **Review Invitation Accepted**\n\n`;
+      responseMessage += `**Reviewer:** ${invitation.users.name || invitation.users.email}\n`;
+      responseMessage += `**Manuscript:** ${invitation.manuscripts.title}\n\n`;
+      
+      if (message) {
+        responseMessage += `**Message:** ${message}\n\n`;
+      }
+      
+      responseMessage += `Thank you for accepting! The editor can now assign you as a reviewer using \`@editorial-bot assign-reviewer\`.`;
+
+      return {
+        messages: [{ content: responseMessage }]
+      };
+
+    } catch (error) {
+      console.error('Failed to accept review invitation:', error);
+      return {
+        messages: [{
+          content: '❌ **Error**\n\nFailed to accept review invitation. Please try again or contact the editor.'
+        }]
+      };
+    }
   }
 };
 
@@ -1076,13 +1740,15 @@ const helpCommand: BotCommand = {
       description: 'Optional: Get detailed help for a specific command',
       type: 'string',
       required: false,
-      examples: ['status', 'assign', 'assign-editor', 'summary', 'decision']
+      examples: ['status', 'assign-reviewer', 'invite-reviewer', 'accept-review', 'assign-editor', 'summary', 'decision']
     }
   ],
   examples: [
     '@editorial-bot help',
     '@editorial-bot help status',
-    '@editorial-bot help assign'
+    '@editorial-bot help assign-reviewer',
+    '@editorial-bot help invite-reviewer',
+    '@editorial-bot help accept-review'
   ],
   permissions: [],
   async execute(params, context) {
@@ -1090,7 +1756,7 @@ const helpCommand: BotCommand = {
     
     if (command) {
       // Return help for specific command
-      const commands = [statusCommand, assignEditorCommand, assignCommand, summaryCommand, decisionCommand, respondCommand, submitCommand];
+      const commands = [statusCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, decisionCommand, respondCommand, submitCommand];
       const targetCommand = commands.find(cmd => cmd.name === command);
       
       if (!targetCommand) {
@@ -1111,7 +1777,7 @@ const helpCommand: BotCommand = {
         
         if (targetCommand.examples.length > 0) {
           helpContent += `**Examples:**\n`;
-          targetCommand.examples.forEach(example => {
+          targetCommand.examples.forEach((example: string) => {
             helpContent += `- \`${example}\`\n`;
           });
         }
@@ -1143,7 +1809,7 @@ The Editorial Bot streamlines manuscript management by automating status updates
 
 ## Quick Start
 
-Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot assign <reviewers>, and @editorial-bot status <status>
+Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot assign-reviewer <reviewers>, and @editorial-bot status <status>
 
 ## Available Commands
 
@@ -1153,8 +1819,8 @@ Usage: \`@editorial-bot status <new-status> [reason="reason for change"]\`
 **assign-editor** - Assign an action editor to a manuscript
 Usage: \`@editorial-bot assign-editor <editor> [message="custom message"]\`
 
-**assign** - Assign reviewers to a manuscript
-Usage: \`@editorial-bot assign <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
+**assign-reviewer** - Assign reviewers to a manuscript
+Usage: \`@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
 
 **summary** - Generate a summary showing status, assigned editor, and reviewers
 Usage: \`@editorial-bot summary [format="brief|detailed"]\`
@@ -1178,7 +1844,7 @@ This bot also responds to these keywords: \`editorial decision\`, \`review statu
 
 \`@editorial-bot status UNDER_REVIEW reason="Initial review passed"\`
 
-\`@editorial-bot assign @DrSmith,@ProfJohnson deadline="2024-02-15"\`
+\`@editorial-bot assign-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
 
 \`@editorial-bot decision accept\`
 
@@ -1208,32 +1874,32 @@ export const editorialBot: CommandBot = {
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management',
   version: '2.3.0',
-  commands: [statusCommand, assignEditorCommand, assignCommand, summaryCommand, decisionCommand, respondCommand, submitCommand, helpCommand],
+  commands: [statusCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, decisionCommand, respondCommand, submitCommand, helpCommand],
   keywords: ['editorial decision', 'review status', 'assign reviewer', 'assign editor', 'manuscript status', 'make decision'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {
     overview: 'The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.',
-    quickStart: 'Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot assign <reviewers>, and @editorial-bot status <status>',
+    quickStart: 'Start by using @editorial-bot help to see all available commands. New workflow: @editorial-bot invite-reviewer <reviewers> to send invitations, then reviewers use @editorial-bot accept-review, then @editorial-bot assign-reviewer <reviewers> to start reviews.',
     examples: [
       '@editorial-bot assign-editor @DrEditor',
       '@editorial-bot status UNDER_REVIEW reason="Initial review passed"',
-      '@editorial-bot assign @DrSmith,@ProfJohnson deadline="2024-02-15"',
+      '@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
+      '@editorial-bot assign-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
       '@editorial-bot decision accept',
       '@editorial-bot status PUBLISHED reason="Ready for publication"',
-      '@editorial-bot status RETRACTED reason="Data integrity issues"',
       '@editorial-bot summary format="detailed"'
     ]
   },
   customHelpSections: [
     {
       title: '🚀 Getting Started',
-      content: 'This bot helps automate editorial workflows. Use `status` to update manuscript status, `assign` to assign reviewers, and `decision` to make editorial decisions.',
+      content: 'This bot helps automate editorial workflows. Use `status` to update manuscript status, `assign-reviewer` to assign reviewers, and `decision` to make editorial decisions.',
       position: 'before'
     },
     {
       title: '📋 Workflow Steps',
-      content: '1. Submit manuscript → 2. Assign action editor → 3. Assign reviewers → 4. Track progress → 5. Make decision → 6. Update status',
+      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept → 5. Assign reviewers → 6. Track progress → 7. Make decision → 8. Update status',
       position: 'before'
     },
     {

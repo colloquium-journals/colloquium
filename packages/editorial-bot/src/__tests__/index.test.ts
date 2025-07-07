@@ -9,16 +9,19 @@ describe('Editorial Bot', () => {
   });
 
   it('should have the expected commands', () => {
-    expect(editorialBot.commands).toHaveLength(7);
+    expect(editorialBot.commands).toHaveLength(10);
     
     const commandNames = editorialBot.commands.map(cmd => cmd.name);
     expect(commandNames).toContain('status');
     expect(commandNames).toContain('assign-editor');
-    expect(commandNames).toContain('assign');
+    expect(commandNames).toContain('assign-reviewer');
+    expect(commandNames).toContain('invite-reviewer');
+    expect(commandNames).toContain('accept-review');
     expect(commandNames).toContain('summary');
     expect(commandNames).toContain('decision');
     expect(commandNames).toContain('respond');
     expect(commandNames).toContain('submit');
+    expect(commandNames).toContain('help');
   });
 
   it('should have the expected keywords', () => {
@@ -244,34 +247,29 @@ describe('Editorial Bot', () => {
     });
   });
 
-  describe('assign command', () => {
-    const assignCommand = editorialBot.commands.find(cmd => cmd.name === 'assign');
+  describe('assign-reviewer command', () => {
+    const assignReviewerCommand = editorialBot.commands.find(cmd => cmd.name === 'assign-reviewer');
 
     it('should exist and have correct metadata', () => {
-      expect(assignCommand).toBeDefined();
-      expect(assignCommand!.description).toBe('Assign reviewers to a manuscript');
-      expect(assignCommand!.permissions).toEqual(['assign_reviewers']);
+      expect(assignReviewerCommand).toBeDefined();
+      expect(assignReviewerCommand!.description).toBe('Assign accepted reviewers to start the review process');
+      expect(assignReviewerCommand!.permissions).toEqual(['assign_reviewers']);
     });
 
     it('should have correct parameters', () => {
-      expect(assignCommand!.parameters).toHaveLength(3);
+      expect(assignReviewerCommand!.parameters).toHaveLength(2);
       
-      const reviewersParam = assignCommand!.parameters.find(p => p.name === 'reviewers');
+      const reviewersParam = assignReviewerCommand!.parameters.find(p => p.name === 'reviewers');
       expect(reviewersParam).toBeDefined();
-      expect(reviewersParam!.type).toBe('array');
+      expect(reviewersParam!.type).toBe('string');
       expect(reviewersParam!.required).toBe(true);
       expect(reviewersParam!.description).toContain('@mentions');
       
-      const deadlineParam = assignCommand!.parameters.find(p => p.name === 'deadline');
+      const deadlineParam = assignReviewerCommand!.parameters.find(p => p.name === 'deadline');
       expect(deadlineParam).toBeDefined();
       expect(deadlineParam!.type).toBe('string');
       expect(deadlineParam!.required).toBe(false);
-      expect(deadlineParam!.description).toContain('optional - no deadline if not specified');
-      
-      const messageParam = assignCommand!.parameters.find(p => p.name === 'message');
-      expect(messageParam).toBeDefined();
-      expect(messageParam!.type).toBe('string');
-      expect(messageParam!.required).toBe(false);
+      expect(deadlineParam!.description).toContain('optional');
     });
 
     it('should execute successfully with reviewer assignment', async () => {
@@ -289,17 +287,15 @@ describe('Editorial Bot', () => {
       };
 
       const reviewers = ['@DrSmith', '@ProfJohnson'];
-      const result = await assignCommand!.execute({ 
-        reviewers, 
-        deadline: '2024-02-15',
-        message: 'Please review this manuscript'
+      const result = await assignReviewerCommand!.execute({ 
+        reviewers: reviewers.join(','), 
+        deadline: '2024-02-15'
       }, mockContext);
       
       expect(result).toBeDefined();
       expect(result.messages[0].content).toContain('Reviewers Assigned');
       expect(result.messages[0].content).toContain('@DrSmith, @ProfJohnson');
       expect(result.messages[0].content).toContain('2024-02-15');
-      expect(result.messages[0].content).toContain('Please review this manuscript');
       
       expect(result.actions![0].type).toBe('ASSIGN_REVIEWER');
       expect(result.actions![0].data.reviewers).toEqual(reviewers);
@@ -320,16 +316,14 @@ describe('Editorial Bot', () => {
       };
 
       const reviewers = ['@DrSmith', '@ProfJohnson'];
-      const result = await assignCommand!.execute({ 
-        reviewers,
-        message: 'Please review this manuscript' 
+      const result = await assignReviewerCommand!.execute({ 
+        reviewers: reviewers.join(',')
       }, mockContext);
       
       expect(result).toBeDefined();
       expect(result.messages[0].content).toContain('Reviewers Assigned');
       expect(result.messages[0].content).toContain('@DrSmith, @ProfJohnson');
       expect(result.messages[0].content).toContain('No deadline specified');
-      expect(result.messages[0].content).toContain('Please review this manuscript');
       
       expect(result.actions![0].type).toBe('ASSIGN_REVIEWER');
       expect(result.actions![0].data.reviewers).toEqual(reviewers);
@@ -351,16 +345,14 @@ describe('Editorial Bot', () => {
       };
 
       const reviewers = ['@StatisticsExpert'];
-      const result = await assignCommand!.execute({ reviewers }, mockContext);
+      const result = await assignReviewerCommand!.execute({ reviewers: reviewers.join(',') }, mockContext);
       
       expect(result).toBeDefined();
       expect(result.messages[0].content).toContain('Reviewers Assigned');
       expect(result.messages[0].content).toContain('@StatisticsExpert');
       expect(result.messages[0].content).toContain('No deadline specified');
-      expect(result.messages[0].content).not.toContain('Instructions:');
       
       expect(result.actions![0].data.deadline).toBe(null);
-      expect(result.actions![0].data.customMessage).toBeUndefined();
     });
 
     it('should handle @mention processing correctly', async () => {
@@ -379,7 +371,7 @@ describe('Editorial Bot', () => {
 
       // Test with mixed @mention and non-@mention inputs
       const reviewers = ['DrSmith', '@ProfJohnson', 'StatisticsExpert'];
-      const result = await assignCommand!.execute({ reviewers }, mockContext);
+      const result = await assignReviewerCommand!.execute({ reviewers: reviewers.join(',') }, mockContext);
       
       expect(result).toBeDefined();
       expect(result.messages[0].content).toContain('@DrSmith, @ProfJohnson, @StatisticsExpert');
@@ -447,7 +439,7 @@ describe('Editorial Bot', () => {
 
     it('should exist and have correct metadata', () => {
       expect(summaryCommand).toBeDefined();
-      expect(summaryCommand!.description).toBe('Generate a summary showing status, assigned editor, and reviewers');
+      expect(summaryCommand!.description).toBe('Generate a summary showing status, assigned editor, invited reviewers, and review progress');
       expect(summaryCommand!.permissions).toEqual(['read_manuscript']);
     });
 
@@ -469,7 +461,7 @@ describe('Editorial Bot', () => {
       expect(result.messages[0].content).toContain('Manuscript Review Summary');
       expect(result.messages[0].content).toContain('Status:');
       expect(result.messages[0].content).toContain('Assigned Editor:');
-      expect(result.messages[0].content).toContain('Assigned Reviewers:');
+      expect(result.messages[0].content).toContain('🔄 **Assigned Reviewers');
       expect(result.messages[0].content).toContain('Review Progress:');
       expect(result.messages[0].content).not.toContain('Average Score:');
     });
@@ -514,7 +506,7 @@ describe('Editorial Bot', () => {
       // Check that it includes status, editor, and reviewers (real data structure)
       expect(content).toContain('**Status:**');
       expect(content).toContain('**Assigned Editor:**');
-      expect(content).toContain('**Assigned Reviewers:**');
+      expect(content).toContain('🔄 **Assigned Reviewers');
       expect(content).toContain('**Review Progress:**');
       
       // Ensure average score is removed

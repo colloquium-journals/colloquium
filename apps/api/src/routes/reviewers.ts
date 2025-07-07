@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '@colloquium/database';
 import { requireAuth, requireAnyRole } from '../middleware/auth';
 import { validateRequest, asyncHandler } from '../middleware/validation';
+import { z } from 'zod';
 import { 
   ReviewAssignmentCreateSchema, 
   ReviewAssignmentUpdateSchema,
@@ -921,6 +922,280 @@ router.post('/assignments/:id/submit',
       assignment: updatedAssignment,
       submission: reviewSubmission
     });
+  })
+);
+
+// GET /api/reviewers/invitations/:id/public - Public endpoint for email-based responses (no auth required)
+router.get('/invitations/:id/public',
+  validateRequest({
+    params: IdSchema.transform(id => ({ id })),
+    query: z.object({
+      action: z.enum(['accept', 'decline']).optional(),
+      token: z.string().optional()
+    }).optional()
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const { action } = req.query;
+
+    // Find the review assignment
+    const assignment = await prisma.review_assignments.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true }
+        },
+        manuscripts: {
+          select: {
+            id: true,
+            title: true,
+            abstract: true,
+            submittedAt: true
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review invitation not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Check if invitation is still pending
+    if (assignment.status !== 'PENDING') {
+      const statusMessage = assignment.status === 'ACCEPTED' 
+        ? 'This invitation has already been accepted.'
+        : assignment.status === 'DECLINED'
+        ? 'This invitation has already been declined.'
+        : `This invitation status is: ${assignment.status}`;
+        
+      return res.status(400).json({
+        error: {
+          message: statusMessage,
+          type: 'ValidationError'
+        }
+      });
+    }
+
+    // If action is provided, process the response
+    if (action) {
+      const newStatus = action === 'accept' ? 'ACCEPTED' : 'DECLINED';
+      
+      try {
+        // Update the assignment status
+        const updatedAssignment = await prisma.review_assignments.update({
+          where: { id },
+          data: { status: newStatus },
+          include: {
+            users: {
+              select: { id: true, name: true, email: true }
+            },
+            manuscripts: {
+              select: { id: true, title: true }
+            }
+          }
+        });
+
+        // Broadcast SSE update to manuscript conversations
+        try {
+          const { broadcastToConversation } = await import('../events');
+          await broadcastToConversation(`manuscript-${assignment.manuscriptId}`, {
+            type: 'reviewer-invitation-response',
+            response: {
+              assignmentId: id,
+              status: newStatus,
+              reviewer: assignment.users,
+              manuscriptId: assignment.manuscriptId,
+              respondedAt: new Date().toISOString()
+            }
+          }, assignment.manuscriptId);
+        } catch (sseError) {
+          console.error('Failed to broadcast SSE update:', sseError);
+        }
+
+        // Return success page
+        return res.status(200).json({
+          message: `Review invitation ${action}ed successfully`,
+          status: newStatus,
+          reviewer: assignment.users.name || assignment.users.email,
+          manuscript: assignment.manuscripts.title,
+          redirectUrl: process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/review-response-success?status=${newStatus}` : null
+        });
+        
+      } catch (error) {
+        console.error('Failed to update invitation status:', error);
+        return res.status(500).json({
+          error: {
+            message: 'Failed to process invitation response',
+            type: 'InternalServerError'
+          }
+        });
+      }
+    }
+
+    // If no action provided, return invitation details for display
+    return res.status(200).json({
+      invitation: {
+        id: assignment.id,
+        status: assignment.status,
+        dueDate: assignment.dueDate,
+        reviewer: assignment.users,
+        manuscript: {
+          title: assignment.manuscripts.title,
+          abstract: assignment.manuscripts.abstract,
+          submittedAt: assignment.manuscripts.submittedAt
+        },
+        acceptUrl: `${req.protocol}://${req.get('host')}${req.baseUrl}/invitations/${id}/public?action=accept`,
+        declineUrl: `${req.protocol}://${req.get('host')}${req.baseUrl}/invitations/${id}/public?action=decline`
+      }
+    });
+  })
+);
+
+// POST /api/reviewers/invitations/:id/respond-public - Public endpoint for form-based responses
+router.post('/invitations/:id/respond-public',
+  validateRequest({
+    params: IdSchema.transform(id => ({ id })),
+    body: z.object({
+      action: z.enum(['accept', 'decline']),
+      message: z.string().optional(),
+      token: z.string().optional() // For future CSRF protection
+    })
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const { action, message } = req.body;
+
+    // Find the review assignment
+    const assignment = await prisma.review_assignments.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true }
+        },
+        manuscripts: {
+          select: { id: true, title: true }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: {
+          message: 'Review invitation not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Check if invitation is still pending
+    if (assignment.status !== 'PENDING') {
+      return res.status(400).json({
+        error: {
+          message: `This invitation has already been ${assignment.status.toLowerCase()}`,
+          type: 'ValidationError'
+        }
+      });
+    }
+
+    const newStatus = action === 'accept' ? 'ACCEPTED' : 'DECLINED';
+    
+    try {
+      // Update the assignment status
+      const updatedAssignment = await prisma.review_assignments.update({
+        where: { id },
+        data: { status: newStatus }
+      });
+
+      // Create notification in editorial conversation
+      try {
+        const editorialConversation = await prisma.conversations.findFirst({
+          where: {
+            manuscriptId: assignment.manuscriptId,
+            type: 'EDITORIAL'
+          }
+        });
+
+        if (editorialConversation) {
+          const responseMessage = action === 'accept' 
+            ? `✅ **Review Invitation Accepted via Email**\n\n**Reviewer:** ${assignment.users.name || assignment.users.email}\n**Manuscript:** ${assignment.manuscripts.title}${message ? `\n**Message:** ${message}` : ''}`
+            : `❌ **Review Invitation Declined via Email**\n\n**Reviewer:** ${assignment.users.name || assignment.users.email}\n**Manuscript:** ${assignment.manuscripts.title}${message ? `\n**Reason:** ${message}` : ''}`;
+
+          await prisma.messages.create({
+            data: {
+              content: responseMessage,
+              conversationId: editorialConversation.id,
+              authorId: assignment.users.id,
+              privacy: 'EDITOR_ONLY',
+              isBot: true,
+              metadata: {
+                type: 'review_invitation_response',
+                assignmentId: id,
+                response: newStatus,
+                via: 'email'
+              }
+            }
+          });
+        }
+      } catch (conversationError) {
+        console.error('Failed to create conversation message:', conversationError);
+      }
+
+      // Send notification emails to editors
+      try {
+        const editors = await prisma.users.findMany({
+          where: {
+            role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
+          },
+          select: { email: true, name: true }
+        });
+
+        const emailSubject = `Review ${action === 'accept' ? 'Accepted' : 'Declined'}: ${assignment.manuscripts.title}`;
+        
+        for (const editor of editors) {
+          await transporter.sendMail({
+            from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+            to: editor.email,
+            subject: emailSubject,
+            html: `
+              <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <h1 style="color: #2563eb; margin-bottom: 24px;">Review Response via Email</h1>
+                <p><strong>Reviewer:</strong> ${assignment.users.name || assignment.users.email}</p>
+                <p><strong>Manuscript:</strong> ${assignment.manuscripts.title}</p>
+                <p><strong>Response:</strong> ${action === 'accept' ? 'Accepted' : 'Declined'}</p>
+                ${message ? `<p><strong>${action === 'accept' ? 'Message' : 'Reason'}:</strong> ${message}</p>` : ''}
+                <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+                  This response was submitted via email link.
+                </p>
+              </div>
+            `,
+            text: `Review ${action === 'accept' ? 'Accepted' : 'Declined'}\n\nReviewer: ${assignment.users.name || assignment.users.email}\nManuscript: ${assignment.manuscripts.title}\nResponse: ${action === 'accept' ? 'Accepted' : 'Declined'}${message ? `\n${action === 'accept' ? 'Message' : 'Reason'}: ${message}` : ''}`
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send editor notification email:', emailError);
+      }
+
+      res.status(200).json({
+        message: `Review invitation ${action}ed successfully`,
+        status: newStatus,
+        reviewer: assignment.users.name || assignment.users.email,
+        manuscript: assignment.manuscripts.title
+      });
+
+    } catch (error) {
+      console.error('Failed to process invitation response:', error);
+      res.status(500).json({
+        error: {
+          message: 'Failed to process invitation response',
+          type: 'InternalServerError'
+        }
+      });
+    }
   })
 );
 

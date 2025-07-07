@@ -510,8 +510,15 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
           }
         },
         action_editors: {
-          select: {
-            editorId: true
+          include: {
+            users_action_editors_editorIdTousers: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                affiliation: true
+              }
+            }
           }
         },
         review_assignments: {
