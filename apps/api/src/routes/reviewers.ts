@@ -71,11 +71,11 @@ router.get('/search',
       // Also exclude manuscript authors
       const manuscript = await prisma.manuscripts.findUnique({
         where: { id: manuscriptId },
-        include: { authorRelations: true }
+        include: { manuscript_authors: true }
       });
 
       if (manuscript) {
-        const authorIds = manuscript.authorRelations.map(ar => ar.userId);
+        const authorIds = manuscript.manuscript_authors.map(ar => ar.userId);
         if (authorIds.length > 0) {
           searchConditions.id = searchConditions.id || {};
           searchConditions.id.notIn = [...(searchConditions.id.notIn || []), ...authorIds];
@@ -132,7 +132,7 @@ router.post('/invite',
     const manuscript = await prisma.manuscripts.findUnique({
       where: { id: manuscriptId },
       include: {
-        authorRelations: {
+        manuscript_authors: {
           include: { user: true }
         }
       }
@@ -636,7 +636,7 @@ router.post('/invitations/:id/respond',
         reviewer: true,
         manuscript: {
           include: {
-            authorRelations: {
+            manuscript_authors: {
               include: { user: true }
             }
           }
@@ -785,7 +785,7 @@ router.post('/assignments/:id/submit',
         reviewer: true,
         manuscript: {
           include: {
-            authorRelations: {
+            manuscript_authors: {
               include: { user: true }
             }
           }
@@ -1261,7 +1261,7 @@ router.get('/invitations/:id',
             title: true,
             abstract: true,
             submittedAt: true,
-            authorRelations: {
+            manuscript_authors: {
               include: {
                 user: {
                   select: {

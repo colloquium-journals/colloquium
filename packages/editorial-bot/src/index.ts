@@ -569,98 +569,140 @@ async function validateReviewers(mentions: string[], manuscriptId: string, conte
 }
 
 // Define commands for the editorial bot
-const statusCommand: BotCommand = {
-  name: 'status',
-  description: 'Update the status of a manuscript',
-  usage: '@editorial-bot status <new-status> [reason="reason for change"]',
-  help: `Updates the manuscript status with proper workflow validation.
+const acceptCommand: BotCommand = {
+  name: 'accept',
+  description: 'Accept a manuscript for publication and initiate publication workflow',
+  usage: '@editorial-bot accept [reason="reason for acceptance"]',
+  help: `Accepts a manuscript for publication, updating the status to ACCEPTED and immediately initiating the publication workflow.
 
 **Usage:**
-\`@editorial-bot status <new-status> [reason="reason for change"]\`
+\`@editorial-bot accept [reason="reason for acceptance"]\`
 
-**Valid Status Transitions:**
-- SUBMITTED → UNDER_REVIEW (start review process)
-- UNDER_REVIEW → REVISION_REQUESTED (request changes)
-- UNDER_REVIEW → ACCEPTED (accept manuscript)
-- UNDER_REVIEW → REJECTED (reject manuscript)
-- REVISION_REQUESTED → REVISED (author submits revision)
-- REVISED → UNDER_REVIEW (continue review)
-- ACCEPTED → PUBLISHED (publish manuscript)
-- PUBLISHED → RETRACTED (retract if needed)
+**Parameters:**
+- **reason**: Optional reason for the acceptance (optional)
+
+**Requirements:**
+- Only editors with decision-making authority can accept manuscripts
+- Manuscript should typically be in UNDER_REVIEW status
+- All required reviews should be completed
+
+**What happens when you accept:**
+1. Manuscript status is updated to ACCEPTED
+2. Authors are automatically notified of the acceptance
+3. **Publication workflow is immediately initiated**
+4. The manuscript proceeds through automated publication processes
 
 **Examples:**
-- \`@editorial-bot status UNDER_REVIEW reason="Initial screening passed"\`
-- \`@editorial-bot status ACCEPTED reason="High quality research"\`
-- \`@editorial-bot status REVISION_REQUESTED reason="Minor formatting issues"\``,
+- \`@editorial-bot accept\`
+- \`@editorial-bot accept reason="High quality research with clear findings"\`
+- \`@editorial-bot accept reason="Excellent methodology and significant contribution"\``,
   parameters: [
     {
-      name: 'newStatus',
-      description: 'The new status to set for the manuscript',
-      type: 'enum',
-      required: true,
-      enumValues: ['SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'REVISED', 'ACCEPTED', 'REJECTED', 'PUBLISHED', 'RETRACTED'],
-      examples: ['UNDER_REVIEW', 'ACCEPTED', 'REVISION_REQUESTED']
-    },
-    {
       name: 'reason',
-      description: 'Optional reason for the status change',
+      description: 'Optional reason for the acceptance',
       type: 'string',
       required: false,
-      examples: ['Ready for peer review', 'Minor revisions needed', 'Accepted after revision']
+      examples: ['High quality research with clear findings', 'Excellent methodology and significant contribution', 'Addresses important research gap']
     }
   ],
   examples: [
-    '@editorial-bot status UNDER_REVIEW',
-    '@editorial-bot status REVISION_REQUESTED reason="Minor formatting issues"',
-    '@editorial-bot status ACCEPTED reason="High quality research with clear findings"',
-    '@editorial-bot status REJECTED reason="Insufficient methodology"',
-    '@editorial-bot status PUBLISHED reason="Final publication approved"',
-    '@editorial-bot status RETRACTED reason="Data integrity issues discovered"'
+    '@editorial-bot accept',
+    '@editorial-bot accept reason="High quality research with clear findings"',
+    '@editorial-bot accept reason="Excellent methodology and significant contribution"',
+    '@editorial-bot accept reason="Addresses important research gap"'
   ],
-  permissions: ['update_manuscript'],
+  permissions: ['make_editorial_decision'],
   async execute(params, context) {
-    const { newStatus, reason } = params;
+    const { reason } = params;
     const { manuscriptId } = context;
 
-    let message = `📋 **Manuscript Status Updated**\n\n`;
-    message += `**New Status:** ${newStatus.replace('_', ' ')}\n`;
+    let message = `🎉 **Manuscript Accepted for Publication**\n\n`;
+    message += `**Status:** ACCEPTED\n`;
     
     if (reason) {
       message += `**Reason:** ${reason}\n`;
     }
     
     message += `**Manuscript ID:** ${manuscriptId}\n`;
-    message += `**Updated:** ${new Date().toLocaleString()}\n\n`;
-
-    // Add status-specific actions and validation messages
-    switch (newStatus) {
-      case 'UNDER_REVIEW':
-        message += `✅ Manuscript is now under review. Reviewers will be notified.`;
-        break;
-      case 'REVISION_REQUESTED':
-        message += `📝 Revisions requested. Authors will be notified to submit revised version.`;
-        break;
-      case 'ACCEPTED':
-        message += `🎉 Manuscript accepted! Ready for publication workflow.`;
-        break;
-      case 'REJECTED':
-        message += `❌ Manuscript rejected. Authors will be notified with feedback.`;
-        break;
-      case 'PUBLISHED':
-        message += `📚 Manuscript published! Now available to the public.`;
-        message += `\n\n⚠️ **Note:** Manuscripts can only be published from ACCEPTED status.`;
-        break;
-      case 'RETRACTED':
-        message += `🚫 Manuscript retracted! No longer available to the public.`;
-        message += `\n\n⚠️ **Note:** Manuscripts can only be retracted from PUBLISHED status.`;
-        break;
-    }
+    message += `**Decision Date:** ${new Date().toLocaleString()}\n\n`;
+    message += `✅ Authors will be automatically notified of the acceptance.\n`;
+    message += `🚀 **Publication workflow initiated automatically** - The manuscript will now proceed through the publication process.`;
 
     return {
       messages: [{ content: message }],
       actions: [{
         type: 'UPDATE_MANUSCRIPT_STATUS',
-        data: { status: newStatus, reason }
+        data: { status: 'ACCEPTED', reason }
+      }, {
+        type: 'EXECUTE_PUBLICATION_WORKFLOW',
+        data: { 
+          manuscriptId,
+          acceptedDate: new Date().toISOString(),
+          reason,
+          triggeredBy: 'editorial-decision'
+        }
+      }]
+    };
+  }
+};
+
+const rejectCommand: BotCommand = {
+  name: 'reject',
+  description: 'Reject a manuscript',
+  usage: '@editorial-bot reject [reason="reason for rejection"]',
+  help: `Rejects a manuscript, updating the status to REJECTED.
+
+**Usage:**
+\`@editorial-bot reject [reason="reason for rejection"]\`
+
+**Parameters:**
+- **reason**: Optional reason for the rejection (optional)
+
+**Requirements:**
+- Only editors with decision-making authority can reject manuscripts
+- Manuscript should typically be in UNDER_REVIEW status
+- Consider providing constructive feedback to authors
+
+**Examples:**
+- \`@editorial-bot reject\`
+- \`@editorial-bot reject reason="Insufficient methodology"\`
+- \`@editorial-bot reject reason="Does not meet journal scope"\``,
+  parameters: [
+    {
+      name: 'reason',
+      description: 'Optional reason for the rejection',
+      type: 'string',
+      required: false,
+      examples: ['Insufficient methodology', 'Does not meet journal scope', 'Significant flaws in analysis', 'Lacks novelty']
+    }
+  ],
+  examples: [
+    '@editorial-bot reject',
+    '@editorial-bot reject reason="Insufficient methodology"',
+    '@editorial-bot reject reason="Does not meet journal scope"',
+    '@editorial-bot reject reason="Significant flaws in analysis"'
+  ],
+  permissions: ['make_editorial_decision'],
+  async execute(params, context) {
+    const { reason } = params;
+    const { manuscriptId } = context;
+
+    let message = `❌ **Manuscript Rejected**\n\n`;
+    message += `**Status:** REJECTED\n`;
+    
+    if (reason) {
+      message += `**Reason:** ${reason}\n`;
+    }
+    
+    message += `**Manuscript ID:** ${manuscriptId}\n`;
+    message += `**Decision Date:** ${new Date().toLocaleString()}\n\n`;
+    message += `📧 Authors will be automatically notified of the rejection with feedback.`;
+
+    return {
+      messages: [{ content: message }],
+      actions: [{
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { status: 'REJECTED', reason }
       }]
     };
   }
@@ -1675,79 +1717,6 @@ const acceptReviewCommand: BotCommand = {
   }
 };
 
-const decisionCommand: BotCommand = {
-  name: 'decision',
-  description: 'Make an editorial decision on a manuscript',
-  usage: '@editorial-bot decision <decision>',
-  parameters: [
-    {
-      name: 'decision',
-      description: 'Editorial decision to make',
-      type: 'enum',
-      required: true,
-      enumValues: ['accept', 'minor_revision', 'major_revision', 'reject'],
-      examples: ['accept', 'minor_revision', 'major_revision', 'reject']
-    }
-  ],
-  examples: [
-    '@editorial-bot decision accept',
-    '@editorial-bot decision minor_revision',
-    '@editorial-bot decision reject'
-  ],
-  permissions: ['make_editorial_decision'],
-  async execute(params, context) {
-    const { decision } = params;
-    const { manuscriptId } = context;
-
-    // Map decision to manuscript status
-    const statusMap: Record<string, string> = {
-      'accept': 'ACCEPTED',
-      'minor_revision': 'REVISION_REQUESTED',
-      'major_revision': 'REVISION_REQUESTED',
-      'reject': 'REJECTED'
-    };
-
-    const newStatus = statusMap[decision];
-    const isRevision = decision.includes('revision');
-    const revisionType = isRevision ? decision.replace('_', ' ') : null;
-
-    let message = `⚖️ **Editorial Decision: ${decision.replace('_', ' ').toUpperCase()}**\n\n`;
-    message += `**New Status:** ${newStatus.replace('_', ' ')}\n`;
-    message += `**Decision Date:** ${new Date().toLocaleString()}\n\n`;
-
-    // Add decision-specific messaging
-    switch (decision) {
-      case 'accept':
-        message += `🎉 **Manuscript Accepted for Publication**\n`;
-        message += `Authors will be automatically notified.`;
-        break;
-      case 'minor_revision':
-        message += `📝 **Minor Revisions Required**\n`;
-        message += `Authors will be notified to submit revisions.`;
-        break;
-      case 'major_revision':
-        message += `🔄 **Major Revisions Required**\n`;
-        message += `Authors will be notified to submit substantial revisions.`;
-        break;
-      case 'reject':
-        message += `❌ **Manuscript Rejected**\n`;
-        message += `Authors will be notified of the decision.`;
-        break;
-    }
-
-    return {
-      messages: [{ content: message }],
-      actions: [{
-        type: 'MAKE_EDITORIAL_DECISION',
-        data: { 
-          decision, 
-          status: newStatus, 
-          revisionType 
-        }
-      }]
-    };
-  }
-};
 
 const submitCommand: BotCommand = {
   name: 'submit',
@@ -1841,12 +1810,13 @@ const helpCommand: BotCommand = {
       description: 'Optional: Get detailed help for a specific command',
       type: 'string',
       required: false,
-      examples: ['status', 'assign-reviewer', 'invite-reviewer', 'accept-review', 'assign-editor', 'summary', 'decision']
+      examples: ['accept', 'reject', 'assign-reviewer', 'invite-reviewer', 'accept-review', 'assign-editor', 'summary']
     }
   ],
   examples: [
     '@editorial-bot help',
-    '@editorial-bot help status',
+    '@editorial-bot help accept',
+    '@editorial-bot help reject',
     '@editorial-bot help assign-reviewer',
     '@editorial-bot help invite-reviewer',
     '@editorial-bot help accept-review'
@@ -1857,7 +1827,7 @@ const helpCommand: BotCommand = {
     
     if (command) {
       // Return help for specific command
-      const commands = [statusCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, decisionCommand, respondCommand, submitCommand];
+      const commands = [acceptCommand, rejectCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, respondCommand, submitCommand];
       const targetCommand = commands.find(cmd => cmd.name === command);
       
       if (!targetCommand) {
@@ -1898,24 +1868,27 @@ Assists with manuscript editorial workflows, status updates, reviewer assignment
 
 ## 🚀 Getting Started
 
-This bot helps automate editorial workflows. Use \`status\` to update manuscript status, \`assign\` to assign reviewers, and \`decision\` to make editorial decisions.
+This bot helps automate editorial workflows. Use \`accept\` or \`reject\` to make editorial decisions, and \`assign-reviewer\` to assign reviewers.
 
 ## 📋 Workflow Steps
 
-1. Submit manuscript → 2. Assign action editor → 3. Assign reviewers → 4. Track progress → 5. Make decision → 6. Update status
+1. Submit manuscript → 2. Assign action editor → 3. Assign reviewers → 4. Track progress → 5. Make decision (accept/reject)
 
 ## Overview
 
-The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.
+The Editorial Bot streamlines manuscript management by automating reviewer assignments, progress tracking, and editorial decisions.
 
 ## Quick Start
 
-Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot assign-reviewer <reviewers>, and @editorial-bot status <status>
+Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot assign-reviewer <reviewers>, @editorial-bot accept, and @editorial-bot reject
 
 ## Available Commands
 
-**status** - Update the status of a manuscript
-Usage: \`@editorial-bot status <new-status> [reason="reason for change"]\`
+**accept** - Accept a manuscript for publication and initiate publication workflow
+Usage: \`@editorial-bot accept [reason="reason for acceptance"]\`
+
+**reject** - Reject a manuscript
+Usage: \`@editorial-bot reject [reason="reason for rejection"]\`
 
 **assign-editor** - Assign an action editor to a manuscript
 Usage: \`@editorial-bot assign-editor <editor> [message="custom message"]\`
@@ -1925,9 +1898,6 @@ Usage: \`@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"] [mes
 
 **summary** - Generate a summary showing status, assigned editor, and reviewers
 Usage: \`@editorial-bot summary [format="brief|detailed"]\`
-
-**decision** - Make an editorial decision on a manuscript
-Usage: \`@editorial-bot decision <decision>\`
 
 **respond** - Respond to a review invitation (accept or decline)
 Usage: \`@editorial-bot respond <assignment-id> <accept|decline> [message="optional message"]\`
@@ -1943,15 +1913,11 @@ This bot also responds to these keywords: \`editorial decision\`, \`review statu
 
 \`@editorial-bot assign-editor @DrEditor\`
 
-\`@editorial-bot status UNDER_REVIEW reason="Initial review passed"\`
+\`@editorial-bot accept reason="High quality research"\`
+
+\`@editorial-bot reject reason="Insufficient methodology"\`
 
 \`@editorial-bot assign-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
-
-\`@editorial-bot decision accept\`
-
-\`@editorial-bot status PUBLISHED reason="Ready for publication"\`
-
-\`@editorial-bot status RETRACTED reason="Data integrity issues"\`
 
 \`@editorial-bot summary format="detailed"\`
 
@@ -1975,32 +1941,31 @@ export const editorialBot: CommandBot = {
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management',
   version: '2.3.0',
-  commands: [statusCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, decisionCommand, respondCommand, submitCommand, helpCommand],
+  commands: [acceptCommand, rejectCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, respondCommand, submitCommand, helpCommand],
   keywords: ['editorial decision', 'review status', 'assign reviewer', 'assign editor', 'manuscript status', 'make decision'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {
-    overview: 'The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.',
-    quickStart: 'Start by using @editorial-bot help to see all available commands. New workflow: @editorial-bot invite-reviewer <reviewers> to send invitations, then reviewers use @editorial-bot accept-review, then @editorial-bot assign-reviewer <reviewers> to start reviews.',
+    overview: 'The Editorial Bot streamlines manuscript management by automating reviewer assignments, progress tracking, and editorial decisions.',
+    quickStart: 'Start by using @editorial-bot help to see all available commands. New workflow: @editorial-bot invite-reviewer <reviewers> to send invitations, then reviewers use @editorial-bot accept-review, then @editorial-bot assign-reviewer <reviewers> to start reviews. Use @editorial-bot accept or @editorial-bot reject to make editorial decisions.',
     examples: [
       '@editorial-bot assign-editor @DrEditor',
-      '@editorial-bot status UNDER_REVIEW reason="Initial review passed"',
       '@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
       '@editorial-bot assign-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
-      '@editorial-bot decision accept',
-      '@editorial-bot status PUBLISHED reason="Ready for publication"',
+      '@editorial-bot accept reason="High quality research"',
+      '@editorial-bot reject reason="Insufficient methodology"',
       '@editorial-bot summary format="detailed"'
     ]
   },
   customHelpSections: [
     {
       title: '🚀 Getting Started',
-      content: 'This bot helps automate editorial workflows. Use `status` to update manuscript status, `assign-reviewer` to assign reviewers, and `decision` to make editorial decisions.',
+      content: 'This bot helps automate editorial workflows. Use `accept` or `reject` to make editorial decisions, and `assign-reviewer` to assign reviewers.',
       position: 'before'
     },
     {
       title: '📋 Workflow Steps',
-      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept → 5. Assign reviewers → 6. Track progress → 7. Make decision → 8. Update status',
+      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept → 5. Assign reviewers → 6. Track progress → 7. Make decision (accept/reject)',
       position: 'before'
     },
     {
