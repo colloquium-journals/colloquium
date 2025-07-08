@@ -40,19 +40,21 @@ export default function ReviewResponsePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadInvitation();
-  }, [invitationId]);
-
-  useEffect(() => {
-    if (action && invitation && invitation.status === 'PENDING') {
-      handleResponse(action);
+    if (action) {
+      // If there's an action in the URL, process it directly
+      handleDirectResponse(action);
+    } else {
+      // Otherwise, load the invitation details
+      loadInvitation();
     }
-  }, [action, invitation]);
+  }, [invitationId, action]);
 
   const loadInvitation = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/reviewers/invitations/${invitationId}/public`);
+      // Load invitation data without action parameter to get invitation details
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public`);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -60,9 +62,38 @@ export default function ReviewResponsePage() {
       }
       
       const data = await response.json();
-      setInvitation(data.invitation);
+      // Check if this is a response result (when action was provided) or invitation data
+      if (data.invitation) {
+        setInvitation(data.invitation);
+      } else if (data.message && data.status) {
+        // This is already a processed response
+        setResponse(data);
+      } else {
+        throw new Error('Unexpected response format');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDirectResponse = async (responseAction: string) => {
+    try {
+      setLoading(true);
+      // When action is in URL, call the API with the action parameter
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public?action=${responseAction}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to process response');
+      }
+      
+      const data = await response.json();
+      setResponse(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to process response');
     } finally {
       setLoading(false);
     }
@@ -73,7 +104,8 @@ export default function ReviewResponsePage() {
     
     try {
       setSubmitting(true);
-      const response = await fetch(`/api/reviewers/invitations/${invitationId}/respond-public`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/respond-public`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

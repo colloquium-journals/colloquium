@@ -53,6 +53,20 @@ REDIS_PORT=6379
 
 **Dependencies**: `bull`, `ioredis`
 
+**⚠️ Bot Data Access**: All bots MUST use API endpoints (not direct database queries) for consistency and security. See [Bot Framework Documentation](docs/development/bots.md#data-access-patterns) for required patterns.
+
+### Assignment System
+**Editor Assignments**:
+- **Database**: `action_editors` table with `editorId`, `manuscriptId`, `assignedAt`
+- **API**: Available via `/api/articles/:id` endpoint in `action_editors` field
+- **Relation**: Links to `users` table via `users_action_editors_editorIdTousers`
+
+**Reviewer Assignments**:
+- **Database**: `review_assignments` table with `reviewerId`, `manuscriptId`, `status`, `assignedAt`, `dueDate`
+- **API**: Available via `/api/articles/:id` endpoint in `reviewAssignments` field
+- **Statuses**: INVITED, ACCEPTED, DECLINED, IN_PROGRESS, COMPLETED
+- **Filtering**: Only ACCEPTED, IN_PROGRESS, COMPLETED assignments shown in UI
+
 ### Conversation System
 - **Privacy levels**: PUBLIC, AUTHOR_VISIBLE, REVIEWER_ONLY, EDITOR_ONLY, ADMIN_ONLY
 - **Bot mentions**: `@bot-name command` triggers async processing
@@ -97,3 +111,8 @@ REDIS_PORT=6379
 - **Setup files**: Each app/package has `tests/setup.ts` or `src/tests/setup.ts`
 - **Test utilities**: Centralized in `/tests/utils/testUtils.ts` for API
 - **Mocking**: Jest mocks for external dependencies (nodemailer, etc.)
+
+## Security Notes
+
+- **Bot Authentication**: 
+  - Authenticate bots to API with X-Bot-Token header

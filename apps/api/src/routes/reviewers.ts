@@ -928,7 +928,9 @@ router.post('/assignments/:id/submit',
 // GET /api/reviewers/invitations/:id/public - Public endpoint for email-based responses (no auth required)
 router.get('/invitations/:id/public',
   validateRequest({
-    params: IdSchema.transform(id => ({ id })),
+    params: z.object({
+      id: IdSchema
+    }),
     query: z.object({
       action: z.enum(['accept', 'decline']).optional(),
       token: z.string().optional()
@@ -1000,6 +1002,42 @@ router.get('/invitations/:id/public',
           }
         });
 
+        // Post bot message to the conversation
+        try {
+          // Find the conversation for this manuscript
+          const conversation = await prisma.conversations.findFirst({
+            where: { manuscriptId: updatedAssignment.manuscripts.id }
+          });
+
+          if (conversation) {
+            // Get the editorial bot user
+            const editorialBotUser = await prisma.users.findUnique({
+              where: { email: 'editorial-bot@colloquium.bot' }
+            });
+
+            if (editorialBotUser) {
+              const reviewerName = updatedAssignment.users.name || updatedAssignment.users.email;
+              const actionText = newStatus === 'ACCEPTED' ? 'accepted' : 'declined';
+              const messageContent = `📋 **Reviewer Invitation ${newStatus}**\n\n**${reviewerName}** has ${actionText} the review invitation for "${updatedAssignment.manuscripts.title}".`;
+
+              // Create the bot message
+              await prisma.messages.create({
+                data: {
+                  id: require('crypto').randomUUID(),
+                  content: messageContent,
+                  conversationId: conversation.id,
+                  authorId: editorialBotUser.id,
+                  privacy: 'EDITOR_ONLY',
+                  isBot: true,
+                  updatedAt: new Date()
+                }
+              });
+            }
+          }
+        } catch (botMessageError) {
+          console.error('Failed to post bot message:', botMessageError);
+        }
+
         // Broadcast SSE update to manuscript conversations
         try {
           const { broadcastToConversation } = await import('../events');
@@ -1059,7 +1097,9 @@ router.get('/invitations/:id/public',
 // POST /api/reviewers/invitations/:id/respond-public - Public endpoint for form-based responses
 router.post('/invitations/:id/respond-public',
   validateRequest({
-    params: IdSchema.transform(id => ({ id })),
+    params: z.object({
+      id: IdSchema
+    }),
     body: z.object({
       action: z.enum(['accept', 'decline']),
       message: z.string().optional(),

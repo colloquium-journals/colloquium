@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { Stack, Group, Text, Button, Paper, Badge } from '@mantine/core';
-import { IconChevronDown, IconChevronUp, IconEyeOff } from '@tabler/icons-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Stack, Group, Text, Button, Paper, Badge, Switch } from '@mantine/core';
+import { IconChevronDown, IconChevronUp, IconEyeOff, IconRobot } from '@tabler/icons-react';
 import { MessageCard } from './MessageCard';
 import { MessageComposer, MessageComposerRef } from './MessageComposer';
 import { SignInPrompt } from './SignInPrompt';
@@ -54,14 +54,24 @@ export function MessageThread({
   messageVisibilityMap 
 }: MessageThreadProps) {
   const [showAllMessages, setShowAllMessages] = useState(false);
+  const [hideBotMessages, setHideBotMessages] = useState(() => {
+    // Persist bot filter preference in localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hideBotMessages');
+      return saved === 'true';
+    }
+    return false;
+  });
   const composerRef = useRef<MessageComposerRef>(null);
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  
-  // Debug logging for messages prop changes
+
+  // Persist bot filter preference
   useEffect(() => {
-    console.log('🎭 MessageThread: Messages prop updated, count:', messages.length);
-    console.log('🎭 MessageThread: Message IDs:', messages.map(m => m.id));
-  }, [messages]);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hideBotMessages', hideBotMessages.toString());
+    }
+  }, [hideBotMessages]);
+  
   
   // Build a flat list of all messages (no hierarchy)
   const messageMap = new Map<string, MessageData>();
@@ -76,26 +86,25 @@ export function MessageThread({
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  // Determine which messages to show
-  const shouldCollapse = allMessages.length > 10;
-  const visibleMessages = shouldCollapse && !showAllMessages 
-    ? allMessages.slice(-5) // Show last 5 messages
+  // Filter out bot messages if hideBotMessages is true
+  const filteredMessages = hideBotMessages 
+    ? allMessages.filter(message => !message.isBot)
     : allMessages;
+
+  // Calculate counts for display
+  const botMessageCount = allMessages.filter(message => message.isBot).length;
+  const humanMessageCount = allMessages.length - botMessageCount;
+
+  // Determine which messages to show
+  const shouldCollapse = filteredMessages.length > 10;
+  const visibleMessages = shouldCollapse && !showAllMessages 
+    ? filteredMessages.slice(-5) // Show last 5 messages
+    : filteredMessages;
   const hiddenCount = shouldCollapse && !showAllMessages 
-    ? allMessages.length - 5 
+    ? filteredMessages.length - 5 
     : 0;
 
-  // Debug logging for message visibility
-  console.log('🎨 MessageThread: Message visibility calc:', {
-    totalMessages: allMessages.length,
-    shouldCollapse,
-    showAllMessages,
-    visibleMessagesCount: visibleMessages.length,
-    hiddenCount,
-    lastVisibleMessageId: visibleMessages[visibleMessages.length - 1]?.id,
-    visibleMessageIds: visibleMessages.map(m => m.id),
-    lastFewAllMessages: allMessages.slice(-3).map(m => ({ id: m.id, content: m.content }))
-  });
+
 
   // Function to handle reply by scrolling to composer and prepending quoted content
   const handleReplyToMessage = (message: MessageData) => {
@@ -127,7 +136,6 @@ export function MessageThread({
 
   // Simple function to render a message (no hierarchy)
   const renderMessage = (message: MessageData): JSX.Element => {
-    console.log('🎬 MessageThread: Rendering message:', message.id, message.content);
     return (
       <MessageCard
         key={message.id}
@@ -182,26 +190,18 @@ export function MessageThread({
 
   // Function to build message list with hidden indicators
   const buildMessagesWithIndicators = () => {
-    console.log('🎪 MessageThread: buildMessagesWithIndicators called');
-    console.log('🎪 MessageThread: visibleMessages count:', visibleMessages.length);
-    console.log('🎪 MessageThread: visibleMessages IDs:', visibleMessages.map(m => m.id));
+   
     
     if (!messageVisibilityMap || !totalMessageCount || visibleMessageCount === undefined) {
-      console.log('🎪 MessageThread: Using simple rendering (no visibility data)');
       const result = visibleMessages.map(message => renderMessage(message));
-      console.log('🎪 MessageThread: Simple render result count:', result.length);
       return result;
     }
-
-    console.log('🎪 MessageThread: Using complex rendering with visibility indicators');
     
     const result: JSX.Element[] = [];
     const sortedVisibilityMap = [...messageVisibilityMap].sort((a, b) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
     
-    console.log('🎪 MessageThread: sortedVisibilityMap length:', sortedVisibilityMap.length);
-    console.log('🎪 MessageThread: visibleMessages length:', visibleMessages.length);
     
     // Create a set of message IDs in the visibility map for fast lookup
     const visibilityMapIds = new Set(sortedVisibilityMap.map(entry => entry.id));
@@ -209,7 +209,6 @@ export function MessageThread({
     // Find messages that are in visibleMessages but not in the visibility map
     // These are likely new messages that arrived via SSE after the initial page load
     const messagesNotInMap = visibleMessages.filter(msg => !visibilityMapIds.has(msg.id));
-    console.log('🎪 MessageThread: Messages not in visibility map:', messagesNotInMap.map(m => m.id));
     
     let currentHiddenCount = 0;
     let processedMessageIds = new Set<string>();
@@ -217,26 +216,21 @@ export function MessageThread({
     // Process messages from the visibility map first
     for (let i = 0; i < sortedVisibilityMap.length; i++) {
       const entry = sortedVisibilityMap[i];
-      console.log(`🎪 MessageThread: Processing entry ${i}:`, entry.id, 'visible:', entry.visible);
       
       if (entry.visible) {
         // If we have accumulated hidden messages, show indicator
         if (currentHiddenCount > 0) {
-          console.log('🎪 MessageThread: Adding hidden indicator for', currentHiddenCount, 'messages');
           result.push(createHiddenMessageIndicator(currentHiddenCount, `hidden-${i}`));
           currentHiddenCount = 0;
         }
         
         // Add the visible message if it exists in our visible messages list
         const message = visibleMessages.find(m => m.id === entry.id);
-        console.log('🎪 MessageThread: Looking for message', entry.id, 'found:', !!message);
         if (message) {
-          console.log('🎪 MessageThread: Adding visible message:', message.id);
           result.push(renderMessage(message));
           processedMessageIds.add(message.id);
         }
       } else {
-        console.log('🎪 MessageThread: Message not visible, incrementing hidden count');
         currentHiddenCount++;
       }
     }
@@ -245,13 +239,11 @@ export function MessageThread({
     // These should be added at the end since they're typically the newest
     messagesNotInMap.forEach(message => {
       if (!processedMessageIds.has(message.id)) {
-        console.log('🎪 MessageThread: Adding new message not in visibility map:', message.id);
         result.push(renderMessage(message));
         processedMessageIds.add(message.id);
       }
     });
     
-    console.log('🎪 MessageThread: Complex render result count:', result.length);
 
     // Add final hidden indicator if needed
     if (currentHiddenCount > 0) {
@@ -268,6 +260,34 @@ export function MessageThread({
 
   return (
     <Stack gap="md">
+      {/* Message Controls */}
+      <Group justify="space-between" align="center">
+        <Group gap="sm">
+          <Text size="sm" c="dimmed">
+            {hideBotMessages 
+              ? `${humanMessageCount} human message${humanMessageCount !== 1 ? 's' : ''}` 
+              : `${allMessages.length} total message${allMessages.length !== 1 ? 's' : ''}`}
+            {botMessageCount > 0 && hideBotMessages && (
+              <span> ({botMessageCount} bot message{botMessageCount !== 1 ? 's' : ''} hidden)</span>
+            )}
+          </Text>
+        </Group>
+        
+        {botMessageCount > 0 && (
+          <Group gap="sm" align="center">
+            <Text size="xs" c="dimmed">
+              {botMessageCount} bot message{botMessageCount !== 1 ? 's' : ''}
+            </Text>
+            <Switch
+              size="sm"
+              label="Hide bot messages"
+              checked={hideBotMessages}
+              onChange={(event) => setHideBotMessages(event.currentTarget.checked)}
+            />
+          </Group>
+        )}
+      </Group>
+
       {/* Show hidden messages indicator */}
       {hiddenCount > 0 && (
         <Group justify="center" py="md">

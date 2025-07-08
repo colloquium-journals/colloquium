@@ -35,6 +35,7 @@ import {
   IconChevronRight
 } from '@tabler/icons-react';
 import { useSSE } from '../../hooks/useSSE';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SubmissionData {
   id: string;
@@ -84,6 +85,7 @@ interface SubmissionHeaderProps {
 }
 
 export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [submission, setSubmission] = useState<SubmissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,45 +93,106 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
 
   // Handle real-time action editor assignment updates
   const handleActionEditorAssigned = (assignment: any) => {
-    setSubmission(prev => prev ? {
-      ...prev,
-      assignedEditor: {
-        id: assignment.editor.id,
-        name: assignment.editor.name,
-        email: assignment.editor.email,
-        affiliation: assignment.editor.affiliation,
-        assignedAt: assignment.assignedAt
-      }
-    } : prev);
+    setSubmission(prev => {
+      const updated = prev ? {
+        ...prev,
+        assignedEditor: {
+          id: assignment.editor.id,
+          name: assignment.editor.name,
+          email: assignment.editor.email,
+          affiliation: assignment.editor.affiliation,
+          assignedAt: assignment.assignedAt
+        }
+      } : prev;
+      return updated;
+    });
   };
 
   // Handle real-time reviewer assignment updates
   const handleReviewerAssigned = (assignment: any) => {
-    setSubmission(prev => prev ? {
-      ...prev,
-      reviewAssignments: [
-        ...(prev.reviewAssignments || []),
-        {
-          id: assignment.assignmentId,
-          reviewer: {
-            id: assignment.reviewer.id,
-            name: assignment.reviewer.name || assignment.reviewer.email,
-            email: assignment.reviewer.email,
-            affiliation: assignment.reviewer.affiliation
-          },
-          status: assignment.status,
-          assignedAt: assignment.assignedAt,
-          dueDate: assignment.dueDate
+    setSubmission(prev => {
+      if (!prev) return prev;
+      
+      const newAssignment = {
+        id: assignment.assignmentId,
+        reviewer: {
+          id: assignment.reviewer.id,
+          name: assignment.reviewer.name || assignment.reviewer.email,
+          email: assignment.reviewer.email,
+          affiliation: assignment.reviewer.affiliation
+        },
+        status: assignment.status,
+        assignedAt: assignment.assignedAt,
+        dueDate: assignment.dueDate
+      };
+      
+      // Only add the assignment if it's in an accepted state
+      if (assignment.status === 'ACCEPTED' || assignment.status === 'IN_PROGRESS' || assignment.status === 'COMPLETED') {
+        return {
+          ...prev,
+          reviewAssignments: [
+            ...(prev.reviewAssignments || []),
+            newAssignment
+          ]
+        };
+      }
+      
+      return prev;
+    });
+  };
+
+  // Handle real-time reviewer invitation response updates
+  const handleReviewerInvitationResponse = (response: any) => {
+    setSubmission(prev => {
+      if (!prev) return prev;
+      
+      // Update the review assignment status if it exists
+      const updatedReviewAssignments = prev.reviewAssignments?.map(assignment => {
+        if (assignment.id === response.assignmentId) {
+          return {
+            ...assignment,
+            status: response.status,
+            respondedAt: response.respondedAt
+          };
         }
-      ]
-    } : prev);
+        return assignment;
+      }) || [];
+      
+      // If this is a new response for an assignment we don't have yet, add it
+      const existingAssignment = prev.reviewAssignments?.find(a => a.id === response.assignmentId);
+      if (!existingAssignment && response.reviewer) {
+        updatedReviewAssignments.push({
+          id: response.assignmentId,
+          reviewer: {
+            id: response.reviewer.id,
+            name: response.reviewer.name || response.reviewer.email,
+            email: response.reviewer.email,
+            affiliation: response.reviewer.affiliation
+          },
+          status: response.status,
+          assignedAt: response.respondedAt,
+          dueDate: null
+        });
+      }
+      
+      // Filter to only show accepted, in-progress, or completed reviewers
+      const filteredReviewAssignments = updatedReviewAssignments.filter(
+        assignment => assignment.status === 'ACCEPTED' || assignment.status === 'IN_PROGRESS' || assignment.status === 'COMPLETED'
+      );
+      
+      return {
+        ...prev,
+        reviewAssignments: filteredReviewAssignments
+      };
+    });
   };
 
   // Initialize SSE connection for real-time updates
   useSSE(submissionId, {
     enabled: !!submissionId,
     onActionEditorAssigned: handleActionEditorAssigned,
-    onReviewerAssigned: handleReviewerAssigned
+    onReviewerAssigned: handleReviewerAssigned,
+    onReviewerInvitationResponse: handleReviewerInvitationResponse
   });
 
   useEffect(() => {
@@ -137,11 +200,12 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       try {
         setLoading(true);
         
-        // Fetch the conversation to get the manuscript data
+        
+        // First, fetch the conversation to get the manuscript ID
         const conversationResponse = await fetch(`http://localhost:4000/api/conversations/${submissionId}`, {
           credentials: 'include'
         });
-
+        
         if (!conversationResponse.ok) {
           throw new Error('Failed to fetch conversation details');
         }
@@ -153,22 +217,18 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
           throw new Error('No manuscript associated with this conversation');
         }
 
-        // Try to fetch full manuscript details, but fall back to conversation data if forbidden
-        let manuscriptData = manuscript;
-        try {
-          const manuscriptResponse = await fetch(`http://localhost:4000/api/manuscripts/${manuscript.id}`, {
-            credentials: 'include'
-          });
+        // Fetch full manuscript details including action editors
+        const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscript.id}`, {
+          credentials: 'include'
+        });
 
-          if (manuscriptResponse.ok) {
-            manuscriptData = await manuscriptResponse.json();
-          }
-        } catch (err) {
-          // If we can't fetch full manuscript details, use what we have from conversation
-          console.warn('Could not fetch full manuscript details, using conversation data:', err);
+        if (!manuscriptResponse.ok) {
+          throw new Error('Failed to fetch manuscript details');
         }
 
-        // Format submission data from either full manuscript or conversation manuscript data
+        const manuscriptData = await manuscriptResponse.json();
+
+        // Format submission data from manuscript API
         setSubmission({
           id: manuscriptData.id,
           title: manuscriptData.title,
@@ -198,23 +258,31 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             mimetype: file.mimetype,
             uploadedAt: file.uploadedAt
           })) || [],
-          assignedEditor: manuscriptData.action_editors ? {
-            id: manuscriptData.action_editors.users_action_editors_editorIdTousers.id,
-            name: manuscriptData.action_editors.users_action_editors_editorIdTousers.name,
-            email: manuscriptData.action_editors.users_action_editors_editorIdTousers.email,
-            affiliation: manuscriptData.action_editors.users_action_editors_editorIdTousers.affiliation,
-            assignedAt: manuscriptData.action_editors.assignedAt
-          } : undefined,
-          reviewAssignments: manuscriptData.reviewAssignments?.map((assignment: any) => ({
-            id: assignment.id,
-            reviewer: {
-              name: assignment.reviewer.name,
-              affiliation: assignment.reviewer.affiliation
-            },
-            status: assignment.status,
-            assignedAt: assignment.assignedAt,
-            dueDate: assignment.dueDate
-          })) || []
+          assignedEditor: (() => {
+            if (manuscriptData.action_editors?.users_action_editors_editorIdTousers) {
+              return {
+                id: manuscriptData.action_editors.users_action_editors_editorIdTousers.id,
+                name: manuscriptData.action_editors.users_action_editors_editorIdTousers.name,
+                email: manuscriptData.action_editors.users_action_editors_editorIdTousers.email,
+                affiliation: manuscriptData.action_editors.users_action_editors_editorIdTousers.affiliation,
+                assignedAt: manuscriptData.action_editors.assignedAt
+              };
+            }
+            return undefined;
+          })(),
+          reviewAssignments: manuscriptData.reviewAssignments
+            ?.filter((assignment: any) => assignment.status === 'ACCEPTED' || assignment.status === 'IN_PROGRESS' || assignment.status === 'COMPLETED')
+            ?.map((assignment: any) => ({
+              id: assignment.id,
+              reviewer: {
+                name: assignment.reviewer.name,
+                email: assignment.reviewer.email,
+                affiliation: assignment.reviewer.affiliation
+              },
+              status: assignment.status,
+              assignedAt: assignment.assignedAt,
+              dueDate: assignment.dueDate
+            })) || []
         });
       } catch (err) {
         console.error('Error fetching submission:', err);
@@ -227,7 +295,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     if (submissionId) {
       fetchSubmission();
     }
-  }, [submissionId]);
+  }, [submissionId, authLoading, isAuthenticated]);
 
   const handleDownload = async (fileId?: string) => {
     if (!submission?.files || submission.files.length === 0) return;
@@ -370,16 +438,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 {submission.reviewAssignments.map((assignment) => (
                   <Group key={assignment.id} gap="xs">
                     <Avatar size="xs" color="grape">
-                      {assignment.reviewer.name.split(' ').map(n => n[0]).join('')}
+                      {(assignment.reviewer.name || assignment.reviewer.email || 'R').split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                     </Avatar>
-                    <Text size="sm" fw={500}>{assignment.reviewer.name}</Text>
-                    <Badge 
-                      size="xs" 
-                      variant="light"
-                      color={getReviewStatusColor(assignment.status)}
-                    >
-                      {assignment.status}
-                    </Badge>
+                    <Text size="sm" fw={500}>{assignment.reviewer.name || assignment.reviewer.email}</Text>
                   </Group>
                 ))}
               </Group>
@@ -635,17 +696,3 @@ function getStatusLabel(status: string): string {
   }
 }
 
-function getReviewStatusColor(status: string): string {
-  switch (status.toUpperCase()) {
-    case 'PENDING':
-      return 'yellow';
-    case 'IN_PROGRESS':
-      return 'blue';
-    case 'COMPLETED':
-      return 'green';
-    case 'OVERDUE':
-      return 'red';
-    default:
-      return 'gray';
-  }
-}

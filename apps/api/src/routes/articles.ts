@@ -522,9 +522,17 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
           }
         },
         review_assignments: {
-          select: {
-            reviewerId: true
-          }
+          include: {
+            users: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                affiliation: true
+              }
+            }
+          },
+          orderBy: { assignedAt: 'desc' }
         },
         _count: {
           select: {
@@ -618,6 +626,25 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
         participantCount: conv._count.conversation_participants,
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt
+      })),
+      action_editors: manuscript.action_editors ? {
+        id: manuscript.action_editors.id,
+        editorId: manuscript.action_editors.editorId,
+        assignedAt: manuscript.action_editors.assignedAt,
+        users_action_editors_editorIdTousers: manuscript.action_editors.users_action_editors_editorIdTousers
+      } : null,
+      reviewAssignments: manuscript.review_assignments.map((assignment: any) => ({
+        id: assignment.id,
+        reviewer: {
+          id: assignment.users.id,
+          name: assignment.users.name,
+          email: assignment.users.email,
+          affiliation: assignment.users.affiliation
+        },
+        status: assignment.status,
+        assignedAt: assignment.assignedAt,
+        dueDate: assignment.dueDate,
+        completedAt: assignment.completedAt
       })),
       permissions: {
         canEdit: isAuthor || (req.user?.role === GlobalRole.EDITOR_IN_CHIEF || req.user?.role === GlobalRole.ADMIN),
@@ -1392,6 +1419,231 @@ router.get('/:id/action-editor', authenticate, async (req, res, next) => {
       }
     });
 
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/articles/:id/reviewers - Create reviewer assignment
+router.post('/:id/reviewers', authenticateWithBots, async (req, res, next) => {
+  try {
+    const { id: manuscriptId } = req.params;
+    const { reviewerId, status = 'PENDING', dueDate } = req.body;
+
+    // Validate required fields
+    if (!reviewerId) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'reviewerId is required'
+      });
+    }
+
+    // Check if manuscript exists
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id: manuscriptId },
+      select: { id: true, status: true }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: 'Manuscript not found',
+        message: `No manuscript found with ID: ${manuscriptId}`
+      });
+    }
+
+    // Check if reviewer exists
+    const reviewer = await prisma.users.findUnique({
+      where: { id: reviewerId },
+      select: { id: true, name: true, email: true, affiliation: true }
+    });
+
+    if (!reviewer) {
+      return res.status(404).json({
+        error: 'Reviewer not found',
+        message: `No user found with ID: ${reviewerId}`
+      });
+    }
+
+    // Check if assignment already exists
+    const existingAssignment = await prisma.review_assignments.findUnique({
+      where: {
+        manuscriptId_reviewerId: {
+          manuscriptId,
+          reviewerId
+        }
+      }
+    });
+
+    if (existingAssignment) {
+      return res.status(409).json({
+        error: 'Assignment already exists',
+        message: 'This reviewer is already assigned to this manuscript'
+      });
+    }
+
+    // Create the assignment
+    const assignment = await prisma.review_assignments.create({
+      data: {
+        manuscriptId,
+        reviewerId,
+        status,
+        assignedAt: new Date(),
+        dueDate: dueDate ? new Date(dueDate) : null
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            affiliation: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      message: 'Reviewer assignment created successfully',
+      assignment: {
+        id: assignment.id,
+        reviewer: {
+          id: assignment.users.id,
+          name: assignment.users.name,
+          email: assignment.users.email,
+          affiliation: assignment.users.affiliation
+        },
+        status: assignment.status,
+        assignedAt: assignment.assignedAt,
+        dueDate: assignment.dueDate,
+        completedAt: assignment.completedAt
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/articles/:id/reviewers/:reviewerId - Update reviewer assignment
+router.put('/:id/reviewers/:reviewerId', authenticateWithBots, async (req, res, next) => {
+  try {
+    const { id: manuscriptId, reviewerId } = req.params;
+    const { status, dueDate, completedAt } = req.body;
+
+    // Find the assignment
+    const assignment = await prisma.review_assignments.findUnique({
+      where: {
+        manuscriptId_reviewerId: {
+          manuscriptId,
+          reviewerId
+        }
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            affiliation: true
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: 'Assignment not found',
+        message: 'No reviewer assignment found for this manuscript and reviewer'
+      });
+    }
+
+    // Update the assignment
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    if (completedAt !== undefined) updateData.completedAt = completedAt ? new Date(completedAt) : null;
+
+    const updatedAssignment = await prisma.review_assignments.update({
+      where: { id: assignment.id },
+      data: updateData,
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            affiliation: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Reviewer assignment updated successfully',
+      assignment: {
+        id: updatedAssignment.id,
+        reviewer: {
+          id: updatedAssignment.users.id,
+          name: updatedAssignment.users.name,
+          email: updatedAssignment.users.email,
+          affiliation: updatedAssignment.users.affiliation
+        },
+        status: updatedAssignment.status,
+        assignedAt: updatedAssignment.assignedAt,
+        dueDate: updatedAssignment.dueDate,
+        completedAt: updatedAssignment.completedAt
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/articles/:id/reviewers/:reviewerId - Get specific reviewer assignment
+router.get('/:id/reviewers/:reviewerId', authenticateWithBots, async (req, res, next) => {
+  try {
+    const { id: manuscriptId, reviewerId } = req.params;
+
+    const assignment = await prisma.review_assignments.findUnique({
+      where: {
+        manuscriptId_reviewerId: {
+          manuscriptId,
+          reviewerId
+        }
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            affiliation: true
+          }
+        }
+      }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({
+        error: 'Assignment not found',
+        message: 'No reviewer assignment found for this manuscript and reviewer'
+      });
+    }
+
+    res.json({
+      assignment: {
+        id: assignment.id,
+        reviewer: {
+          id: assignment.users.id,
+          name: assignment.users.name,
+          email: assignment.users.email,
+          affiliation: assignment.users.affiliation
+        },
+        status: assignment.status,
+        assignedAt: assignment.assignedAt,
+        dueDate: assignment.dueDate,
+        completedAt: assignment.completedAt
+      }
+    });
   } catch (error) {
     next(error);
   }

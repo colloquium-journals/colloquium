@@ -234,19 +234,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             id: true,
             title: true,
             authors: true,
-            status: true,
-            action_editors: {
-              include: {
-                users_action_editors_editorIdTousers: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    affiliation: true
-                  }
-                }
-              }
-            }
+            status: true
           }
         },
         conversation_participants: {

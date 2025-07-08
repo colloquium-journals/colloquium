@@ -6,15 +6,17 @@ interface UseSSEOptions {
   onNewMessage?: (message: any) => void;
   onActionEditorAssigned?: (assignment: any) => void;
   onReviewerAssigned?: (assignment: any) => void;
+  onReviewerInvitationResponse?: (response: any) => void;
 }
 
 export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
-  const { enabled = true, onNewMessage, onActionEditorAssigned, onReviewerAssigned } = options;
+  const { enabled = true, onNewMessage, onActionEditorAssigned, onReviewerAssigned, onReviewerInvitationResponse } = options;
   const { token } = useAuth();
   const eventSourceRef = useRef<EventSource | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
   const onActionEditorAssignedRef = useRef(onActionEditorAssigned);
   const onReviewerAssignedRef = useRef(onReviewerAssigned);
+  const onReviewerInvitationResponseRef = useRef(onReviewerInvitationResponse);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
@@ -30,6 +32,10 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
   useEffect(() => {
     onReviewerAssignedRef.current = onReviewerAssigned;
   }, [onReviewerAssigned]);
+
+  useEffect(() => {
+    onReviewerInvitationResponseRef.current = onReviewerInvitationResponse;
+  }, [onReviewerInvitationResponse]);
 
   useEffect(() => {
     if (!enabled || !conversationId) {
@@ -86,6 +92,10 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
             if (onReviewerAssignedRef.current) {
               onReviewerAssignedRef.current(data.assignment);
             }
+          } else if (data.type === 'reviewer-invitation-response') {
+            if (onReviewerInvitationResponseRef.current) {
+              onReviewerInvitationResponseRef.current(data.response);
+            }
           }
         } catch (error) {
           console.error('📡 SSE: Error parsing message:', error);
@@ -114,7 +124,6 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
         if (eventSource.readyState === EventSource.CLOSED) {
           console.error('📡 SSE: Connection was closed by server (possibly auth/network issue)');
         } else if (eventSource.readyState === EventSource.CONNECTING) {
-          console.log('📡 SSE: EventSource is reconnecting automatically');
           setConnectionStatus('connecting');
         }
       };
@@ -130,14 +139,12 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
     }, 100); // 100ms delay
 
     return () => {
-      console.log('📡 SSE: Cleaning up effect');
       clearTimeout(timeoutId);
       if (connectionTimeoutRef.current) {
         clearTimeout(connectionTimeoutRef.current);
       }
       
       if (eventSourceRef.current && eventSourceRef.current.readyState !== EventSource.CLOSED) {
-        console.log('📡 SSE: Closing existing connection, readyState:', eventSourceRef.current.readyState);
         eventSourceRef.current.close();
         eventSourceRef.current = null;
         setConnectionStatus('disconnected');

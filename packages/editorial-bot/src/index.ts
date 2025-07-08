@@ -115,54 +115,54 @@ async function getManuscriptData(manuscriptId: string, context: any) {
   }
 
   try {
-    // Import prisma here to avoid circular dependencies
-    const { prisma } = await import('@colloquium/database');
+    // Use API endpoint for data access following standard pattern
+    const { serviceToken } = context;
     
-    // Fetch manuscript with all related assignment data
-    const manuscript = await prisma.manuscripts.findUnique({
-      where: { id: manuscriptId },
-      include: {
-        action_editors: {
-          include: {
-            users_action_editors_editorIdTousers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true
-              }
-            }
-          }
-        },
-        review_assignments: {
-          include: {
-            users: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: { assignedAt: 'asc' }
-        }
+    if (!serviceToken) {
+      throw new Error('Bot service token required for API access');
+    }
+
+    // Fetch manuscript data via API
+    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
       }
+    });
+
+    if (!manuscriptResponse.ok) {
+      const responseText = await manuscriptResponse.text();
+      console.error('API Response Error:', {
+        status: manuscriptResponse.status,
+        statusText: manuscriptResponse.statusText,
+        body: responseText
+      });
+      throw new Error(`Failed to fetch manuscript data: ${manuscriptResponse.status} ${manuscriptResponse.statusText}`);
+    }
+
+    const manuscript = await manuscriptResponse.json();
+    console.log('Successfully fetched manuscript data:', {
+      id: manuscript.id,
+      status: manuscript.status,
+      hasActionEditor: !!manuscript.action_editors,
+      reviewAssignmentsCount: manuscript.reviewAssignments?.length || 0
     });
 
     if (!manuscript) {
       throw new Error(`Manuscript with ID ${manuscriptId} not found`);
     }
 
-    // Process reviewer data with detailed status information
-    const allReviewAssignments = manuscript.review_assignments.map((review: any) => ({
-      mention: `@${review.users.name || review.users.email}`,
-      email: review.users.email,
+    // Process reviewer data with detailed status information from API response
+    console.log('Processing reviewAssignments:', manuscript.reviewAssignments?.length || 0, 'assignments found');
+    const allReviewAssignments = (manuscript.reviewAssignments || []).map((review: any) => ({
+      mention: `@${review.reviewer.name || review.reviewer.email}`,
+      email: review.reviewer.email,
       status: review.status, // PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, DECLINED
-      assignedDate: review.assignedAt ? review.assignedAt.toISOString().split('T')[0] : null,
-      completedDate: review.completedAt ? review.completedAt.toISOString().split('T')[0] : null,
-      userId: review.users.id,
+      assignedDate: review.assignedAt ? new Date(review.assignedAt).toISOString().split('T')[0] : null,
+      completedDate: review.completedAt ? new Date(review.completedAt).toISOString().split('T')[0] : null,
+      userId: review.reviewer.id,
       reviewId: review.id,
-      deadline: review.dueDate ? review.dueDate.toISOString().split('T')[0] : null
+      deadline: review.dueDate ? new Date(review.dueDate).toISOString().split('T')[0] : null
     }));
 
     // Separate different types of reviewer assignments
@@ -187,16 +187,16 @@ async function getManuscriptData(manuscriptId: string, context: any) {
 
     // Determine the most recent activity date
     const activityDates = [
-      manuscript.updatedAt,
-      ...manuscript.review_assignments.map((r: any) => r.assignedAt)
+      new Date(manuscript.updatedAt),
+      ...(manuscript.reviewAssignments || []).map((r: any) => new Date(r.assignedAt))
     ].filter(Boolean);
     
     const lastActivity = activityDates.length > 0 
       ? new Date(Math.max(...activityDates.map(d => d.getTime()))).toISOString().split('T')[0]
-      : manuscript.submittedAt.toISOString().split('T')[0];
+      : new Date(manuscript.submittedAt).toISOString().split('T')[0];
 
     // Find the earliest review deadline if any
-    const reviewDeadlines = manuscript.review_assignments
+    const reviewDeadlines = (manuscript.reviewAssignments || [])
       .map((r: any) => r.dueDate)
       .filter(Boolean)
       .map((d: any) => new Date(d!));
@@ -205,11 +205,19 @@ async function getManuscriptData(manuscriptId: string, context: any) {
       ? new Date(Math.min(...reviewDeadlines.map((d: any) => d.getTime()))).toISOString().split('T')[0]
       : null;
 
+    // Debug action editor processing
+    console.log('Processing action_editors:', {
+      hasActionEditor: !!manuscript.action_editors,
+      actionEditorData: manuscript.action_editors,
+      hasUserRelation: !!manuscript.action_editors?.users_action_editors_editorIdTousers,
+      userName: manuscript.action_editors?.users_action_editors_editorIdTousers?.name
+    });
+
     return {
       id: manuscriptId,
       status: manuscript.status,
-      submittedDate: manuscript.submittedAt.toISOString().split('T')[0],
-      assignedEditor: manuscript.action_editors 
+      submittedDate: new Date(manuscript.submittedAt).toISOString().split('T')[0],
+      assignedEditor: manuscript.action_editors?.users_action_editors_editorIdTousers 
         ? `@${manuscript.action_editors.users_action_editors_editorIdTousers.name}`
         : null,
       reviewers,
@@ -224,8 +232,8 @@ async function getManuscriptData(manuscriptId: string, context: any) {
       deadline: earliestDeadline
     };
   } catch (error) {
-    // Fallback to a basic structure if database query fails
-    console.error('Failed to fetch manuscript data:', error);
+    // Fallback to a basic structure if API call fails
+    console.error('Failed to fetch manuscript data via API:', error);
     return {
       id: manuscriptId,
       status: 'UNKNOWN',
@@ -263,29 +271,41 @@ async function checkActionEditorAssignmentPermission(userId: string, context: an
     console.log('🔍 Checking action editor assignment permission for userId:', userId);
     console.log('🔍 Context:', JSON.stringify(context, null, 2));
     
-    const { prisma } = await import('@colloquium/database');
-    const { GlobalRole } = await import('@prisma/client');
+    const { serviceToken } = context;
+    
+    if (!serviceToken) {
+      console.log('❌ Bot service token required for API access');
+      return false;
+    }
 
-    // Get user with role information
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      select: { id: true, role: true }
+    // Get user with role information via API
+    const userResponse = await fetch(`http://localhost:4000/api/users/${userId}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
+      }
     });
 
+    if (!userResponse.ok) {
+      console.log('❌ Failed to fetch user data:', userResponse.status, userResponse.statusText);
+      return false;
+    }
+
+    const user = await userResponse.json();
     console.log('🔍 Found user:', user);
 
     if (!user) {
-      console.log('❌ User not found in database');
+      console.log('❌ User not found');
       return false;
     }
 
     // Only admin, editor-in-chief, and managing editor can assign action editors
-    const hasPermission = user.role === GlobalRole.ADMIN || 
-           user.role === GlobalRole.EDITOR_IN_CHIEF || 
-           user.role === GlobalRole.ACTION_EDITOR;
+    const hasPermission = user.role === 'ADMIN' || 
+           user.role === 'EDITOR_IN_CHIEF' || 
+           user.role === 'ACTION_EDITOR';
     
     console.log('🔍 User role:', user.role);
-    console.log('🔍 Valid roles:', [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ACTION_EDITOR]);
+    console.log('🔍 Valid roles:', ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR']);
     console.log('🔍 Has permission:', hasPermission);
     
     return hasPermission;
@@ -298,24 +318,37 @@ async function checkActionEditorAssignmentPermission(userId: string, context: an
 /**
  * Validate that mentioned user exists and has appropriate editor status for action editor role
  */
-async function validateActionEditor(mention: string, manuscriptId: string): Promise<{ isValid: boolean; error?: string }> {
+async function validateActionEditor(mention: string, manuscriptId: string, context: any): Promise<{ isValid: boolean; error?: string }> {
   try {
-    const { prisma } = await import('@colloquium/database');
-    const { GlobalRole } = await import('@prisma/client');
+    const { serviceToken } = context;
+    
+    if (!serviceToken) {
+      return {
+        isValid: false,
+        error: 'Bot service token required for API access'
+      };
+    }
 
     // Remove @ symbol to get username for lookup
     const username = mention.replace('@', '');
 
-    // Find user by name
-    const user = await prisma.users.findFirst({
-      where: { name: username },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true
+    // Find user by name using search endpoint
+    const userSearchResponse = await fetch(`http://localhost:4000/api/users?search=${encodeURIComponent(username)}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
       }
     });
+
+    if (!userSearchResponse.ok) {
+      return {
+        isValid: false,
+        error: 'Unable to search for users due to a system error. Please try again later.'
+      };
+    }
+
+    const userSearchResults = await userSearchResponse.json();
+    const user = userSearchResults.users?.find((u: any) => u.name === username);
 
     if (!user) {
       return {
@@ -325,53 +358,46 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
     }
 
     // Check if user has appropriate role to be an action editor
-    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ACTION_EDITOR];
-    if (!validEditorRoles.includes(user.role as any)) {
+    const validEditorRoles = ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'];
+    if (!validEditorRoles.includes(user.role)) {
       return {
         isValid: false,
         error: `User ${mention} does not have editor status. Only users with admin, editor-in-chief, or managing editor roles can be assigned as action editors.`
       };
     }
 
-    // Check if an action editor is already assigned to this manuscript
-    const existingAssignment = await prisma.action_editors.findUnique({
-      where: { manuscriptId },
-      include: {
-        users_action_editors_editorIdTousers: {
-          select: { name: true }
-        }
+    // Get manuscript data to check for existing assignment and conflicts
+    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
       }
     });
 
-    if (existingAssignment) {
+    if (!manuscriptResponse.ok) {
       return {
         isValid: false,
-        error: `An action editor (@${existingAssignment.users_action_editors_editorIdTousers.name}) is already assigned to this manuscript. Please use an update command to change the assignment.`
+        error: 'Unable to validate action editor assignment due to a system error. Please try again later.'
+      };
+    }
+
+    const manuscript = await manuscriptResponse.json();
+
+    // Check if an action editor is already assigned
+    if (manuscript.action_editors?.users_action_editors_editorIdTousers) {
+      return {
+        isValid: false,
+        error: `An action editor (@${manuscript.action_editors.users_action_editors_editorIdTousers.name}) is already assigned to this manuscript. Please use an update command to change the assignment.`
       };
     }
 
     // Check if this user is an author of the manuscript (conflict of interest)
-    const manuscript = await prisma.manuscripts.findUnique({
-      where: { id: manuscriptId },
-      include: {
-        manuscript_authors: {
-          include: {
-            users: {
-              select: { id: true, name: true }
-            }
-          }
-        }
-      }
-    });
-
-    if (manuscript) {
-      const authorIds = manuscript.manuscript_authors.map((ar: any) => ar.users.id);
-      if (authorIds.includes(user.id)) {
-        return {
-          isValid: false,
-          error: `Cannot assign ${mention} as action editor because they are an author of this manuscript. This would create a conflict of interest.`
-        };
-      }
+    const authorIds = (manuscript.authors || []).map((author: any) => author.id);
+    if (authorIds.includes(user.id)) {
+      return {
+        isValid: false,
+        error: `Cannot assign ${mention} as action editor because they are an author of this manuscript. This would create a conflict of interest.`
+      };
     }
 
     return { isValid: true };
@@ -389,31 +415,50 @@ async function validateActionEditor(mention: string, manuscriptId: string): Prom
  */
 async function checkReviewerAssignmentPermission(userId: string, manuscriptId: string, context: any): Promise<boolean> {
   try {
-    const { prisma } = await import('@colloquium/database');
-    const { GlobalRole } = await import('@prisma/client');
+    const { serviceToken } = context;
+    
+    if (!serviceToken) {
+      return false;
+    }
 
-    // Get user with role information
-    const user = await prisma.users.findUnique({
-      where: { id: userId },
-      select: { id: true, role: true }
+    // Get user with role information via API
+    const userResponse = await fetch(`http://localhost:4000/api/users/${userId}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
+      }
     });
+
+    if (!userResponse.ok) {
+      return false;
+    }
+
+    const user = await userResponse.json();
 
     if (!user) {
       return false;
     }
 
     // Admin and editor-in-chief always have permission
-    if (user.role === GlobalRole.ADMIN || user.role === GlobalRole.EDITOR_IN_CHIEF || user.role === GlobalRole.ACTION_EDITOR) {
+    if (user.role === 'ADMIN' || user.role === 'EDITOR_IN_CHIEF' || user.role === 'ACTION_EDITOR') {
       return true;
     }
 
-    // Check if user is the action editor for this manuscript
-    const actionEditor = await prisma.action_editors.findUnique({
-      where: { manuscriptId },
-      select: { editorId: true }
+    // Get manuscript data to check if user is the action editor for this manuscript
+    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
+      }
     });
 
-    return actionEditor?.editorId === userId;
+    if (!manuscriptResponse.ok) {
+      return false;
+    }
+
+    const manuscript = await manuscriptResponse.json();
+
+    return manuscript.action_editors?.editorId === userId;
   } catch (error) {
     console.error('Permission check failed:', error);
     return false;
@@ -423,25 +468,44 @@ async function checkReviewerAssignmentPermission(userId: string, manuscriptId: s
 /**
  * Validate that mentioned reviewers exist and can be assigned
  */
-async function validateReviewers(mentions: string[], manuscriptId: string): Promise<{ isValid: boolean; error?: string }> {
+async function validateReviewers(mentions: string[], manuscriptId: string, context: any): Promise<{ isValid: boolean; error?: string }> {
   try {
-    const { prisma } = await import('@colloquium/database');
+    const { serviceToken } = context;
+    
+    if (!serviceToken) {
+      return {
+        isValid: false,
+        error: 'Bot service token required for API access'
+      };
+    }
 
     // Remove @ symbols to get usernames for lookup
     const usernames = mentions.map(mention => mention.replace('@', ''));
+    const users = [];
 
-    // Find users by name (this assumes names are unique - in production you might want email-based lookup)
-    const users = await prisma.users.findMany({
-      where: {
-        name: { in: usernames }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true
+    // Search for each user individually using the user search API
+    for (const username of usernames) {
+      const userSearchResponse = await fetch(`http://localhost:4000/api/users?search=${encodeURIComponent(username)}`, {
+        headers: {
+          'X-Bot-Token': serviceToken,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!userSearchResponse.ok) {
+        return {
+          isValid: false,
+          error: 'Unable to search for users due to a system error. Please try again later.'
+        };
       }
-    });
+
+      const userSearchResults = await userSearchResponse.json();
+      const user = userSearchResults.users?.find((u: any) => u.name === username);
+      
+      if (user) {
+        users.push(user);
+      }
+    }
 
     // Check if all mentioned users were found
     const foundUsernames = users.map((u: any) => u.name);
@@ -454,47 +518,40 @@ async function validateReviewers(mentions: string[], manuscriptId: string): Prom
       };
     }
 
-    // Check if any of the users are authors of this manuscript (conflict of interest)
-    const manuscript = await prisma.manuscripts.findUnique({
-      where: { id: manuscriptId },
-      include: {
-        manuscript_authors: {
-          include: {
-            users: {
-              select: { id: true, name: true }
-            }
-          }
-        }
+    // Get manuscript data to check for conflicts and existing assignments
+    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+      headers: {
+        'X-Bot-Token': serviceToken,
+        'Content-Type': 'application/json'
       }
     });
 
-    if (manuscript) {
-      const authorIds = manuscript.manuscript_authors.map((ar: any) => ar.users.id);
-      const conflictUsers = users.filter((user: any) => authorIds.includes(user.id));
+    if (!manuscriptResponse.ok) {
+      return {
+        isValid: false,
+        error: 'Unable to validate reviewer assignments due to a system error. Please try again later.'
+      };
+    }
 
-      if (conflictUsers.length > 0) {
-        return {
-          isValid: false,
-          error: `Cannot assign authors as reviewers: ${conflictUsers.map((u: any) => `@${u.name}`).join(', ')}. This would create a conflict of interest.`
-        };
-      }
+    const manuscript = await manuscriptResponse.json();
+
+    // Check if any of the users are authors of this manuscript (conflict of interest)
+    const authorIds = (manuscript.authors || []).map((author: any) => author.id);
+    const conflictUsers = users.filter((user: any) => authorIds.includes(user.id));
+
+    if (conflictUsers.length > 0) {
+      return {
+        isValid: false,
+        error: `Cannot assign authors as reviewers: ${conflictUsers.map((u: any) => `@${u.name}`).join(', ')}. This would create a conflict of interest.`
+      };
     }
 
     // Check if any users are already assigned as reviewers
-    const existingReviews = await prisma.review_assignments.findMany({
-      where: {
-        manuscriptId,
-        reviewerId: { in: users.map((u: any) => u.id) }
-      },
-      include: {
-        users: {
-          select: { name: true }
-        }
-      }
-    });
+    const existingReviewerIds = (manuscript.reviewAssignments || []).map((assignment: any) => assignment.reviewer.id);
+    const alreadyAssignedUsers = users.filter((user: any) => existingReviewerIds.includes(user.id));
 
-    if (existingReviews.length > 0) {
-      const alreadyAssigned = existingReviews.map((r: any) => `@${r.users.name}`).join(', ');
+    if (alreadyAssignedUsers.length > 0) {
+      const alreadyAssigned = alreadyAssignedUsers.map((u: any) => `@${u.name}`).join(', ');
       return {
         isValid: false,
         error: `The following users are already assigned as reviewers: ${alreadyAssigned}. Please remove them from the list or use a different command to update existing assignments.`
@@ -679,7 +736,7 @@ const assignEditorCommand: BotCommand = {
     // Validate that the mentioned user exists and has editor status (skip in test environment)
     const validationResult = process.env.NODE_ENV === 'test' 
       ? { isValid: true } 
-      : await validateActionEditor(processedEditor, manuscriptId);
+      : await validateActionEditor(processedEditor, manuscriptId, context);
     
     if (!validationResult.isValid) {
       return {
@@ -808,7 +865,8 @@ const assignReviewerCommand: BotCommand = {
       const results = {
         assigned: [] as any[],
         notInvited: [] as any[],
-        alreadyAssigned: [] as any[]
+        alreadyAssigned: [] as any[],
+        failed: [] as any[]
       };
 
       // Convert reviewer inputs to email addresses
@@ -885,40 +943,41 @@ const assignReviewerCommand: BotCommand = {
           continue;
         }
 
-        // Update the assignment to IN_PROGRESS and set deadline if provided
-        const updatedAssignment = await prisma.review_assignments.update({
-          where: { id: existingAssignment.id },
-          data: {
+        // Update the assignment to IN_PROGRESS and set deadline if provided via API
+        const { serviceToken } = context;
+        const updateResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/reviewers/${user.id}`, {
+          method: 'PUT',
+          headers: {
+            'X-Bot-Token': serviceToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
             status: 'IN_PROGRESS',
-            dueDate: deadline ? new Date(deadline) : existingAssignment.dueDate,
-            assignedAt: new Date()
-          }
+            dueDate: deadline || existingAssignment.dueDate
+          })
         });
+
+        if (!updateResponse.ok) {
+          results.failed.push({
+            email,
+            error: `Failed to update reviewer assignment: ${updateResponse.statusText}`
+          });
+          continue;
+        }
+
+        const updateResult = await updateResponse.json();
+        const updatedAssignment = updateResult.assignment;
 
         results.assigned.push({
           email,
           reviewerId: user.id,
           assignmentId: updatedAssignment.id,
-          deadline: updatedAssignment.dueDate?.toISOString().split('T')[0] || 'No deadline'
+          deadline: updatedAssignment.dueDate ? new Date(updatedAssignment.dueDate).toISOString().split('T')[0] : 'No deadline'
         });
 
-        // Broadcast reviewer assignment via SSE
-        const { broadcastToConversation } = await import('../../../apps/api/src/routes/events');
-        await broadcastToConversation(context.conversationId, {
-          type: 'reviewer-assigned',
-          assignment: {
-            manuscriptId,
-            reviewer: {
-              id: user.id,
-              email: user.email,
-              name: user.name || user.email
-            },
-            assignmentId: updatedAssignment.id,
-            status: 'IN_PROGRESS',
-            dueDate: updatedAssignment.dueDate?.toISOString(),
-            assignedAt: new Date().toISOString()
-          }
-        }, manuscriptId);
+        // TODO: Broadcast reviewer assignment via SSE
+        // Note: Disabled due to cross-package import issues
+        // This should be handled by the API layer when the bot action is processed
       }
 
       // Prepare response message
@@ -1106,21 +1165,39 @@ const inviteReviewerCommand: BotCommand = {
           continue;
         }
 
-        // Create invitation (pending review assignment)
-        const invitation = await prisma.review_assignments.create({
-          data: {
-            id: randomUUID(),
-            manuscriptId,
+        // Create invitation (pending review assignment) via API
+        const { serviceToken } = context;
+        const createResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/reviewers`, {
+          method: 'POST',
+          headers: {
+            'X-Bot-Token': serviceToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
             reviewerId: reviewer.id,
             status: 'PENDING',
-            dueDate: deadline ? new Date(deadline) : null
-          }
+            dueDate: deadline
+          })
         });
 
+        if (!createResponse.ok) {
+          results.failed.push({
+            email,
+            error: `Failed to create reviewer assignment: ${createResponse.statusText}`
+          });
+          continue;
+        }
+
+        const createResult = await createResponse.json();
+        const invitation = createResult.assignment;
+
         // Send invitation email with links to public API endpoints
+        let emailSent = false;
+        let emailError = null;
+        
         try {
           const nodemailer = await import('nodemailer');
-          const transporter = nodemailer.createTransporter({
+          const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'localhost',
             port: parseInt(process.env.SMTP_PORT || '1025'),
             secure: false,
@@ -1184,14 +1261,19 @@ Accept: ${acceptUrl}
 Decline: ${declineUrl}
             `
           });
-        } catch (emailError) {
-          console.error('Failed to send invitation email:', emailError);
+          
+          emailSent = true;
+        } catch (error) {
+          console.error('Failed to send invitation email:', error);
+          emailError = error instanceof Error ? error.message : 'Unknown email error';
         }
         
         results.invited.push({
           email,
           reviewerId: reviewer.id,
-          invitationId: invitation.id
+          invitationId: invitation.id,
+          emailSent,
+          emailError
         });
 
       } catch (error) {
@@ -1204,14 +1286,25 @@ Decline: ${declineUrl}
     }
 
     // Generate response message
-    let responseMessage = '📧 **Reviewer Invitations Sent**\n\n';
+    let responseMessage = '📧 **Reviewer Invitations Processed**\n\n';
     
     if (results.invited.length > 0) {
+      const emailSuccessCount = results.invited.filter(r => r.emailSent).length;
+      const emailFailureCount = results.invited.filter(r => !r.emailSent).length;
+      
       responseMessage += `**✅ Successfully Invited (${results.invited.length}):**\n`;
       results.invited.forEach(r => {
-        responseMessage += `- ${r.email}\n`;
+        if (r.emailSent) {
+          responseMessage += `- ${r.email} ✉️ (email sent)\n`;
+        } else {
+          responseMessage += `- ${r.email} ⚠️ (invitation created but email failed: ${r.emailError})\n`;
+        }
       });
       responseMessage += '\n';
+      
+      if (emailFailureCount > 0) {
+        responseMessage += `**⚠️ Email Delivery Issues:** ${emailFailureCount} invitation(s) were created in the system but emails failed to send. Please check your SMTP configuration or manually notify the reviewers.\n\n`;
+      }
     }
 
     if (results.alreadyInvited.length > 0) {
@@ -1536,18 +1629,26 @@ const acceptReviewCommand: BotCommand = {
         };
       }
 
-      // Accept the invitation
-      await prisma.review_assignments.update({
-        where: {
-          manuscriptId_reviewerId: {
-            manuscriptId,
-            reviewerId: userId
-          }
+      // Accept the invitation via API
+      const { serviceToken } = context;
+      const acceptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/reviewers/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'X-Bot-Token': serviceToken,
+          'Content-Type': 'application/json'
         },
-        data: {
+        body: JSON.stringify({
           status: 'ACCEPTED'
-        }
+        })
       });
+
+      if (!acceptResponse.ok) {
+        return {
+          messages: [{
+            content: `❌ **Failed to Accept Invitation**\n\nSystem error: ${acceptResponse.statusText}. Please try again later.`
+          }]
+        };
+      }
 
       let responseMessage = `✅ **Review Invitation Accepted**\n\n`;
       responseMessage += `**Reviewer:** ${invitation.users.name || invitation.users.email}\n`;

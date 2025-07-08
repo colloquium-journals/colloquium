@@ -45,15 +45,17 @@ exports.botManager = new bots_1.DatabaseBotManager(undefined, exports.botExecuto
 // Create or get bot user in database
 async function ensureBotUser(botId, botName) {
     const email = `${botId}@colloquium.bot`;
-    let botUser = await database_1.prisma.user.findUnique({
+    let botUser = await database_1.prisma.users.findUnique({
         where: { email }
     });
     if (!botUser) {
-        botUser = await database_1.prisma.user.create({
+        botUser = await database_1.prisma.users.create({
             data: {
+                id: `bot-${botId}`,
                 email,
                 name: botName,
-                role: 'BOT'
+                role: 'BOT',
+                updatedAt: new Date()
             }
         });
         // console.log(`✅ Created bot user: ${botName} (${email})`);

@@ -32,6 +32,113 @@ BotRegistry → Manages bot lifecycle and execution
 - **`bot_installs`**: Installation status and configuration
 - **`bot_executions`**: Complete audit trail of all executions
 
+## Data Access Patterns
+
+### Standard API-Based Access (Recommended)
+
+**All bots should use API endpoints for data access rather than direct database queries.** This ensures:
+
+- **Consistent authentication/authorization** across all bot operations
+- **Uniform error handling** and response formats
+- **Centralized permission checking** through existing middleware
+- **Consistent audit trails** and logging
+- **Proper data validation** through API schemas
+- **Cache coherency** and data consistency
+
+### Correct Pattern: API Calls
+
+```typescript
+// ✅ CORRECT: Use API endpoints
+async execute(input: any, context: BotExecutionContext): Promise<BotActionResult> {
+  const { botServiceToken } = context;
+  
+  // Fetch manuscript data via API
+  const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${input.manuscriptId}`, {
+    headers: {
+      'Authorization': `Bearer ${botServiceToken}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!manuscriptResponse.ok) {
+    throw new Error('Failed to fetch manuscript data');
+  }
+  
+  const manuscript = await manuscriptResponse.json();
+  
+  // Access assignment data from API response
+  const assignedEditor = manuscript.action_editors;
+  const reviewerAssignments = manuscript.reviewAssignments;
+  
+  return {
+    success: true,
+    data: { assignedEditor, reviewerAssignments }
+  };
+}
+```
+
+### Anti-Pattern: Direct Database Access
+
+```typescript
+// ❌ INCORRECT: Direct database queries
+async execute(input: any, context: BotExecutionContext): Promise<BotActionResult> {
+  // This creates inconsistent patterns and bypasses API security
+  const { prisma } = await import('@colloquium/database');
+  
+  const manuscript = await prisma.manuscripts.findUnique({
+    where: { id: input.manuscriptId },
+    include: {
+      action_editors: { /* ... */ },
+      review_assignments: { /* ... */ }
+    }
+  });
+  
+  // This bypasses API middleware, permissions, and audit trails
+  return { success: true, data: manuscript };
+}
+```
+
+### Bot Service Token Authentication
+
+Bots receive service tokens that provide appropriate permissions:
+
+```typescript
+interface BotExecutionContext {
+  userId?: string;
+  manuscriptId?: string;
+  conversationId?: string;
+  messageId?: string;
+  botServiceToken: string;  // Use this for API authentication
+}
+```
+
+### API Endpoints for Bot Data Access
+
+**Assignment Data** (Single Source of Truth):
+- `GET /api/articles/:id` - Manuscript data including `action_editors` and `reviewAssignments`
+
+**Reviewer Assignment Operations**:
+- `POST /api/articles/:id/reviewers` - Create reviewer assignment
+- `PUT /api/articles/:id/reviewers/:reviewerId` - Update reviewer assignment status
+- `GET /api/articles/:id/reviewers/:reviewerId` - Get specific reviewer assignment
+
+**Conversation Data**:
+- `GET /api/conversations/:id` - Conversation metadata (no assignment data)
+
+**User Data**:
+- `GET /api/users/:id` - User information and permissions
+- `GET /api/users?search=:query` - Search for users by name
+
+### Migration from Direct Database Access
+
+If you have existing bots using direct database queries:
+
+1. **Replace database imports** with API calls
+2. **Use context.botServiceToken** for authentication
+3. **Update error handling** to work with HTTP responses
+4. **Test permission enforcement** through API middleware
+5. **Verify audit trails** are properly logged
+
 ## Creating a New Bot
 
 ### 1. Define Bot Actions

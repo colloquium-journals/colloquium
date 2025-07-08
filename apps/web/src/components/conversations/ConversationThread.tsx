@@ -65,52 +65,30 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Debug logging for conversation state changes
-  useEffect(() => {
-    console.log('🎪 ConversationThread: Conversation state updated');
-    console.log('🎪 ConversationThread: Message count:', conversation?.messages?.length || 0);
-    console.log('🎪 ConversationThread: Message IDs:', conversation?.messages?.map(m => m.id) || []);
-  }, [conversation]);
-
   // Handle real-time messages
   const handleNewMessage = useCallback((newMessage: MessageData) => {
-    console.log('🎯 ConversationThread: ===== NEW MESSAGE HANDLER CALLED =====');
-    console.log('🎯 ConversationThread: Received new message via SSE:', newMessage);
-    console.log('🎯 ConversationThread: Message details:', {
-      id: newMessage.id,
-      content: newMessage.content,
-      author: newMessage.author,
-      createdAt: newMessage.createdAt,
-      privacy: newMessage.privacy
-    });
+    
     
     setConversation(prev => {
-      console.log('🎯 ConversationThread: Current conversation state:', prev ? 'exists' : 'null');
-      console.log('🎯 ConversationThread: Current messages count:', prev?.messages?.length || 0);
+      
       
       if (!prev) {
-        console.log('🎯 ConversationThread: No conversation state, skipping message');
         return prev;
       }
       
       // Check if message already exists (avoid duplicates)
       const messageExists = prev.messages.some(msg => msg.id === newMessage.id);
-      console.log('🎯 ConversationThread: Message exists check:', messageExists);
-      console.log('🎯 ConversationThread: Existing message IDs:', prev.messages.map(m => m.id));
+      
       
       if (messageExists) {
-        console.log('🎯 ConversationThread: Message already exists, skipping');
         return prev;
       }
 
-      console.log('🎯 ConversationThread: Adding new message to conversation');
-      console.log('🎯 ConversationThread: Current message count:', prev.messages.length);
       const updatedConversation = {
         ...prev,
         messages: [...prev.messages, newMessage]
       };
-      console.log('🎯 ConversationThread: New message count:', updatedConversation.messages.length);
-      console.log('🎯 ConversationThread: ===== MESSAGE HANDLER COMPLETE =====');
+      
       return updatedConversation;
     });
   }, []);
@@ -120,16 +98,6 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     enabled: !!conversationId,
     onNewMessage: handleNewMessage
   });
-
-  // Log SSE connection status
-  useEffect(() => {
-    console.log('🔌 ConversationThread: SSE Status Update:', {
-      conversationId,
-      isConnected,
-      connectionStatus,
-      hasCallback: !!handleNewMessage
-    });
-  }, [conversationId, isConnected, connectionStatus, handleNewMessage]);
 
   // Mock data - will be replaced with API call
   useEffect(() => {
@@ -178,7 +146,6 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     if (!conversation) return;
 
     try {
-      console.log('Posting message:', { content, parentId, privacy }); // Debug log
       
       const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}/messages`, {
         method: 'POST',
@@ -193,8 +160,6 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
         })
       });
 
-      console.log('Response status:', response.status); // Debug log
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', errorData); // Debug log
@@ -202,7 +167,6 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       }
 
       const result = await response.json();
-      console.log('Message posted successfully:', result); // Debug log
       
       // Add user message immediately to local state for instant feedback
       // Bot responses will still come via SSE
