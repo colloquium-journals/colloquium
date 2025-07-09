@@ -1,0 +1,67 @@
+{
+  "id": "singleton",
+  "name": "{{JOURNAL_NAME}}",
+  "slug": "{{JOURNAL_SLUG}}",
+  "description": "{{JOURNAL_DESCRIPTION}}",
+  {{#if JOURNAL_DOMAIN}}"domain": "{{JOURNAL_DOMAIN}}",{{/if}}
+  "instanceId": "{{INSTANCE_ID}}",
+  "createdAt": "{{CREATED_AT}}",
+  "version": "1.0.0",
+  "settings": {
+    "name": "{{JOURNAL_NAME}}",
+    "description": "{{JOURNAL_DESCRIPTION}}",
+    "theme": {
+      "primaryColor": "#1976d2",
+      "secondaryColor": "#dc004e",
+      "backgroundColor": "#ffffff",
+      "textColor": "#000000",
+      "linkColor": "#1976d2"
+    },
+    "features": {
+      "publicSubmissions": true,
+      "openReview": false,
+      "preprints": true,
+      "commentingEnabled": true,
+      "ratingsEnabled": false
+    },
+    "reviewProcess": {
+      "peerReview": true,
+      "openReview": false,
+      "blindReview": true,
+      "reviewTimeLimit": 30,
+      "maxReviewers": 3
+    },
+    "submissionGuidelines": "Please follow the submission guidelines available at our documentation.",
+    "publishingFrequency": "continuous",
+    "languages": ["en"],
+    "subjects": [],
+    "contactEmail": "{{ADMIN_EMAIL}}",
+    "socialLinks": {
+      "twitter": "",
+      "facebook": "",
+      "linkedin": "",
+      "mastodon": ""
+    },
+    "analytics": {
+      "googleAnalyticsId": "",
+      "matomoUrl": "",
+      "matomoSiteId": ""
+    },
+    "integrations": {
+      "orcid": {
+        "enabled": false,
+        "clientId": "",
+        "clientSecret": ""
+      },
+      "crossref": {
+        "enabled": false,
+        "username": "",
+        "password": ""
+      }
+    }
+  },
+  "botSettings": {
+    "selectedBots": [{{SELECTED_BOTS}}],
+    "configurations": {}
+  }
+}

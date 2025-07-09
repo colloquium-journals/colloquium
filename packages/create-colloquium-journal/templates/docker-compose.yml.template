@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  web:
+    image: colloquium/web:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_JOURNAL_NAME={{JOURNAL_NAME}}
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NODE_ENV=production
+    depends_on:
+      - api
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  api:
+    image: colloquium/api:latest
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:{{DB_PASSWORD}}@postgres:5432/{{DB_NAME}}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET={{JWT_SECRET}}
+      - MAGIC_LINK_SECRET={{MAGIC_LINK_SECRET}}
+      - FRONTEND_URL=http://localhost:3000
+      - ADMIN_EMAIL={{ADMIN_EMAIL}}
+      - NODE_ENV=production
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./config:/app/config
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD={{DB_PASSWORD}}
+      - POSTGRES_DB={{DB_NAME}}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/ssl/certs:ro
+      - ./data/uploads:/var/www/uploads:ro
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
