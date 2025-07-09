@@ -8,12 +8,12 @@ describe('Reference Bot', () => {
     expect(referenceBot.version).toBe('1.0.0');
   });
 
-  it('should have the expected commands', () => {
-    expect(referenceBot.commands).toHaveLength(2);
+  it('should have the expected commands (before help injection)', () => {
+    expect(referenceBot.commands).toHaveLength(1);
     
     const commandNames = referenceBot.commands.map(cmd => cmd.name);
     expect(commandNames).toContain('check-doi');
-    expect(commandNames).toContain('help');
+    expect(commandNames).not.toContain('help'); // Help command will be injected by the framework
   });
 
   it('should have the expected keywords', () => {
@@ -120,39 +120,12 @@ describe('Reference Bot', () => {
     });
   });
 
-  describe('help command', () => {
-    const helpCommand = referenceBot.commands.find(cmd => cmd.name === 'help');
-
-    it('should exist and have correct metadata', () => {
-      expect(helpCommand).toBeDefined();
-      expect(helpCommand!.description).toBe('Show detailed help for the reference bot');
-      expect(helpCommand!.permissions).toEqual([]);
-    });
-
-    it('should execute successfully', async () => {
-      const mockContext = {
-        manuscriptId: 'test-manuscript-123',
-        conversationId: 'test-conversation-456',
-        triggeredBy: {
-          messageId: 'test-message-789',
-          userId: 'test-user-001',
-          trigger: 'MENTION' as const
-        },
-        journal: {
-          id: 'test-journal',
-          settings: {}
-        },
-        config: {}
-      };
-
-      const result = await helpCommand!.execute({}, mockContext);
-      
-      expect(result).toBeDefined();
-      expect(result.messages).toBeDefined();
-      expect(result.messages).toHaveLength(1);
-      expect(result.messages[0].content).toContain('Reference Bot Help');
-      expect(result.messages[0].content).toContain('check-doi');
-      expect(result.messages[0].content).toContain('Examples:');
-    });
+  it('should have proper help metadata for framework injection', () => {
+    expect(referenceBot.help).toBeDefined();
+    expect(referenceBot.help!.overview).toBeDefined();
+    expect(referenceBot.help!.quickStart).toBeDefined();
+    expect(referenceBot.help!.examples).toBeDefined();
+    expect(referenceBot.customHelpSections).toBeDefined();
+    expect(referenceBot.customHelpSections!.length).toBeGreaterThan(0);
   });
 });

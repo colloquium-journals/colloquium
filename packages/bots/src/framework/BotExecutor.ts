@@ -9,8 +9,14 @@ export class BotExecutor {
 
 
   registerCommandBot(bot: CommandBot): void {
-    this.commandBots.set(bot.id, bot);
     this.commandParser.registerBot(bot);
+    // Get the bot with help command injected from the command parser
+    const botWithHelp = this.commandParser.getAllBots().find(b => b.id === bot.id);
+    if (botWithHelp) {
+      this.commandBots.set(bot.id, botWithHelp);
+    } else {
+      this.commandBots.set(bot.id, bot);
+    }
   }
 
   setBotUserId(botId: string, userId: string): void {

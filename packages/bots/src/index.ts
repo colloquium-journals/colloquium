@@ -8,6 +8,15 @@ export {
   commandParser
 } from './framework/commands';
 
+// Export help system
+export {
+  generateBotHelp,
+  createDefaultHelpCommand,
+  hasHelpCommand,
+  injectHelpCommand,
+  validateBotHelp
+} from './framework/helpSystem';
+
 // Export types from @colloquium/types
 export type {
   CommandBot,
