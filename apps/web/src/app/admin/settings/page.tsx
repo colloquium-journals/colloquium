@@ -816,13 +816,12 @@ export default function JournalSettingsPage() {
   };
 
   // Change user role
-  const handleChangeUserRole = async (userId: string, newRole: 'ADMIN' | 'EDITOR_IN_CHIEF' | 'ACTION_EDITOR' | 'USER') => {
+  const handleChangeUserRole = async (userId: string, newRole: 'ADMIN' | 'EDITOR_IN_CHIEF' | 'USER') => {
     try {
       // Map frontend roles to backend roles
       const roleMapping = {
         'ADMIN': 'ADMIN',
         'EDITOR_IN_CHIEF': 'EDITOR_IN_CHIEF',
-        'ACTION_EDITOR': 'ACTION_EDITOR',
         'USER': 'USER'
       };
       
@@ -1484,7 +1483,6 @@ export default function JournalSettingsPage() {
                         { value: 'all', label: 'All Users' },
                         { value: 'ADMIN', label: 'Admins' },
                         { value: 'EDITOR_IN_CHIEF', label: 'Editors-in-Chief' },
-                        { value: 'ACTION_EDITOR', label: 'Action Editors' },
                         { value: 'USER', label: 'Users' }
                       ]}
                       style={{ width: 150 }}
@@ -1564,13 +1562,11 @@ export default function JournalSettingsPage() {
                               <Badge 
                                 color={
                                   usr.role === 'ADMIN' ? 'red' : 
-                                  usr.role === 'EDITOR_IN_CHIEF' ? 'blue' : 
-                                  usr.role === 'ACTION_EDITOR' ? 'green' : 'gray'
+                                  usr.role === 'EDITOR_IN_CHIEF' ? 'blue' : 'gray'
                                 }
                                 variant="light"
                               >
-                                {usr.role === 'EDITOR_IN_CHIEF' ? 'EDITOR-IN-CHIEF' : 
-                                 usr.role === 'ACTION_EDITOR' ? 'ACTION EDITOR' : usr.role}
+                                {usr.role}
                               </Badge>
                             </Table.Td>
                             <Table.Td>
@@ -1604,11 +1600,6 @@ export default function JournalSettingsPage() {
                                       >
                                         Make Editor-in-Chief
                                       </Menu.Item>
-                                      <Menu.Item
-                                        onClick={() => handleChangeUserRole(usr.id, 'ACTION_EDITOR')}
-                                      >
-                                        Make Action Editor
-                                      </Menu.Item>
                                     </>
                                   )}
                                   {usr.role === 'ADMIN' && (
@@ -1625,14 +1616,6 @@ export default function JournalSettingsPage() {
                                       color="orange"
                                     >
                                       Remove Editor-in-Chief Role
-                                    </Menu.Item>
-                                  )}
-                                  {usr.role === 'ACTION_EDITOR' && (
-                                    <Menu.Item
-                                      onClick={() => handleChangeUserRole(usr.id, 'USER')}
-                                      color="orange"
-                                    >
-                                      Remove Action Editor Role
                                     </Menu.Item>
                                   )}
                                 </Menu.Dropdown>

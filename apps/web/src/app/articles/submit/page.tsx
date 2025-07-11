@@ -44,6 +44,7 @@ interface SubmissionData {
   authors: AuthorInput[];
   keywords: string[];
   sourceFiles: File[];
+  bibliographyFiles: File[];
   assetFiles: File[];
   agreeToTerms: boolean;
 }
@@ -77,9 +78,12 @@ export default function SubmitArticlePage() {
   useEffect(() => {
     const loadSupportedFormats = async () => {
       try {
+        console.log('Loading supported formats...');
         const response = await fetch('http://localhost:4000/api/formats');
+        console.log('Formats API response:', response.status);
         if (response.ok) {
           const data = await response.json();
+          console.log('Loaded formats:', data.formats);
           setSupportedFormats(data.formats);
         } else {
           // Fall back to default formats if API fails
@@ -110,7 +114,22 @@ export default function SubmitArticlePage() {
       } catch (error) {
         console.error('Failed to load supported formats:', error);
         // Use fallback formats
-        setSupportedFormats([]);
+        setSupportedFormats([
+          {
+            name: 'markdown',
+            displayName: 'Markdown',
+            fileExtensions: ['.md', '.markdown'],
+            mimeTypes: ['text/markdown', 'text/x-markdown'],
+            description: 'Markdown text format'
+          },
+          {
+            name: 'latex',
+            displayName: 'LaTeX',
+            fileExtensions: ['.tex', '.latex'],
+            mimeTypes: ['text/x-tex', 'application/x-latex'],
+            description: 'LaTeX document format'
+          }
+        ]);
       } finally {
         setLoadingFormats(false);
       }
@@ -138,6 +157,7 @@ export default function SubmitArticlePage() {
       }],
       keywords: [],
       sourceFiles: [],
+      bibliographyFiles: [],
       assetFiles: [],
       agreeToTerms: false
     },
@@ -186,6 +206,24 @@ export default function SubmitArticlePage() {
     }
   });
 
+  // Update author fields when user data becomes available
+  useEffect(() => {
+    if (user && !authLoading) {
+      const currentAuthors = form.values.authors;
+      if (currentAuthors.length > 0 && (!currentAuthors[0].email || !currentAuthors[0].name)) {
+        const updatedAuthors = [...currentAuthors];
+        updatedAuthors[0] = {
+          ...updatedAuthors[0],
+          email: user.email || '',
+          name: user.name || '',
+          isExistingUser: true,
+          isCorresponding: true
+        };
+        form.setFieldValue('authors', updatedAuthors);
+      }
+    }
+  }, [user, authLoading]);
+
   const handleSubmit = async (values: SubmissionData) => {
     try {
       setLoading(true);
@@ -199,13 +237,11 @@ export default function SubmitArticlePage() {
       formData.append('abstract', values.abstract.trim());
       
       // Add authors array - convert to the expected format
-      values.authors.forEach(author => {
-        formData.append('authors', JSON.stringify({
-          email: author.email,
-          name: author.name,
-          isCorresponding: author.isCorresponding
-        }));
-      });
+      formData.append('authors', JSON.stringify(values.authors.map(author => ({
+        email: author.email,
+        name: author.name,
+        isCorresponding: author.isCorresponding
+      }))));
       
       // Add keywords array
       values.keywords.forEach(keyword => {
@@ -222,6 +258,11 @@ export default function SubmitArticlePage() {
       
       // Add source files first (these will be marked as SOURCE in the backend)
       values.sourceFiles.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Add bibliography files (these will be marked as REFERENCE in the backend)
+      values.bibliographyFiles.forEach(file => {
         formData.append('files', file);
       });
       
@@ -395,7 +436,9 @@ export default function SubmitArticlePage() {
   };
 
   const getSupportedExtensions = () => {
-    return supportedFormats.flatMap(format => format.fileExtensions).join(',');
+    const extensions = supportedFormats.flatMap(format => format.fileExtensions).join(',');
+    console.log('Supported extensions:', extensions, 'from formats:', supportedFormats);
+    return extensions;
   };
 
   const getSupportedMimeTypes = () => {
@@ -630,6 +673,32 @@ export default function SubmitArticlePage() {
                   />
                   {form.errors.sourceFiles && (
                     <Text size="sm" c="red" mt="xs">{form.errors.sourceFiles}</Text>
+                  )}
+                </div>
+
+                <Divider />
+
+                {/* Bibliography Files Upload */}
+                <div>
+                  <Group gap="xs" align="center" mb="xs">
+                    <Text size="sm" fw={500}>Bibliography & References (Optional)</Text>
+                    <Tooltip label={`Status: ${getFieldStatus('bibliographyFiles')}`}>
+                      <Box>{getStatusIcon('bibliographyFiles')}</Box>
+                    </Tooltip>
+                  </Group>
+                  
+                  <FileDropzone
+                    value={form.values.bibliographyFiles}
+                    onFilesChange={(files) => form.setFieldValue('bibliographyFiles', files)}
+                    accept=".bib,.ris,.json,.txt,.bibtex"
+                    placeholder="Upload bibliography and reference files"
+                    description="BibTeX (.bib), RIS (.ris), CSL JSON (.json), or plain text reference files • Max 10MB per file"
+                    allowFolders={false}
+                    multiple={true}
+                    maxFileSize={10 * 1024 * 1024}
+                  />
+                  {form.errors.bibliographyFiles && (
+                    <Text size="sm" c="red" mt="xs">{form.errors.bibliographyFiles}</Text>
                   )}
                 </div>
 

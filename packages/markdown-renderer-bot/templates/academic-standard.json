@@ -3,9 +3,17 @@
   "title": "Academic Standard",
   "description": "Clean, professional academic journal template",
   "cssTemplate": "",
+  "engines": ["html", "latex", "typst"],
+  "defaultEngine": "typst",
   "metadata": {
     "type": "academic",
     "responsive": true,
-    "printOptimized": true
+    "printOptimized": true,
+    "features": {
+      "citations": true,
+      "crossReferences": true,
+      "mathSupport": true,
+      "figureSupport": true
+    }
   }
 }

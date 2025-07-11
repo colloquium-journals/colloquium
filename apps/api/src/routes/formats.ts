@@ -27,7 +27,7 @@ router.get('/', async (req, res, next) => {
     
     const whereClause = includeInactive === 'true' ? {} : { isActive: true };
     
-    const formats = await prisma.supportedFormat.findMany({
+    const formats = await prisma.supported_formats.findMany({
       where: whereClause,
       orderBy: { displayName: 'asc' }
     });
@@ -60,7 +60,7 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const format = await prisma.supportedFormat.findUnique({
+    const format = await prisma.supported_formats.findUnique({
       where: { id }
     });
 
@@ -98,7 +98,7 @@ router.post('/', authenticate, (req, res, next) => {
     const formatData = createFormatSchema.parse(req.body);
 
     // Check if format name already exists
-    const existingFormat = await prisma.supportedFormat.findUnique({
+    const existingFormat = await prisma.supported_formats.findUnique({
       where: { name: formatData.name }
     });
 
@@ -134,7 +134,7 @@ router.post('/', authenticate, (req, res, next) => {
       }
     }
 
-    const format = await prisma.supportedFormat.create({
+    const format = await prisma.supported_formats.create({
       data: {
         name: formatData.name,
         displayName: formatData.displayName,
@@ -188,7 +188,7 @@ router.put('/:id', authenticate, (req, res, next) => {
     const { id } = req.params;
     const updateData = updateFormatSchema.parse(req.body);
 
-    const existingFormat = await prisma.supportedFormat.findUnique({
+    const existingFormat = await prisma.supported_formats.findUnique({
       where: { id }
     });
 
@@ -228,7 +228,7 @@ router.put('/:id', authenticate, (req, res, next) => {
       }
     }
 
-    const updatedFormat = await prisma.supportedFormat.update({
+    const updatedFormat = await prisma.supported_formats.update({
       where: { id },
       data: {
         ...updateData,
@@ -276,7 +276,7 @@ router.delete('/:id', authenticate, (req, res, next) => {
   try {
     const { id } = req.params;
 
-    const existingFormat = await prisma.supportedFormat.findUnique({
+    const existingFormat = await prisma.supported_formats.findUnique({
       where: { id }
     });
 
@@ -288,7 +288,7 @@ router.delete('/:id', authenticate, (req, res, next) => {
     }
 
     // Instead of deleting, deactivate the format
-    const deactivatedFormat = await prisma.supportedFormat.update({
+    const deactivatedFormat = await prisma.supported_formats.update({
       where: { id },
       data: {
         isActive: false,
@@ -370,7 +370,7 @@ router.post('/:formatName/validate', authenticate, async (req, res, next) => {
     }
 
     // Check if format exists
-    const format = await prisma.supportedFormat.findFirst({
+    const format = await prisma.supported_formats.findFirst({
       where: { name: formatName, isActive: true }
     });
 

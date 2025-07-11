@@ -33,12 +33,13 @@
   "license": "MIT",
   "dependencies": {
     "@colloquium/types": "*",
+    "cors": "^2.8.5",
     "dompurify": "^3.0.8",
+    "express": "^5.1.0",
     "fs-extra": "^11.1.1",
     "handlebars": "^4.7.8",
     "jsdom": "^22.1.0",
     "marked": "^9.1.0",
-    "puppeteer": "^22.8.2",
     "zod": "^3.22.0"
   },
   "devDependencies": {
@@ -64,10 +65,38 @@
     ],
     "isDefault": true,
     "defaultConfig": {
-      "defaultTemplate": "academic-standard",
-      "customTemplates": {},
-      "enablePdfGeneration": true,
+      "pdfEngine": "html",
+      "templateName": "academic-standard",
+      "citationStyle": "apa.csl",
+      "outputFormats": [
+        "pdf"
+      ],
+      "requireSeparateBibliography": false,
+      "fallbackEngine": "html",
       "maxFileSize": "50MB"
-    }
+    },
+    "services": [
+      {
+        "name": "pandoc",
+        "image": "colloquium/pandoc-service:1.0.0",
+        "port": 8080,
+        "healthCheck": "/health",
+        "environment": {
+          "NODE_ENV": "production",
+          "PORT": "8080"
+        },
+        "resources": {
+          "memory": "1Gi",
+          "cpu": "1000m"
+        },
+        "volumes": [
+          {
+            "host": "./templates",
+            "container": "/app/templates",
+            "mode": "ro"
+          }
+        ]
+      }
+    ]
   }
 }

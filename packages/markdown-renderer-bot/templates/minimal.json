@@ -3,8 +3,16 @@
   "title": "Minimal",
   "description": "Clean, minimal template with modern typography",
   "cssTemplate": "",
+  "engines": ["html", "latex", "typst"],
+  "defaultEngine": "html",
   "metadata": {
     "type": "modern",
-    "responsive": true
+    "responsive": true,
+    "features": {
+      "citations": false,
+      "crossReferences": false,
+      "mathSupport": true,
+      "figureSupport": true
+    }
   }
 }

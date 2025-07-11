@@ -156,7 +156,7 @@ export default function ReviewResponsePage() {
     return (
       <Container size="sm" py="xl">
         <Paper p="xl" shadow="sm">
-          <Stack align="center" spacing="lg">
+          <Stack align="center" gap="lg">
             {response.status === 'ACCEPTED' ? (
               <IconCheck size={48} color="green" />
             ) : (
@@ -171,7 +171,7 @@ export default function ReviewResponsePage() {
               {response.message}
             </Text>
             
-            <Stack spacing="xs">
+            <Stack gap="xs">
               <Text><strong>Reviewer:</strong> {response.reviewer}</Text>
               <Text><strong>Manuscript:</strong> {response.manuscript}</Text>
             </Stack>
@@ -205,7 +205,7 @@ export default function ReviewResponsePage() {
     return (
       <Container size="sm" py="xl">
         <Paper p="xl" shadow="sm">
-          <Stack align="center" spacing="lg">
+          <Stack align="center" gap="lg">
             <Title order={2} ta="center">
               Invitation Already Responded
             </Title>
@@ -226,12 +226,12 @@ export default function ReviewResponsePage() {
   return (
     <Container size="md" py="xl">
       <Paper p="xl" shadow="sm">
-        <Stack spacing="lg">
+        <Stack gap="lg">
           <Title order={1} ta="center">
             Review Invitation
           </Title>
           
-          <Stack spacing="md">
+          <Stack gap="md">
             <Text><strong>Reviewer:</strong> {invitation.reviewer.name || invitation.reviewer.email}</Text>
             <Text><strong>Manuscript:</strong> {invitation.manuscript.title}</Text>
             <Text><strong>Submitted:</strong> {new Date(invitation.manuscript.submittedAt).toLocaleDateString()}</Text>
@@ -244,8 +244,8 @@ export default function ReviewResponsePage() {
           </Stack>
           
           {invitation.manuscript.abstract && (
-            <Stack spacing="xs">
-              <Text weight={500}>Abstract:</Text>
+            <Stack gap="xs">
+              <Text fw={500}>Abstract:</Text>
               <Text size="sm" style={{ fontStyle: 'italic' }}>
                 {invitation.manuscript.abstract}
               </Text>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>$title$</title>
     <style>
         body {
             max-width: 800px;
@@ -95,6 +95,30 @@
             border-radius: 5px;
             overflow-x: auto;
         }
+        /* Bibliography and References styling */
+        .references {
+            margin-top: 40px;
+        }
+        .references h1, .references h2 {
+            color: #2c5aa0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .references div[id^="ref-"] {
+            margin-bottom: 12px;
+            text-indent: -20px;
+            padding-left: 20px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .citation {
+            color: #2c5aa0;
+            text-decoration: none;
+        }
+        .citation:hover {
+            text-decoration: underline;
+        }
         .footer {
             margin-top: 50px;
             padding-top: 20px;
@@ -104,34 +128,37 @@
             text-align: center;
         }
     </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
+    $if(customcss)$<style>$customcss$</style>$endif$
 </head>
 <body>
     <div class="header">
-        <div class="title">{{title}}</div>
-        {{#if authors}}
-        <div class="authors">{{authors}}</div>
-        {{/if}}
+        <div class="title">$title$</div>
+        $if(author)$
+        <div class="authors">$for(author)$$author$$sep$, $endfor$</div>
+        $endif$
         <div class="metadata">
-            {{#if submittedDate}}Submitted: {{submittedDate}}{{/if}}
-            {{#if journalName}} • {{journalName}}{{/if}}
+            $if(date)$Submitted: $date$$endif$
+            $if(journal)$ • $journal$$endif$
         </div>
     </div>
 
-    {{#if abstract}}
+    $if(abstract)$
     <div class="abstract">
         <h3>Abstract</h3>
-        <p>{{abstract}}</p>
+        <p>$abstract$</p>
     </div>
-    {{/if}}
+    $endif$
 
     <div class="content">
-        {{{content}}}
+        $body$
     </div>
+
+    <!-- Bibliography will be inserted here by Pandoc -->
+    <div id="refs" class="references"></div>
 
     <div class="footer">
         Rendered by Colloquium Markdown Renderer
-        {{#if renderDate}} • {{renderDate}}{{/if}}
+        $if(date)$ • $date$$endif$
     </div>
 </body>
 </html>

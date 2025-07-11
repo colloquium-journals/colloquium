@@ -90,7 +90,7 @@ export class FormatDetectionService {
     }
 
     try {
-      const formats = await prisma.supportedFormat.findMany({
+      const formats = await prisma.supported_formats.findMany({
         where: { isActive: true },
         orderBy: { name: 'asc' }
       });

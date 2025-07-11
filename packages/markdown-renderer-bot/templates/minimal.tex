@@ -1,0 +1,30 @@
+\documentclass[11pt,letterpaper]{article}
+
+% Minimal packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1.5in]{geometry}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{url}
+
+% Simple title formatting
+\title{$title$}
+$if(authors)$
+\author{$authors$}
+$endif$
+\date{$if(submittedDate)$$submittedDate$$else$\today$endif$}
+
+\begin{document}
+
+\maketitle
+
+$if(abstract)$
+\begin{quote}
+\textbf{Abstract:} $abstract$
+\end{quote}
+$endif$
+
+$body$
+
+\end{document}

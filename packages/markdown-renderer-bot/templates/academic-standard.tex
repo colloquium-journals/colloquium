@@ -1,0 +1,62 @@
+\documentclass[12pt,letterpaper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{abstract}
+
+% Page setup
+\onehalfspacing
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\thepage}
+\lhead{$if(title)$$title$$endif$}
+\renewcommand{\headrulewidth}{0pt}
+
+% Title formatting
+\title{$title$}
+$if(authors)$
+\author{$authors$}
+$endif$
+\date{$if(submittedDate)$$submittedDate$$else$\today$endif$}
+
+% Abstract environment
+$if(abstract)$
+\renewcommand{\abstractname}{Abstract}
+\abslabeldelim{\quad}
+$endif$
+
+\begin{document}
+
+% Title page
+\maketitle
+
+% Abstract
+$if(abstract)$
+\begin{abstract}
+$abstract$
+\end{abstract}
+$endif$
+
+% Main content
+$body$
+
+% Footer
+\vfill
+\begin{center}
+\small
+Rendered by Colloquium Markdown Renderer $if(renderDate)$• $renderDate$$endif$
+\end{center}
+
+\end{document}

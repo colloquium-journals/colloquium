@@ -3,10 +3,18 @@
   "title": "Colloquium Journal Style",
   "description": "Professional academic template with journal branding and structured sections",
   "cssTemplate": "",
+  "engines": ["html"],
+  "defaultEngine": "html",
   "metadata": {
     "type": "academic-journal",
     "responsive": true,
     "printOptimized": true,
-    "features": ["typography", "branding", "structured-sections"]
+    "features": {
+      "citations": true,
+      "crossReferences": true,
+      "mathSupport": true,
+      "figureSupport": true,
+      "branding": true
+    }
   }
 }

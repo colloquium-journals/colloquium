@@ -1,0 +1,48 @@
+# Simple Pandoc service - just core functionality
+FROM node:18-slim
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    ca-certificates \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install WeasyPrint for HTML to PDF
+RUN pip3 install weasyprint --break-system-packages
+
+# Install Pandoc binary directly
+RUN wget -O pandoc.tar.gz https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-linux-amd64.tar.gz \
+    && tar -xzf pandoc.tar.gz \
+    && cp pandoc-3.1.8/bin/pandoc /usr/local/bin/ \
+    && rm -rf pandoc*
+
+# Verify installation
+RUN pandoc --version && weasyprint --version
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install Node.js dependencies
+RUN npm install --only=production
+
+# Copy service code
+COPY service.js ./
+
+# Create non-root user
+RUN useradd -r -s /bin/false pandoc-user && \
+    chown -R pandoc-user:pandoc-user /app
+
+USER pandoc-user
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["npm", "start"]

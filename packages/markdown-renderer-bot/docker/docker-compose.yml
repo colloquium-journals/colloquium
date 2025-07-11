@@ -1,0 +1,34 @@
+
+services:
+  pandoc-service:
+    build:
+      context: ./pandoc-service
+      dockerfile: Dockerfile.final
+    image: colloquium/pandoc-service:1.0.0
+    container_name: colloquium-pandoc-service
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+    volumes:
+      # Optional: mount templates directory if needed
+      - ../templates:/app/templates:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - colloquium-bots
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  colloquium-bots:
+    driver: bridge

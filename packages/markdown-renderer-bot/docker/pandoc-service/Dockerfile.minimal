@@ -1,0 +1,51 @@
+# Minimal Pandoc service - just HTML to PDF for now
+FROM node:18-alpine
+
+# Install basic dependencies
+RUN apk add --no-cache \
+    curl \
+    wget \
+    ca-certificates \
+    python3 \
+    py3-pip \
+    build-base \
+    cairo-dev \
+    pango-dev \
+    gdk-pixbuf-dev \
+    libffi-dev \
+    shared-mime-info
+
+# Install WeasyPrint for HTML to PDF conversion
+RUN pip3 install weasyprint
+
+# Install Pandoc
+RUN wget -O pandoc.tar.gz https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-linux-amd64.tar.gz \
+    && tar -xzf pandoc.tar.gz \
+    && cp pandoc-3.1.8/bin/pandoc /usr/local/bin/ \
+    && rm -rf pandoc*
+
+# Create app directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install Node.js dependencies
+RUN npm install --only=production
+
+# Copy service code
+COPY service.js ./
+
+# Create non-root user
+RUN addgroup -g 1001 -S pandoc && \
+    adduser -S -D -H -u 1001 -s /sbin/nologin pandoc && \
+    chown -R pandoc:pandoc /app
+
+USER pandoc
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["npm", "start"]

@@ -5,7 +5,8 @@ import DOMPurify from 'dompurify';
 import * as Handlebars from 'handlebars';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import puppeteer from 'puppeteer';
+// Service URL for the Pandoc microservice
+const PANDOC_SERVICE_URL = process.env.PANDOC_SERVICE_URL || 'http://localhost:8080';
 import { CommandBot, BotCommand } from '@colloquium/types';
 
 // Create DOMPurify instance
@@ -31,27 +32,41 @@ async function loadBuiltInTemplates(): Promise<Record<string, any>> {
     const files = await fs.readdir(templatesDir);
     const templateNames = new Set<string>();
     
-    // Find all template files
+    // Find all template JSON files to identify templates
     files.forEach(file => {
-      if (file.endsWith('.html')) {
-        templateNames.add(file.replace('.html', ''));
+      if (file.endsWith('.json')) {
+        templateNames.add(file.replace('.json', ''));
       }
     });
     
-    // Load each template
+    // Load each template with all its engine variants
     for (const templateName of templateNames) {
       try {
-        const htmlPath = path.join(templatesDir, `${templateName}.html`);
         const jsonPath = path.join(templatesDir, `${templateName}.json`);
         
-        if (await fs.pathExists(htmlPath) && await fs.pathExists(jsonPath)) {
-          const htmlTemplate = await fs.readFile(htmlPath, 'utf-8');
+        if (await fs.pathExists(jsonPath)) {
           const metadata = await fs.readJson(jsonPath);
+          const template: any = { ...metadata };
           
-          templates[templateName] = {
-            ...metadata,
-            htmlTemplate
-          };
+          // Load HTML template if exists
+          const htmlPath = path.join(templatesDir, `${templateName}.html`);
+          if (await fs.pathExists(htmlPath)) {
+            template.htmlTemplate = await fs.readFile(htmlPath, 'utf-8');
+          }
+          
+          // Load LaTeX template if exists
+          const texPath = path.join(templatesDir, `${templateName}.tex`);
+          if (await fs.pathExists(texPath)) {
+            template.latexTemplate = await fs.readFile(texPath, 'utf-8');
+          }
+          
+          // Load Typst template if exists
+          const typPath = path.join(templatesDir, `${templateName}.typ`);
+          if (await fs.pathExists(typPath)) {
+            template.typstTemplate = await fs.readFile(typPath, 'utf-8');
+          }
+          
+          templates[templateName] = template;
         }
       } catch (error) {
         console.warn(`Failed to load template ${templateName}:`, error);
@@ -78,54 +93,20 @@ async function getBuiltInTemplates(): Promise<Record<string, any>> {
 const renderCommand: BotCommand = {
   name: 'render',
   description: 'Render Markdown files to HTML using journal templates',
-  usage: '@markdown-renderer render [template="academic-standard"] [output="html"] [includeAssets=true]',
-  parameters: [
-    {
-      name: 'template',
-      description: 'Journal template to use for rendering (use "file:filename" for uploaded templates)',
-      type: 'string',
-      required: false,
-      defaultValue: 'academic-standard',
-      examples: ['academic-standard', 'minimal', 'file:my-template']
-    },
-    {
-      name: 'output',
-      description: 'Output format',
-      type: 'enum',
-      required: false,
-      defaultValue: 'html',
-      enumValues: ['html', 'pdf', 'both'],
-      examples: ['html', 'pdf', 'both']
-    },
-    {
-      name: 'includeAssets',
-      description: 'Whether to process and include linked assets',
-      type: 'boolean',
-      required: false,
-      defaultValue: true,
-      examples: ['true', 'false']
-    },
-    {
-      name: 'customCss',
-      description: 'Custom CSS to inject into the template',
-      type: 'string',
-      required: false,
-      examples: ['body { font-size: 18px; }']
-    }
-  ],
+  usage: '@markdown-renderer render',
+  parameters: [],
   examples: [
-    '@markdown-renderer render',
-    '@markdown-renderer render template="minimal"',
-    '@markdown-renderer render template="academic-standard" output="both"',
-    '@markdown-renderer render output="pdf"',
-    '@markdown-renderer render template="minimal" customCss="body { font-size: 16px; }"'
+    '@markdown-renderer render'
   ],
   permissions: ['read_manuscript_files', 'upload_files'],
   async execute(params, context) {
-    console.log(`DEBUG: Raw params received:`, params);
-    const { template = 'academic-standard', output = 'html', includeAssets = true, customCss } = params;
-    console.log(`DEBUG: Parsed params - template: ${template}, output: ${output}, includeAssets: ${includeAssets}`);
     const { manuscriptId, config, serviceToken } = context;
+    
+    // Extract configuration from journal settings
+    const pdfEngine = config.pdfEngine || 'html';
+    const templateName = config.templateName || 'academic-standard';
+    const outputFormats = config.outputFormats || ['pdf'];
+    const requireSeparateBibliography = config.requireSeparateBibliography || false;
 
     if (!serviceToken) {
       return {
@@ -159,60 +140,73 @@ const renderCommand: BotCommand = {
       }
 
       // Step 2: Get template
-      const templateData = await getTemplate(template, config);
+      const templateData = await getTemplate(templateName, pdfEngine, config);
       
       // Step 3: Process Markdown content
       const markdownContent = await downloadFile(markdownFile.downloadUrl, serviceToken);
       const processedContent = await processMarkdownContent(
         markdownContent, 
         manuscriptFiles, 
-        includeAssets
+        true // Always include assets
       );
+      
+      // Debug: Check for citations in markdown
+      const citationMatches = markdownContent.match(/\[@[^\]]+\]/g);
+      if (citationMatches) {
+        console.log(`DEBUG: Found ${citationMatches.length} citation(s):`, citationMatches);
+      } else {
+        console.log(`DEBUG: No Pandoc-style citations found in markdown`);
+        console.log(`DEBUG: First 500 chars of markdown:`, markdownContent.substring(0, 500));
+      }
 
-      // Step 4: Get manuscript metadata
+      // Step 4: Find bibliography file
+      const bibliographyFile = findBibliographyFile(manuscriptFiles);
+      let bibliographyContent = '';
+      if (bibliographyFile) {
+        console.log(`DEBUG: Found bibliography file: ${bibliographyFile.originalName}`);
+        bibliographyContent = await downloadFile(bibliographyFile.downloadUrl, serviceToken);
+        console.log(`DEBUG: Bibliography content length: ${bibliographyContent.length} chars`);
+        console.log(`DEBUG: First 200 chars of bibliography:`, bibliographyContent.substring(0, 200));
+      }
+
+      // Step 5: Get manuscript metadata
       const metadata = await getManuscriptMetadata(manuscriptId, serviceToken);
 
-      // Step 5: Prepare author data for templates
+      // Step 6: Prepare author data for templates
       const authorData = await prepareAuthorData(metadata);
       
-      // Step 6: Render using template
-      const renderedHtml = await renderWithTemplate(templateData, {
+      // Step 6: Generate outputs based on journal configuration
+      const baseFilename = markdownFile.originalName.replace(/\.(md|markdown)$/i, '');
+      const uploadResults = [];
+      
+      // Prepare template variables
+      const templateVariables = {
         title: metadata.title || 'Untitled Manuscript',
-        // Legacy simple author string for backward compatibility
         authors: authorData.authorsString,
-        // Rich author data for advanced templates
         authorList: authorData.authorList,
         authorCount: authorData.authorCount,
         correspondingAuthor: authorData.correspondingAuthor,
         abstract: metadata.abstract || '',
         content: processedContent.html,
-        customCss,
         submittedDate: metadata.submittedAt ? new Date(metadata.submittedAt).toLocaleDateString() : '',
         renderDate: new Date().toLocaleDateString(),
         journalName: context.journal?.settings?.name || 'Colloquium Journal'
-      });
-
-      // Step 6: Generate outputs based on requested format
-      const baseFilename = markdownFile.originalName.replace(/\.(md|markdown)$/i, '');
-      const uploadResults = [];
+      };
       
-      console.log(`DEBUG: Requested output format: ${output}`);
-      
-      // Generate HTML if requested or if needed for PDF
-      if (output === 'html' || output === 'both') {
-        console.log(`DEBUG: Generating HTML file`);
-        const htmlFilename = `${baseFilename}.html`;
-        const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, renderedHtml, 'text/html', serviceToken);
-        uploadResults.push({ type: 'HTML', ...htmlResult });
-      }
-      
-      // Generate PDF if requested
-      if (output === 'pdf' || output === 'both') {
-        console.log(`DEBUG: Generating PDF file`);
-        const pdfBuffer = await generatePDF(renderedHtml, templateData);
-        const pdfFilename = `${baseFilename}.pdf`;
-        const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf', serviceToken);
-        uploadResults.push({ type: 'PDF', ...pdfResult });
+      // Generate outputs based on configuration
+      for (const format of outputFormats) {
+        if (format === 'html') {
+          const renderedHtml = await renderWithTemplate(templateData, templateVariables);
+          const htmlFilename = `${baseFilename}.html`;
+          const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, renderedHtml, 'text/html', serviceToken);
+          uploadResults.push({ type: 'HTML', ...htmlResult });
+        } else if (format === 'pdf') {
+          // For PDF generation, send raw markdown to Pandoc for proper citation processing
+          const pdfBuffer = await generatePandocPDF(markdownContent, templateData, pdfEngine, templateVariables, bibliographyContent);
+          const pdfFilename = `${baseFilename}.pdf`;
+          const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf', serviceToken);
+          uploadResults.push({ type: 'PDF', ...pdfResult });
+        }
       }
       
       console.log(`DEBUG: Upload results:`, uploadResults.map(r => ({ type: r.type, filename: r.filename })));
@@ -221,19 +215,16 @@ const renderCommand: BotCommand = {
       let message = `✅ **Markdown Rendered Successfully**\n\n`;
       message += `**Source:** ${markdownFile.originalName}\n`;
       message += `**Template:** ${templateData.title}\n`;
+      message += `**Engine:** ${pdfEngine.toUpperCase()}\n`;
       
       if (uploadResults.length === 1) {
         message += `**Output:** ${uploadResults[0].filename}\n`;
-        const size = uploadResults[0].type === 'PDF' ? 
-          `${(uploadResults[0].size / 1024).toFixed(1)} KB` : 
-          `${(renderedHtml.length / 1024).toFixed(1)} KB`;
+        const size = `${(uploadResults[0].size / 1024).toFixed(1)} KB`;
         message += `**Size:** ${size}\n\n`;
       } else {
         message += `**Outputs Generated:**\n`;
         uploadResults.forEach(result => {
-          const size = result.type === 'PDF' ? 
-            `${(result.size / 1024).toFixed(1)} KB` : 
-            `${(renderedHtml.length / 1024).toFixed(1)} KB`;
+          const size = `${(result.size / 1024).toFixed(1)} KB`;
           message += `• ${result.type}: ${result.filename} (${size})\n`;
         });
         message += `\n`;
@@ -493,7 +484,7 @@ async function processMarkdownContent(
   content: string, 
   manuscriptFiles: any[], 
   includeAssets: boolean
-): Promise<{ html: string; processedAssets: number; warnings: string[] }> {
+): Promise<{ html: string; markdown: string; processedAssets: number; warnings: string[] }> {
   const warnings: string[] = [];
   let processedAssets = 0;
 
@@ -536,7 +527,7 @@ async function processMarkdownContent(
   // Sanitize HTML for security
   const cleanHtml = purify.sanitize(html);
 
-  return { html: cleanHtml, processedAssets, warnings };
+  return { html: cleanHtml, markdown: content, processedAssets, warnings };
 }
 
 function findAssetFile(files: any[], filename: string): any | null {
@@ -551,12 +542,31 @@ function findAssetFile(files: any[], filename: string): any | null {
   );
 }
 
-async function getTemplate(templateName: string, config: any): Promise<any> {
+function findBibliographyFile(files: any[]): any | null {
+  return files.find(file => 
+    file.originalName.match(/\.(bib|bibtex)$/i) ||
+    file.detectedFormat === 'bibtex'
+  );
+}
+
+async function getTemplate(templateName: string, pdfEngine: string, config: any): Promise<any> {
   const builtInTemplates = await getBuiltInTemplates();
   
   // Check built-in templates first
   if (builtInTemplates[templateName]) {
-    return builtInTemplates[templateName];
+    const template = builtInTemplates[templateName];
+    
+    // Validate that the template supports the requested engine
+    if (template.engines && !template.engines.includes(pdfEngine)) {
+      console.warn(`Template ${templateName} does not support engine ${pdfEngine}, using fallback`);
+      // Use the template's default engine or fallback to html
+      const fallbackEngine = template.defaultEngine || 'html';
+      if (template.engines.includes(fallbackEngine)) {
+        console.log(`Using fallback engine: ${fallbackEngine}`);
+      }
+    }
+    
+    return template;
   }
 
   // Check for file-based custom templates
@@ -742,62 +752,74 @@ async function prepareAuthorData(metadata: any): Promise<{
   };
 }
 
-async function generatePDF(htmlContent: string, template: any): Promise<Buffer> {
-  let browser;
-  
+async function generatePandocPDF(
+  markdownContent: string, 
+  template: any, 
+  pdfEngine: string, 
+  templateVariables: any,
+  bibliographyContent: string = ''
+): Promise<Buffer> {
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
-      ]
-    });
-
-    const page = await browser.newPage();
+    console.log(`Converting markdown to PDF using ${pdfEngine} engine via microservice`);
     
-    // Set content with base URL for relative assets
-    await page.setContent(htmlContent, {
-      waitUntil: 'networkidle0'
-    });
-
-    // Configure PDF generation based on template metadata
-    const pdfOptions: any = {
-      format: 'A4',
-      margin: {
-        top: '0.75in',
-        right: '0.75in',
-        bottom: '0.75in',
-        left: '0.75in'
+    // Get template content based on engine
+    let templateContent = '';
+    switch (pdfEngine) {
+      case 'latex':
+        templateContent = template.latexTemplate || '';
+        break;
+      case 'typst':
+        templateContent = template.typstTemplate || '';
+        break;
+      case 'html':
+      default:
+        templateContent = template.htmlTemplate || '';
+        break;
+    }
+    
+    // For citation processing, use Pandoc template syntax without pre-processing
+    const requestBody = {
+      markdown: markdownContent,
+      engine: pdfEngine,
+      template: templateContent,
+      variables: {
+        title: templateVariables.title,
+        author: templateVariables.authorList?.map((a: any) => a.name) || [templateVariables.authors],
+        abstract: templateVariables.abstract,
+        date: templateVariables.submittedDate,
+        journal: templateVariables.journalName,
+        customcss: templateVariables.customCss || ''
       },
-      printBackground: true,
-      preferCSSPageSize: true
+      outputFormat: 'pdf',
+      bibliography: bibliographyContent
     };
-
-    // Apply template-specific PDF settings
-    if (template.metadata?.printOptimized) {
-      pdfOptions.format = 'A4';
-      pdfOptions.margin = {
-        top: '1in',
-        right: '1in',
-        bottom: '1in',
-        left: '1in'
-      };
-    }
-
-    const pdfBuffer = await page.pdf(pdfOptions);
     
-    return pdfBuffer;
+    console.log(`Sending request to Pandoc service: ${PANDOC_SERVICE_URL}/convert`);
     
-  } finally {
-    if (browser) {
-      await browser.close();
+    // Make HTTP request to the Pandoc microservice
+    const response = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Pandoc service error: ${errorData.error || response.statusText}`);
     }
+    
+    // Get the PDF buffer from the response
+    const pdfBuffer = await response.arrayBuffer();
+    console.log(`PDF generated successfully, size: ${pdfBuffer.byteLength} bytes`);
+    
+    return Buffer.from(pdfBuffer);
+    
+  } catch (error) {
+    console.error('Failed to generate PDF via microservice:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`PDF generation failed: ${errorMessage}`);
   }
 }
 
@@ -846,37 +868,35 @@ async function uploadRenderedFile(
 export const markdownRendererBot: CommandBot = {
   id: 'markdown-renderer',
   name: 'Markdown Renderer',
-  description: 'Renders Markdown manuscripts into beautiful HTML using configurable journal templates',
+  description: 'Renders Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines',
   version: '1.0.0',
   commands: [renderCommand, listTemplatesCommand, uploadTemplateCommand],
-  keywords: ['markdown', 'render', 'template', 'html', 'format'],
+  keywords: ['markdown', 'render', 'template', 'pdf', 'latex', 'typst', 'academic'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'FILE_UPLOADED'],
   permissions: ['read_manuscript_files', 'upload_files'],
   supportsFileUploads: true,
   help: {
-    overview: 'The Markdown Renderer bot converts Markdown manuscripts into beautifully formatted HTML using configurable journal templates. It supports asset linking, custom CSS, and multiple output formats.',
-    quickStart: 'Use `@markdown-renderer render` to convert your Markdown manuscript to HTML using the default academic template.',
+    overview: 'The Markdown Renderer bot converts Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines (HTML, LaTeX, Typst). Configuration is managed at the journal level.',
+    quickStart: 'Use `@markdown-renderer render` to convert your Markdown manuscript to PDF using your journal\'s configured template and rendering engine.',
     examples: [
-      '@markdown-renderer render - Render with default academic template',
-      '@markdown-renderer templates - List available templates',
-      '@markdown-renderer render template="minimal" - Use minimal template',
-      '@markdown-renderer render customCss="body { font-size: 18px; }" - Add custom CSS'
+      '@markdown-renderer render - Render using journal configuration',
+      '@markdown-renderer templates - List available templates'
     ]
   },
   customHelpSections: [
     {
       title: '✨ What I Can Do',
-      content: '✅ Convert Markdown to professional HTML\n✅ Generate print-ready PDFs\n✅ Apply journal-specific formatting\n✅ Handle images and assets\n✅ Support custom CSS styling\n✅ Use custom uploaded templates',
+      content: '✅ Convert Markdown to professional PDFs\n✅ Support multiple rendering engines (HTML, LaTeX, Typst)\n✅ Apply journal-specific formatting\n✅ Handle images and citations\n✅ Generate publication-quality output\n✅ Use configurable templates',
       position: 'before'
     },
     {
       title: '🚀 Quick Start',
-      content: '1. Submit a Markdown manuscript\n2. Use `@markdown-renderer render` to convert to HTML\n3. Add `output="pdf"` to generate a PDF\n4. Use `template="minimal"` for different styling',
+      content: '1. Submit a Markdown manuscript\n2. Use `@markdown-renderer render` to convert to PDF\n3. Output format and template determined by journal configuration\n4. Contact admin to configure rendering engine and templates',
       position: 'before'
     },
     {
       title: '💡 Tips for Best Results',
-      content: 'Use standard Markdown syntax for best results. Place images in the same directory as your Markdown file. Custom templates can be uploaded via bot configuration. PDF generation may take a few seconds for complex documents.',
+      content: 'Use standard Markdown syntax for best results. Place images in the same directory as your Markdown file. LaTeX and Typst engines provide the highest quality output for academic papers. PDF generation may take longer for complex documents.',
       position: 'after'
     }
   ]

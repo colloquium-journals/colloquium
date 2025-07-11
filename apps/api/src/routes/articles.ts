@@ -4,6 +4,7 @@ import { ManuscriptFileType, StorageType } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { authenticate, requirePermission, optionalAuth, authenticateWithBots } from '../middleware/auth';
 import { Permission, hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermission, hasGlobalPermission } from '@colloquium/auth';
@@ -206,8 +207,10 @@ router.post('/', authenticate, (req, res, next) => {
   return requirePermission(Permission.SUBMIT_MANUSCRIPT)(req, res, next);
 }, upload.array('files', 5), async (req, res, next) => {
   try {
+    
     // Parse and validate the manuscript data
     let authorsData = [];
+    
     if (Array.isArray(req.body.authors)) {
       authorsData = req.body.authors.map((author: any) => {
         if (typeof author === 'string') {
@@ -220,6 +223,20 @@ router.post('/', authenticate, (req, res, next) => {
         }
         return author;
       });
+    } else if (typeof req.body.authors === 'string') {
+      // Handle authors as JSON string (array or single object)
+      try {
+        const parsedAuthors = JSON.parse(req.body.authors);
+        if (Array.isArray(parsedAuthors)) {
+          authorsData = parsedAuthors;
+        } else {
+          // Single author object
+          authorsData = [parsedAuthors];
+        }
+      } catch (error) {
+        console.error('Failed to parse authors JSON string:', error);
+        authorsData = [];
+      }
     }
     
     const manuscriptData = manuscriptSubmissionSchema.parse({
@@ -233,6 +250,7 @@ router.post('/', authenticate, (req, res, next) => {
     });
 
     // Start a transaction to ensure data consistency
+    const { randomUUID } = require('crypto');
     const result = await prisma.$transaction(async (tx: any) => {
       // Process authors - find existing users or create new ones
       const processedAuthors = [];
@@ -267,12 +285,14 @@ router.post('/', authenticate, (req, res, next) => {
       // Create the manuscript
       const manuscript = await tx.manuscripts.create({
         data: {
+          id: randomUUID(),
           title: manuscriptData.title.trim(),
           abstract: manuscriptData.abstract.trim(),
           content: manuscriptData.content?.trim() || null,
           authors: processedAuthors.map(author => author.name),
           keywords: manuscriptData.keywords.map(keyword => keyword.trim()).filter(Boolean),
           status: 'SUBMITTED',
+          updatedAt: new Date(),
           metadata: {
             ...manuscriptData.metadata,
             submittedBy: req.user!.id,
@@ -283,8 +303,9 @@ router.post('/', authenticate, (req, res, next) => {
 
       // Create author relationships
       for (const author of processedAuthors) {
-        await tx.manuscriptAuthor.create({
+        await tx.manuscript_authors.create({
           data: {
+            id: randomUUID(),
             manuscriptId: manuscript.id,
             userId: author.userId,
             order: author.order,
@@ -305,11 +326,24 @@ router.post('/', authenticate, (req, res, next) => {
           try {
             // Detect format for the file
             const fileContent = fs.readFileSync(file.path);
-            const formatDetectionResult = await formatDetection.detectFormat(
-              file.originalname,
-              file.mimetype,
-              fileContent
-            );
+            let formatDetectionResult;
+            try {
+              formatDetectionResult = await formatDetection.detectFormat(
+                file.originalname,
+                file.mimetype,
+                fileContent
+              );
+            } catch (formatError) {
+              console.warn('Format detection failed, using fallback:', formatError.message);
+              // Fallback format detection based on file extension
+              const ext = path.extname(file.originalname).toLowerCase();
+              formatDetectionResult = {
+                detectedFormat: ext === '.md' ? 'markdown' : ext === '.tex' ? 'latex' : 'unknown',
+                confidence: 0.5,
+                warnings: ['Format detection service unavailable, using extension-based detection'],
+                errors: []
+              };
+            }
 
             // Calculate checksum
             const crypto = require('crypto');
@@ -318,15 +352,49 @@ router.post('/', authenticate, (req, res, next) => {
             // Determine file type (first file is source, others are assets)
             const fileType = i === 0 ? ManuscriptFileType.SOURCE : ManuscriptFileType.ASSET;
             
-            // Detect encoding for text files
-            const encoding = file.mimetype.startsWith('text/') ? 'utf-8' : undefined;
+            // Correct MIME type for known academic formats
+            let correctedMimeType = file.mimetype;
+            const ext = path.extname(file.originalname).toLowerCase();
             
-            const manuscriptFile = await tx.manuscriptFile.create({
+            if (file.mimetype === 'application/octet-stream') {
+              switch (ext) {
+                case '.md':
+                case '.markdown':
+                  correctedMimeType = 'text/markdown';
+                  break;
+                case '.bib':
+                case '.bibtex':
+                  correctedMimeType = 'text/plain';
+                  break;
+                case '.tex':
+                case '.latex':
+                  correctedMimeType = 'text/x-tex';
+                  break;
+                case '.txt':
+                  correctedMimeType = 'text/plain';
+                  break;
+                case '.json':
+                  correctedMimeType = 'application/json';
+                  break;
+                case '.xml':
+                  correctedMimeType = 'text/xml';
+                  break;
+                case '.csv':
+                  correctedMimeType = 'text/csv';
+                  break;
+              }
+            }
+            
+            // Detect encoding for text files
+            const encoding = (correctedMimeType.startsWith('text/') || correctedMimeType === 'application/json') ? 'utf-8' : undefined;
+            
+            const manuscriptFile = await tx.manuscript_files.create({
               data: {
+                id: randomUUID(),
                 manuscriptId: manuscript.id,
                 filename: file.filename,
                 originalName: file.originalname,
-                mimetype: file.mimetype,
+                mimetype: correctedMimeType,
                 size: file.size,
                 path: file.path,
                 fileType,
@@ -372,14 +440,17 @@ router.post('/', authenticate, (req, res, next) => {
       }
 
       // Automatically create a conversation for this manuscript submission
-      const conversation = await tx.conversation.create({
+      const conversation = await tx.conversations.create({
         data: {
+          id: randomUUID(),
           title: `Discussion: ${manuscript.title}`,
           type: 'REVIEW',
           privacy: 'SEMI_PUBLIC', // Visible to journal members
           manuscriptId: manuscript.id,
-          participants: {
+          updatedAt: new Date(),
+          conversation_participants: {
             create: [{
+              id: randomUUID(),
               userId: req.user!.id,
               role: 'MODERATOR'
             }]
@@ -679,7 +750,7 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
     console.log(`DEBUG: User:`, req.user ? `${req.user.email} (${req.user.role})` : 'none');
     console.log(`DEBUG: Bot context:`, req.botContext ? `${req.botContext.botId} for ${req.botContext.manuscriptId}` : 'none');
 
-    const file = await prisma.manuscriptFile.findFirst({
+    const file = await prisma.manuscript_files.findFirst({
       where: {
         id: fileId,
         manuscriptId: id
@@ -830,7 +901,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
       });
     }
 
-    const conversations = await prisma.conversation.findMany({
+    const conversations = await prisma.conversations.findMany({
       where: { manuscriptId: id },
       include: {
         _count: {
@@ -869,7 +940,7 @@ router.get('/:id/files', authenticateWithBots, async (req, res, next) => {
     const { id } = req.params;
 
     // Get manuscript files
-    const files = await prisma.manuscriptFile.findMany({
+    const files = await prisma.manuscript_files.findMany({
       where: { manuscriptId: id },
       orderBy: [
         { fileType: 'asc' }, // GROUP BY file type
@@ -941,29 +1012,62 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
         const crypto = require('crypto');
         const checksum = crypto.createHash('sha256').update(fileContent).digest('hex');
         
+        // Correct MIME type for known academic formats
+        let correctedMimeType = file.mimetype;
+        const ext = path.extname(file.originalname).toLowerCase();
+        
+        if (file.mimetype === 'application/octet-stream') {
+          switch (ext) {
+            case '.md':
+            case '.markdown':
+              correctedMimeType = 'text/markdown';
+              break;
+            case '.bib':
+            case '.bibtex':
+              correctedMimeType = 'text/plain';
+              break;
+            case '.tex':
+            case '.latex':
+              correctedMimeType = 'text/x-tex';
+              break;
+            case '.txt':
+              correctedMimeType = 'text/plain';
+              break;
+            case '.json':
+              correctedMimeType = 'application/json';
+              break;
+            case '.xml':
+              correctedMimeType = 'text/xml';
+              break;
+            case '.csv':
+              correctedMimeType = 'text/csv';
+              break;
+          }
+        }
+
         // Detect format
         const formatDetectionResult = await formatDetection.detectFormat(
           file.originalname,
-          file.mimetype,
+          correctedMimeType,
           fileContent
         );
 
         // Create file record
-        const manuscriptFile = await prisma.manuscriptFile.create({
+        const manuscriptFile = await prisma.manuscript_files.create({
           data: {
+            id: randomUUID(),
             manuscriptId: id,
             filename: file.filename,
             originalName: file.originalname,
-            mimetype: file.mimetype,
+            mimetype: correctedMimeType,
             size: file.size,
             path: file.path,
             fileType: fileType as ManuscriptFileType,
             storageType: StorageType.LOCAL,
             checksum,
-            encoding: file.mimetype.startsWith('text/') ? 'utf-8' : undefined,
+            encoding: (correctedMimeType.startsWith('text/') || correctedMimeType === 'application/json') ? 'utf-8' : undefined,
             detectedFormat: formatDetectionResult.detectedFormat,
-            fileExtension: path.extname(file.originalname).toLowerCase(),
-            // metadata field doesn't exist in schema, removing
+            fileExtension: path.extname(file.originalname).toLowerCase()
           }
         });
 
@@ -1008,7 +1112,7 @@ router.delete('/:id/files/:fileId', authenticate, async (req, res, next) => {
     const { id: manuscriptId, fileId } = req.params;
 
     // Find the file
-    const file = await prisma.manuscriptFile.findFirst({
+    const file = await prisma.manuscript_files.findFirst({
       where: {
         id: fileId,
         manuscriptId: manuscriptId
@@ -1048,7 +1152,7 @@ router.delete('/:id/files/:fileId', authenticate, async (req, res, next) => {
     }
 
     // Delete file record from database
-    await prisma.manuscriptFile.delete({
+    await prisma.manuscript_files.delete({
       where: { id: fileId }
     });
 

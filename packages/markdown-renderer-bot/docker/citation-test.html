@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Citation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .references { margin-top: 30px; border-top: 2px solid #ccc; padding-top: 20px; }
+        .citation { color: blue; }
+        #refs { background: #f9f9f9; padding: 15px; }
+    </style>
+</head>
+<body>
+    <h1>Citation Processing Test</h1>
+    <div class="content">
+<h1 id="test-document-with-citations">Test Document with Citations</h1>
+<p>This is a test document to verify citation processing. Here are some
+test citations:</p>
+<ul>
+<li>Citation 1: This is supported by research <span class="citation"
+data-cites="smith2020">(Smith 2020)</span>.</li>
+<li>Citation 2: Multiple studies show this <span class="citation"
+data-cites="jones2021 brown2019">(Jones and Miller 2021; Brown
+2019)</span>.</li>
+<li>Citation 3: As demonstrated by <span class="citation"
+data-cites="wilson2022">(Wilson 2022)</span>, this approach is
+effective.</li>
+</ul>
+<h2 id="references">References</h2>
+<p>The bibliography should appear below this section.</p>
+<div id="refs" class="references csl-bib-body hanging-indent"
+data-entry-spacing="0" role="list">
+<div id="ref-brown2019" class="csl-entry" role="listitem">
+Brown, Michael. 2019. <span>“Bibliography Management Systems.”</span>
+<em>Tech Tools Quarterly</em> 12 (4): 200–215.
+</div>
+<div id="ref-jones2021" class="csl-entry" role="listitem">
+Jones, Sarah, and David Miller. 2021. <span>“Modern Citation
+Techniques.”</span> <em>Citation Review</em> 8 (2): 67–89.
+</div>
+<div id="ref-smith2020" class="csl-entry" role="listitem">
+Smith, John. 2020. <span>“A Study of Citation Processing.”</span>
+<em>Journal of Academic Testing</em> 15 (3): 123–45.
+</div>
+<div id="ref-wilson2022" class="csl-entry" role="listitem">
+Wilson, Emma. 2022. <span>“Effective Academic Writing.”</span>
+<em>Writing Studies</em> 25 (1): 45–62.
+</div>
+</div>
+    </div>
+    <!-- Bibliography will be inserted here by Pandoc -->
+    <div id="refs" class="references">
+        <h2>References</h2>
+    </div>
+</body>
+</html>
