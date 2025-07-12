@@ -103,7 +103,7 @@ const renderCommand: BotCommand = {
     const { manuscriptId, config, serviceToken } = context;
     
     // Extract configuration from journal settings
-    const pdfEngine = config.pdfEngine || 'html';
+    const pdfEngine = config.pdfEngine || 'typst';
     const templateName = config.templateName || 'academic-standard';
     const outputFormats = config.outputFormats || ['pdf'];
     const requireSeparateBibliography = config.requireSeparateBibliography || false;
@@ -196,13 +196,16 @@ const renderCommand: BotCommand = {
       // Generate outputs based on configuration
       for (const format of outputFormats) {
         if (format === 'html') {
-          const renderedHtml = await renderWithTemplate(templateData, templateVariables);
+          // For HTML, use HTML template with Handlebars rendering
+          const htmlTemplateData = await getTemplate(templateName, 'html', config);
+          const renderedHtml = await renderWithTemplate(htmlTemplateData, templateVariables);
           const htmlFilename = `${baseFilename}.html`;
           const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, renderedHtml, 'text/html', serviceToken);
           uploadResults.push({ type: 'HTML', ...htmlResult });
         } else if (format === 'pdf') {
-          // For PDF generation, send raw markdown to Pandoc for proper citation processing
-          const pdfBuffer = await generatePandocPDF(markdownContent, templateData, pdfEngine, templateVariables, bibliographyContent);
+          // For PDF generation, use Typst/LaTeX engine with appropriate template
+          const pdfTemplateData = await getTemplate(templateName, pdfEngine, config);
+          const pdfBuffer = await generatePandocPDF(markdownContent, pdfTemplateData, pdfEngine, templateVariables, bibliographyContent, manuscriptFiles, serviceToken);
           const pdfFilename = `${baseFilename}.pdf`;
           const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf', serviceToken);
           uploadResults.push({ type: 'PDF', ...pdfResult });
@@ -752,12 +755,83 @@ async function prepareAuthorData(metadata: any): Promise<{
   };
 }
 
+async function collectAssetFiles(
+  markdownContent: string,
+  manuscriptFiles: any[],
+  serviceToken: string
+): Promise<Array<{filename: string; content: string; encoding: string}>> {
+  const assetFiles: Array<{filename: string; content: string; encoding: string}> = [];
+  
+  try {
+    // Find all image references in the markdown
+    const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    const imageMatches = [...markdownContent.matchAll(imagePattern)];
+    
+    console.log(`DEBUG: Found ${imageMatches.length} image references in markdown`);
+    
+    for (const match of imageMatches) {
+      const imagePath = match[2];
+      const cleanFilename = imagePath.replace(/^\.?\//, '');
+      
+      console.log(`DEBUG: Looking for image file: ${cleanFilename}`);
+      
+      // Find the corresponding asset file
+      const assetFile = manuscriptFiles.find(file => 
+        file.fileType === 'ASSET' && 
+        (file.originalName === cleanFilename || 
+         file.originalName.endsWith('/' + cleanFilename) ||
+         file.path?.endsWith(cleanFilename))
+      );
+      
+      if (assetFile) {
+        console.log(`DEBUG: Found asset file: ${assetFile.originalName}, downloading...`);
+        
+        try {
+          // Download the asset file
+          const response = await fetch(assetFile.downloadUrl.startsWith('http') ? 
+            assetFile.downloadUrl : 
+            `http://localhost:4000${assetFile.downloadUrl}`, {
+            headers: {
+              'x-bot-token': serviceToken
+            }
+          });
+          
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            const base64Content = Buffer.from(buffer).toString('base64');
+            
+            assetFiles.push({
+              filename: cleanFilename,
+              content: base64Content,
+              encoding: 'base64'
+            });
+            
+            console.log(`DEBUG: Successfully collected asset: ${cleanFilename} (${buffer.byteLength} bytes)`);
+          } else {
+            console.warn(`Failed to download asset ${cleanFilename}: ${response.statusText}`);
+          }
+        } catch (downloadError) {
+          console.warn(`Error downloading asset ${cleanFilename}:`, downloadError);
+        }
+      } else {
+        console.warn(`DEBUG: Asset file not found: ${cleanFilename}`);
+      }
+    }
+  } catch (error) {
+    console.warn('Error collecting asset files:', error);
+  }
+  
+  return assetFiles;
+}
+
 async function generatePandocPDF(
   markdownContent: string, 
   template: any, 
   pdfEngine: string, 
   templateVariables: any,
-  bibliographyContent: string = ''
+  bibliographyContent: string = '',
+  manuscriptFiles: any[] = [],
+  serviceToken: string = ''
 ): Promise<Buffer> {
   try {
     console.log(`Converting markdown to PDF using ${pdfEngine} engine via microservice`);
@@ -777,21 +851,43 @@ async function generatePandocPDF(
         break;
     }
     
-    // For citation processing, use Pandoc template syntax without pre-processing
-    const requestBody = {
-      markdown: markdownContent,
-      engine: pdfEngine,
-      template: templateContent,
-      variables: {
+    // Prepare variables based on engine type
+    let variables: any = {};
+    
+    if (pdfEngine === 'html') {
+      // HTML engine uses Pandoc template variables
+      variables = {
         title: templateVariables.title,
         author: templateVariables.authorList?.map((a: any) => a.name) || [templateVariables.authors],
         abstract: templateVariables.abstract,
         date: templateVariables.submittedDate,
         journal: templateVariables.journalName,
         customcss: templateVariables.customCss || ''
-      },
+      };
+    } else {
+      // Typst and LaTeX use simple string substitution
+      variables = {
+        title: templateVariables.title,
+        authors: templateVariables.authors,
+        abstract: templateVariables.abstract,
+        submittedDate: templateVariables.submittedDate,
+        renderDate: templateVariables.renderDate,
+        journalName: templateVariables.journalName
+      };
+    }
+    
+    // Collect asset files referenced in the markdown
+    const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken);
+    console.log(`DEBUG: Collected ${assetFiles.length} asset files for PDF generation`);
+    
+    const requestBody = {
+      markdown: markdownContent,
+      engine: pdfEngine,
+      template: templateContent,
+      variables: variables,
       outputFormat: 'pdf',
-      bibliography: bibliographyContent
+      bibliography: bibliographyContent,
+      assets: assetFiles
     };
     
     console.log(`Sending request to Pandoc service: ${PANDOC_SERVICE_URL}/convert`);

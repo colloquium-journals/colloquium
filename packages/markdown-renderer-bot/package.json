@@ -11,7 +11,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r templates dist/",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
@@ -65,14 +65,14 @@
     ],
     "isDefault": true,
     "defaultConfig": {
-      "pdfEngine": "html",
+      "pdfEngine": "typst",
       "templateName": "academic-standard",
       "citationStyle": "apa.csl",
       "outputFormats": [
         "pdf"
       ],
       "requireSeparateBibliography": false,
-      "fallbackEngine": "html",
+      "fallbackEngine": "typst",
       "maxFileSize": "50MB"
     },
     "services": [

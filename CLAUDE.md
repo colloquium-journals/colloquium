@@ -28,11 +28,17 @@ packages/
 
 ## Key Systems
 
-### File Storage
-- **Location**: `apps/api/uploads/manuscripts/` and `apps/api/uploads/bot-config/`
-- **Endpoints**: `POST /api/articles/` (manuscript submission), `POST /api/articles/:id/files` (additional files), `POST /api/bot-config-files/:botId/files`
-- **Database**: `ManuscriptFile` table with security, metadata, access control
-- **Download**: `/api/articles/{id}/files/{fileId}/download`
+### File Storage & Management
+- **Storage Structure**: Manuscript-specific folders at `apps/api/uploads/manuscripts/{manuscriptId}/`
+- **File Organization**: Original filenames preserved with conflict resolution (e.g., `file(1).pdf`)
+- **File Types**: SOURCE (main manuscript), ASSET (images/data), RENDERED (bot outputs), BIBLIOGRAPHY
+- **Database**: `manuscript_files` table tracks `path`, `originalName`, `filename`, `fileType`, `mimetype`
+- **Endpoints**: 
+  - `POST /api/articles/` (manuscript submission)
+  - `POST /api/articles/:id/files` (additional files)
+  - `GET /api/articles/:id/files` (list files)
+  - `GET /api/articles/:id/files/:fileId/download` (download with auth)
+- **Bot Integration**: Bots download files via authenticated API calls using `x-bot-token` header
 
 ### Bot Processing System
 **Architecture**: Asynchronous job queues with Redis/Bull for non-blocking UX

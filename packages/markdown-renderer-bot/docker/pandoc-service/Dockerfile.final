@@ -24,14 +24,20 @@ RUN apt-get update && apt-get install -y \
 # Install WeasyPrint
 RUN pip3 install weasyprint --break-system-packages
 
-# Install Pandoc
-RUN wget -O pandoc.tar.gz https://github.com/jgm/pandoc/releases/download/3.1.8/pandoc-3.1.8-linux-amd64.tar.gz \
+# Install Pandoc (version 3.5 has the Typst citation fix)
+RUN wget -O pandoc.tar.gz https://github.com/jgm/pandoc/releases/download/3.5/pandoc-3.5-linux-amd64.tar.gz \
     && tar -xzf pandoc.tar.gz \
-    && cp pandoc-3.1.8/bin/pandoc /usr/local/bin/ \
+    && cp pandoc-3.5/bin/pandoc /usr/local/bin/ \
     && rm -rf pandoc*
 
+# Install Typst
+RUN wget -O typst.tar.xz https://github.com/typst/typst/releases/download/v0.11.0/typst-x86_64-unknown-linux-musl.tar.xz \
+    && tar -xf typst.tar.xz \
+    && cp typst-x86_64-unknown-linux-musl/typst /usr/local/bin/ \
+    && rm -rf typst*
+
 # Verify installations
-RUN pandoc --version && weasyprint --version
+RUN pandoc --version && weasyprint --version && typst --version
 
 # Create app directory
 WORKDIR /app

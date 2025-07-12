@@ -24,13 +24,36 @@ if (!fs.existsSync(uploadDir)) {
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    // Create manuscript-specific directory
+    const manuscriptId = req.params?.id || req.body?.manuscriptId || 'temp';
+    const manuscriptDir = path.join(uploadDir, manuscriptId);
+    
+    // Ensure manuscript directory exists
+    if (!fs.existsSync(manuscriptDir)) {
+      fs.mkdirSync(manuscriptDir, { recursive: true });
+    }
+    
+    cb(null, manuscriptDir);
   },
   filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `manuscript-${uniqueSuffix}${ext}`);
+    // Preserve original filename with conflict resolution
+    const originalName = file.originalname;
+    const manuscriptId = req.params?.id || req.body?.manuscriptId || 'temp';
+    const manuscriptDir = path.join(uploadDir, manuscriptId);
+    const fullPath = path.join(manuscriptDir, originalName);
+    
+    // Check if file already exists and add suffix if needed
+    let finalFilename = originalName;
+    let counter = 1;
+    
+    while (fs.existsSync(path.join(manuscriptDir, finalFilename))) {
+      const ext = path.extname(originalName);
+      const baseName = path.basename(originalName, ext);
+      finalFilename = `${baseName}_${counter}${ext}`;
+      counter++;
+    }
+    
+    cb(null, finalFilename);
   }
 });
 
@@ -264,11 +287,15 @@ router.post('/', authenticate, (req, res, next) => {
         
         // Create new user if they don't exist
         if (!user) {
+          const now = new Date();
           user = await tx.users.create({
             data: {
+              id: randomUUID(),
               email: authorData.email.toLowerCase(),
               name: authorData.name,
-              role: 'USER' // Default role for new authors
+              role: 'USER', // Default role for new authors
+              createdAt: now,
+              updatedAt: now
             }
           });
         }
@@ -1051,6 +1078,34 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
           correctedMimeType,
           fileContent
         );
+
+        // For RENDERED files, delete existing files with the same mimetype to avoid duplicates
+        if (fileType === 'RENDERED') {
+          const existingRenderedFiles = await prisma.manuscript_files.findMany({
+            where: {
+              manuscriptId: id,
+              fileType: 'RENDERED',
+              mimetype: correctedMimeType
+            }
+          });
+
+          // Delete existing files from filesystem and database
+          for (const existingFile of existingRenderedFiles) {
+            try {
+              // Delete from filesystem
+              if (fs.existsSync(existingFile.path)) {
+                fs.unlinkSync(existingFile.path);
+              }
+              // Delete from database
+              await prisma.manuscript_files.delete({
+                where: { id: existingFile.id }
+              });
+              console.log(`Deleted existing RENDERED file: ${existingFile.originalName}`);
+            } catch (deleteError) {
+              console.error(`Failed to delete existing file ${existingFile.originalName}:`, deleteError);
+            }
+          }
+        }
 
         // Create file record
         const manuscriptFile = await prisma.manuscript_files.create({

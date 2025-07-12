@@ -300,20 +300,27 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const handleDownload = async (fileId?: string) => {
     if (!submission?.files || submission.files.length === 0) return;
     
-    // Use first file if no specific file ID provided, or find the specified file
+    // Use specific file if ID provided, otherwise prioritize most recent RENDERED, then SOURCE, then first file
     const fileToDownload = fileId 
       ? submission.files.find(f => f.id === fileId)
-      : submission.files.find(f => f.fileType === 'SOURCE') || submission.files[0];
+      : submission.files
+          .filter(f => f.fileType === 'RENDERED')
+          .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] ||
+        submission.files.find(f => f.fileType === 'SOURCE') || 
+        submission.files[0];
     
     if (!fileToDownload) return;
     
     try {
-      const response = await fetch(`http://localhost:4000/api/manuscripts/${submission.id}/files/${fileToDownload.id}/download`, {
+      console.log(`Downloading file: ${fileToDownload.originalName} (${fileToDownload.fileType})`);
+      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}/files/${fileToDownload.id}/download`, {
         credentials: 'include'
       });
       
       if (!response.ok) {
-        throw new Error('Failed to download file');
+        const errorText = await response.text();
+        console.error('Download failed:', response.status, errorText);
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
       }
       
       const blob = await response.blob();
@@ -327,6 +334,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading file:', error);
+      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -438,9 +446,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 {submission.reviewAssignments.map((assignment) => (
                   <Group key={assignment.id} gap="xs">
                     <Avatar size="xs" color="grape">
-                      {(assignment.reviewer.name || assignment.reviewer.email || 'R').split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                      {(assignment.reviewer.name || 'R').split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                     </Avatar>
-                    <Text size="sm" fw={500}>{assignment.reviewer.name || assignment.reviewer.email}</Text>
+                    <Text size="sm" fw={500}>{assignment.reviewer.name}</Text>
                   </Group>
                 ))}
               </Group>

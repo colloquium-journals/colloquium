@@ -541,15 +541,21 @@ export default function SubmitArticlePage() {
                     <Box mt="xl">{getStatusIcon('abstract')}</Box>
                   </Tooltip>
                 </Group>
+
+                <TagsInput
+                  label="Keywords (Optional)"
+                  placeholder="Add keywords (press Enter to add)"
+                  {...form.getInputProps('keywords')}
+                />
             </Stack>
 
             <Divider />
 
-            {/* Authors & Keywords */}
+            {/* Authors */}
             <Stack gap="lg">
               <Group gap="xs" align="center">
                 <IconUsers size={20} />
-                <Title order={3}>Authors & Keywords</Title>
+                <Title order={3}>Authors</Title>
                 {getStatusIcon('authors')}
               </Group>
                 
@@ -636,12 +642,6 @@ export default function SubmitArticlePage() {
                     <Text size="sm" c="red" mt="xs">{form.errors.authors}</Text>
                   )}
                 </div>
-
-                <TagsInput
-                  label="Keywords (Optional)"
-                  placeholder="Add keywords (press Enter to add)"
-                  {...form.getInputProps('keywords')}
-                />
             </Stack>
 
             <Divider />

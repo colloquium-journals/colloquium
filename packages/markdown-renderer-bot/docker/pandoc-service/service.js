@@ -57,7 +57,8 @@ app.post('/convert', upload.none(), async (req, res) => {
       template,
       variables = {},
       outputFormat = 'pdf',
-      bibliography = ''
+      bibliography = '',
+      assets = []
     } = req.body;
     
     // Check for citations in markdown
@@ -95,6 +96,36 @@ app.post('/convert', upload.none(), async (req, res) => {
       console.log('CITATION DEBUG: Bibliography file written - entries found:', bibEntries);
     } else {
       console.log('ERROR: No bibliography provided!');
+    }
+    
+    // Write asset files if provided
+    if (assets && assets.length > 0) {
+      console.log(`DEBUG: Processing ${assets.length} asset files`);
+      for (const asset of assets) {
+        try {
+          const assetPath = path.join(tempDir.name, asset.filename);
+          
+          // Create directory if needed (for nested assets)
+          const assetDir = path.dirname(assetPath);
+          if (assetDir !== tempDir.name) {
+            await fs.ensureDir(assetDir);
+          }
+          
+          // Write asset file from base64 content
+          if (asset.encoding === 'base64') {
+            const buffer = Buffer.from(asset.content, 'base64');
+            await fs.writeFile(assetPath, buffer);
+            console.log(`DEBUG: Asset written: ${asset.filename} (${buffer.length} bytes)`);
+          } else {
+            await fs.writeFile(assetPath, asset.content, 'utf8');
+            console.log(`DEBUG: Asset written: ${asset.filename} (text)`);
+          }
+        } catch (assetError) {
+          console.warn(`Warning: Failed to write asset ${asset.filename}:`, assetError);
+        }
+      }
+    } else {
+      console.log('DEBUG: No asset files provided');
     }
     
     // Build Pandoc command

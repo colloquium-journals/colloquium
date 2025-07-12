@@ -85,6 +85,11 @@
 // Main content
 $body$
 
+// Bibliography (if provided)
+$if(bibliography)$
+#bibliography("references.bib", title: "References", style: "apa")
+$endif$
+
 // Footer
 #v(1fr)
 #align(center)[
