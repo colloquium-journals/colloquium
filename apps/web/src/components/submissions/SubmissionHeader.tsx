@@ -32,10 +32,14 @@ import {
   IconCode,
   IconUserCog,
   IconChevronDown,
-  IconChevronRight
+  IconChevronRight,
+  IconUpload,
+  IconEdit
 } from '@tabler/icons-react';
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../contexts/AuthContext';
+import FileDropzone from '../files/FileDropzone';
+import { hasManuscriptPermission, ManuscriptPermission, GlobalRole } from '@colloquium/auth';
 
 interface SubmissionData {
   id: string;
@@ -90,6 +94,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(false);
+  const [revisionExpanded, setRevisionExpanded] = useState(false);
+  const [revisionFiles, setRevisionFiles] = useState<File[]>([]);
+  const [uploadingRevision, setUploadingRevision] = useState(false);
 
   // Handle real-time action editor assignment updates
   const handleActionEditorAssigned = (assignment: any) => {
@@ -297,6 +304,82 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     }
   }, [submissionId, authLoading, isAuthenticated]);
 
+  // Check if user can upload file revisions
+  const canUploadRevisions = () => {
+    if (!user || !submission) return false;
+    
+    // Check if user is an author
+    const isAuthor = submission.authors.some(author => author.email === user.email);
+    
+    // Check if user is admin
+    const isAdmin = user.role === GlobalRole.ADMIN;
+    
+    return hasManuscriptPermission(
+      user.role as GlobalRole, 
+      ManuscriptPermission.EDIT_MANUSCRIPT, 
+      { isAuthor }
+    ) || isAdmin;
+  };
+
+  // Handle file revision upload
+  const handleRevisionUpload = async () => {
+    if (!submission || revisionFiles.length === 0) return;
+    
+    setUploadingRevision(true);
+    
+    try {
+      const formData = new FormData();
+      
+      // Add files
+      revisionFiles.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Add metadata
+      const metadata = {
+        uploadType: 'revision',
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      };
+      formData.append('metadata', JSON.stringify(metadata));
+      
+      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}/files`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload revision files');
+      }
+      
+      const result = await response.json();
+      
+      // Clear the upload files
+      setRevisionFiles([]);
+      setRevisionExpanded(false);
+      
+      // Refresh the submission data to show new files
+      // We'll trigger a re-fetch by updating the submission
+      window.location.reload(); // Simple refresh for now
+      
+    } catch (err) {
+      console.error('Error uploading revision:', err);
+      alert(err instanceof Error ? err.message : 'Failed to upload revision files');
+    } finally {
+      setUploadingRevision(false);
+    }
+  };
+
+  // Helper function to find the rendered PDF
+  const getRenderedPDF = () => {
+    if (!submission?.files) return null;
+    return submission.files
+      .filter(f => f.fileType === 'RENDERED' && f.mimetype === 'application/pdf')
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
+  };
+
   const handleDownload = async (fileId?: string) => {
     if (!submission?.files || submission.files.length === 0) return;
     
@@ -409,6 +492,20 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 {submission.abstract}
               </Text>
             )}
+            
+            {/* Keywords */}
+            {submission.keywords && submission.keywords.length > 0 && (
+              <Box mt="sm">
+                <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
+                <Group gap="xs">
+                  {submission.keywords.map((keyword, index) => (
+                    <Badge key={index} size="sm" variant="light" color="gray">
+                      {keyword}
+                    </Badge>
+                  ))}
+                </Group>
+              </Box>
+            )}
           </Box>
         </Group>
 
@@ -501,14 +598,17 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                   </Badge>
                 </Group>
                 
-                <Button
-                  size="xs"
-                  variant="light"
-                  leftSection={<IconDownload size={14} />}
-                  onClick={() => handleDownload()}
-                >
-                  Download
-                </Button>
+                {getRenderedPDF() && (
+                  <Button
+                    size="md"
+                    variant="filled"
+                    color="blue"
+                    leftSection={<IconDownload size={18} />}
+                    onClick={() => handleDownload(getRenderedPDF()?.id)}
+                  >
+                    Download PDF
+                  </Button>
+                )}
               </Group>
               
               <Collapse in={filesExpanded}>
@@ -573,19 +673,66 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             </Box>
           )}
 
-          {/* Keywords */}
-          {submission.keywords && submission.keywords.length > 0 && (
+          {/* File Revision Section - Only for Authors and Admins */}
+          {canUploadRevisions() && (
             <Box>
-              <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
-              <Group gap="xs">
-                {submission.keywords.map((keyword, index) => (
-                  <Badge key={index} size="sm" variant="light" color="gray">
-                    {keyword}
+              <Group justify="space-between" align="center">
+                <Group 
+                  gap="xs" 
+                  style={{ cursor: 'pointer', flex: 1 }}
+                  onClick={() => setRevisionExpanded(!revisionExpanded)}
+                >
+                  {revisionExpanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
+                  <IconEdit size={16} />
+                  <Text fw={500} size="sm">Upload File Revisions</Text>
+                  <Badge size="xs" variant="light" color="orange">
+                    Authors Only
                   </Badge>
-                ))}
+                </Group>
               </Group>
+              
+              <Collapse in={revisionExpanded}>
+                <Stack gap="md" mt="md">
+                  <Text size="sm" c="dimmed">
+                    Upload revised versions of your manuscript files. These will be added as new versions and a notification will be posted to the discussion thread.
+                  </Text>
+                  
+                  <FileDropzone
+                    value={revisionFiles}
+                    onFilesChange={setRevisionFiles}
+                    accept=".md,.tex,.pdf,.docx,.doc"
+                    placeholder="Upload revised manuscript files"
+                    description="Supported: Markdown, LaTeX, PDF, Word • Max 50MB per file"
+                    allowFolders={false}
+                    maxFileSize={50 * 1024 * 1024}
+                  />
+                  
+                  {revisionFiles.length > 0 && (
+                    <Group justify="flex-end">
+                      <Button
+                        variant="light"
+                        color="gray"
+                        size="sm"
+                        onClick={() => setRevisionFiles([])}
+                        disabled={uploadingRevision}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        leftSection={<IconUpload size={16} />}
+                        size="sm"
+                        onClick={handleRevisionUpload}
+                        loading={uploadingRevision}
+                      >
+                        Upload Revision
+                      </Button>
+                    </Group>
+                  )}
+                </Stack>
+              </Collapse>
             </Box>
           )}
+
         </Stack>
       </Stack>
     </Paper>

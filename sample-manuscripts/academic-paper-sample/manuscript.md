@@ -1,11 +1,3 @@
-# Machine Learning Approaches to Scientific Publication Quality Assessment: A Comparative Study
-
-## Abstract
-
-Scientific publication quality varies significantly across journals and disciplines, creating challenges for researchers, reviewers, and editors. This study presents a comprehensive comparison of machine learning approaches for automatically assessing publication quality using textual features, citation patterns, and methodological rigor indicators. We evaluated five different algorithms on a dataset of 10,000 peer-reviewed articles from various disciplines, achieving accuracy rates of up to 87.3% in predicting editorial decisions. Our findings suggest that ensemble methods combining natural language processing with bibliometric features provide the most robust performance across different academic domains.
-
-**Keywords:** machine learning, publication quality, peer review, bibliometrics, natural language processing
-
 ## 1. Introduction
 
 The exponential growth of scientific literature has created unprecedented challenges for maintaining publication quality [@smith2023growth; @jones2024peer]. Traditional peer review processes, while fundamental to scientific integrity, face increasing pressure due to volume constraints and reviewer availability [@brown2023review].

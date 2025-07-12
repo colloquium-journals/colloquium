@@ -932,7 +932,7 @@ async function uploadRenderedFile(
     ? new Blob([content], { type: mimeType })
     : new Blob([content], { type: mimeType });
     
-  formData.append('file', blob, filename);
+  formData.append('files', blob, filename);
   formData.append('fileType', 'RENDERED');
   formData.append('renderedBy', 'markdown-renderer');
   

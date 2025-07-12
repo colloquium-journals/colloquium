@@ -163,6 +163,29 @@ export default function ArticleDetailPage() {
     }
   };
 
+  // Helper function to find rendered HTML file
+  const getRenderedHTML = () => {
+    if (!article?.files) return null;
+    return article.files
+      .filter(f => f.fileType === 'RENDERED' && f.mimetype === 'text/html')
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
+  };
+
+  // Helper function to find rendered PDF file
+  const getRenderedPDF = () => {
+    if (!article?.files) return null;
+    return article.files
+      .filter(f => f.fileType === 'RENDERED' && f.mimetype === 'application/pdf')
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
+  };
+
+  // Get the content to display (HTML first, then PDF)
+  const getRenderedContent = () => {
+    const htmlFile = getRenderedHTML();
+    const pdfFile = getRenderedPDF();
+    return htmlFile || pdfFile;
+  };
+
 
   if (loading) {
     return (
@@ -357,8 +380,46 @@ export default function ArticleDetailPage() {
           </Stack>
         </Card>
 
-        {/* Files */}
-        {article.files && article.files.length > 0 && (
+        {/* Rendered Content */}
+        {getRenderedContent() && (
+          <Card shadow="sm" padding="lg" radius="md">
+            <Stack gap="md">
+              <Title order={3}>Article Content</Title>
+              {getRenderedHTML() ? (
+                // Display HTML content
+                <Paper p="md" withBorder style={{ minHeight: '500px' }}>
+                  <iframe
+                    src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedHTML()?.id}/download?inline=true`}
+                    style={{
+                      width: '100%',
+                      height: '800px',
+                      border: 'none',
+                      borderRadius: '4px'
+                    }}
+                    title="Article Content"
+                  />
+                </Paper>
+              ) : getRenderedPDF() ? (
+                // Display PDF content
+                <Paper p="md" withBorder style={{ minHeight: '500px' }}>
+                  <iframe
+                    src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download?inline=true`}
+                    style={{
+                      width: '100%',
+                      height: '800px',
+                      border: 'none',
+                      borderRadius: '4px'
+                    }}
+                    title="Article PDF"
+                  />
+                </Paper>
+              ) : null}
+            </Stack>
+          </Card>
+        )}
+
+        {/* Files - Only show if no rendered content available */}
+        {!getRenderedContent() && article.files && article.files.length > 0 && (
           <Card shadow="sm" padding="lg" radius="md">
             <Stack gap="md">
               <Title order={3}>Files</Title>

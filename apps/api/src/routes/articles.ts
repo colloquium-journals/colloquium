@@ -653,11 +653,12 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
     console.log('DEBUG: Manuscript status:', manuscript.status);
     
     const isPublished = manuscript.status === 'PUBLISHED' || manuscript.status === 'RETRACTED';
+    const isSubmitted = Boolean(manuscript.status); // Any manuscript with a status is considered submitted
     const isAuthor = req.user && manuscript.manuscript_authors.some((rel: any) => rel.userId === req.user!.id);
     const isActionEditor = req.user && manuscript.action_editors?.editorId === req.user.id;
     const isReviewer = req.user && manuscript.review_assignments.some((review: any) => review.reviewerId === req.user!.id);
     
-    console.log('DEBUG: Permission context - isPublished:', isPublished, 'isAuthor:', isAuthor, 'isActionEditor:', isActionEditor, 'isReviewer:', isReviewer);
+    console.log('DEBUG: Permission context - isPublished:', isPublished, 'isSubmitted:', isSubmitted, 'isAuthor:', isAuthor, 'isActionEditor:', isActionEditor, 'isReviewer:', isReviewer);
     console.log('DEBUG: Bot context:', req.botContext);
     
     // Check if this is a bot request for the same manuscript
@@ -671,7 +672,8 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
         isAuthor,
         isActionEditor,
         isReviewer,
-        isPublished
+        isPublished,
+        isSubmitted
       }
     );
     
@@ -712,6 +714,7 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
         originalName: file.originalName,
         mimetype: file.mimetype,
         size: file.size,
+        fileType: file.fileType,
         uploadedAt: file.uploadedAt,
         downloadUrl: `/api/articles/${manuscript.id}/files/${file.id}/download`
       })),
@@ -798,17 +801,20 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
     const isBotWithAccess = req.botContext && req.botContext.manuscriptId === id;
     
     if (!isBotWithAccess && !req.user) {
-      // No authentication at all - check if file is from a published manuscript
+      // No authentication at all - check if file is from a submitted, published, or retracted manuscript
       const manuscript = await prisma.manuscripts.findUnique({
         where: { id }
       });
       
-      if (!manuscript || (manuscript.status !== 'PUBLISHED' && manuscript.status !== 'RETRACTED')) {
+      if (!manuscript || !manuscript.status) {
         return res.status(403).json({
           error: 'Access Denied',
           message: 'Authentication required to download this file'
         });
       }
+      
+      // Allow public access to files from submitted manuscripts (any manuscript with a status)
+      console.log(`DEBUG: Public file access for manuscript status: ${manuscript.status}`);
     }
     
     console.log(`DEBUG: File download authorized - bot: ${!!isBotWithAccess}, user: ${!!req.user}`);
@@ -834,8 +840,17 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
       });
     }
 
-    // Set appropriate headers for file download
-    res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+    // Set appropriate headers for file download or inline viewing
+    const inline = req.query.inline === 'true';
+    
+    if (inline && file.mimetype === 'application/pdf') {
+      // For inline PDF viewing, use 'inline' disposition
+      res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+    } else {
+      // For downloads, use 'attachment' disposition
+      res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+    }
+    
     res.setHeader('Content-Type', file.mimetype);
     res.setHeader('Content-Length', file.size.toString());
 
@@ -1004,15 +1019,34 @@ router.get('/:id/files', authenticateWithBots, async (req, res, next) => {
   }
 });
 
-// POST /api/manuscripts/:id/files - Upload additional files (for bots)
-router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (req, res, next) => {
+// Custom middleware that handles both user and bot authentication for file uploads
+const authenticateForFileUpload = async (req: Request, res: Response, next: NextFunction) => {
+  // Try bot authentication first
+  const botToken = req.headers['x-bot-token'] as string;
+  if (botToken) {
+    return authenticateWithBots(req, res, next);
+  }
+  
+  // Fall back to user authentication for revisions
+  return authenticate(req, res, next);
+};
+
+// POST /api/manuscripts/:id/files - Upload additional files (for bots and author revisions)
+router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { fileType = 'SUPPLEMENTARY', renderedBy } = req.body;
+    const { fileType, renderedBy, metadata } = req.body;
     
-    // Verify manuscript exists
+    // Verify manuscript exists and check permissions
     const manuscript = await prisma.manuscripts.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        manuscript_authors: true,
+        conversations: {
+          orderBy: { createdAt: 'asc' },
+          take: 1 // Get the main conversation for this manuscript
+        }
+      }
     });
 
     if (!manuscript) {
@@ -1021,6 +1055,31 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
         message: `No manuscript found with ID: ${id}`
       });
     }
+
+    // Check permissions for user uploads (bots skip permission checks)
+    const isBotUpload = !!req.botContext;
+    const isRevisionUpload = metadata && JSON.parse(metadata || '{}').uploadType === 'revision';
+    
+    if (!isBotUpload && req.user) {
+      const isAuthor = manuscript.manuscript_authors.some((rel: any) => rel.userId === req.user!.id);
+      const isAdmin = req.user.role === GlobalRole.ADMIN;
+      
+      const canUpload = hasManuscriptPermission(
+        req.user.role as GlobalRole, 
+        ManuscriptPermission.EDIT_MANUSCRIPT, 
+        { isAuthor }
+      ) || isAdmin;
+
+      if (!canUpload) {
+        return res.status(403).json({
+          error: 'Access Denied',
+          message: 'You do not have permission to upload files to this manuscript'
+        });
+      }
+    }
+
+    // Determine file type: revisions are SOURCE files, bot uploads use provided type or default to SUPPLEMENTARY
+    const finalFileType = isRevisionUpload ? 'SOURCE' : (fileType || 'SUPPLEMENTARY');
 
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
@@ -1080,7 +1139,7 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
         );
 
         // For RENDERED files, delete existing files with the same mimetype to avoid duplicates
-        if (fileType === 'RENDERED') {
+        if (finalFileType === 'RENDERED') {
           const existingRenderedFiles = await prisma.manuscript_files.findMany({
             where: {
               manuscriptId: id,
@@ -1107,6 +1166,35 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
           }
         }
 
+        // For revision uploads (SOURCE files), replace files with the same name/extension
+        if (isRevisionUpload && finalFileType === 'SOURCE') {
+          const fileExtension = path.extname(file.originalname).toLowerCase();
+          const existingSourceFiles = await prisma.manuscript_files.findMany({
+            where: {
+              manuscriptId: id,
+              fileType: 'SOURCE',
+              fileExtension: fileExtension
+            }
+          });
+
+          // Delete existing source files with the same extension
+          for (const existingFile of existingSourceFiles) {
+            try {
+              // Delete from filesystem
+              if (fs.existsSync(existingFile.path)) {
+                fs.unlinkSync(existingFile.path);
+              }
+              // Delete from database
+              await prisma.manuscript_files.delete({
+                where: { id: existingFile.id }
+              });
+              console.log(`Replaced existing SOURCE file: ${existingFile.originalName} with ${file.originalname}`);
+            } catch (deleteError) {
+              console.error(`Failed to delete existing file ${existingFile.originalName}:`, deleteError);
+            }
+          }
+        }
+
         // Create file record
         const manuscriptFile = await prisma.manuscript_files.create({
           data: {
@@ -1117,7 +1205,7 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
             mimetype: correctedMimeType,
             size: file.size,
             path: file.path,
-            fileType: fileType as ManuscriptFileType,
+            fileType: finalFileType as ManuscriptFileType,
             storageType: StorageType.LOCAL,
             checksum,
             encoding: (correctedMimeType.startsWith('text/') || correctedMimeType === 'application/json') ? 'utf-8' : undefined,
@@ -1147,6 +1235,48 @@ router.post('/:id/files', authenticateWithBots, upload.array('file', 5), async (
           error: 'File processing failed',
           message: `Failed to process file: ${file.originalname}`
         });
+      }
+    }
+
+    // Post notification to thread if this is a revision upload by a user
+    if (isRevisionUpload && req.user && manuscript.conversations.length > 0) {
+      try {
+        // Find the editorial bot user
+        const editorialBot = await prisma.users.findFirst({
+          where: { 
+            role: 'BOT',
+            email: { contains: 'editorial' }
+          }
+        });
+
+        if (editorialBot) {
+          const conversation = manuscript.conversations[0];
+          const fileNames = uploadedFiles.map(f => f.originalName).join(', ');
+          const notificationContent = `📄 **File Revision Uploaded**\n\n**Author:** ${req.user.name}\n**Files:** ${fileNames}\n**Time:** ${new Date().toLocaleString()}`;
+
+          await prisma.messages.create({
+            data: {
+              id: randomUUID(),
+              content: notificationContent,
+              conversationId: conversation.id,
+              authorId: editorialBot.id,
+              isBot: true,
+              privacy: 'AUTHOR_VISIBLE',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              metadata: {
+                type: 'file_revision_notification',
+                uploadedBy: req.user.id,
+                uploadedByName: req.user.name,
+                fileIds: uploadedFiles.map(f => f.id),
+                uploadedAt: new Date().toISOString()
+              }
+            }
+          });
+        }
+      } catch (notificationError) {
+        console.error('Failed to post revision notification:', notificationError);
+        // Don't fail the upload if notification posting fails
       }
     }
 
@@ -1530,13 +1660,39 @@ router.get('/:id/action-editor', authenticate, async (req, res, next) => {
   try {
     const { id: manuscriptId } = req.params;
 
+    // Get manuscript to check permissions
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id: manuscriptId },
+      include: {
+        manuscript_authors: true,
+        action_editors: true,
+        review_assignments: true
+      }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({ 
+        error: 'Manuscript not found',
+        message: `No manuscript found with ID: ${manuscriptId}`
+      });
+    }
+
     // Check if user has permission to view manuscript
+    const isPublished = manuscript.status === 'PUBLISHED' || manuscript.status === 'RETRACTED';
+    const isSubmitted = Boolean(manuscript.status);
+    const isAuthor = manuscript.manuscript_authors.some((rel: any) => rel.userId === req.user!.id);
+    const isActionEditor = manuscript.action_editors?.editorId === req.user!.id;
+    const isReviewer = manuscript.review_assignments.some((review: any) => review.reviewerId === req.user!.id);
+
     const hasPermission = hasManuscriptPermission(
       req.user!.role as GlobalRole, 
       ManuscriptPermission.VIEW_MANUSCRIPT,
       {
-        // TODO: Add proper context checking for isAuthor, isActionEditor, etc.
-        isPublished: false // For now, assume not published since we're checking permissions
+        isAuthor,
+        isActionEditor,
+        isReviewer,
+        isPublished,
+        isSubmitted
       }
     );
 

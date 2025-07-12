@@ -200,9 +200,10 @@ export function hasManuscriptPermission(
     isActionEditor?: boolean;
     isReviewer?: boolean;
     isPublished?: boolean;
+    isSubmitted?: boolean;
   }
 ): boolean {
-  const { isAuthor, isActionEditor, isReviewer, isPublished } = context;
+  const { isAuthor, isActionEditor, isReviewer, isPublished, isSubmitted } = context;
   
   // Admin and Editor-in-Chief have most manuscript permissions
   if (userRole === GlobalRole.ADMIN || userRole === GlobalRole.EDITOR_IN_CHIEF) {
@@ -260,8 +261,8 @@ export function hasManuscriptPermission(
     }
   }
   
-  // Public access for published manuscripts
-  if (isPublished && permission === ManuscriptPermission.VIEW_MANUSCRIPT) {
+  // Public access for submitted and published manuscripts
+  if ((isSubmitted || isPublished) && permission === ManuscriptPermission.VIEW_MANUSCRIPT) {
     return true;
   }
   
