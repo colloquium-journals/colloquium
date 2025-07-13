@@ -196,18 +196,6 @@ export default function ArticleDetailPage() {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PUBLISHED': return 'green';
-      case 'UNDER_REVIEW': return 'orange';
-      case 'REVISION_REQUESTED': return 'yellow';
-      case 'SUBMITTED': return 'blue';
-      case 'REJECTED': return 'red';
-      case 'RETRACTED': return 'red';
-      default: return 'gray';
-    }
-  };
-
   const getConversationTypeColor = (type: string) => {
     switch (type) {
       case 'EDITORIAL': return 'blue';
@@ -364,26 +352,16 @@ export default function ArticleDetailPage() {
         )}
 
         {/* Article Title */}
-        <Group justify="space-between" align="flex-start" mb="lg">
-          <Title 
-            order={1}
-            style={{ 
-              flex: 1,
-              opacity: article.status === 'RETRACTED' ? 0.7 : 1,
-              lineHeight: 1.3
-            }}
-          >
-            {article.title}
-          </Title>
-          <Badge 
-            color={getStatusColor(article.status)} 
-            variant={article.status === 'RETRACTED' ? 'filled' : 'light'}
-            size="lg"
-            style={{ marginLeft: '1rem', flexShrink: 0 }}
-          >
-            {article.status}
-          </Badge>
-        </Group>
+        <Title 
+          order={1}
+          mb="lg"
+          style={{ 
+            opacity: article.status === 'RETRACTED' ? 0.7 : 1,
+            lineHeight: 1.3
+          }}
+        >
+          {article.title}
+        </Title>
 
         <Grid>
           {/* Sidebar - Metadata */}
