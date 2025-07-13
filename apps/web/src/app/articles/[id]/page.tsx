@@ -16,7 +16,9 @@ import {
   Button,
   Divider,
   Anchor,
-  Paper
+  Paper,
+  Grid,
+  Box
 } from '@mantine/core';
 import { 
   IconAlertCircle, 
@@ -27,7 +29,10 @@ import {
   IconMessage,
   IconEye,
   IconExternalLink,
-  IconAlertTriangle
+  IconAlertTriangle,
+  IconUserCog,
+  IconUserCheck,
+  IconScale
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import FileList, { FileItem } from '@/components/submissions/FileList';
@@ -68,6 +73,32 @@ interface Author {
   isCorresponding: boolean;
 }
 
+interface ActionEditor {
+  id: string;
+  editorId: string;
+  assignedAt: string;
+  users_action_editors_editorIdTousers?: {
+    id: string;
+    name: string;
+    email: string;
+    affiliation?: string;
+  };
+}
+
+interface ReviewAssignment {
+  id: string;
+  reviewer: {
+    id: string;
+    name: string;
+    email: string;
+    affiliation?: string;
+  };
+  status: string;
+  assignedAt: string;
+  dueDate?: string;
+  completedAt?: string;
+}
+
 interface Article {
   id: string;
   title: string;
@@ -84,6 +115,8 @@ interface Article {
   metadata?: any;
   conversationCount: number;
   files: FileItem[];
+  action_editors?: ActionEditor | null;
+  reviewAssignments: ReviewAssignment[];
   conversations: Array<{
     id: string;
     title: string;
@@ -105,32 +138,44 @@ export default function ArticleDetailPage() {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [journalSettings, setJournalSettings] = useState<any>(null);
 
   useEffect(() => {
-    const fetchArticle = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:4000/api/articles/${articleId}`, {
-          credentials: 'include' // Include auth cookies
-        });
         
-        if (!response.ok) {
+        // Fetch article and settings in parallel
+        const [articleResponse, settingsResponse] = await Promise.all([
+          fetch(`http://localhost:4000/api/articles/${articleId}`, {
+            credentials: 'include'
+          }),
+          fetch(`http://localhost:4000/api/settings`)
+        ]);
+        
+        if (!articleResponse.ok) {
           throw new Error('Failed to fetch article');
         }
 
-        const data: Article = await response.json();
-        setArticle(data);
+        const articleData: Article = await articleResponse.json();
+        setArticle(articleData);
+        
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          setJournalSettings(settingsData);
+        }
+        
         setError(null);
       } catch (err) {
         setError('Failed to load article. Please try again.');
-        console.error('Error fetching article:', err);
+        console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
       }
     };
 
     if (articleId) {
-      fetchArticle();
+      fetchData();
     }
   }, [articleId]);
 
@@ -209,8 +254,8 @@ export default function ArticleDetailPage() {
   }
 
   return (
-    <Container size="lg" py="xl">
-      <Stack gap="xl">
+    <Container size="xl" py="xl">
+      <Stack gap="lg">
         {/* RETRACTED Warning */}
         {article.status === 'RETRACTED' && (
           <Alert 
@@ -232,215 +277,320 @@ export default function ArticleDetailPage() {
           </Alert>
         )}
 
-        {/* Header */}
-        <Card shadow="sm" padding="xl" radius="md">
-          <Stack gap="lg">
-            {/* Title and Status */}
-            <Group justify="space-between" align="flex-start">
-              <Title 
-                order={1} 
-                style={{ 
-                  flex: 1,
-                  opacity: article.status === 'RETRACTED' ? 0.7 : 1 
-                }}
-              >
-                {article.title}
-              </Title>
-              <Badge 
-                color={getStatusColor(article.status)} 
-                variant={article.status === 'RETRACTED' ? 'filled' : 'light'}
-                size="lg"
-              >
-                {article.status}
-              </Badge>
-            </Group>
+        {/* Article Title */}
+        <Group justify="space-between" align="flex-start" mb="lg">
+          <Title 
+            order={1}
+            style={{ 
+              flex: 1,
+              opacity: article.status === 'RETRACTED' ? 0.7 : 1,
+              lineHeight: 1.3
+            }}
+          >
+            {article.title}
+          </Title>
+          <Badge 
+            color={getStatusColor(article.status)} 
+            variant={article.status === 'RETRACTED' ? 'filled' : 'light'}
+            size="lg"
+            style={{ marginLeft: '1rem', flexShrink: 0 }}
+          >
+            {article.status}
+          </Badge>
+        </Group>
 
-            {/* Authors */}
-            <Group gap="xs" align="flex-start">
-              <IconUsers size={18} style={{ marginTop: '2px' }} />
-              <Text size="lg" fw={500} style={{ flex: 1, lineHeight: 1.4 }}>
-                {article.authorDetails && article.authorDetails.length > 0 ? (
-                  article.authorDetails.map((author, index) => (
-                    <span key={author.id}>
-                      {author.name}
-                      {author.isCorresponding && (
-                        <Text component="span" size="sm" c="dimmed" ml={4}>
-                          (corresponding author)
-                        </Text>
+        <Grid>
+          {/* Sidebar - Metadata */}
+          <Grid.Col span={3}>
+            <Stack gap="lg">
+              <Card shadow="sm" padding="lg" radius="md" style={{ position: 'sticky', top: '20px' }}>
+                <Stack gap="md">
+
+                  {/* Authors */}
+                  <Box>
+                    <Group gap="xs" mb="xs">
+                      <IconUsers size={16} />
+                      <Text size="sm" fw={500} c="dimmed">Authors</Text>
+                    </Group>
+                    <Stack gap="xs">
+                      {article.authorDetails && article.authorDetails.length > 0 ? (
+                        article.authorDetails.map((author) => (
+                          <Group key={author.id} gap="xs" align="center">
+                            <Anchor
+                              component={Link}
+                              href={`/users/${author.id}`}
+                              size="sm"
+                              fw={500}
+                              style={{ textDecoration: 'none' }}
+                            >
+                              {author.name}
+                            </Anchor>
+                            {author.isCorresponding && (
+                              <Badge size="xs" variant="light" color="orange">
+                                corresponding
+                              </Badge>
+                            )}
+                            {author.orcidId && (
+                              <Anchor
+                                href={`https://orcid.org/${author.orcidId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <OrcidIcon size={14} />
+                              </Anchor>
+                            )}
+                          </Group>
+                        ))
+                      ) : (
+                        article.authors.map((name, index) => (
+                          <Text key={index} size="sm" fw={500}>{name}</Text>
+                        ))
                       )}
-                      {author.orcidId && (
+                    </Stack>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Dates */}
+                  <Stack gap="xs">
+                    {article.publishedAt && (
+                      <Group gap="xs">
+                        <IconCalendar size={14} />
+                        <Text size="xs" c="dimmed">
+                          Published: {formatDate(article.publishedAt)}
+                        </Text>
+                      </Group>
+                    )}
+                    <Group gap="xs">
+                      <IconEye size={14} />
+                      <Text size="xs" c="dimmed">
+                        Submitted: {formatDate(article.submittedAt)}
+                      </Text>
+                    </Group>
+                    {article.doi && (
+                      <Group gap="xs">
+                        <IconExternalLink size={14} />
                         <Anchor
-                          href={`https://orcid.org/${author.orcidId}`}
+                          href={`https://doi.org/${article.doi}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ 
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            marginLeft: '4px',
-                            verticalAlign: 'middle'
-                          }}
+                          size="xs"
+                          c="dimmed"
                         >
-                          <OrcidIcon size={16} />
+                          DOI: {article.doi}
                         </Anchor>
-                      )}
-                      {index < article.authorDetails.length - 1 && ', '}
-                    </span>
-                  ))
-                ) : (
-                  article.authors.join(', ')
-                )}
-              </Text>
-            </Group>
+                      </Group>
+                    )}
+                  </Stack>
 
-            {/* Metadata */}
-            <Group gap="xl">
-              {article.publishedAt && (
-                <Group gap="xs">
-                  <IconCalendar size={16} />
-                  <Text size="sm" c="dimmed">
-                    Published: {formatDate(article.publishedAt)}
-                  </Text>
-                </Group>
-              )}
-              <Group gap="xs">
-                <IconEye size={16} />
-                <Text size="sm" c="dimmed">
-                  Submitted: {formatDate(article.submittedAt)}
-                </Text>
-              </Group>
-              <Group gap="xs">
-                <IconMessage size={16} />
-                <Text size="sm" c="dimmed">
-                  {article.conversationCount} conversation{article.conversationCount !== 1 ? 's' : ''}
-                </Text>
-              </Group>
-              {article.doi && (
-                <Group gap="xs">
-                  <IconExternalLink size={16} />
-                  <Anchor
-                    href={`https://doi.org/${article.doi}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    size="sm"
-                    c="dimmed"
-                  >
-                    DOI: {article.doi}
-                  </Anchor>
-                </Group>
-              )}
-            </Group>
+                  {/* Action Editor */}
+                  {article.action_editors && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconUserCog size={14} />
+                          <Text size="xs" fw={500} c="dimmed">Action Editor</Text>
+                        </Group>
+                        <Group gap="xs" align="center">
+                          {article.action_editors.users_action_editors_editorIdTousers ? (
+                            <Anchor
+                              component={Link}
+                              href={`/users/${article.action_editors.users_action_editors_editorIdTousers.id}`}
+                              size="sm"
+                              fw={500}
+                              style={{ textDecoration: 'none' }}
+                            >
+                              {article.action_editors.users_action_editors_editorIdTousers.name}
+                            </Anchor>
+                          ) : (
+                            <Text size="sm" fw={500}>
+                              Assigned
+                            </Text>
+                          )}
+                        </Group>
+                        {article.action_editors.users_action_editors_editorIdTousers?.affiliation && (
+                          <Text size="xs" c="dimmed">
+                            {article.action_editors.users_action_editors_editorIdTousers.affiliation}
+                          </Text>
+                        )}
+                      </Box>
+                    </>
+                  )}
 
-            {/* Keywords */}
-            {article.keywords.length > 0 && (
-              <Group gap="xs">
-                <IconTag size={16} />
-                <Group gap="xs">
-                  {article.keywords.map((keyword, index) => (
-                    <Badge key={index} variant="light" size="sm">
-                      {keyword}
-                    </Badge>
-                  ))}
-                </Group>
-              </Group>
-            )}
+                  {/* Reviewers */}
+                  {article.reviewAssignments && article.reviewAssignments.length > 0 && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconUserCheck size={14} />
+                          <Text size="xs" fw={500} c="dimmed">Reviewers</Text>
+                        </Group>
+                        <Stack gap="xs">
+                          {article.reviewAssignments
+                            .filter(assignment => ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(assignment.status))
+                            .map((assignment) => (
+                              <Group key={assignment.id} gap="xs" align="center">
+                                <Anchor
+                                  component={Link}
+                                  href={`/users/${assignment.reviewer.id}`}
+                                  size="sm"
+                                  fw={500}
+                                  style={{ textDecoration: 'none' }}
+                                >
+                                  {assignment.reviewer.name}
+                                </Anchor>
+                                <Badge size="xs" variant="light" color={
+                                  assignment.status === 'COMPLETED' ? 'green' : 
+                                  assignment.status === 'IN_PROGRESS' ? 'blue' : 'gray'
+                                }>
+                                  {assignment.status.toLowerCase().replace('_', ' ')}
+                                </Badge>
+                              </Group>
+                            ))}
+                        </Stack>
+                      </Box>
+                    </>
+                  )}
 
-            {/* Actions */}
-            <Group gap="md">
-              {article.fileUrl && (
-                <Button 
-                  leftSection={<IconDownload size={16} />}
-                  component="a"
-                  href={article.fileUrl}
-                  target="_blank"
-                >
-                  Download PDF
-                </Button>
-              )}
-              {article.conversations.length > 0 && (
-                <Button 
-                  variant="outline"
-                  leftSection={<IconMessage size={16} />}
-                  component={Link}
-                  href={`/submissions/${article.conversations[0].id}`}
-                >
-                  View Discussion
-                </Button>
-              )}
-            </Group>
-          </Stack>
-        </Card>
+                  {/* Keywords */}
+                  {article.keywords.length > 0 && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconTag size={14} />
+                          <Text size="xs" fw={500} c="dimmed">Keywords</Text>
+                        </Group>
+                        <Group gap="xs">
+                          {article.keywords.map((keyword, index) => (
+                            <Badge key={index} variant="light" size="xs">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </Box>
+                    </>
+                  )}
 
-        {/* Abstract */}
-        <Card shadow="sm" padding="lg" radius="md">
-          <Stack gap="md">
-            <Title order={3}>Abstract</Title>
-            <Text size="md" style={{ lineHeight: 1.7 }}>
-              {article.abstract}
-            </Text>
-          </Stack>
-        </Card>
+                  {/* License */}
+                  {journalSettings?.licenseType && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconScale size={14} />
+                          <Text size="xs" fw={500} c="dimmed">License</Text>
+                        </Group>
+                        <Group gap="xs" align="center">
+                          <Text size="sm" fw={500}>
+                            {journalSettings.licenseType}
+                          </Text>
+                        </Group>
+                        <Text size="xs" c="dimmed">
+                          © {new Date(article.submittedAt).getFullYear()} by the authors
+                        </Text>
+                      </Box>
+                    </>
+                  )}
 
-        {/* Rendered Content */}
-        {getRenderedContent() && (
-          <Card shadow="sm" padding="lg" radius="md">
-            <Stack gap="md">
-              <Title order={3}>Article Content</Title>
-              {getRenderedHTML() ? (
-                // Display HTML content
-                <Paper p="md" withBorder style={{ minHeight: '500px' }}>
+                  <Divider />
+
+                  {/* Actions */}
+                  <Stack gap="xs">
+                    {article.fileUrl && (
+                      <Button 
+                        size="sm"
+                        leftSection={<IconDownload size={14} />}
+                        component="a"
+                        href={article.fileUrl}
+                        target="_blank"
+                        fullWidth
+                      >
+                        Download PDF
+                      </Button>
+                    )}
+                    {article.conversations.length > 0 && (
+                      <Button 
+                        size="sm"
+                        variant="outline"
+                        leftSection={<IconMessage size={14} />}
+                        component={Link}
+                        href={`/submissions/${article.conversations[0].id}`}
+                        fullWidth
+                      >
+                        Peer Review
+                      </Button>
+                    )}
+                    <Button 
+                      size="sm"
+                      variant="light"
+                      component={Link}
+                      href="/articles"
+                      fullWidth
+                    >
+                      ← Back to Articles
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Card>
+            </Stack>
+          </Grid.Col>
+
+          {/* Main Content Area */}
+          <Grid.Col span={9}>
+            {/* Rendered Content - Primary Focus */}
+            {getRenderedContent() ? (
+              <Box style={{ height: 'calc(100vh - 140px)' }}>
+                {getRenderedHTML() ? (
+                  // Display HTML content
                   <iframe
                     src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedHTML()?.id}/download?inline=true`}
                     style={{
                       width: '100%',
-                      height: '800px',
-                      border: 'none',
-                      borderRadius: '4px'
+                      height: '100%',
+                      border: '1px solid #e9ecef',
+                      borderRadius: '8px',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
                     }}
                     title="Article Content"
                   />
-                </Paper>
-              ) : getRenderedPDF() ? (
-                // Display PDF content
-                <Paper p="md" withBorder style={{ minHeight: '500px' }}>
+                ) : getRenderedPDF() ? (
+                  // Display PDF content
                   <iframe
                     src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download?inline=true`}
                     style={{
                       width: '100%',
-                      height: '800px',
-                      border: 'none',
-                      borderRadius: '4px'
+                      height: '100%',
+                      border: '1px solid #e9ecef',
+                      borderRadius: '8px',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
                     }}
                     title="Article PDF"
                   />
-                </Paper>
-              ) : null}
-            </Stack>
-          </Card>
-        )}
-
-        {/* Files - Only show if no rendered content available */}
-        {!getRenderedContent() && article.files && article.files.length > 0 && (
-          <Card shadow="sm" padding="lg" radius="md">
-            <Stack gap="md">
-              <Title order={3}>Files</Title>
-              <FileList 
-                files={article.files}
-                showFileType={true}
-                allowDownload={true}
-                groupByType={true}
-              />
-            </Stack>
-          </Card>
-        )}
+                ) : null}
+              </Box>
+            ) : (
+              // Fallback: Show files if no rendered content available
+              article.files && article.files.length > 0 && (
+                <Card shadow="sm" padding="lg" radius="md">
+                  <Stack gap="md">
+                    <Title order={3}>Files</Title>
+                    <FileList 
+                      files={article.files}
+                      showFileType={true}
+                      allowDownload={true}
+                      groupByType={true}
+                    />
+                  </Stack>
+                </Card>
+              )
+            )}
 
 
-        {/* Navigation */}
-        <Group justify="center">
-          <Button variant="outline" component={Link} href="/articles">
-            ← Back to Articles
-          </Button>
-        </Group>
-
+          </Grid.Col>
+        </Grid>
       </Stack>
     </Container>
   );
