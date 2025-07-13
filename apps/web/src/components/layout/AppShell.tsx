@@ -93,7 +93,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
     if (item.requiresAuth && !isAuthenticated) return false;
     
     // If item has role restrictions, check user role
-    if (item.allowedRoles && user) {
+    if ('allowedRoles' in item && item.allowedRoles && user && Array.isArray(item.allowedRoles)) {
       return item.allowedRoles.includes(user.role);
     }
     

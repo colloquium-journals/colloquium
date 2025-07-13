@@ -126,9 +126,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       const newAssignment = {
         id: assignment.assignmentId,
         reviewer: {
-          id: assignment.reviewer.id,
           name: assignment.reviewer.name || assignment.reviewer.email,
-          email: assignment.reviewer.email,
           affiliation: assignment.reviewer.affiliation
         },
         status: assignment.status,
@@ -174,14 +172,12 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         updatedReviewAssignments.push({
           id: response.assignmentId,
           reviewer: {
-            id: response.reviewer.id,
             name: response.reviewer.name || response.reviewer.email,
-            email: response.reviewer.email,
             affiliation: response.reviewer.affiliation
           },
           status: response.status,
           assignedAt: response.respondedAt,
-          dueDate: null
+          dueDate: undefined
         });
       }
       

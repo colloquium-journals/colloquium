@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { 
   Paper, 
   Textarea, 
@@ -19,8 +19,10 @@ import {
 import { IconSend, IconAt, IconX, IconLock, IconEye, IconUsers, IconShield, IconMarkdown, IconHelp } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MentionSuggest } from '@/components/shared/MentionSuggest';
+import { CommandSuggest } from '@/components/shared/CommandSuggest';
 import { useMentionSuggestions } from '@/hooks/useMentionSuggestions';
 import { useMentionInput } from '@/hooks/useMentionInput';
+import { useCommandInput } from '@/hooks/useCommandInput';
 
 interface Bot {
   id: string;
@@ -126,16 +128,66 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
   });
 
   const {
+    commandState,
+    handleTextChange: handleCommandTextChange,
+    handleKeyDown: handleCommandKeyDown,
+    handleSelectCommand,
+    handleCloseCommands,
+    isLoadingCommands
+  } = useCommandInput({
+    textareaRef,
+    value: content,
+    onChange: setContent
+  });
+
+  // Track the last selected bot for command autocomplete
+  const lastSelectedBotRef = useRef<string | null>(null);
+
+  // Enhanced mention selection that triggers command autocomplete for bots
+  const handleEnhancedSelectSuggestion = useCallback((suggestion: MentionSuggestion) => {
+    // Replicate the mention selection logic from useMentionInput
+    if (!textareaRef.current) return;
+    
+    // Find the current mention state by looking for @ symbol
+    const cursorPos = textareaRef.current.selectionStart || 0;
+    const textBeforeCursor = content.substring(0, cursorPos);
+    const lastAtPos = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtPos === -1) return;
+    
+    const beforeMention = content.substring(0, lastAtPos);
+    const afterCursor = content.substring(cursorPos);
+    const newValue = `${beforeMention}@${suggestion.name} ${afterCursor}`;
+    
+    setContent(newValue);
+    
+    // Set cursor position after the mention
+    const newCursorPos = lastAtPos + suggestion.name.length + 2; // +2 for @ and space
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+    
+    // If the selected suggestion is a bot, store it for command autocomplete
+    if (suggestion.type === 'bot') {
+      lastSelectedBotRef.current = suggestion.name;
+    }
+  }, [content, textareaRef]);
+
+  const {
     mentionState,
-    handleTextChange,
-    handleKeyDown,
+    handleTextChange: handleMentionTextChange,
+    handleKeyDown: handleMentionKeyDown,
     handleSelectSuggestion,
     handleCloseSuggestions
   } = useMentionInput({
     textareaRef,
     value: content,
     onChange: setContent,
-    suggestions: allSuggestions
+    suggestions: allSuggestions,
+    onSelectSuggestion: handleEnhancedSelectSuggestion
   });
 
 
@@ -199,9 +251,32 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
     }
   };
 
+  // Combined text change handler
+  const handleTextChange = (newValue: string) => {
+    handleMentionTextChange(newValue);
+    handleCommandTextChange(newValue);
+    
+    // Check if we just completed a bot mention and should trigger command autocomplete
+    if (lastSelectedBotRef.current) {
+      const botPattern = new RegExp(`@${lastSelectedBotRef.current}\\s$`);
+      if (botPattern.test(newValue)) {
+        // Clear the flag and trigger command autocomplete after a short delay
+        lastSelectedBotRef.current = null;
+        setTimeout(() => {
+          handleCommandTextChange(newValue);
+        }, 50);
+      }
+    }
+  };
+
   const handleKeyPress = (event: React.KeyboardEvent) => {
-    // Let mention input handle navigation first
-    if (handleKeyDown(event)) {
+    // Let command input handle navigation first (higher priority)
+    if (handleCommandKeyDown(event)) {
+      return;
+    }
+    
+    // Then let mention input handle navigation
+    if (handleMentionKeyDown(event)) {
       return;
     }
     
@@ -292,11 +367,22 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
             {/* Mention Suggestions */}
             <MentionSuggest
               suggestions={mentionState.filteredSuggestions}
-              isVisible={mentionState.isActive}
+              isVisible={mentionState.isActive && !commandState.isActive}
               position={mentionState.position}
               selectedIndex={mentionState.selectedIndex}
-              onSelect={handleSelectSuggestion}
+              onSelect={handleEnhancedSelectSuggestion}
               onClose={handleCloseSuggestions}
+            />
+            
+            {/* Command Suggestions */}
+            <CommandSuggest
+              suggestions={commandState.filteredSuggestions}
+              isVisible={commandState.isActive}
+              position={commandState.position}
+              selectedIndex={commandState.selectedIndex}
+              isLoading={isLoadingCommands}
+              onSelect={handleSelectCommand}
+              onClose={handleCloseCommands}
             />
             
           </div>

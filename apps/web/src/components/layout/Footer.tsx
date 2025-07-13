@@ -44,11 +44,11 @@ export function Footer() {
             
             <Stack gap="xs" align="flex-end">
               <Text size="sm" c="dimmed">
-                © {currentYear} {settings.copyrightHolder || settings.name}
+                © {currentYear} {settings.publisherName || settings.name}
               </Text>
-              {settings.licenseType && (
+              {settings.publisherLocation && (
                 <Text size="xs" c="dimmed">
-                  Licensed under {settings.licenseType}
+                  {settings.publisherLocation}
                 </Text>
               )}
               <Text size="xs" c="dimmed">

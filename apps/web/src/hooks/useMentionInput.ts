@@ -8,6 +8,7 @@ interface UseMentionInputProps {
   value: string;
   onChange: (value: string) => void;
   suggestions: MentionSuggestion[];
+  onSelectSuggestion?: (suggestion: MentionSuggestion) => void;
 }
 
 interface MentionState {
@@ -19,7 +20,7 @@ interface MentionState {
   position: { top: number; left: number };
 }
 
-export function useMentionInput({ textareaRef, value, onChange, suggestions }: UseMentionInputProps) {
+export function useMentionInput({ textareaRef, value, onChange, suggestions, onSelectSuggestion }: UseMentionInputProps) {
   const [mentionState, setMentionState] = useState<MentionState>({
     isActive: false,
     query: '',
@@ -149,7 +150,12 @@ export function useMentionInput({ textareaRef, value, onChange, suggestions }: U
       case 'Enter':
         event.preventDefault();
         if (mentionState.filteredSuggestions[mentionState.selectedIndex]) {
-          handleSelectSuggestion(mentionState.filteredSuggestions[mentionState.selectedIndex]);
+          const suggestion = mentionState.filteredSuggestions[mentionState.selectedIndex];
+          if (onSelectSuggestion) {
+            onSelectSuggestion(suggestion);
+          } else {
+            handleSelectSuggestion(suggestion);
+          }
         }
         return true;
         
