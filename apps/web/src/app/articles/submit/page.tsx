@@ -32,7 +32,9 @@ import {
   IconUpload,
   IconX,
   IconExclamationMark,
-  IconInfoCircle
+  IconInfoCircle,
+  IconBuilding,
+  IconExternalLink
 } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
@@ -52,6 +54,7 @@ interface SubmissionData {
 interface AuthorInput {
   email: string;
   name: string;
+  affiliation: string;
   isExistingUser: boolean;
   isCorresponding: boolean;
 }
@@ -152,6 +155,7 @@ export default function SubmitArticlePage() {
       authors: [{
         email: user?.email || '',
         name: user?.name || '',
+        affiliation: user?.affiliation || '',
         isExistingUser: !!user,
         isCorresponding: true
       }],
@@ -177,6 +181,9 @@ export default function SubmitArticlePage() {
           }
           if (!author.name || !author.name.trim()) {
             return 'All authors must have names';
+          }
+          if (author.affiliation && author.affiliation.length > 200) {
+            return 'Affiliation must be less than 200 characters';
           }
           // Basic email validation
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -216,6 +223,7 @@ export default function SubmitArticlePage() {
           ...updatedAuthors[0],
           email: user.email || '',
           name: user.name || '',
+          affiliation: user.affiliation || '',
           isExistingUser: true,
           isCorresponding: true
         };
@@ -240,6 +248,7 @@ export default function SubmitArticlePage() {
       formData.append('authors', JSON.stringify(values.authors.map(author => ({
         email: author.email,
         name: author.name,
+        affiliation: author.affiliation || '',
         isCorresponding: author.isCorresponding
       }))));
       
@@ -305,6 +314,7 @@ export default function SubmitArticlePage() {
     form.setFieldValue('authors', [...form.values.authors, {
       email: '',
       name: '',
+      affiliation: '',
       isExistingUser: false,
       isCorresponding: false
     }]);
@@ -331,7 +341,14 @@ export default function SubmitArticlePage() {
         newAuthors[authorIndex] = {
           ...newAuthors[authorIndex],
           email: email,
-          name: userData.name || '',
+          // Only auto-fill name if current name is empty or matches the email prefix
+          name: (!newAuthors[authorIndex].name || newAuthors[authorIndex].name === email.split('@')[0]) 
+            ? (userData.name || '') 
+            : newAuthors[authorIndex].name,
+          // Only auto-fill affiliation if current affiliation is empty
+          affiliation: !newAuthors[authorIndex].affiliation 
+            ? (userData.affiliation || '') 
+            : newAuthors[authorIndex].affiliation,
           isExistingUser: true
         };
         form.setFieldValue('authors', newAuthors);
@@ -604,11 +621,11 @@ export default function SubmitArticlePage() {
                                 value={author.name}
                                 onChange={(e) => updateAuthor(index, 'name', e.target.value)}
                                 required
-                                disabled={Boolean(author.isExistingUser && author.name)}
+                                disabled={author.isExistingUser}
                               />
                               {author.isExistingUser && author.name && (
-                                <Text size="xs" c="dimmed">
-                                  Auto-filled from existing account
+                                <Text size="xs" c="green">
+                                  ✓ From existing account profile
                                 </Text>
                               )}
                             </Stack>
@@ -625,6 +642,25 @@ export default function SubmitArticlePage() {
                               </ActionIcon>
                             )}
                           </Group>
+                          
+                          <TextInput
+                            label="Affiliation (Optional)"
+                            placeholder="Institution, university, or organization"
+                            value={author.affiliation}
+                            onChange={(e) => updateAuthor(index, 'affiliation', e.target.value)}
+                            leftSection={<IconBuilding size={16} />}
+                            disabled={author.isExistingUser}
+                          />
+                          {author.isExistingUser && (
+                            <Stack gap="xs">
+                              <Text size="xs" c="green">
+                                ✓ From existing account profile{!author.affiliation && ' (none set)'}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                Existing user details cannot be changed here. The user can update their profile after logging in.
+                              </Text>
+                            </Stack>
+                          )}
                           
                           <Checkbox
                             label="Corresponding author (only one allowed)"
