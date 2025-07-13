@@ -139,6 +139,8 @@ export default function ArticleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [journalSettings, setJournalSettings] = useState<any>(null);
+  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [loadingHTML, setLoadingHTML] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -178,6 +180,13 @@ export default function ArticleDetailPage() {
       fetchData();
     }
   }, [articleId]);
+
+  // Auto-load HTML content when article is loaded
+  useEffect(() => {
+    if (article && getRenderedHTML()) {
+      loadHTMLContent();
+    }
+  }, [article]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -229,6 +238,83 @@ export default function ArticleDetailPage() {
     const htmlFile = getRenderedHTML();
     const pdfFile = getRenderedPDF();
     return htmlFile || pdfFile;
+  };
+
+  // Function to automatically scope CSS to prevent interference with page styles
+  const scopeHTMLContent = (htmlContent: string): string => {
+    // Extract CSS from style tags
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    
+    let scopedHTML = htmlContent;
+    let match;
+    
+    while ((match = styleRegex.exec(htmlContent)) !== null) {
+      const originalCSS = match[1];
+      
+      // Skip if already scoped or contains scoping comments
+      if (originalCSS.includes('.rendered-document') || originalCSS.includes('/* scoped */')) {
+        continue;
+      }
+      
+      // Scope CSS rules by prefixing with .rendered-document
+      const scopedCSS = originalCSS
+        // Handle body styles specifically
+        .replace(/\bbody\s*{/g, '.rendered-document {')
+        // Handle element selectors (but not pseudo-selectors or media queries)
+        .replace(/^(\s*)([a-zA-Z][a-zA-Z0-9]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9]*)*)\s*{/gm, '$1.rendered-document $2 {')
+        // Handle class selectors that aren't already scoped
+        .replace(/^(\s*)(\.[a-zA-Z][a-zA-Z0-9_-]*(?:\s*,\s*\.[a-zA-Z][a-zA-Z0-9_-]*)*)\s*{/gm, '$1.rendered-document $2 {')
+        // Handle complex selectors with combinators
+        .replace(/^(\s*)([^@}]+?)\s*{/gm, (fullMatch, indent, selector) => {
+          // Skip @rules, already scoped rules, or rules with .rendered-document
+          if (selector.includes('@') || selector.includes('.rendered-document') || selector.trim().startsWith('/*')) {
+            return fullMatch;
+          }
+          return `${indent}.rendered-document ${selector.trim()} {`;
+        });
+      
+      // Add scoping comment
+      const finalCSS = `/* CSS automatically scoped for safe embedding */\n${scopedCSS}`;
+      
+      // Replace the original style tag with scoped version
+      scopedHTML = scopedHTML.replace(match[0], `<style>${finalCSS}</style>`);
+    }
+    
+    // Wrap body content in scoped container if not already wrapped
+    if (!scopedHTML.includes('class="rendered-document"')) {
+      scopedHTML = scopedHTML.replace(
+        /<body[^>]*>([\s\S]*?)<\/body>/i,
+        '<body><div class="rendered-document">$1</div></body>'
+      );
+    }
+    
+    return scopedHTML;
+  };
+
+  // Function to fetch and load HTML content
+  const loadHTMLContent = async () => {
+    const htmlFile = getRenderedHTML();
+    if (!htmlFile || !article) return;
+
+    setLoadingHTML(true);
+    try {
+      const response = await fetch(`http://localhost:4000/api/articles/${article.id}/files/${htmlFile.id}/download?inline=true`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch HTML: ${response.status} ${response.statusText}`);
+      }
+      
+      const htmlText = await response.text();
+      const scopedHTML = scopeHTMLContent(htmlText);
+      setHtmlContent(scopedHTML);
+    } catch (error) {
+      console.error('Error fetching HTML content:', error);
+      setHtmlContent('');
+    } finally {
+      setLoadingHTML(false);
+    }
   };
 
 
@@ -542,35 +628,45 @@ export default function ArticleDetailPage() {
           <Grid.Col span={9}>
             {/* Rendered Content - Primary Focus */}
             {getRenderedContent() ? (
-              <Box style={{ height: 'calc(100vh - 140px)' }}>
-                {getRenderedHTML() ? (
-                  // Display HTML content
-                  <iframe
-                    src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedHTML()?.id}/download?inline=true`}
+              <Stack gap="md">
+                {getRenderedHTML() && htmlContent ? (
+                  // Display HTML content inline seamlessly
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: htmlContent }}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      border: '1px solid #e9ecef',
-                      borderRadius: '8px',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                      width: '100%'
                     }}
-                    title="Article Content"
                   />
+                ) : getRenderedHTML() && loadingHTML ? (
+                  // Loading state for HTML
+                  <div style={{
+                    height: '400px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Stack align="center" gap="md">
+                      <Loader size="lg" />
+                      <Text>Loading article content...</Text>
+                    </Stack>
+                  </div>
                 ) : getRenderedPDF() ? (
-                  // Display PDF content
-                  <iframe
-                    src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download?inline=true`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: '1px solid #e9ecef',
-                      borderRadius: '8px',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                    }}
-                    title="Article PDF"
-                  />
+                  // Display PDF content in iframe (PDFs need iframe)
+                  <Box style={{ height: 'calc(100vh - 140px)' }}>
+                    <iframe
+                      src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download?inline=true`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: '1px solid #e9ecef',
+                        borderRadius: '8px',
+                        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                      }}
+                      title="Article PDF"
+                    />
+                  </Box>
                 ) : null}
-              </Box>
+              </Stack>
             ) : (
               // Fallback: Show files if no rendered content available
               article.files && article.files.length > 0 && (

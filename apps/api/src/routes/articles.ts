@@ -119,15 +119,8 @@ router.get('/', optionalAuth, async (req, res, next) => {
     // Build where clause
     const where: any = {};
     
-    // Filter by status - default to published for public feed
-    if (status && status !== 'ALL') {
-      where.status = status as string;
-    }
-
-    // If user is not authenticated or not an editor/admin, only show published and retracted manuscripts
-    if (!req.user || (req.user.role !== GlobalRole.EDITOR_IN_CHIEF && req.user.role !== GlobalRole.ACTION_EDITOR && req.user.role !== GlobalRole.ADMIN)) {
-      where.status = { in: ['PUBLISHED', 'RETRACTED'] };
-    }
+    // Articles page always shows only published articles - use /submissions for editorial workflow
+    where.status = { in: ['PUBLISHED', 'RETRACTED'] };
 
     // Search functionality
     if (search) {
@@ -843,8 +836,14 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
     // Set appropriate headers for file download or inline viewing
     const inline = req.query.inline === 'true';
     
-    if (inline && file.mimetype === 'application/pdf') {
-      // For inline PDF viewing, use 'inline' disposition
+    if (inline && (file.mimetype === 'application/pdf' || file.mimetype === 'text/html')) {
+      // For inline PDF or HTML viewing, use 'inline' disposition
+      res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+    } else if (file.mimetype === 'text/html') {
+      // HTML files should always be displayed inline by default, not downloaded
+      res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+    } else if (inline && file.mimetype && file.mimetype.startsWith('image/')) {
+      // For inline image viewing, use 'inline' disposition
       res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
     } else {
       // For downloads, use 'attachment' disposition

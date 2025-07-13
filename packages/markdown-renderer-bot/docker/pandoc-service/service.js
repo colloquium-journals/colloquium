@@ -135,22 +135,35 @@ app.post('/convert', upload.none(), async (req, res) => {
     ];
     
     // Add engine-specific options
-    switch (engine) {
-      case 'latex':
-        args.push('--pdf-engine=pdflatex');
-        break;
-      case 'typst':
-        args.push('--pdf-engine=typst');
-        break;
-      case 'html':
-      default:
-        args.push('--pdf-engine=weasyprint');
-        break;
+    if (outputFormat === 'pdf') {
+      // PDF-specific engines
+      switch (engine) {
+        case 'latex':
+          args.push('--pdf-engine=pdflatex');
+          break;
+        case 'typst':
+          args.push('--pdf-engine=typst');
+          break;
+        case 'html':
+        default:
+          args.push('--pdf-engine=weasyprint');
+          break;
+      }
+    } else if (outputFormat === 'html') {
+      // HTML-specific options
+      args.push('--standalone'); // Generate complete HTML document
+      args.push('--self-contained'); // Include images and CSS inline
     }
     
     // Add template if provided
     if (template) {
-      const templateFile = path.join(tempDir.name, `template.${engine === 'latex' ? 'tex' : engine === 'typst' ? 'typ' : 'html'}`);
+      let templateExt;
+      if (outputFormat === 'pdf') {
+        templateExt = engine === 'latex' ? 'tex' : engine === 'typst' ? 'typ' : 'html';
+      } else {
+        templateExt = 'html';
+      }
+      const templateFile = path.join(tempDir.name, `template.${templateExt}`);
       await fs.writeFile(templateFile, template, 'utf8');
       args.push('--template', `"${templateFile}"`);
     }
@@ -168,11 +181,16 @@ app.post('/convert', upload.none(), async (req, res) => {
       args.push('--citeproc'); // Enable citation processing
     }
     
-    // Add standard academic settings for PDF
+    // Add format-specific settings
     if (outputFormat === 'pdf') {
+      // PDF-specific settings
       args.push('--variable', 'geometry:margin=1in');
       args.push('--variable', 'fontsize:12pt');
       args.push('--variable', 'documentclass:article');
+    } else if (outputFormat === 'html') {
+      // HTML-specific settings
+      args.push('--variable', 'lang:en');
+      args.push('--variable', 'viewport:width=device-width,initial-scale=1');
     }
     
     const command = `pandoc ${args.join(' ')}`;

@@ -77,6 +77,21 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+// Serve published assets statically (no authentication required)
+app.use('/static/published', express.static(path.join(process.cwd(), 'static', 'published'), {
+  maxAge: '1y', // Long cache for published content (immutable)
+  immutable: true,
+  setHeaders: (res, filePath) => {
+    // Set inline disposition for images to enable embedding
+    if (filePath.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)) {
+      res.setHeader('Content-Disposition', 'inline');
+    }
+    // Set CORS headers for cross-origin access
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+  }
+}));
+
 // Health check
 app.get('/health', async (req, res) => {
   try {

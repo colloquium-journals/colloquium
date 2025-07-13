@@ -92,20 +92,44 @@ async function getBuiltInTemplates(): Promise<Record<string, any>> {
 // Main render command
 const renderCommand: BotCommand = {
   name: 'render',
-  description: 'Render Markdown files to HTML using journal templates',
-  usage: '@markdown-renderer render',
-  parameters: [],
+  description: 'Render Markdown files to PDF or HTML using journal templates',
+  usage: '@markdown-renderer render [output=pdf|html] [template=name] [engine=typst|latex|html]',
+  parameters: [
+    {
+      name: 'output',
+      description: 'Output format(s)',
+      type: 'string',
+      required: false,
+      enumValues: ['pdf', 'html', 'pdf,html']
+    },
+    {
+      name: 'template',
+      description: 'Template to use',
+      type: 'string',
+      required: false
+    },
+    {
+      name: 'engine',
+      description: 'Rendering engine for PDF generation',
+      type: 'string',
+      required: false,
+      enumValues: ['typst', 'latex', 'html']
+    }
+  ],
   examples: [
-    '@markdown-renderer render'
+    '@markdown-renderer render',
+    '@markdown-renderer render output=html',
+    '@markdown-renderer render output=pdf engine=typst',
+    '@markdown-renderer render template=academic-standard output=html'
   ],
   permissions: ['read_manuscript_files', 'upload_files'],
   async execute(params, context) {
     const { manuscriptId, config, serviceToken } = context;
     
-    // Extract configuration from journal settings
-    const pdfEngine = config.pdfEngine || 'typst';
-    const templateName = config.templateName || 'academic-standard';
-    const outputFormats = config.outputFormats || ['pdf'];
+    // Extract configuration from parameters (override journal settings)
+    const pdfEngine = params.engine || config.pdfEngine || 'typst';
+    const templateName = params.template || config.templateName || 'academic-standard';
+    const outputFormats = params.output ? params.output.split(',') : (config.outputFormats || ['pdf']);
     const requireSeparateBibliography = config.requireSeparateBibliography || false;
 
     if (!serviceToken) {
@@ -196,11 +220,11 @@ const renderCommand: BotCommand = {
       // Generate outputs based on configuration
       for (const format of outputFormats) {
         if (format === 'html') {
-          // For HTML, use HTML template with Handlebars rendering
+          // For HTML, use Pandoc to process citations and bibliography
           const htmlTemplateData = await getTemplate(templateName, 'html', config);
-          const renderedHtml = await renderWithTemplate(htmlTemplateData, templateVariables);
+          const htmlBuffer = await generatePandocHTML(markdownContent, htmlTemplateData, templateVariables, bibliographyContent, manuscriptFiles, serviceToken);
           const htmlFilename = `${baseFilename}.html`;
-          const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, renderedHtml, 'text/html', serviceToken);
+          const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, htmlBuffer, 'text/html', serviceToken);
           uploadResults.push({ type: 'HTML', ...htmlResult });
         } else if (format === 'pdf') {
           // For PDF generation, use Typst/LaTeX engine with appropriate template
@@ -508,7 +532,11 @@ async function processMarkdownContent(
         const asset = findAssetFile(manuscriptFiles, imageUrl);
         if (asset) {
           processedAssets++;
-          return `![${imageAlt}](${asset.downloadUrl})`;
+          // Add inline=true parameter for images to enable public viewing
+          const imageUrl = asset.downloadUrl.includes('?') 
+            ? `${asset.downloadUrl}&inline=true`
+            : `${asset.downloadUrl}?inline=true`;
+          return `![${imageAlt}](${imageUrl})`;
         } else {
           warnings.push(`Image not found: ${imageUrl}`);
         }
@@ -916,6 +944,74 @@ async function generatePandocPDF(
     console.error('Failed to generate PDF via microservice:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`PDF generation failed: ${errorMessage}`);
+  }
+}
+
+async function generatePandocHTML(
+  markdownContent: string, 
+  template: any, 
+  templateVariables: any,
+  bibliographyContent: string = '',
+  manuscriptFiles: any[] = [],
+  serviceToken: string = ''
+): Promise<Buffer> {
+  try {
+    console.log(`Converting markdown to HTML using Pandoc microservice with citation processing`);
+    
+    // First, process markdown through Pandoc to handle citations and bibliography
+    // We'll use a minimal approach to get the content with citations processed
+    const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken);
+    console.log(`DEBUG: Collected ${assetFiles.length} asset files for HTML generation`);
+    
+    const requestBody = {
+      markdown: markdownContent,
+      engine: 'html',
+      template: '', // No template for this step - just get the content
+      variables: {},
+      outputFormat: 'html',
+      bibliography: bibliographyContent,
+      assets: assetFiles
+    };
+    
+    console.log(`Sending request to Pandoc service for citation processing: ${PANDOC_SERVICE_URL}/convert`);
+    
+    // Make HTTP request to the Pandoc microservice for citation processing
+    const response = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Pandoc service error: ${errorData.error || response.statusText}`);
+    }
+    
+    // Get the processed HTML content (with citations and bibliography)
+    let pandocHtml = await response.text();
+    console.log(`Pandoc HTML generated successfully, size: ${pandocHtml.length} characters`);
+    
+    // Extract just the body content from Pandoc's output
+    const bodyMatch = pandocHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const processedContent = bodyMatch ? bodyMatch[1] : pandocHtml;
+    
+    // Now render our template with the processed content
+    const finalTemplateVariables = {
+      ...templateVariables,
+      content: processedContent // Use Pandoc-processed content with citations
+    };
+    
+    const renderedHtml = await renderWithTemplate(template, finalTemplateVariables);
+    console.log(`Final HTML template rendered, size: ${renderedHtml.length} characters`);
+    
+    return Buffer.from(renderedHtml, 'utf-8');
+    
+  } catch (error) {
+    console.error('Failed to generate HTML via microservice:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`HTML generation failed: ${errorMessage}`);
   }
 }
 

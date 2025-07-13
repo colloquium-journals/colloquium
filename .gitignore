@@ -93,3 +93,4 @@ prisma/migrations/
 
 # uploaded files
 apps/api/uploads/
+apps/api/static/published/

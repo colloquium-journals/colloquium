@@ -118,6 +118,71 @@ REDIS_PORT=6379
 - **Test utilities**: Centralized in `/tests/utils/testUtils.ts` for API
 - **Mocking**: Jest mocks for external dependencies (nodemailer, etc.)
 
+## Static Asset Hosting for Published Content
+
+### Architecture Decision
+
+**Problem**: Asset files (images, documents) in published articles were served through authenticated API endpoints, creating performance bottlenecks and authentication complexity for public content.
+
+**Solution**: Implemented dual-tier asset hosting:
+
+```
+Draft/Review Stage:     /api/articles/{id}/files/{fileId}/download    (authenticated)
+Published Stage:        /static/published/{id}/{filename}             (static, public)
+```
+
+### Implementation Details
+
+**Asset Publishing Workflow**:
+1. **Publication Trigger**: When manuscript status changes to PUBLISHED
+2. **Asset Copy**: All ASSET files copied to `/static/published/{manuscriptId}/`
+3. **URL Rewriting**: RENDERED HTML files updated with static URLs
+4. **Static Serving**: Express serves files directly with long-term caching
+
+**File Structure**:
+```
+apps/api/
+├── uploads/manuscripts/{id}/     # Draft/review assets (API served)
+└── static/published/{id}/        # Published assets (static served)
+    ├── figure1.png              # Original filenames preserved
+    ├── data.csv
+    └── manifest.json            # Asset metadata tracking
+```
+
+**Key Components**:
+- **PublishedAssetManager**: `/apps/api/src/services/publishedAssetManager.ts`
+- **Static Middleware**: `/apps/api/src/app.ts` - Express static serving
+- **Publication Hooks**: `/apps/api/src/services/botActionProcessor.ts`
+- **Migration Script**: `/apps/api/src/scripts/migrate-published-assets.ts`
+
+### Benefits
+
+**Performance**:
+- **No API overhead**: Direct file serving without authentication logic
+- **CDN-ready**: Standard HTTP headers for caching and distribution
+- **Reduced server load**: Assets bypass application layer
+
+**Security**:
+- **Public access only for published content**: Draft assets remain protected
+- **Immutable content**: Published assets never change (1-year cache)
+- **Clean separation**: Published content isolated from drafts
+
+**Scalability**:
+- **Horizontal scaling**: Easy to distribute across CDNs
+- **Cost efficiency**: Static hosting cheaper than API serving
+- **Global distribution**: Ready for multi-region deployment
+
+### Migration Strategy
+
+**Existing Content**: Run migration script to copy already-published assets:
+```bash
+npm run migrate-published-assets
+```
+
+**New Publications**: Automatic asset publishing on status change to PUBLISHED
+
+**Retraction Handling**: Assets automatically removed from static hosting when manuscripts retracted
+
 ## Security Notes
 
 - **Bot Authentication**: 

@@ -283,6 +283,24 @@ Decline: ${invitationUrl}?action=decline
       }
     });
 
+    // Handle asset publishing/unpublishing based on status change
+    try {
+      const { publishedAssetManager } = await import('./publishedAssetManager');
+      
+      if (status === 'PUBLISHED' && currentManuscript.status !== 'PUBLISHED') {
+        // Manuscript is being published - publish assets to static hosting
+        await publishedAssetManager.publishManuscriptAssets(manuscriptId);
+        console.log(`Assets published to static hosting for manuscript: ${manuscriptId}`);
+      } else if (status === 'RETRACTED' && currentManuscript.status === 'PUBLISHED') {
+        // Manuscript is being retracted - remove assets from static hosting
+        await publishedAssetManager.unpublishManuscriptAssets(manuscriptId);
+        console.log(`Assets unpublished from static hosting for manuscript: ${manuscriptId}`);
+      }
+    } catch (error) {
+      console.error(`Failed to manage asset publishing for manuscript ${manuscriptId}:`, error);
+      // Continue with status update - asset management failure shouldn't block the operation
+    }
+
     // Create a system message in the conversation documenting the status change
     await prisma.messages.create({
       data: {
@@ -989,6 +1007,16 @@ View manuscript: ${process.env.FRONTEND_URL}/manuscripts/${manuscriptId}
         updatedAt: new Date()
       }
     });
+
+    // Step 2.5: Publish assets to static hosting for better performance
+    try {
+      const { publishedAssetManager } = await import('./publishedAssetManager');
+      await publishedAssetManager.publishManuscriptAssets(manuscriptId);
+      console.log(`Assets published to static hosting for manuscript: ${manuscriptId}`);
+    } catch (error) {
+      console.error(`Failed to publish assets to static hosting for manuscript ${manuscriptId}:`, error);
+      // Continue with publication - asset publishing failure shouldn't block publication
+    }
 
     // Step 3: Create publication workflow completion message
     const publicationMessage = `🚀 **Publication Workflow Completed**\n\n` +

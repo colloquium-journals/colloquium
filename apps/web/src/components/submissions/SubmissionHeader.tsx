@@ -97,6 +97,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const [revisionExpanded, setRevisionExpanded] = useState(false);
   const [revisionFiles, setRevisionFiles] = useState<File[]>([]);
   const [uploadingRevision, setUploadingRevision] = useState(false);
+  const [showHTML, setShowHTML] = useState(false);
+  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [loadingHTML, setLoadingHTML] = useState(false);
 
   // Handle real-time action editor assignment updates
   const handleActionEditorAssigned = (assignment: any) => {
@@ -380,6 +383,90 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
   };
 
+  // Helper function to find the rendered HTML
+  const getRenderedHTML = () => {
+    if (!submission?.files) return null;
+    return submission.files
+      .filter(f => f.fileType === 'RENDERED' && f.mimetype === 'text/html')
+      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
+  };
+
+  // Function to automatically scope CSS to prevent interference with page styles
+  const scopeHTMLContent = (htmlContent: string): string => {
+    // Extract CSS from style tags
+    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    
+    let scopedHTML = htmlContent;
+    let match;
+    
+    while ((match = styleRegex.exec(htmlContent)) !== null) {
+      const originalCSS = match[1];
+      
+      // Skip if already scoped or contains scoping comments
+      if (originalCSS.includes('.rendered-document') || originalCSS.includes('/* scoped */')) {
+        continue;
+      }
+      
+      // Scope CSS rules by prefixing with .rendered-document
+      const scopedCSS = originalCSS
+        // Handle body styles specifically
+        .replace(/\bbody\s*{/g, '.rendered-document {')
+        // Handle element selectors (but not pseudo-selectors or media queries)
+        .replace(/^(\s*)([a-zA-Z][a-zA-Z0-9]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9]*)*)\s*{/gm, '$1.rendered-document $2 {')
+        // Handle class selectors that aren't already scoped
+        .replace(/^(\s*)(\.[a-zA-Z][a-zA-Z0-9_-]*(?:\s*,\s*\.[a-zA-Z][a-zA-Z0-9_-]*)*)\s*{/gm, '$1.rendered-document $2 {')
+        // Handle complex selectors with combinators
+        .replace(/^(\s*)([^@}]+?)\s*{/gm, (fullMatch, indent, selector) => {
+          // Skip @rules, already scoped rules, or rules with .rendered-document
+          if (selector.includes('@') || selector.includes('.rendered-document') || selector.trim().startsWith('/*')) {
+            return fullMatch;
+          }
+          return `${indent}.rendered-document ${selector.trim()} {`;
+        });
+      
+      // Add scoping comment
+      const finalCSS = `/* CSS automatically scoped for safe embedding */\n${scopedCSS}`;
+      
+      // Replace the original style tag with scoped version
+      scopedHTML = scopedHTML.replace(match[0], `<style>${finalCSS}</style>`);
+    }
+    
+    // Wrap body content in scoped container if not already wrapped
+    if (!scopedHTML.includes('class="rendered-document"')) {
+      scopedHTML = scopedHTML.replace(
+        /<body[^>]*>([\s\S]*?)<\/body>/i,
+        '<body><div class="rendered-document">$1</div></body>'
+      );
+    }
+    
+    return scopedHTML;
+  };
+
+  const handleViewHTML = async () => {
+    const htmlFile = getRenderedHTML();
+    if (!htmlFile || !submission) return;
+
+    setLoadingHTML(true);
+    try {
+      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}/files/${htmlFile.id}/download?inline=true`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch HTML: ${response.status} ${response.statusText}`);
+      }
+      
+      const htmlText = await response.text();
+      const scopedHTML = scopeHTMLContent(htmlText);
+      setHtmlContent(scopedHTML);
+      setShowHTML(true);
+    } catch (error) {
+      console.error('Error fetching HTML content:', error);
+    } finally {
+      setLoadingHTML(false);
+    }
+  };
+
   const handleDownload = async (fileId?: string) => {
     if (!submission?.files || submission.files.length === 0) return;
     
@@ -598,17 +685,31 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                   </Badge>
                 </Group>
                 
-                {getRenderedPDF() && (
-                  <Button
-                    size="md"
-                    variant="filled"
-                    color="blue"
-                    leftSection={<IconDownload size={18} />}
-                    onClick={() => handleDownload(getRenderedPDF()?.id)}
-                  >
-                    Download PDF
-                  </Button>
-                )}
+                <Group gap="xs">
+                  {getRenderedHTML() && (
+                    <Button
+                      size="md"
+                      variant="filled"
+                      color="green"
+                      leftSection={loadingHTML ? <Loader size={18} /> : <IconEye size={18} />}
+                      onClick={handleViewHTML}
+                      loading={loadingHTML}
+                    >
+                      View HTML
+                    </Button>
+                  )}
+                  {getRenderedPDF() && (
+                    <Button
+                      size="md"
+                      variant="filled"
+                      color="blue"
+                      leftSection={<IconDownload size={18} />}
+                      onClick={() => handleDownload(getRenderedPDF()?.id)}
+                    >
+                      Download PDF
+                    </Button>
+                  )}
+                </Group>
               </Group>
               
               <Collapse in={filesExpanded}>
@@ -735,6 +836,40 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
 
         </Stack>
       </Stack>
+
+      {/* HTML Content Display */}
+      {showHTML && htmlContent && (
+        <Box mt="xl">
+          <Group justify="space-between" align="center" mb="md">
+            <Title order={3}>Rendered HTML</Title>
+            <Button
+              variant="light"
+              color="gray"
+              size="sm"
+              onClick={() => setShowHTML(false)}
+            >
+              Hide
+            </Button>
+          </Group>
+          <Paper
+            p="xl"
+            withBorder
+            style={{
+              maxHeight: '80vh',
+              overflow: 'auto',
+              backgroundColor: 'white'
+            }}
+          >
+            <div 
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              style={{
+                lineHeight: '1.6',
+                fontSize: '14px'
+              }}
+            />
+          </Paper>
+        </Box>
+      )}
     </Paper>
   );
 }
