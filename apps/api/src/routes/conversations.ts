@@ -283,7 +283,6 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         msg.privacy, 
         conversation.manuscriptId
       );
-      console.log(`Message ${msg.id} (privacy: ${msg.privacy}) - can user see: ${canSee}`);
       
       messageVisibilityMap.push({
         id: msg.id,
