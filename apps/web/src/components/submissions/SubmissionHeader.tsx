@@ -15,7 +15,10 @@ import {
   Alert,
   Button,
   ActionIcon,
-  Collapse
+  Collapse,
+  TextInput,
+  Textarea,
+  TagsInput
 } from '@mantine/core';
 import { 
   IconCalendar, 
@@ -94,12 +97,18 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filesExpanded, setFilesExpanded] = useState(false);
-  const [revisionExpanded, setRevisionExpanded] = useState(false);
   const [revisionFiles, setRevisionFiles] = useState<File[]>([]);
   const [uploadingRevision, setUploadingRevision] = useState(false);
   const [showHTML, setShowHTML] = useState(false);
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [loadingHTML, setLoadingHTML] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    title: '',
+    abstract: '',
+    keywords: [] as string[]
+  });
+  const [savingEdits, setSavingEdits] = useState(false);
 
   // Handle real-time action editor assignment updates
   const handleActionEditorAssigned = (assignment: any) => {
@@ -303,8 +312,36 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     }
   }, [submissionId, authLoading, isAuthenticated]);
 
+  // Initialize edit data when submission loads
+  useEffect(() => {
+    if (submission) {
+      setEditData({
+        title: submission.title,
+        abstract: submission.abstract || '',
+        keywords: submission.keywords || []
+      });
+    }
+  }, [submission]);
+
   // Check if user can upload file revisions
   const canUploadRevisions = () => {
+    if (!user || !submission) return false;
+    
+    // Check if user is an author
+    const isAuthor = submission.authors.some(author => author.email === user.email);
+    
+    // Check if user is admin
+    const isAdmin = user.role === GlobalRole.ADMIN;
+    
+    return hasManuscriptPermission(
+      user.role as GlobalRole, 
+      ManuscriptPermission.EDIT_MANUSCRIPT, 
+      { isAuthor }
+    ) || isAdmin;
+  };
+
+  // Check if user can edit manuscript metadata
+  const canEditMetadata = () => {
     if (!user || !submission) return false;
     
     // Check if user is an author
@@ -355,9 +392,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       
       const result = await response.json();
       
-      // Clear the upload files
+      // Clear the upload files and exit edit mode
       setRevisionFiles([]);
-      setRevisionExpanded(false);
+      setIsEditing(false);
       
       // Refresh the submission data to show new files
       // We'll trigger a re-fetch by updating the submission
@@ -369,6 +406,65 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     } finally {
       setUploadingRevision(false);
     }
+  };
+
+  // Handle saving manuscript metadata edits
+  const handleSaveEdits = async () => {
+    if (!submission) return;
+    
+    setSavingEdits(true);
+    
+    try {
+      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: editData.title.trim(),
+          abstract: editData.abstract.trim(),
+          keywords: editData.keywords
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save changes');
+      }
+      
+      // Update local submission data
+      setSubmission(prev => prev ? {
+        ...prev,
+        title: editData.title.trim(),
+        abstract: editData.abstract.trim(),
+        keywords: editData.keywords,
+        updatedAt: new Date().toISOString()
+      } : prev);
+      
+      setIsEditing(false);
+      
+      // Optionally refresh the page to ensure data consistency
+      // window.location.reload();
+      
+    } catch (err) {
+      console.error('Error saving edits:', err);
+      alert(err instanceof Error ? err.message : 'Failed to save changes');
+    } finally {
+      setSavingEdits(false);
+    }
+  };
+
+  // Handle canceling edits
+  const handleCancelEdits = () => {
+    if (submission) {
+      setEditData({
+        title: submission.title,
+        abstract: submission.abstract || '',
+        keywords: submission.keywords || []
+      });
+    }
+    setIsEditing(false);
   };
 
   // Helper function to find the rendered PDF
@@ -538,11 +634,63 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
               >
                 {getStatusLabel(submission.status)}
               </Badge>
+              
+              {canEditMetadata() && !isEditing && (
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconEdit size={14} />}
+                  onClick={() => setIsEditing(true)}
+                >
+                  Revision
+                </Button>
+              )}
+              
+              {isEditing && (
+                <Group gap="xs">
+                  <Button
+                    variant="light"
+                    size="xs"
+                    color="gray"
+                    onClick={handleCancelEdits}
+                    disabled={savingEdits}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="filled"
+                    size="xs"
+                    leftSection={<IconCheck size={14} />}
+                    onClick={handleSaveEdits}
+                    loading={savingEdits}
+                  >
+                    Save Changes
+                  </Button>
+                </Group>
+              )}
             </Group>
             
-            <Title order={1} size="h2" mb="sm" style={{ lineHeight: 1.3 }}>
-              {submission.title}
-            </Title>
+            {isEditing ? (
+              <TextInput
+                value={editData.title}
+                onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Article title"
+                size="xl"
+                variant="filled"
+                mb="sm"
+                styles={{
+                  input: {
+                    fontSize: '1.75rem',
+                    fontWeight: 700,
+                    lineHeight: 1.3
+                  }
+                }}
+              />
+            ) : (
+              <Title order={1} size="h2" mb="sm" style={{ lineHeight: 1.3 }}>
+                {submission.title}
+              </Title>
+            )}
             
             {/* Authors directly below title */}
             <Group gap="md" mb="md">
@@ -570,24 +718,96 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
               ))}
             </Group>
             
-            {submission.abstract && (
-              <Text size="sm" c="dimmed" lineClamp={3} style={{ maxWidth: '80%' }}>
-                {submission.abstract}
-              </Text>
+            {isEditing ? (
+              <Textarea
+                value={editData.abstract}
+                onChange={(e) => setEditData(prev => ({ ...prev, abstract: e.target.value }))}
+                placeholder="Abstract"
+                minRows={4}
+                autosize
+                variant="filled"
+                style={{ maxWidth: '80%' }}
+              />
+            ) : (
+              submission.abstract && (
+                <Text size="sm" c="dimmed" lineClamp={isEditing ? undefined : 3} style={{ maxWidth: '80%' }}>
+                  {submission.abstract}
+                </Text>
+              )
             )}
             
             {/* Keywords */}
-            {submission.keywords && submission.keywords.length > 0 && (
-              <Box mt="sm">
-                <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
-                <Group gap="xs">
-                  {submission.keywords.map((keyword, index) => (
-                    <Badge key={index} size="sm" variant="light" color="gray">
-                      {keyword}
-                    </Badge>
-                  ))}
-                </Group>
-              </Box>
+            {isEditing ? (
+              <Stack gap="lg" mt="sm" style={{ maxWidth: '80%' }}>
+                <TagsInput
+                  value={editData.keywords}
+                  onChange={(keywords) => setEditData(prev => ({ ...prev, keywords }))}
+                  placeholder="Add keywords (press Enter to add)"
+                  label="Keywords"
+                  variant="filled"
+                />
+                
+                {/* File Revision Upload - Only in Edit Mode */}
+                <Box>
+                  <Divider mb="md" />
+                  <Stack gap="md">
+                    <Group gap="xs" align="center">
+                      <IconUpload size={16} />
+                      <Text fw={500} size="sm">Upload Revised Files (Optional)</Text>
+                    </Group>
+                    
+                    <Text size="sm" c="dimmed">
+                      Upload revised versions of your manuscript files. These will be added as new versions.
+                    </Text>
+                    
+                    <FileDropzone
+                      value={revisionFiles}
+                      onFilesChange={setRevisionFiles}
+                      accept=".md,.tex,.pdf,.docx,.doc"
+                      placeholder="Upload revised manuscript files"
+                      description="Supported: Markdown, LaTeX, PDF, Word • Max 50MB per file"
+                      allowFolders={false}
+                      maxFileSize={50 * 1024 * 1024}
+                    />
+                    
+                    {revisionFiles.length > 0 && (
+                      <Group justify="flex-end">
+                        <Button
+                          variant="light"
+                          color="gray"
+                          size="sm"
+                          onClick={() => setRevisionFiles([])}
+                          disabled={uploadingRevision || savingEdits}
+                        >
+                          Clear Files
+                        </Button>
+                        <Button
+                          leftSection={<IconUpload size={16} />}
+                          size="sm"
+                          onClick={handleRevisionUpload}
+                          loading={uploadingRevision}
+                          disabled={savingEdits}
+                        >
+                          Upload Files
+                        </Button>
+                      </Group>
+                    )}
+                  </Stack>
+                </Box>
+              </Stack>
+            ) : (
+              (submission.keywords && submission.keywords.length > 0) && (
+                <Box mt="sm">
+                  <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
+                  <Group gap="xs">
+                    {submission.keywords.map((keyword, index) => (
+                      <Badge key={index} size="sm" variant="light" color="gray">
+                        {keyword}
+                      </Badge>
+                    ))}
+                  </Group>
+                </Box>
+              )
             )}
           </Box>
         </Group>
@@ -770,65 +990,6 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             </Box>
           )}
 
-          {/* File Revision Section - Only for Authors and Admins */}
-          {canUploadRevisions() && (
-            <Box>
-              <Group justify="space-between" align="center">
-                <Group 
-                  gap="xs" 
-                  style={{ cursor: 'pointer', flex: 1 }}
-                  onClick={() => setRevisionExpanded(!revisionExpanded)}
-                >
-                  {revisionExpanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
-                  <IconEdit size={16} />
-                  <Text fw={500} size="sm">Upload File Revisions</Text>
-                  <Badge size="xs" variant="light" color="orange">
-                    Authors Only
-                  </Badge>
-                </Group>
-              </Group>
-              
-              <Collapse in={revisionExpanded}>
-                <Stack gap="md" mt="md">
-                  <Text size="sm" c="dimmed">
-                    Upload revised versions of your manuscript files. These will be added as new versions and a notification will be posted to the discussion thread.
-                  </Text>
-                  
-                  <FileDropzone
-                    value={revisionFiles}
-                    onFilesChange={setRevisionFiles}
-                    accept=".md,.tex,.pdf,.docx,.doc"
-                    placeholder="Upload revised manuscript files"
-                    description="Supported: Markdown, LaTeX, PDF, Word • Max 50MB per file"
-                    allowFolders={false}
-                    maxFileSize={50 * 1024 * 1024}
-                  />
-                  
-                  {revisionFiles.length > 0 && (
-                    <Group justify="flex-end">
-                      <Button
-                        variant="light"
-                        color="gray"
-                        size="sm"
-                        onClick={() => setRevisionFiles([])}
-                        disabled={uploadingRevision}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        leftSection={<IconUpload size={16} />}
-                        size="sm"
-                        onClick={handleRevisionUpload}
-                        loading={uploadingRevision}
-                      >
-                        Upload Revision
-                      </Button>
-                    </Group>
-                  )}
-                </Stack>
-              </Collapse>
-            </Box>
-          )}
 
         </Stack>
       </Stack>

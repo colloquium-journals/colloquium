@@ -895,6 +895,18 @@ router.put('/:id', authenticate, async (req, res, next) => {
       });
     }
 
+    // Track changes for bot notification
+    const changes: string[] = [];
+    if (title && title.trim() !== existingManuscript.title) {
+      changes.push(`**Title:** ${existingManuscript.title} → ${title.trim()}`);
+    }
+    if (abstract && abstract.trim() !== (existingManuscript.abstract || '')) {
+      changes.push(`**Abstract:** Updated`);
+    }
+    if (keywords && JSON.stringify(keywords) !== JSON.stringify(existingManuscript.keywords || [])) {
+      changes.push(`**Keywords:** ${(existingManuscript.keywords || []).join(', ') || 'None'} → ${keywords.join(', ') || 'None'}`);
+    }
+
     // Update manuscript
     const manuscript = await prisma.manuscripts.update({
       where: { id },
@@ -906,6 +918,43 @@ router.put('/:id', authenticate, async (req, res, next) => {
         ...(status && { status })
       }
     });
+
+    // Post bot notification if there were changes
+    if (changes.length > 0) {
+      try {
+        // Find the main conversation for this manuscript
+        const conversation = await prisma.conversations.findFirst({
+          where: { 
+            manuscriptId: id,
+            type: 'EDITORIAL'
+          }
+        });
+
+        if (conversation) {
+          const changesList = changes.map(change => `- ${change}`).join('\n');
+          await prisma.messages.create({
+            data: {
+              id: randomUUID(),
+              content: `📝 **Manuscript Updated**\n\nThe following changes were made by ${req.user!.name || req.user!.email}:\n\n${changesList}\n\n*Updated: ${new Date().toLocaleString()}*`,
+              conversationId: conversation.id,
+              authorId: req.user!.id,
+              privacy: 'AUTHOR_VISIBLE',
+              isBot: true,
+              updatedAt: new Date(),
+              metadata: {
+                type: 'manuscript_metadata_update',
+                changes: changes,
+                updatedBy: req.user!.id,
+                via: 'manuscript_edit'
+              }
+            }
+          });
+        }
+      } catch (botError) {
+        // Don't fail the whole request if bot notification fails
+        console.error('Failed to post bot notification:', botError);
+      }
+    }
 
     res.json({
       message: 'Manuscript updated successfully',
