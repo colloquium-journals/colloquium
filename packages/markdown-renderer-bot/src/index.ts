@@ -7,21 +7,41 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 // Service URL for the Pandoc microservice
 const PANDOC_SERVICE_URL = process.env.PANDOC_SERVICE_URL || 'http://localhost:8080';
-import { CommandBot, BotCommand } from '@colloquium/types';
+import { CommandBot, BotCommand, BotInstallationContext } from '@colloquium/types';
 
 // Create DOMPurify instance
 const window = new JSDOM('').window;
 const purify = DOMPurify(window);
 
-// Journal template schema (for future validation)
-// const journalTemplateSchema = z.object({
-//   name: z.string(),
-//   title: z.string(),
-//   description: z.string(),
-//   htmlTemplate: z.string(),
-//   cssTemplate: z.string().optional(),
-//   metadata: z.record(z.any()).optional()
-// });
+// Configuration schemas
+const templateFileSchema = z.object({
+  fileId: z.string().describe('ID of the uploaded file'),
+  filename: z.string().describe('Original filename for reference'),
+  engine: z.enum(['html', 'latex', 'typst']).describe('Rendering engine this file is for'),
+  metadata: z.record(z.any()).optional().describe('Additional metadata about this file')
+});
+
+const templateDefinitionSchema = z.object({
+  name: z.string().describe('Template identifier'),
+  title: z.string().describe('Display name for the template'),
+  description: z.string().describe('Template description'),
+  defaultEngine: z.enum(['html', 'latex', 'typst']).describe('Default rendering engine'),
+  files: z.array(templateFileSchema).describe('Files that make up this template'),
+  metadata: z.object({
+    type: z.string().optional(),
+    responsive: z.boolean().optional(),
+    printOptimized: z.boolean().optional(),
+    features: z.record(z.boolean()).optional()
+  }).optional().describe('Template metadata and features')
+});
+
+const botConfigSchema = z.object({
+  templateName: z.string().default('academic-standard').describe('Default template to use'),
+  outputFormats: z.array(z.string()).default(['pdf']).describe('Default output formats'),
+  requireSeparateBibliography: z.boolean().default(false).describe('Whether bibliography must be separate file'),
+  templates: z.record(templateDefinitionSchema).describe('Available templates mapped by name'),
+  customTemplates: z.record(z.any()).optional().describe('Legacy custom template definitions')
+});
 
 // Template loading functions
 async function loadBuiltInTemplates(): Promise<Record<string, any>> {
@@ -77,6 +97,22 @@ async function loadBuiltInTemplates(): Promise<Record<string, any>> {
   }
   
   return templates;
+}
+
+// Fetch template content by file ID
+async function fetchTemplateContentById(fileId: string): Promise<string> {
+  try {
+    const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}/content`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch template content: ${response.statusText}`);
+    }
+    
+    return await response.text();
+  } catch (error) {
+    console.error(`Failed to fetch template content for file ${fileId}:`, error);
+    throw error;
+  }
 }
 
 // Cache for loaded templates
@@ -378,36 +414,37 @@ const listTemplatesCommand: BotCommand = {
     
     let message = `📝 **Available Journal Templates**\n\n`;
     
-    // List built-in templates
-    const builtInTemplates = await getBuiltInTemplates();
-    Object.values(builtInTemplates).forEach((template: any) => {
-      message += `**${template.title}** (\`${template.name}\`)\n`;
-      message += `${template.description}\n\n`;
-    });
-
-    // List file-based templates
-    try {
-      const response = await fetch('http://localhost:4000/api/bot-config-files/markdown-renderer/files?category=template');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.files && data.files.length > 0) {
-          message += `**File-based Templates:**\n`;
-          data.files.forEach((file: any) => {
-            const fileName = file.filename.replace(/\.html?$/i, '');
-            message += `• **${file.description || fileName}** (\`file:${fileName}\`)\n`;
-            message += `  Uploaded: ${new Date(file.uploadedAt).toLocaleDateString()}\n`;
+    // List configured templates with explicit file mappings
+    if (config.templates && Object.keys(config.templates).length > 0) {
+      message += `**Configured Templates:**\n`;
+      Object.entries(config.templates).forEach(([name, template]: [string, any]) => {
+        message += `• **${template.title}** (\`${name}\`)\n`;
+        message += `  ${template.description}\n`;
+        message += `  Default Engine: ${template.defaultEngine}\n`;
+        
+        if (template.files && template.files.length > 0) {
+          message += `  Files:\n`;
+          template.files.forEach((file: any) => {
+            message += `    - ${file.filename} (${file.engine}) - File ID: \`${file.fileId}\`\n`;
           });
-          message += `\n`;
         }
-      }
-    } catch (error) {
-      // Silently continue if file templates can't be loaded
-      console.warn('Failed to load file-based templates for listing:', error);
+        message += `\n`;
+      });
+    }
+
+    // Fallback: List built-in templates (for backwards compatibility)
+    const builtInTemplates = await getBuiltInTemplates();
+    if (Object.keys(builtInTemplates).length > 0) {
+      message += `**Built-in Templates (Legacy):**\n`;
+      Object.values(builtInTemplates).forEach((template: any) => {
+        message += `• **${template.title}** (\`${template.name}\`)\n`;
+        message += `  ${template.description}\n\n`;
+      });
     }
 
     // List custom templates from config (legacy)
     if (config.customTemplates && Object.keys(config.customTemplates).length > 0) {
-      message += `**Config Templates (Legacy):**\n`;
+      message += `**Custom Templates (Legacy):**\n`;
       Object.entries(config.customTemplates).forEach(([name, template]: [string, any]) => {
         message += `• **${template.title || name}** (\`${name}\`)\n`;
         if (template.description) {
@@ -581,9 +618,55 @@ function findBibliographyFile(files: any[]): any | null {
 }
 
 async function getTemplate(templateName: string, pdfEngine: string, config: any): Promise<any> {
+  // First check the new file ID-based templates in config
+  if (config.templates && config.templates[templateName]) {
+    const templateDef = config.templates[templateName];
+    
+    // Find the file for the requested engine
+    const templateFile = templateDef.files.find((file: any) => file.engine === pdfEngine);
+    
+    if (templateFile) {
+      try {
+        // Fetch the template content using the file ID
+        const templateContent = await fetchTemplateContentById(templateFile.fileId);
+        
+        return {
+          name: templateDef.name,
+          title: templateDef.title,
+          description: templateDef.description,
+          engines: templateDef.files.map((f: any) => f.engine),
+          defaultEngine: templateDef.defaultEngine,
+          [`${pdfEngine}Template`]: templateContent,
+          metadata: templateDef.metadata || {}
+        };
+      } catch (error) {
+        console.warn(`Failed to load template file ${templateFile.fileId} for ${templateName}:`, error);
+      }
+    } else {
+      // Try to use default engine if requested engine not available
+      const defaultFile = templateDef.files.find((file: any) => file.engine === templateDef.defaultEngine);
+      if (defaultFile) {
+        console.warn(`Template ${templateName} doesn't support ${pdfEngine}, using ${templateDef.defaultEngine}`);
+        try {
+          const templateContent = await fetchTemplateContentById(defaultFile.fileId);
+          return {
+            name: templateDef.name,
+            title: templateDef.title,
+            description: templateDef.description,
+            engines: templateDef.files.map((f: any) => f.engine),
+            defaultEngine: templateDef.defaultEngine,
+            [`${templateDef.defaultEngine}Template`]: templateContent,
+            metadata: templateDef.metadata || {}
+          };
+        } catch (error) {
+          console.warn(`Failed to load default template file for ${templateName}:`, error);
+        }
+      }
+    }
+  }
+
+  // Fallback to legacy built-in templates
   const builtInTemplates = await getBuiltInTemplates();
-  
-  // Check built-in templates first
   if (builtInTemplates[templateName]) {
     const template = builtInTemplates[templateName];
     
@@ -600,7 +683,7 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
     return template;
   }
 
-  // Check for file-based custom templates
+  // Check for file-based custom templates (legacy)
   if (templateName.startsWith('file:')) {
     const fileName = templateName.replace('file:', '');
     return await getFileBasedTemplate(fileName);
@@ -611,14 +694,17 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
     return config.customTemplates[templateName];
   }
 
-  // Fallback to academic-standard
-  return builtInTemplates['academic-standard'] || {
+  // Final fallback
+  return {
     name: 'fallback',
     title: 'Fallback Template',
     description: 'Basic fallback template',
     htmlTemplate: '<html><body><h1>{{title}}</h1><div>{{{content}}}</div></body></html>',
-    cssTemplate: '',
-    metadata: { type: 'basic' }
+    latexTemplate: '\\documentclass{article}\\begin{document}\\title{{{title}}}\\maketitle{{{content}}}\\end{document}',
+    typstTemplate: '#set page(paper: "a4")\\n#set text(size: 12pt)\\n= {{title}}\\n\\n{{content}}',
+    engines: ['html', 'latex', 'typst'],
+    defaultEngine: 'html',
+    metadata: { type: 'fallback' }
   };
 }
 
@@ -1056,6 +1142,33 @@ async function uploadRenderedFile(
   };
 }
 
+// Helper functions for template installation
+function getMimeType(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case '.html': return 'text/html';
+    case '.tex': return 'application/x-tex';
+    case '.typ': return 'text/plain';
+    case '.json': return 'application/json';
+    case '.css': return 'text/css';
+    default: return 'application/octet-stream';
+  }
+}
+
+function getFileDescription(filename: string): string {
+  const ext = path.extname(filename).toLowerCase();
+  const baseName = path.basename(filename, ext);
+  
+  switch (ext) {
+    case '.html': return `HTML template for ${baseName} format`;
+    case '.tex': return `LaTeX template for ${baseName} format`;
+    case '.typ': return `Typst template for ${baseName} format`;
+    case '.json': return `Metadata configuration for ${baseName} template`;
+    case '.css': return `Styling for ${baseName} template`;
+    default: return `Template file: ${filename}`;
+  }
+}
+
 // Export the bot
 export const markdownRendererBot: CommandBot = {
   id: 'markdown-renderer',
@@ -1067,6 +1180,124 @@ export const markdownRendererBot: CommandBot = {
   triggers: ['MANUSCRIPT_SUBMITTED', 'FILE_UPLOADED'],
   permissions: ['read_manuscript_files', 'upload_files'],
   supportsFileUploads: true,
+  
+  // Upload built-in templates and create configuration when the bot is installed
+  onInstall: async (context: BotInstallationContext) => {
+    console.log(`📂 Installing built-in templates for ${context.botId}...`);
+    
+    try {
+      // Find templates directory
+      const templatesDir = path.join(__dirname, '..', 'templates');
+      
+      if (!await fs.pathExists(templatesDir)) {
+        console.log(`⚠️ Templates directory not found: ${templatesDir}`);
+        return;
+      }
+      
+      // Get all files and group by template name
+      const files = await fs.readdir(templatesDir);
+      const templateFileGroups: Record<string, string[]> = {};
+      
+      files.forEach(file => {
+        if (file.endsWith('.html') || file.endsWith('.tex') || file.endsWith('.typ') || 
+            file.endsWith('.json') || file.endsWith('.css')) {
+          const baseName = file.replace(/\.(html|tex|typ|json|css)$/, '');
+          if (!templateFileGroups[baseName]) {
+            templateFileGroups[baseName] = [];
+          }
+          templateFileGroups[baseName].push(file);
+        }
+      });
+      
+      console.log(`📁 Found ${Object.keys(templateFileGroups).length} template groups with ${files.length} total files`);
+      
+      // Upload files and build configuration
+      const templates: Record<string, any> = {};
+      let uploadedCount = 0;
+      
+      for (const [templateName, templateFiles] of Object.entries(templateFileGroups)) {
+        console.log(`📄 Processing template: ${templateName}`);
+        
+        const templateDef: any = {
+          name: templateName,
+          title: templateName.split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' '),
+          description: `Template for ${templateName} format`,
+          defaultEngine: 'typst',
+          files: [],
+          metadata: {}
+        };
+        
+        // Upload files and collect their IDs
+        for (const filename of templateFiles) {
+          try {
+            const filePath = path.join(templatesDir, filename);
+            const content = await fs.readFile(filePath);
+            const mimetype = getMimeType(filename);
+            const description = getFileDescription(filename);
+            
+            const uploadResult = await context.uploadFile(filename, content, mimetype, description);
+            
+            // Determine engine based on file extension
+            let engine: 'html' | 'latex' | 'typst';
+            if (filename.endsWith('.html')) engine = 'html';
+            else if (filename.endsWith('.tex')) engine = 'latex';
+            else if (filename.endsWith('.typ')) engine = 'typst';
+            else continue; // Skip non-template files like .json and .css for now
+            
+            templateDef.files.push({
+              fileId: uploadResult.id,
+              filename: filename,
+              engine: engine,
+              metadata: {
+                uploadedAt: new Date().toISOString(),
+                source: 'built-in'
+              }
+            });
+            
+            uploadedCount++;
+            console.log(`✅ Uploaded ${filename} -> ${uploadResult.id}`);
+            
+            // Load metadata from JSON file if it exists
+            if (filename.endsWith('.json')) {
+              try {
+                const metadata = JSON.parse(content.toString());
+                templateDef.title = metadata.title || templateDef.title;
+                templateDef.description = metadata.description || templateDef.description;
+                templateDef.defaultEngine = metadata.defaultEngine || templateDef.defaultEngine;
+                templateDef.metadata = { ...templateDef.metadata, ...metadata.metadata };
+              } catch (e) {
+                console.warn(`⚠️ Failed to parse metadata for ${filename}`);
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to upload template ${filename}:`, error);
+          }
+        }
+        
+        templates[templateName] = templateDef;
+      }
+      
+      // Update bot configuration with the new template mappings
+      const newConfig = {
+        templateName: 'academic-standard',
+        outputFormats: ['pdf'],
+        requireSeparateBibliography: false,
+        templates: templates,
+        _installedAt: new Date().toISOString(),
+        _version: '1.0.0'
+      };
+      
+      // Store updated configuration in context (this will update the bot's config)
+      Object.assign(context.config, newConfig);
+      
+      console.log(`🎉 Successfully uploaded ${uploadedCount} template files and configured ${Object.keys(templates).length} templates`);
+      console.log(`📋 Available templates: ${Object.keys(templates).join(', ')}`);
+    } catch (error) {
+      console.error(`❌ Failed to install templates:`, error);
+    }
+  },
   help: {
     overview: 'The Markdown Renderer bot converts Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines (HTML, LaTeX, Typst). Configuration is managed at the journal level.',
     quickStart: 'Use `@markdown-renderer render` to convert your Markdown manuscript to PDF using your journal\'s configured template and rendering engine.',

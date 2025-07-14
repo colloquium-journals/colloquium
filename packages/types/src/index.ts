@@ -234,6 +234,14 @@ export interface BotCustomHelpSection {
   position: 'before' | 'after';
 }
 
+// Bot installation context for hooks
+export interface BotInstallationContext {
+  botId: string;
+  config: Record<string, any>;
+  serviceToken?: string;
+  uploadFile: (filename: string, content: Buffer, mimetype: string, description?: string) => Promise<{ id: string; downloadUrl: string }>;
+}
+
 export interface CommandBot {
   id: string;
   name: string;
@@ -250,6 +258,7 @@ export interface CommandBot {
     examples: string[];
   };
   customHelpSections?: BotCustomHelpSection[]; // Optional custom sections for main help
+  onInstall?: (context: BotInstallationContext) => Promise<void>; // Called when bot is installed
 }
 
 export interface ParsedCommand {

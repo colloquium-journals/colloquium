@@ -94,5 +94,42 @@ export async function initializeBots() {
     console.error('❌ Failed to load installed bots:', error);
   }
 
+  // Run onInstall hooks for existing bots that might not have had them called yet
+  console.log('🔗 Checking for missing onInstall hook executions...');
+  try {
+    const allInstallations = await botManager.list();
+    for (const installation of allInstallations) {
+      const botId = installation.manifest.colloquium.botId;
+      
+      // Check if this bot has any template files (indicating onInstall was already called)
+      const existingFiles = await prisma.bot_config_files.findMany({
+        where: { 
+          botId,
+          category: 'template'
+        }
+      });
+      
+      // If no template files exist but the bot has an onInstall hook, call it
+      if (existingFiles.length === 0) {
+        const loadedBot = botExecutor.getCommandBots().find(bot => bot.id === botId);
+        if (loadedBot && loadedBot.onInstall) {
+          console.log(`🔗 Running missed onInstall hook for ${botId}...`);
+          
+          // Get bot user
+          const botEmail = `${botId}@colloquium.bot`;
+          const botUser = await prisma.users.findUnique({
+            where: { email: botEmail }
+          });
+          
+          if (botUser) {
+            await botManager.callBotInstallationHook(loadedBot, botUser.id, installation.config);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to check/run missing onInstall hooks:', error);
+  }
+
   // console.log('Bot system initialized');
 }

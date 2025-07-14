@@ -720,6 +720,32 @@ export default function JournalSettingsPage() {
     }
   };
 
+  // Fetch bot configuration
+  const fetchBotConfig = async (botId: string) => {
+    try {
+      const response = await fetch(`http://localhost:4000/api/bot-management/${botId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch bot configuration');
+      }
+
+      const data = await response.json();
+      const config = data.data.config || {};
+      setConfigForm(JSON.stringify(config, null, 2));
+    } catch (err) {
+      console.error('Error fetching bot config:', err);
+      setConfigForm('{}');
+      notifications.show({
+        title: 'Warning',
+        message: 'Could not load current configuration, showing empty config',
+        color: 'orange',
+        icon: <IconAlertCircle size={16} />
+      });
+    }
+  };
+
   // Configure bot
   const handleConfigureBot = async () => {
     if (!selectedBot) return;
@@ -1416,9 +1442,11 @@ export default function JournalSettingsPage() {
                                     leftSection={<IconSettings size={14} />}
                                     onClick={async () => {
                                       setSelectedBot(bot);
-                                      setConfigForm('{}');
                                       setBotConfigTab('config');
-                                      await fetchBotFiles(bot.botId);
+                                      await Promise.all([
+                                        fetchBotConfig(bot.botId),
+                                        fetchBotFiles(bot.botId)
+                                      ]);
                                       openConfigModal();
                                     }}
                                   >
@@ -1739,6 +1767,11 @@ export default function JournalSettingsPage() {
                   Files ({botFiles.length})
                 </Tabs.Tab>
               )}
+              {selectedBot?.botId === 'markdown-renderer-bot' && (
+                <Tabs.Tab value="templates" leftSection={<IconFileText size={16} />}>
+                  Built-in Templates
+                </Tabs.Tab>
+              )}
             </Tabs.List>
 
             <Tabs.Panel value="config" pt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -1747,9 +1780,42 @@ export default function JournalSettingsPage() {
                   Update the configuration for {selectedBot?.name}. Configuration must be valid JSON.
                 </Text>
                 
+                {selectedBot?.botId === 'markdown-renderer-bot' && (
+                  <Card withBorder p="md" bg="blue.0">
+                    <Stack gap="xs">
+                      <Text size="sm" fw={500} c="blue">
+                        Markdown Renderer Bot Configuration
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Common configuration options:
+                      </Text>
+                      <List size="xs" c="dimmed">
+                        <List.Item>
+                          <code>templateName</code>: Default template to use ('minimal', 'academic-standard', 'colloquium-journal', or custom filename)
+                        </List.Item>
+                        <List.Item>
+                          <code>outputFormats</code>: Array of output formats (['html', 'pdf'] or ['html'] or ['pdf'])
+                        </List.Item>
+                        <List.Item>
+                          <code>pdfEngine</code>: PDF rendering engine ('typst', 'latex', 'html')
+                        </List.Item>
+                        <List.Item>
+                          <code>citationStyle</code>: Citation style for bibliography formatting
+                        </List.Item>
+                        <List.Item>
+                          <code>requireSeparateBibliography</code>: Require separate .bib file (true/false)
+                        </List.Item>
+                      </List>
+                    </Stack>
+                  </Card>
+                )}
+                
                 <JsonInput
                   label="Configuration"
-                  placeholder={'{\n  "key": "value"\n}'}
+                  placeholder={selectedBot?.botId === 'markdown-renderer-bot' ? 
+                    '{\n  "templateName": "academic-standard",\n  "outputFormats": ["html", "pdf"],\n  "pdfEngine": "typst",\n  "citationStyle": "apa"\n}' :
+                    '{\n  "key": "value"\n}'
+                  }
                   value={configForm}
                   onChange={setConfigForm}
                   minRows={15}
@@ -1783,6 +1849,39 @@ export default function JournalSettingsPage() {
                   <Text size="sm" c="dimmed">
                     Upload and manage configuration files for {selectedBot?.name}.
                   </Text>
+
+                  {selectedBot?.botId === 'markdown-renderer-bot' && (
+                    <Card withBorder p="md" bg="green.0">
+                      <Stack gap="xs">
+                        <Text size="sm" fw={500} c="green">
+                          Markdown Renderer Bot Files
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          Built-in templates are automatically uploaded when the bot is installed. You can also upload custom files:
+                        </Text>
+                        <List size="xs" c="dimmed">
+                          <List.Item>
+                            <strong>HTML Templates</strong> (.html): Custom document templates for HTML output
+                          </List.Item>
+                          <List.Item>
+                            <strong>LaTeX Templates</strong> (.tex): Custom document templates for PDF output
+                          </List.Item>
+                          <List.Item>
+                            <strong>Typst Templates</strong> (.typ): Custom document templates for Typst output
+                          </List.Item>
+                          <List.Item>
+                            <strong>CSS Files</strong> (.css): Custom styling for HTML templates
+                          </List.Item>
+                          <List.Item>
+                            <strong>JSON Configuration</strong> (.json): Template metadata and configuration
+                          </List.Item>
+                          <List.Item>
+                            <strong>Images</strong> (.png, .jpg, .svg): Logos, headers, and other template assets
+                          </List.Item>
+                        </List>
+                      </Stack>
+                    </Card>
+                  )}
 
                 {/* File Upload Section */}
                 <Card withBorder p="md">
@@ -1940,6 +2039,103 @@ export default function JournalSettingsPage() {
                 </Card>
               </Stack>
             </Tabs.Panel>
+            )}
+
+            {selectedBot?.botId === 'markdown-renderer-bot' && (
+              <Tabs.Panel value="templates" pt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Stack gap="md" style={{ height: '100%' }}>
+                  <Text size="sm" c="dimmed">
+                    Template configuration for the Markdown Renderer Bot showing explicit file mappings.
+                  </Text>
+
+                  <Stack gap="md" style={{ flex: 1, overflowY: 'auto' }}>
+                    {(() => {
+                      const markdownBot = bots.find(bot => bot.botId === 'markdown-renderer');
+                      const config = markdownBot?.config;
+                      
+                      if (!config?.templates || Object.keys(config.templates).length === 0) {
+                        return (
+                          <Alert color="yellow">
+                            <Text size="sm">
+                              No templates configured yet. The templates will be automatically configured when the bot is reinstalled or during the next server restart.
+                            </Text>
+                          </Alert>
+                        );
+                      }
+
+                      return Object.entries(config.templates).map(([templateName, template]: [string, any]) => (
+                        <Card key={templateName} withBorder p="md">
+                          <Stack gap="xs">
+                            <Group justify="space-between">
+                              <Text fw={500}>{template.title || templateName}</Text>
+                              <Badge size="sm" color={
+                                template.metadata?.type === 'academic' ? 'green' :
+                                template.metadata?.type === 'journal' ? 'purple' :
+                                'blue'
+                              }>
+                                {template.metadata?.type || 'Template'}
+                              </Badge>
+                            </Group>
+                            
+                            <Text size="sm" c="dimmed">
+                              {template.description}
+                            </Text>
+                            
+                            <Text size="xs" c="dimmed">
+                              Default Engine: {template.defaultEngine || 'html'}
+                            </Text>
+                            
+                            {template.files && template.files.length > 0 && (
+                              <Box>
+                                <Text size="xs" fw={500} mb={4}>Template Files:</Text>
+                                <Stack gap={2}>
+                                  {template.files.map((file: any, index: number) => (
+                                    <Group key={index} gap="xs">
+                                      <Badge size="xs" variant="light" color={
+                                        file.engine === 'html' ? 'blue' :
+                                        file.engine === 'latex' ? 'green' :
+                                        file.engine === 'typst' ? 'purple' :
+                                        'gray'
+                                      }>
+                                        {file.engine}
+                                      </Badge>
+                                      <Text size="xs" c="dimmed">{file.filename}</Text>
+                                      <Text size="xs" c="dimmed" opacity={0.7}>
+                                        (ID: {file.fileId.substring(0, 8)}...)
+                                      </Text>
+                                    </Group>
+                                  ))}
+                                </Stack>
+                              </Box>
+                            )}
+                            
+                            <Text size="xs" c="dimmed">
+                              Usage: <code>@markdown-renderer render template="{templateName}"</code>
+                            </Text>
+                          </Stack>
+                        </Card>
+                      ));
+                    })()}
+
+                    <Card withBorder p="md" bg="orange.0">
+                      <Stack gap="xs">
+                        <Text size="sm" fw={500} c="orange">
+                          Custom Templates
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          You can upload custom templates using the "Files" tab above. Template files should follow the naming convention:
+                        </Text>
+                        <List size="xs" c="dimmed">
+                          <List.Item><code>template-name.html</code> for HTML templates</List.Item>
+                          <List.Item><code>template-name.tex</code> for LaTeX templates</List.Item>
+                          <List.Item><code>template-name.typ</code> for Typst templates</List.Item>
+                          <List.Item><code>template-name.json</code> for template metadata</List.Item>
+                        </List>
+                      </Stack>
+                    </Card>
+                  </Stack>
+                </Stack>
+              </Tabs.Panel>
             )}
           </Tabs>
         </Modal>

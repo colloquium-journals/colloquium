@@ -6,9 +6,12 @@ import {
   BotPluginError,
   BotPluginLoader,
 } from "./plugin";
+import { BotInstallationContext, CommandBot } from "@colloquium/types";
 import { NodeBotPluginLoader } from "./pluginLoader";
 import { BotExecutor } from "./BotExecutor";
 import path from "path";
+import fs from "fs-extra";
+import crypto from "crypto";
 
 export class DatabaseBotManager implements BotManager {
   private pluginLoader: BotPluginLoader;
@@ -99,6 +102,11 @@ export class DatabaseBotManager implements BotManager {
       this.botExecutor.setBotUserId(bot.id, botUser.id);
       this.botExecutor.installBot(bot.id, finalConfig);
 
+      // Call bot's onInstall hook if it exists
+      if (bot.onInstall) {
+        await this.callBotInstallationHook(bot, botUser.id, finalConfig);
+      }
+
       // Return installation record
       const installationRecord: BotInstallation = {
         id: installation.id,
@@ -147,8 +155,17 @@ export class DatabaseBotManager implements BotManager {
     }
 
     try {
-      // Unload from plugin loader
-      await this.pluginLoader.unload(botId);
+      // Unload from plugin loader (only if loaded)
+      try {
+        await this.pluginLoader.unload(botId);
+      } catch (error) {
+        // Ignore "not loaded" errors since the plugin might not be in memory
+        if (error instanceof BotPluginError && error.code === 'NOT_LOADED') {
+          // Plugin wasn't loaded, which is fine for uninstall
+        } else {
+          throw error;
+        }
+      }
 
       // Unregister from bot executor
       this.botExecutor.unregisterBot(botId);
@@ -653,6 +670,76 @@ export class DatabaseBotManager implements BotManager {
       } catch (error) {
         console.error(`❌ Failed to reload bot ${installation.manifest?.colloquium?.botId}:`, error);
       }
+    }
+  }
+
+
+  /**
+   * Call a bot's onInstall hook with proper context
+   */
+  public async callBotInstallationHook(bot: CommandBot, uploadedBy: string, config: Record<string, any>): Promise<void> {
+    try {
+      console.log(`🔗 Calling onInstall hook for ${bot.id}...`);
+      
+      // Create upload function for the bot
+      const uploadFile = async (filename: string, content: Buffer, mimetype: string, description?: string) => {
+        const uploadDir = process.env.BOT_CONFIG_UPLOAD_DIR || './uploads/bot-config';
+        await fs.ensureDir(uploadDir);
+
+        // Generate unique stored filename
+        const ext = path.extname(filename);
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const storedName = `file-${uniqueSuffix}${ext}`;
+        const storedPath = path.join(uploadDir, storedName);
+
+        // Save file to disk
+        await fs.writeFile(storedPath, content);
+
+        // Generate checksum
+        const checksum = crypto.createHash('sha256').update(content).digest('hex');
+
+        // Store in database
+        const configFile = await prisma.bot_config_files.create({
+          data: {
+            id: crypto.randomUUID(),
+            botId: bot.id,
+            filename,
+            storedName,
+            path: storedPath,
+            mimetype,
+            size: content.length,
+            checksum,
+            category: 'template',
+            description: description || `File: ${filename}`,
+            uploadedBy,
+            updatedAt: new Date(),
+            metadata: {
+              originalName: filename,
+              source: 'built-in'
+            }
+          }
+        });
+
+        return {
+          id: configFile.id,
+          downloadUrl: `/api/bot-config-files/${configFile.id}/download`
+        };
+      };
+
+      // Create installation context
+      const context: BotInstallationContext = {
+        botId: bot.id,
+        config,
+        uploadFile
+      };
+
+      // Call the hook
+      await bot.onInstall!(context);
+      
+      console.log(`✅ Successfully completed onInstall hook for ${bot.id}`);
+    } catch (error) {
+      console.error(`❌ Failed to call onInstall hook for ${bot.id}:`, error);
+      // Don't throw error to avoid breaking installation, just log it
     }
   }
 }

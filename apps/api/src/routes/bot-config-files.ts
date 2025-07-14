@@ -86,7 +86,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
     const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
     // Check for duplicate filename for this bot
-    const existingFile = await prisma.botConfigFile.findFirst({
+    const existingFile = await prisma.bot_config_files.findFirst({
       where: {
         botId,
         filename: file.originalname
@@ -101,7 +101,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
     }
 
     // Store file metadata in database
-    const configFile = await prisma.botConfigFile.create({
+    const configFile = await prisma.bot_config_files.create({
       data: {
         botId,
         filename: file.originalname,
@@ -119,10 +119,10 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
         }
       },
       include: {
-        bot: {
+        bot_definitions: {
           select: { id: true, name: true }
         },
-        uploader: {
+        users: {
           select: { id: true, name: true, email: true }
         }
       }
@@ -138,7 +138,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
         size: configFile.size,
         checksum: configFile.checksum,
         uploadedAt: configFile.uploadedAt,
-        uploadedBy: configFile.uploader,
+        uploadedBy: configFile.users,
         downloadUrl: `/api/bot-config-files/${configFile.id}/download`
       }
     });
@@ -166,10 +166,10 @@ router.get('/:botId/files', authenticate, async (req, res, next) => {
       return res.status(404).json({ error: 'Bot not found' });
     }
 
-    const files = await prisma.botConfigFile.findMany({
+    const files = await prisma.bot_config_files.findMany({
       where: { botId },
       include: {
-        uploader: {
+        users: {
           select: { id: true, name: true, email: true }
         }
       },
@@ -187,7 +187,7 @@ router.get('/:botId/files', authenticate, async (req, res, next) => {
       checksum: file.checksum,
       uploadedAt: file.uploadedAt,
       updatedAt: file.updatedAt,
-      uploadedBy: file.uploader,
+      uploadedBy: file.users,
       downloadUrl: `/api/bot-config-files/${file.id}/download`
     }));
 
@@ -207,10 +207,10 @@ router.get('/:fileId/download', authenticate, async (req, res, next) => {
   try {
     const { fileId } = req.params;
 
-    const configFile = await prisma.botConfigFile.findUnique({
+    const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
       include: {
-        bot: true
+        bot_definitions: true
       }
     });
 
@@ -242,7 +242,7 @@ router.get('/:fileId/content', authenticate, async (req, res, next) => {
   try {
     const { fileId } = req.params;
 
-    const configFile = await prisma.botConfigFile.findUnique({
+    const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
       include: { bot: true }
     });
@@ -287,7 +287,7 @@ router.delete('/:fileId', authenticate, async (req, res, next) => {
   try {
     const { fileId } = req.params;
 
-    const configFile = await prisma.botConfigFile.findUnique({
+    const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
       include: { bot: true }
     });
@@ -307,7 +307,7 @@ router.delete('/:fileId', authenticate, async (req, res, next) => {
     }
 
     // Delete from database
-    await prisma.botConfigFile.delete({
+    await prisma.bot_config_files.delete({
       where: { id: fileId }
     });
 
@@ -327,7 +327,7 @@ router.patch('/:fileId', authenticate, async (req, res, next) => {
     const { fileId } = req.params;
     const { description, filename } = req.body;
 
-    const configFile = await prisma.botConfigFile.findUnique({
+    const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
       include: { bot: true }
     });
@@ -343,7 +343,7 @@ router.patch('/:fileId', authenticate, async (req, res, next) => {
 
     // Check for filename conflicts if filename is being changed
     if (filename && filename !== configFile.filename) {
-      const existingFile = await prisma.botConfigFile.findFirst({
+      const existingFile = await prisma.bot_config_files.findFirst({
         where: {
           botId: configFile.botId,
           filename,
@@ -358,14 +358,14 @@ router.patch('/:fileId', authenticate, async (req, res, next) => {
       }
     }
 
-    const updatedFile = await prisma.botConfigFile.update({
+    const updatedFile = await prisma.bot_config_files.update({
       where: { id: fileId },
       data: {
         description: description !== undefined ? description : configFile.description,
         filename: filename || configFile.filename
       },
       include: {
-        uploader: {
+        users: {
           select: { id: true, name: true, email: true }
         }
       }
@@ -381,7 +381,7 @@ router.patch('/:fileId', authenticate, async (req, res, next) => {
         size: updatedFile.size,
         uploadedAt: updatedFile.uploadedAt,
         updatedAt: updatedFile.updatedAt,
-        uploadedBy: updatedFile.uploader,
+        uploadedBy: updatedFile.users,
         downloadUrl: `/api/bot-config-files/${updatedFile.id}/download`
       }
     });
