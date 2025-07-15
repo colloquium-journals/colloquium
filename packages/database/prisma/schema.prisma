@@ -90,6 +90,7 @@ model bot_installs {
   id              String          @id
   botId           String          @unique
   config          Json            @default("{}")
+  yamlConfig      String?         // YAML configuration with comments
   isEnabled       Boolean         @default(true)
   installedAt     DateTime        @default(now())
   updatedAt       DateTime        @default(now())

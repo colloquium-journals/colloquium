@@ -1,0 +1,17 @@
+# Reference Bot Configuration
+# Validates and formats manuscript references, checks DOIs, and ensures citation completeness
+
+# Timeout for external API calls (in seconds)
+# Used when checking DOIs, CrossRef lookups, and other external reference validation
+# Increase if you have slow network connectivity
+defaultTimeout: 30
+
+# Include references without DOIs in validation
+# When true, the bot will validate references even if they don't have DOIs
+# Useful for books, conference papers, and older publications
+includeMissingDoiReferences: true
+
+# Automatically format citations to match journal style
+# When enabled, the bot will attempt to reformat citations consistently
+# Based on common academic citation standards
+autoFormatCitations: true

@@ -64,17 +64,6 @@
       "upload_files"
     ],
     "isDefault": true,
-    "defaultConfig": {
-      "pdfEngine": "typst",
-      "templateName": "academic-standard",
-      "citationStyle": "apa.csl",
-      "outputFormats": [
-        "pdf"
-      ],
-      "requireSeparateBibliography": false,
-      "fallbackEngine": "typst",
-      "maxFileSize": "50MB"
-    },
     "services": [
       {
         "name": "pandoc",

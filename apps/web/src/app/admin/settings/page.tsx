@@ -26,7 +26,6 @@ import {
   Table,
   ActionIcon,
   Menu,
-  JsonInput,
   List,
   ThemeIcon,
   Box,
@@ -60,6 +59,8 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
+import { YamlInput } from '@/components/YamlInput';
+import yaml from 'js-yaml';
 
 interface BotInstallation {
   id: string;
@@ -732,8 +733,15 @@ export default function JournalSettingsPage() {
       }
 
       const data = await response.json();
-      const config = data.data.config || {};
-      setConfigForm(JSON.stringify(config, null, 2));
+      
+      // Use yamlConfig if available (with comments), otherwise fall back to parsed config
+      if (data.data.yamlConfig) {
+        setConfigForm(data.data.yamlConfig);
+      } else {
+        const config = data.data.config || {};
+        // Convert to YAML format for display
+        setConfigForm(yaml.dump(config, { indent: 2 }));
+      }
     } catch (err) {
       console.error('Error fetching bot config:', err);
       setConfigForm('{}');
@@ -751,13 +759,12 @@ export default function JournalSettingsPage() {
     if (!selectedBot) return;
 
     try {
-      const config = JSON.parse(configForm);
-      
+      // Send the raw config string to preserve comments
       const response = await fetch(`http://localhost:4000/api/bot-management/${selectedBot.botId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ config })
+        body: JSON.stringify({ config: configForm })
       });
 
       if (!response.ok) {
@@ -1777,57 +1784,144 @@ export default function JournalSettingsPage() {
             <Tabs.Panel value="config" pt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Stack gap="md" style={{ height: '100%' }}>
                 <Text size="sm" c="dimmed">
-                  Update the configuration for {selectedBot?.name}. Configuration must be valid JSON.
+                  Update the YAML configuration for {selectedBot?.name}. Comments (# lines) are preserved and encouraged.
                 </Text>
                 
-                {selectedBot?.botId === 'markdown-renderer-bot' && (
-                  <Card withBorder p="md" bg="blue.0">
-                    <Stack gap="xs">
-                      <Text size="sm" fw={500} c="blue">
-                        Markdown Renderer Bot Configuration
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Common configuration options:
-                      </Text>
-                      <List size="xs" c="dimmed">
-                        <List.Item>
-                          <code>templateName</code>: Default template to use ('minimal', 'academic-standard', 'colloquium-journal', or custom filename)
-                        </List.Item>
-                        <List.Item>
-                          <code>outputFormats</code>: Array of output formats (['html', 'pdf'] or ['html'] or ['pdf'])
-                        </List.Item>
-                        <List.Item>
-                          <code>pdfEngine</code>: PDF rendering engine ('typst', 'latex', 'html')
-                        </List.Item>
-                        <List.Item>
-                          <code>citationStyle</code>: Citation style for bibliography formatting
-                        </List.Item>
-                        <List.Item>
-                          <code>requireSeparateBibliography</code>: Require separate .bib file (true/false)
-                        </List.Item>
-                      </List>
-                    </Stack>
-                  </Card>
-                )}
-                
-                <JsonInput
-                  label="Configuration"
-                  placeholder={selectedBot?.botId === 'markdown-renderer-bot' ? 
-                    '{\n  "templateName": "academic-standard",\n  "outputFormats": ["html", "pdf"],\n  "pdfEngine": "typst",\n  "citationStyle": "apa"\n}' :
-                    '{\n  "key": "value"\n}'
-                  }
+                <YamlInput
+                  label="YAML Configuration"
+                  placeholder={(() => {
+                    switch (selectedBot?.botId) {
+                      case 'markdown-renderer':
+                        return `# Markdown Renderer Bot Configuration
+# Renders manuscript markdown files into formatted HTML/PDF output using configurable templates
+
+# Default template to use for rendering
+# Built-in options: "academic-standard", "minimal", "colloquium-journal"
+# You can also specify custom template filenames uploaded via the Files tab
+templateName: "academic-standard"
+
+# Output formats to generate
+# Options: ["html"] for web viewing, ["pdf"] for print, or ["html", "pdf"] for both
+# PDF generation requires additional processing time
+outputFormats: ["html", "pdf"]
+
+# PDF generation engine
+# "typst": Modern, fast typesetting (recommended)
+# "latex": Traditional LaTeX processing (more compatibility)
+# "html": Convert HTML to PDF (fastest, basic formatting)
+pdfEngine: "typst"
+
+# Citation style for bibliography formatting
+# Common options: "apa.csl", "chicago.csl", "ieee.csl", "nature.csl"
+# Must match available CSL files or uploaded custom styles
+citationStyle: "apa.csl"
+
+# Require separate bibliography file (.bib)
+# When true, manuscripts must include a separate .bib file
+# When false, references can be embedded in the markdown
+requireSeparateBibliography: false
+
+# Fallback engine if primary PDF engine fails
+# Provides backup rendering option to ensure documents can always be generated
+fallbackEngine: "typst"
+
+# Maximum file size for processing
+# Prevents processing of excessively large files that could crash the system
+# Format: number + unit (KB, MB, GB)
+maxFileSize: "50MB"`;
+                      case 'editorial-bot':
+                        return `# Editorial Bot Configuration
+# Manages editorial workflows, status updates, and author/reviewer notifications
+
+# Automatically update manuscript status based on review progress
+# When enabled, the bot will automatically move manuscripts through workflow stages
+# based on reviewer activity and editorial decisions
+autoStatusUpdates: true
+
+# Send email notifications to authors on status changes
+# Authors will receive notifications when their manuscript status changes
+# (e.g., submitted → under review → accepted/rejected)
+notifyAuthors: true
+
+# How often to send reminder emails to reviewers and editors
+# Options: "7d" (weekly), "14d" (bi-weekly), "30d" (monthly)
+# Set to null to disable automatic reminders
+reminderInterval: "7d"`;
+                      case 'reference-bot':
+                        return `# Reference Bot Configuration
+# Validates and formats manuscript references, checks DOIs, and ensures citation completeness
+
+# Timeout for external API calls (in seconds)
+# Used when checking DOIs, CrossRef lookups, and other external reference validation
+# Increase if you have slow network connectivity
+defaultTimeout: 30
+
+# Include references without DOIs in validation
+# When true, the bot will validate references even if they don't have DOIs
+# Useful for books, conference papers, and older publications
+includeMissingDoiReferences: true
+
+# Automatically format citations to match journal style
+# When enabled, the bot will attempt to reformat citations consistently
+# Based on common academic citation standards
+autoFormatCitations: true`;
+                      case 'reviewer-checklist':
+                        return `# Reviewer Checklist Bot Configuration
+# Provides customizable review checklists to ensure consistent and thorough peer review
+
+# Markdown template for the review checklist
+# This template defines the structure and criteria for manuscript reviews
+# Supports full markdown formatting including headers, lists, checkboxes, and emphasis
+# Reviewers can check off items as they complete their assessment
+template: |
+  # Manuscript Review Checklist
+
+  ## Scientific Rigor
+  - [ ] The methodology is clearly described and appropriate for the research question
+  - [ ] Data analysis methods are appropriate and correctly applied
+  - [ ] Results are clearly presented and support the conclusions
+  - [ ] Statistical analyses are appropriate and correctly interpreted
+
+  ## Significance and Novelty
+  - [ ] The work presents novel insights or significant contributions to the field
+  - [ ] The research question is clearly stated and well-motivated
+  - [ ] The implications of the findings are discussed appropriately
+
+  ## Technical Quality
+  - [ ] Writing is clear, well-organized, and free of significant errors
+  - [ ] Figures and tables are clear and informative
+  - [ ] References are complete, accurate, and properly formatted
+
+  ## Overall Assessment
+  - [ ] The manuscript meets the standards for publication
+  - [ ] I recommend this manuscript for acceptance/revision/rejection
+
+  ---
+  *This checklist is customizable. Edit the template above to match your journal's specific review criteria.*`;
+                      default:
+                        return `# Bot Configuration
+# Add your configuration options here with helpful comments
+
+# Example setting
+key: "value"
+
+# Another example with different data types
+enabled: true
+timeout: 30
+items:
+  - "item1"
+  - "item2"`;
+                    }
+                  })()}
                   value={configForm}
                   onChange={setConfigForm}
                   minRows={15}
                   maxRows={30}
-                  validationError="Invalid JSON"
+                  validationError="Invalid YAML"
                   style={{ flex: 1 }}
                   styles={{
                     input: {
-                      minHeight: '400px',
-                      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                      fontSize: '14px',
-                      lineHeight: '1.5'
+                      minHeight: '400px'
                     }
                   }}
                 />

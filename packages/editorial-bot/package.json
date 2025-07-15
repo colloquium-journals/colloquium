@@ -51,11 +51,6 @@
       "assign_reviewers",
       "send_notifications"
     ],
-    "isDefault": true,
-    "defaultConfig": {
-      "autoStatusUpdates": true,
-      "notifyAuthors": true,
-      "reminderInterval": "7d"
-    }
+    "isDefault": true
   }
 }

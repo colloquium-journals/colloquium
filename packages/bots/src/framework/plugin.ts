@@ -25,7 +25,6 @@ export const botPluginManifestSchema = z.object({
     botId: z.string().regex(/^[a-z0-9\-]+$/, 'Bot ID must be lowercase alphanumeric with hyphens'),
     apiVersion: z.string().default('1.0.0'),
     permissions: z.array(z.string()).default([]),
-    defaultConfig: z.record(z.any()).optional(),
     isDefault: z.boolean().default(false), // Whether this bot should be installed by default
     category: z.enum(['editorial', 'analysis', 'formatting', 'quality', 'integration', 'utility']).optional(),
     minColloquiumVersion: z.string().optional(),
@@ -50,6 +49,7 @@ export interface BotInstallation {
   version: string;
   manifest: BotPluginManifest;
   config: Record<string, any>;
+  yamlConfig?: string; // YAML with comments for UI display
   isEnabled: boolean;
   isDefault: boolean;
   installedAt: Date;

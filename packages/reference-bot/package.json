@@ -51,11 +51,6 @@
       "read_manuscript_files",
       "access_external_apis"
     ],
-    "isDefault": true,
-    "defaultConfig": {
-      "defaultTimeout": 30,
-      "includeMissingDoiReferences": true,
-      "autoFormatCitations": true
-    }
+    "isDefault": true
   }
 }

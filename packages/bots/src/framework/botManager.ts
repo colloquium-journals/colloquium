@@ -12,6 +12,21 @@ import { BotExecutor } from "./BotExecutor";
 import path from "path";
 import fs from "fs-extra";
 import crypto from "crypto";
+import yaml from "js-yaml";
+
+// YAML configuration utilities
+function parseYamlConfig(yamlString: string): any {
+  return yaml.load(yamlString);
+}
+
+function stringifyYamlConfig(obj: any): string {
+  return yaml.dump(obj, {
+    indent: 2,
+    lineWidth: 80,
+    quotingType: '"',
+    forceQuotes: false
+  });
+}
 
 export class DatabaseBotManager implements BotManager {
   private pluginLoader: BotPluginLoader;
@@ -24,7 +39,7 @@ export class DatabaseBotManager implements BotManager {
 
   async install(
     source: BotInstallationSource,
-    config: Record<string, any> = {}
+    config: Record<string, any> | string = {}
   ): Promise<BotInstallation> {
     try {
       // Load the plugin
@@ -58,11 +73,49 @@ export class DatabaseBotManager implements BotManager {
         });
       }
 
+      // Handle YAML default config - ONLY from default-config.yaml file
+      let defaultConfig = {};
+      let defaultYamlConfig = '';
+      
+      // Read default-config.yaml file from bot directory
+      try {
+        let configPath: string;
+        if (source.type === 'local') {
+          configPath = path.join(source.path, 'default-config.yaml');
+        } else if (source.type === 'npm') {
+          // For npm packages, we'd need to find the installed location
+          const packagePath = path.join(process.cwd(), 'node_modules', source.packageName);
+          configPath = path.join(packagePath, 'default-config.yaml');
+        } else {
+          // For git/url sources, assume they're extracted to a temp directory
+          configPath = path.join(process.cwd(), 'temp', 'bots', 'default-config.yaml');
+        }
+
+        if (await fs.pathExists(configPath)) {
+          defaultYamlConfig = await fs.readFile(configPath, 'utf-8');
+          defaultConfig = parseYamlConfig(defaultYamlConfig);
+          console.log(`✅ Loaded default-config.yaml for ${bot.id}`);
+        } else {
+          console.log(`⚠️  No default-config.yaml found for ${bot.id} at ${configPath}`);
+          console.log(`   Bot will be installed with empty default configuration.`);
+          console.log(`   Bot developers should create a default-config.yaml file with helpful comments.`);
+        }
+      } catch (error) {
+        console.error(`❌ Error loading default-config.yaml for ${bot.id}:`, error instanceof Error ? error.message : error);
+      }
+
       // Merge default config with provided config
-      const finalConfig = {
-        ...manifest.colloquium.defaultConfig,
-        ...config,
-      };
+      let finalConfig: Record<string, any>;
+      let finalYamlConfig: string;
+      
+      if (typeof config === 'string') {
+        finalYamlConfig = config;
+        finalConfig = { ...defaultConfig, ...parseYamlConfig(config) };
+      } else {
+        finalConfig = { ...defaultConfig, ...config };
+        // Use the default YAML config with comments if available, otherwise stringify
+        finalYamlConfig = defaultYamlConfig || stringifyYamlConfig(finalConfig);
+      }
 
       // Store package information in bot definition FIRST
       await prisma.bot_definitions.upsert({
@@ -93,6 +146,7 @@ export class DatabaseBotManager implements BotManager {
           id: `install-${bot.id}-${Date.now()}`,
           botId: bot.id,
           config: finalConfig,
+          yamlConfig: finalYamlConfig,
           isEnabled: true,
         },
       });
@@ -289,7 +343,7 @@ export class DatabaseBotManager implements BotManager {
     // console.log(`✅ Bot ${botId} disabled`);
   }
 
-  async configure(botId: string, config: Record<string, any>): Promise<void> {
+  async configure(botId: string, configInput: Record<string, any> | string): Promise<void> {
     const installation = await this.get(botId);
     if (!installation) {
       throw new BotPluginError(
@@ -298,11 +352,25 @@ export class DatabaseBotManager implements BotManager {
       );
     }
 
+    let yamlConfig: string;
+    let parsedConfig: Record<string, any>;
+
+    if (typeof configInput === 'string') {
+      // Raw YAML string
+      yamlConfig = configInput;
+      parsedConfig = parseYamlConfig(configInput);
+    } else {
+      // Already parsed object
+      parsedConfig = configInput;
+      yamlConfig = stringifyYamlConfig(configInput);
+    }
+
     // Update configuration in database
     await prisma.bot_installs.update({
       where: { botId },
       data: {
-        config,
+        config: parsedConfig,
+        yamlConfig,
         updatedAt: new Date(),
       },
     });
@@ -310,7 +378,7 @@ export class DatabaseBotManager implements BotManager {
     // Update configuration in bot executor if bot is enabled
     if (installation.isEnabled) {
       this.botExecutor.uninstallBot(botId);
-      this.botExecutor.installBot(botId, config);
+      this.botExecutor.installBot(botId, parsedConfig);
     }
 
     // console.log(`✅ Bot ${botId} configuration updated`);
@@ -330,6 +398,7 @@ export class DatabaseBotManager implements BotManager {
       version: install.bot_definitions.version,
       manifest: this.createManifestFromBot(install.bot_definitions),
       config: install.config as Record<string, any>,
+      yamlConfig: install.yamlConfig || undefined,
       isEnabled: install.isEnabled,
       isDefault: false, // Would need to store this in database
       installedAt: install.installedAt,
@@ -355,6 +424,7 @@ export class DatabaseBotManager implements BotManager {
       version: installation.bot_definitions.version,
       manifest: this.createManifestFromBot(installation.bot_definitions),
       config: installation.config as Record<string, any>,
+      yamlConfig: installation.yamlConfig || undefined,
       isEnabled: installation.isEnabled,
       isDefault: false,
       installedAt: installation.installedAt,
@@ -374,36 +444,28 @@ export class DatabaseBotManager implements BotManager {
               type: "local" as const,
               path: path.resolve(__dirname, "../../../editorial-bot"),
             },
-            config: { autoStatusUpdates: true, notifyAuthors: true },
+            // No config - will use default-config.yaml
           },
           {
             source: {
               type: "local" as const,
               path: path.resolve(__dirname, "../../../reference-bot"),
             },
-            config: { defaultTimeout: 30, includeMissingDoiReferences: true },
+            // No config - will use default-config.yaml
           },
           {
             source: {
               type: "local" as const,
               path: path.resolve(__dirname, "../../../markdown-renderer-bot"),
             },
-            config: { 
-              defaultTemplate: "academic-standard",
-              customTemplates: {},
-              enablePdfGeneration: true,
-              maxFileSize: "50MB"
-            },
+            // No config - will use default-config.yaml
           },
           {
             source: {
               type: "local" as const,
               path: path.resolve(__dirname, "../../../reviewer-checklist-bot"),
             },
-            config: { 
-              title: "Manuscript Review Checklist",
-              criteria: []
-            },
+            // No config - will use default-config.yaml
           },
         ]
       : [
@@ -412,53 +474,46 @@ export class DatabaseBotManager implements BotManager {
               type: "npm" as const,
               packageName: "@colloquium/editorial-bot",
             },
-            config: { autoStatusUpdates: true, notifyAuthors: true },
+            // No config - will use default-config.yaml from npm package
           },
           {
             source: {
               type: "npm" as const,
               packageName: "@colloquium/reference-bot",
             },
-            config: { defaultTimeout: 30, includeMissingDoiReferences: true },
+            // No config - will use default-config.yaml from npm package
           },
           {
             source: {
               type: "npm" as const,
               packageName: "@colloquium/markdown-renderer-bot",
             },
-            config: { 
-              defaultTemplate: "academic-standard",
-              customTemplates: {},
-              enablePdfGeneration: true,
-              maxFileSize: "50MB"
-            },
+            // No config - will use default-config.yaml from npm package
           },
           {
             source: {
               type: "npm" as const,
               packageName: "@colloquium/reviewer-checklist-bot",
             },
-            config: { 
-              title: "Manuscript Review Checklist",
-              criteria: []
-            },
+            // No config - will use default-config.yaml from npm package
           },
         ];
 
     const installations: BotInstallation[] = [];
 
-    for (const { source, config } of defaultBots) {
+    for (const botConfig of defaultBots) {
       try {
         // Check if already installed
-        const botId = this.extractBotIdFromSource(source);
+        const botId = this.extractBotIdFromSource(botConfig.source);
         const existing = await this.get(botId);
 
         if (!existing) {
-          const installation = await this.install(source, config);
+          // Install with config if provided, otherwise use default-config.yaml
+          const installation = await this.install(botConfig.source, (botConfig as any).config);
           installations.push(installation);
-          // console.log(`✅ Default bot ${this.getSourceName(source)} installed`);
+          // console.log(`✅ Default bot ${this.getSourceName(botConfig.source)} installed`);
         } else {
-          // console.log(`ℹ️ Default bot ${this.getSourceName(source)} already installed`);
+          // console.log(`ℹ️ Default bot ${this.getSourceName(botConfig.source)} already installed`);
         }
       } catch (error) {
         // Handle "already installed" errors gracefully
@@ -467,11 +522,11 @@ export class DatabaseBotManager implements BotManager {
           error.code === "ALREADY_INSTALLED"
         ) {
           console.log(
-            `ℹ️ Bot ${this.getSourceName(source)} is already installed`
+            `ℹ️ Bot ${this.getSourceName(botConfig.source)} is already installed`
           );
         } else {
           console.error(
-            `❌ Failed to install default bot ${this.getSourceName(source)}:`,
+            `❌ Failed to install default bot ${this.getSourceName(botConfig.source)}:`,
             error
           );
         }
@@ -677,7 +732,7 @@ export class DatabaseBotManager implements BotManager {
   /**
    * Call a bot's onInstall hook with proper context
    */
-  public async callBotInstallationHook(bot: CommandBot, uploadedBy: string, config: Record<string, any>): Promise<void> {
+  public async callBotInstallationHook(bot: CommandBot, uploadedBy: string, config: Record<string, any> | string): Promise<void> {
     try {
       console.log(`🔗 Calling onInstall hook for ${bot.id}...`);
       
@@ -726,10 +781,13 @@ export class DatabaseBotManager implements BotManager {
         };
       };
 
+      // Parse config if it's a string
+      const parsedConfig = typeof config === 'string' ? parseYamlConfig(config) : config;
+      
       // Create installation context
       const context: BotInstallationContext = {
         botId: bot.id,
-        config,
+        config: parsedConfig,
         uploadFile
       };
 

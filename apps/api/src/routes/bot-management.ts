@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
 import { DatabaseBotManager } from '@colloquium/bots/src/framework/botManager';
 import { BotInstallationSource, BotPluginError } from '@colloquium/bots/src/framework/plugin';
+import { parseYamlConfig, validateYamlConfig } from '../utils/yamlConfig';
 
 const router = express.Router();
 const botManager = new DatabaseBotManager();
@@ -27,7 +28,7 @@ const installBotSchema = z.object({
 });
 
 const updateBotConfigSchema = z.object({
-  config: z.record(z.any())
+  config: z.union([z.record(z.any()), z.string()])
 });
 
 const updateBotSchema = z.object({
@@ -394,6 +395,20 @@ router.put('/:botId/config', authenticate, adminMiddleware, async (req, res) => 
     }
 
     const { config } = validation.data;
+    
+    // Validate YAML if it's a string
+    if (typeof config === 'string') {
+      const validation = validateYamlConfig(config);
+      if (!validation.valid) {
+        return res.status(400).json({
+          error: {
+            message: `Invalid YAML configuration: ${validation.error}`,
+            type: 'validation_error'
+          }
+        });
+      }
+    }
+    
     await botManager.configure(botId, config);
 
     res.json({

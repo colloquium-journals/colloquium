@@ -1,0 +1,17 @@
+# Editorial Bot Configuration
+# Manages editorial workflows, status updates, and author/reviewer notifications
+
+# Automatically update manuscript status based on review progress
+# When enabled, the bot will automatically move manuscripts through workflow stages
+# based on reviewer activity and editorial decisions
+autoStatusUpdates: true
+
+# Send email notifications to authors on status changes
+# Authors will receive notifications when their manuscript status changes
+# (e.g., submitted → under review → accepted/rejected)
+notifyAuthors: true
+
+# How often to send reminder emails to reviewers and editors
+# Options: "7d" (weekly), "14d" (bi-weekly), "30d" (monthly)
+# Set to null to disable automatic reminders
+reminderInterval: "7d"

@@ -1,0 +1,47 @@
+# Reviewer Checklist Bot Configuration
+# Provides customizable review checklists to ensure consistent and thorough peer review
+
+# Markdown template for the review checklist
+# This template defines the structure and criteria for manuscript reviews
+# Supports full markdown formatting including headers, lists, checkboxes, and emphasis
+# Reviewers can check off items as they complete their assessment
+template: |
+  # Manuscript Review Checklist
+
+  ## Scientific Rigor
+  - [ ] The methodology is clearly described and appropriate for the research question
+  - [ ] Data analysis methods are appropriate and correctly applied
+  - [ ] Results are clearly presented and support the conclusions
+  - [ ] Statistical analyses are appropriate and correctly interpreted
+
+  ## Significance and Novelty
+  - [ ] The work presents novel insights or significant contributions to the field
+  - [ ] The research question is clearly stated and well-motivated
+  - [ ] The implications of the findings are discussed appropriately
+
+  ## Scholarship
+  - [ ] Literature review is comprehensive and up-to-date
+  - [ ] Prior work is appropriately cited and contextualized
+  - [ ] The work builds appropriately on existing knowledge
+
+  ## Technical Quality
+  - [ ] Writing is clear, well-organized, and free of significant errors
+  - [ ] Figures and tables are clear and informative
+  - [ ] References are complete, accurate, and properly formatted
+
+  ## Ethics and Standards
+  - [ ] Ethical considerations are appropriately addressed (if applicable)
+  - [ ] Conflicts of interest are disclosed
+  - [ ] Data collection and handling follow appropriate standards
+
+  ## Reproducibility
+  - [ ] Study is reproducible with sufficient methodological detail
+  - [ ] Data availability and access are clearly stated
+  - [ ] Code/analysis scripts are available when applicable
+
+  ## Overall Assessment
+  - [ ] The manuscript meets the standards for publication
+  - [ ] I recommend this manuscript for acceptance/revision/rejection
+
+  ---
+  *This checklist is customizable. Edit the template above to match your journal's specific review criteria.*

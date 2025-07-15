@@ -1,0 +1,37 @@
+# Markdown Renderer Bot Configuration
+# Renders manuscript markdown files into formatted HTML/PDF output using configurable templates
+
+# Default template to use for rendering
+# Built-in options: "academic-standard", "minimal", "colloquium-journal"
+# You can also specify custom template filenames uploaded via the Files tab
+templateName: "academic-standard"
+
+# Output formats to generate
+# Options: ["html"] for web viewing, ["pdf"] for print, or ["html", "pdf"] for both
+# PDF generation requires additional processing time
+outputFormats: ["pdf"]
+
+# PDF generation engine
+# "typst": Modern, fast typesetting (recommended)
+# "latex": Traditional LaTeX processing (more compatibility)
+# "html": Convert HTML to PDF (fastest, basic formatting)
+pdfEngine: "typst"
+
+# Citation style for bibliography formatting
+# Common options: "apa.csl", "chicago.csl", "ieee.csl", "nature.csl"
+# Must match available CSL files or uploaded custom styles
+citationStyle: "apa.csl"
+
+# Require separate bibliography file (.bib)
+# When true, manuscripts must include a separate .bib file
+# When false, references can be embedded in the markdown
+requireSeparateBibliography: false
+
+# Fallback engine if primary PDF engine fails
+# Provides backup rendering option to ensure documents can always be generated
+fallbackEngine: "typst"
+
+# Maximum file size for processing
+# Prevents processing of excessively large files that could crash the system
+# Format: number + unit (KB, MB, GB)
+maxFileSize: "50MB"
