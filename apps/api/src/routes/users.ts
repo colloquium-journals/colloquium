@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma, GlobalRole as PrismaGlobalRole } from '@colloquium/database';
-import { authenticate, requireRole, requirePermission } from '../middleware/auth';
+import { authenticate, requireRole, requirePermission, requireAnyRole } from '../middleware/auth';
 import { Permission, Role } from '@colloquium/auth';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { UserUpdateSchema, UserQuerySchema, IdSchema } from '../schemas/validation';
@@ -92,8 +92,8 @@ router.get('/', authenticate, (req, res, next) => {
           _count: {
             select: {
               manuscript_authors: true,
-              reviewAssignments: true,
-              authoredMessages: true
+              review_assignments: true,
+              messages: true
             }
           }
         }
