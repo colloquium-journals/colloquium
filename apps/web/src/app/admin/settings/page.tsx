@@ -226,7 +226,7 @@ export default function JournalSettingsPage() {
     path: '',
     ref: ''
   });
-  const [configForm, setConfigForm] = useState('{}');
+  const [configForm, setConfigForm] = useState('');
   
   // File configuration states
   const [botFiles, setBotFiles] = useState<BotConfigFile[]>([]);
@@ -744,7 +744,7 @@ export default function JournalSettingsPage() {
       }
     } catch (err) {
       console.error('Error fetching bot config:', err);
-      setConfigForm('{}');
+      setConfigForm('');
       notifications.show({
         title: 'Warning',
         message: 'Could not load current configuration, showing empty config',
@@ -1789,130 +1789,7 @@ export default function JournalSettingsPage() {
                 
                 <YamlInput
                   label="YAML Configuration"
-                  placeholder={(() => {
-                    switch (selectedBot?.botId) {
-                      case 'markdown-renderer':
-                        return `# Markdown Renderer Bot Configuration
-# Renders manuscript markdown files into formatted HTML/PDF output using configurable templates
-
-# Default template to use for rendering
-# Built-in options: "academic-standard", "minimal", "colloquium-journal"
-# You can also specify custom template filenames uploaded via the Files tab
-templateName: "academic-standard"
-
-# Output formats to generate
-# Options: ["html"] for web viewing, ["pdf"] for print, or ["html", "pdf"] for both
-# PDF generation requires additional processing time
-outputFormats: ["html", "pdf"]
-
-# PDF generation engine
-# "typst": Modern, fast typesetting (recommended)
-# "latex": Traditional LaTeX processing (more compatibility)
-# "html": Convert HTML to PDF (fastest, basic formatting)
-pdfEngine: "typst"
-
-# Citation style for bibliography formatting
-# Common options: "apa.csl", "chicago.csl", "ieee.csl", "nature.csl"
-# Must match available CSL files or uploaded custom styles
-citationStyle: "apa.csl"
-
-# Require separate bibliography file (.bib)
-# When true, manuscripts must include a separate .bib file
-# When false, references can be embedded in the markdown
-requireSeparateBibliography: false
-
-# Fallback engine if primary PDF engine fails
-# Provides backup rendering option to ensure documents can always be generated
-fallbackEngine: "typst"
-
-# Maximum file size for processing
-# Prevents processing of excessively large files that could crash the system
-# Format: number + unit (KB, MB, GB)
-maxFileSize: "50MB"`;
-                      case 'editorial-bot':
-                        return `# Editorial Bot Configuration
-# Manages editorial workflows, status updates, and author/reviewer notifications
-
-# Automatically update manuscript status based on review progress
-# When enabled, the bot will automatically move manuscripts through workflow stages
-# based on reviewer activity and editorial decisions
-autoStatusUpdates: true
-
-# Send email notifications to authors on status changes
-# Authors will receive notifications when their manuscript status changes
-# (e.g., submitted → under review → accepted/rejected)
-notifyAuthors: true
-
-# How often to send reminder emails to reviewers and editors
-# Options: "7d" (weekly), "14d" (bi-weekly), "30d" (monthly)
-# Set to null to disable automatic reminders
-reminderInterval: "7d"`;
-                      case 'reference-bot':
-                        return `# Reference Bot Configuration
-# Validates and formats manuscript references, checks DOIs, and ensures citation completeness
-
-# Timeout for external API calls (in seconds)
-# Used when checking DOIs, CrossRef lookups, and other external reference validation
-# Increase if you have slow network connectivity
-defaultTimeout: 30
-
-# Include references without DOIs in validation
-# When true, the bot will validate references even if they don't have DOIs
-# Useful for books, conference papers, and older publications
-includeMissingDoiReferences: true
-
-# Automatically format citations to match journal style
-# When enabled, the bot will attempt to reformat citations consistently
-# Based on common academic citation standards
-autoFormatCitations: true`;
-                      case 'reviewer-checklist':
-                        return `# Reviewer Checklist Bot Configuration
-# Provides customizable review checklists to ensure consistent and thorough peer review
-
-# Markdown template for the review checklist
-# This template defines the structure and criteria for manuscript reviews
-# Supports full markdown formatting including headers, lists, checkboxes, and emphasis
-# Reviewers can check off items as they complete their assessment
-template: |
-  # Manuscript Review Checklist
-
-  ## Scientific Rigor
-  - [ ] The methodology is clearly described and appropriate for the research question
-  - [ ] Data analysis methods are appropriate and correctly applied
-  - [ ] Results are clearly presented and support the conclusions
-  - [ ] Statistical analyses are appropriate and correctly interpreted
-
-  ## Significance and Novelty
-  - [ ] The work presents novel insights or significant contributions to the field
-  - [ ] The research question is clearly stated and well-motivated
-  - [ ] The implications of the findings are discussed appropriately
-
-  ## Technical Quality
-  - [ ] Writing is clear, well-organized, and free of significant errors
-  - [ ] Figures and tables are clear and informative
-  - [ ] References are complete, accurate, and properly formatted
-
-  ## Overall Assessment
-  - [ ] The manuscript meets the standards for publication
-  - [ ] I recommend this manuscript for acceptance/revision/rejection
-
-  ---
-  *This checklist is customizable. Edit the template above to match your journal's specific review criteria.*`;
-                      default:
-                        return `# Bot Configuration
-# Add your configuration options here with helpful comments
-
-# Example setting
-key: "value"
-
-# Another example with different data types
-enabled: true
-timeout: 30
-items:
-  - "item1"
-  - "item2"`;
-                    }
-                  })()}
+                  placeholder="# Enter YAML configuration here..."
                   value={configForm}
                   onChange={setConfigForm}
                   minRows={15}

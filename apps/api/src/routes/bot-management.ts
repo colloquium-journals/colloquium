@@ -110,6 +110,7 @@ router.get('/:botId', authenticate, adminMiddleware, async (req, res) => {
         isEnabled: installation.isEnabled,
         isDefault: installation.isDefault,
         config: installation.config,
+        yamlConfig: installation.yamlConfig,
         installedAt: installation.installedAt,
         updatedAt: installation.updatedAt,
         packageName: installation.packageName,
