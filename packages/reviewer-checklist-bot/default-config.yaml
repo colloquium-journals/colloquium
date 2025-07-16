@@ -1,8 +1,14 @@
 # Reviewer Checklist Bot Configuration
 # Provides customizable review checklists to ensure consistent and thorough peer review
 
-# Markdown template for the review checklist
-# This template defines the structure and criteria for manuscript reviews
+# Template file configuration
+# Specify the filename of a markdown template uploaded via the Files tab
+# If specified, this file will be used instead of the inline template below
+# Example: "custom-checklist.md"
+templateFile: ""
+
+# Fallback markdown template for the review checklist
+# This template is used when no template file is specified or if the file cannot be loaded
 # Supports full markdown formatting including headers, lists, checkboxes, and emphasis
 # Reviewers can check off items as they complete their assessment
 template: |
@@ -44,4 +50,4 @@ template: |
   - [ ] I recommend this manuscript for acceptance/revision/rejection
 
   ---
-  *This checklist is customizable. Edit the template above to match your journal's specific review criteria.*
+  *Upload a custom markdown template via the Files tab, or edit this template to match your journal's specific review criteria.*

@@ -174,7 +174,8 @@ async function updateJournalSettings(newSettings: any) {
         id: 'singleton',
         name: mergedSettings.name,
         description: mergedSettings.description,
-        settings: mergedSettings
+        settings: mergedSettings,
+        updatedAt: new Date()
       }
     });
     

@@ -1,51 +1,52 @@
 'use client';
 
-import { forwardRef, useState, useRef, useEffect } from 'react';
-import { Textarea, TextareaProps, Box, useMantineTheme } from '@mantine/core';
+import { forwardRef, useState, useEffect, useRef } from 'react';
+import { Box, Text, useMantineTheme } from '@mantine/core';
 import * as yaml from 'js-yaml';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vs, vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import Editor from '@monaco-editor/react';
 
-interface YamlInputProps extends Omit<TextareaProps, 'onChange'> {
+interface YamlInputProps {
   value: string;
   onChange: (value: string) => void;
   validationError?: string;
+  error?: string | boolean;
+  placeholder?: string;
+  minRows?: number;
+  maxRows?: number;
+  disabled?: boolean;
+  label?: string;
+  description?: string;
+  required?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  style?: React.CSSProperties;
+  styles?: any;
+  className?: string;
 }
 
-export const YamlInput = forwardRef<HTMLTextAreaElement, YamlInputProps>(
-  ({ value, onChange, validationError, error, ...props }, ref) => {
+export const YamlInput = forwardRef<HTMLDivElement, YamlInputProps>(
+  ({ 
+    value, 
+    onChange, 
+    validationError, 
+    error, 
+    placeholder,
+    minRows = 4,
+    maxRows = 20,
+    disabled = false,
+    label,
+    description,
+    required = false,
+    onFocus,
+    onBlur,
+    style,
+    styles,
+    className,
+    ...props 
+  }, ref) => {
     const theme = useMantineTheme();
-    const [isFocused, setIsFocused] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const highlightRef = useRef<HTMLDivElement>(null);
-
-    // Combine refs
-    useEffect(() => {
-      if (ref) {
-        if (typeof ref === 'function') {
-          ref(textareaRef.current);
-        } else {
-          ref.current = textareaRef.current;
-        }
-      }
-    }, [ref]);
-
-    // Validate YAML on change
-    const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newValue = event.target.value;
-      onChange(newValue);
-    };
-
-    // Handle focus/blur for syntax highlighting
-    const handleFocus = (event: React.FocusEvent<HTMLTextAreaElement>) => {
-      setIsFocused(true);
-      props.onFocus?.(event);
-    };
-
-    const handleBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
-      setIsFocused(false);
-      props.onBlur?.(event);
-    };
+    const [editorHeight, setEditorHeight] = useState(minRows * 20);
+    const editorRef = useRef<any>(null);
 
     // Check if current value is valid YAML
     const isValidYaml = (yamlString: string): boolean => {
@@ -67,86 +68,105 @@ export const YamlInput = forwardRef<HTMLTextAreaElement, YamlInputProps>(
       return undefined;
     };
 
-    // Sync scroll between textarea and highlight
-    const handleScroll = () => {
-      if (textareaRef.current && highlightRef.current) {
-        highlightRef.current.scrollTop = textareaRef.current.scrollTop;
-        highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    // Calculate editor height based on content
+    useEffect(() => {
+      if (value) {
+        const lines = value.split('\n').length;
+        const calculatedHeight = Math.max(
+          minRows * 20,
+          Math.min(maxRows * 20, lines * 20)
+        );
+        setEditorHeight(calculatedHeight);
       }
+    }, [value, minRows, maxRows]);
+
+    // Handle editor mount
+    const handleEditorDidMount = (editor: any) => {
+      editorRef.current = editor;
+      
+      // Configure editor behavior
+      editor.onDidChangeModelContent(() => {
+        // Editor content change handling can be added here if needed
+      });
     };
 
-    const isDarkTheme = theme.colorScheme === 'dark';
-    const syntaxStyle = isDarkTheme ? vscDarkPlus : vs;
+    const isDarkTheme = theme.other?.colorScheme === 'dark';
+    const errorMessage = getErrorMessage();
 
     return (
-      <Box style={{ position: 'relative' }}>
-        {/* Syntax highlighting overlay - only show when not focused */}
-        {!isFocused && value && (
-          <Box
-            ref={highlightRef}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              pointerEvents: 'none',
-              overflow: 'hidden',
-              border: `1px solid ${theme.colors.gray[3]}`,
-              borderRadius: theme.radius.sm,
-              zIndex: 1
-            }}
-          >
-            <SyntaxHighlighter
-              language="yaml"
-              style={syntaxStyle}
-              customStyle={{
-                margin: 0,
-                padding: '12px',
-                background: 'transparent',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                border: 'none',
-                overflow: 'visible'
-              }}
-              codeTagProps={{
-                style: {
-                  fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                  fontSize: '14px',
-                  lineHeight: '1.5'
-                }
-              }}
-            >
-              {value}
-            </SyntaxHighlighter>
-          </Box>
+      <Box ref={ref} style={style} className={className} {...props}>
+        {label && (
+          <Text size="sm" fw={500} mb={4}>
+            {label}
+            {required && <Text component="span" c="red"> *</Text>}
+          </Text>
+        )}
+        
+        {description && (
+          <Text size="xs" c="dimmed" mb={8}>
+            {description}
+          </Text>
         )}
 
-        {/* Actual textarea for editing */}
-        <Textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleChange}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onScroll={handleScroll}
-          error={getErrorMessage()}
-          styles={{
-            input: {
-              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-              fontSize: '14px',
-              lineHeight: '1.5',
-              backgroundColor: isFocused ? undefined : 'transparent',
-              color: isFocused ? undefined : 'transparent',
-              caretColor: 'auto',
-              position: 'relative',
-              zIndex: 2,
-              ...(typeof props.styles === 'object' ? props.styles?.input : {})
-            }
+        <Box
+          style={{
+            border: `1px solid ${errorMessage ? theme.colors.red[6] : theme.colors.gray[4]}`,
+            borderRadius: theme.radius.sm,
+            overflow: 'hidden'
           }}
-          {...props}
-        />
+        >
+          <Editor
+            height={editorHeight}
+            language="yaml"
+            theme={isDarkTheme ? 'vs-dark' : 'vs-light'}
+            value={value}
+            onChange={(newValue) => onChange(newValue || '')}
+            onMount={handleEditorDidMount}
+            options={{
+              minimap: { enabled: false },
+              scrollBeyondLastLine: false,
+              fontSize: 14,
+              fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+              lineNumbers: 'on',
+              glyphMargin: false,
+              folding: true,
+              lineDecorationsWidth: 0,
+              lineNumbersMinChars: 3,
+              renderLineHighlight: 'gutter',
+              selectOnLineNumbers: true,
+              roundedSelection: false,
+              readOnly: disabled,
+              cursorStyle: 'line',
+              automaticLayout: true,
+              wordWrap: 'on',
+              wrappingIndent: 'indent',
+              tabSize: 2,
+              insertSpaces: true,
+              scrollbar: {
+                verticalScrollbarSize: 10,
+                horizontalScrollbarSize: 10
+              },
+              overviewRulerBorder: false,
+              hideCursorInOverviewRuler: true,
+              contextmenu: true,
+              mouseWheelZoom: false,
+              links: false,
+              colorDecorators: false,
+              dragAndDrop: false,
+              suggestOnTriggerCharacters: false,
+              acceptSuggestionOnEnter: 'off',
+              quickSuggestions: false,
+              parameterHints: { enabled: false },
+              hover: { enabled: false }
+            }}
+          />
+        </Box>
+
+        {errorMessage && (
+          <Text size="xs" c="red" mt={4}>
+            {errorMessage}
+          </Text>
+        )}
       </Box>
     );
   }

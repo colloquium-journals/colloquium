@@ -6,6 +6,7 @@ import { ModalsProvider } from '@mantine/modals';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { createDynamicTheme } from '@/lib/dynamicTheme';
+import { useMemo } from 'react';
 
 interface ThemeWrapperProps {
   children: React.ReactNode;
@@ -14,11 +15,11 @@ interface ThemeWrapperProps {
 export function ThemeWrapper({ children }: ThemeWrapperProps) {
   const { settings, loading } = useJournalSettings();
   
-  // Create dynamic theme based on journal settings
-  const theme = createDynamicTheme(
+  // Create dynamic theme based on journal settings (memoized to prevent unnecessary re-creation)
+  const theme = useMemo(() => createDynamicTheme(
     settings.primaryColor,
     settings.secondaryColor
-  );
+  ), [settings.primaryColor, settings.secondaryColor]);
 
   if (loading) {
     // Show a minimal loading state while settings load

@@ -131,11 +131,80 @@ async function markReviewerAsHavingChecklist(reviewerId: string): Promise<void> 
 }
 
 async function getBotConfig(context: any): Promise<ChecklistConfig | null> {
-  // This would fetch the bot configuration from the database
-  // For now, return default config
+  // Get configuration from context.config (loaded from default-config.yaml)
+  const config = context.config || {};
+  
+  // If a template filename is specified, try to load it from uploaded files
+  if (config.templateFile) {
+    try {
+      const template = await loadTemplateFromFile(config.templateFile, context);
+      if (template) {
+        return { template };
+      }
+    } catch (error) {
+      console.warn(`Failed to load template file ${config.templateFile}:`, error);
+    }
+  }
+  
+  // Fall back to template from config, or default template
   return {
-    template: DEFAULT_TEMPLATE
+    template: config.template || DEFAULT_TEMPLATE
   };
+}
+
+async function loadTemplateFromFile(filename: string, context: any): Promise<string | null> {
+  try {
+    // Use the bot's service token to fetch the file
+    const serviceToken = context.serviceToken;
+    if (!serviceToken) {
+      console.warn('No service token available for file download');
+      return null;
+    }
+
+    // Get the bot ID from context
+    const botId = context.botId || 'reviewer-checklist';
+    
+    // First, get the list of files for this bot
+    const filesResponse = await fetch(`${context.apiBaseUrl}/api/bot-config-files/${botId}/files`, {
+      headers: {
+        'Authorization': `Bearer ${serviceToken}`,
+        'X-Bot-Token': serviceToken
+      }
+    });
+
+    if (!filesResponse.ok) {
+      console.warn(`Failed to fetch bot files: ${filesResponse.status}`);
+      return null;
+    }
+
+    const filesData = await filesResponse.json();
+    const file = filesData.files?.find((f: any) => f.filename === filename);
+    
+    if (!file) {
+      console.warn(`Template file ${filename} not found in bot files`);
+      return null;
+    }
+
+    // Download the file content
+    const contentResponse = await fetch(`${context.apiBaseUrl}/api/bot-config-files/${file.id}/content`, {
+      headers: {
+        'Authorization': `Bearer ${serviceToken}`,
+        'X-Bot-Token': serviceToken
+      }
+    });
+
+    if (!contentResponse.ok) {
+      console.warn(`Failed to download template file: ${contentResponse.status}`);
+      return null;
+    }
+
+    const contentData = await contentResponse.json();
+    return contentData.file?.content || null;
+    
+  } catch (error) {
+    console.error('Error loading template from file:', error);
+    return null;
+  }
 }
 
 const generateCommand: BotCommand = {
@@ -321,7 +390,7 @@ export const reviewerChecklistBot: CommandBot = {
     },
     {
       title: 'ℹ️ Configuration',
-      content: 'Customize the checklist template in the bot configuration. The default template covers common review criteria across scientific rigor, significance, scholarship, technical quality, ethics, and reproducibility.',
+      content: 'Customize the checklist template by uploading a markdown file via the Files tab or by editing the template in the bot configuration. Set `templateFile` to the filename of your uploaded template. The default template covers common review criteria across scientific rigor, significance, scholarship, technical quality, ethics, and reproducibility.',
       position: 'after'
     }
   ]

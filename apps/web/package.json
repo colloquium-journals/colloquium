@@ -24,6 +24,7 @@
     "@mantine/notifications": "^7.12.0",
     "@mantine/spotlight": "^7.17.8",
     "@mantine/tiptap": "^7.12.0",
+    "@monaco-editor/react": "^4.7.0",
     "@tabler/icons-react": "^2.40.0",
     "@tanstack/react-query": "^5.0.0",
     "@tiptap/pm": "^2.1.0",

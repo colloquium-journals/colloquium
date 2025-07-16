@@ -417,8 +417,12 @@ export default function JournalSettingsPage() {
         icon: <IconCheck size={16} />
       });
 
-      // Refresh the global settings context
-      await refreshSettings();
+      setSaving(false);
+      
+      // Refresh the global settings context after a brief delay to prevent loading cascade
+      setTimeout(() => {
+        refreshSettings();
+      }, 100);
     } catch (err) {
       notifications.show({
         title: 'Error',
@@ -426,7 +430,6 @@ export default function JournalSettingsPage() {
         color: 'red',
         icon: <IconAlertCircle size={16} />
       });
-    } finally {
       setSaving(false);
     }
   };
