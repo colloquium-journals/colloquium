@@ -60,6 +60,7 @@ import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { YamlInput } from '@/components/YamlInput';
+import { parseMarkdown } from '@/lib/markdown';
 import yaml from 'js-yaml';
 
 interface BotInstallation {
@@ -2132,19 +2133,90 @@ export default function JournalSettingsPage() {
             }
           }}
         >
-          <Box style={{ height: '100%', overflow: 'auto' }}>
-            <Text 
-              component="pre"
-              style={{ 
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'inherit',
-                lineHeight: 1.6,
-                fontSize: '14px'
-              }}
-            >
-              {botHelpContent}
-            </Text>
-          </Box>
+          <Box
+            className="bot-help-content"
+            style={{ height: '100%', overflow: 'auto' }}
+            dangerouslySetInnerHTML={{
+              __html: botHelpContent.startsWith('Loading') || botHelpContent.startsWith('Failed')
+                ? `<p>${botHelpContent}</p>`
+                : parseMarkdown(botHelpContent)
+            }}
+          />
+          <style>{`
+            .bot-help-content {
+              font-size: 14px;
+              line-height: 1.6;
+            }
+            .bot-help-content h1,
+            .bot-help-content h2,
+            .bot-help-content h3,
+            .bot-help-content h4,
+            .bot-help-content h5,
+            .bot-help-content h6 {
+              margin-top: 1em;
+              margin-bottom: 0.5em;
+              font-weight: 600;
+            }
+            .bot-help-content h1 { font-size: 1.5em; }
+            .bot-help-content h2 { font-size: 1.3em; }
+            .bot-help-content h3 { font-size: 1.1em; }
+            .bot-help-content p { margin: 0.5em 0; }
+            .bot-help-content ul,
+            .bot-help-content ol {
+              margin: 0.5em 0;
+              padding-left: 1.5em;
+            }
+            .bot-help-content li { margin: 0.25em 0; }
+            .bot-help-content code {
+              padding: 2px 4px;
+              border-radius: 3px;
+              background-color: var(--mantine-color-gray-1);
+              font-family: Monaco, Consolas, 'Courier New', monospace;
+              font-size: 0.9em;
+              border: 1px solid var(--mantine-color-gray-3);
+            }
+            .bot-help-content pre {
+              margin: 0.5em 0;
+              padding: 1em;
+              border-radius: 6px;
+              background-color: var(--mantine-color-gray-1);
+              overflow: auto;
+            }
+            .bot-help-content pre code {
+              padding: 0;
+              background-color: transparent;
+              border: none;
+            }
+            .bot-help-content blockquote {
+              margin: 0.5em 0;
+              padding: 0.5em 1em;
+              border-left: 4px solid var(--mantine-color-gray-4);
+              background-color: var(--mantine-color-gray-0);
+              font-style: italic;
+            }
+            .bot-help-content a {
+              color: var(--mantine-color-blue-6);
+              text-decoration: none;
+            }
+            .bot-help-content a:hover {
+              text-decoration: underline;
+            }
+            .bot-help-content table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 0.5em 0;
+            }
+            .bot-help-content th,
+            .bot-help-content td {
+              border: 1px solid var(--mantine-color-gray-3);
+              padding: 8px 12px;
+              text-align: left;
+            }
+            .bot-help-content th {
+              background-color: var(--mantine-color-gray-1);
+              font-weight: 600;
+            }
+          `}</style>
         </Modal>
       </Stack>
     </Container>
