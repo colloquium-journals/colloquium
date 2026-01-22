@@ -8,6 +8,25 @@ export const botExecutor = new BotsPackage.BotExecutor();
 // Export the bot manager for plugin system
 export const botManager = new DatabaseBotManager(undefined, botExecutor);
 
+// Wait for database connection to be ready with retry logic
+async function waitForDatabase(maxRetries = 10, delayMs = 1000): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Simple query to check database connectivity
+      await prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch (error) {
+      if (attempt === maxRetries) {
+        console.error(`❌ Database not ready after ${maxRetries} attempts`);
+        return false;
+      }
+      console.log(`⏳ Waiting for database connection (attempt ${attempt}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+  return false;
+}
+
 // Create or get bot user in database
 async function ensureBotUser(botId: string, botName: string): Promise<string> {
   const email = `${botId}@colloquium.bot`;
@@ -35,6 +54,12 @@ async function ensureBotUser(botId: string, botName: string): Promise<string> {
 // Initialize and register all bots
 export async function initializeBots() {
   console.log('🤖 Initializing bots...');
+
+  // Wait for database to be ready before proceeding
+  const dbReady = await waitForDatabase();
+  if (!dbReady) {
+    throw new Error('Database connection not available - bot initialization aborted');
+  }
 
   // Ensure required system bots are installed in the database
   const installedBots = await botManager.list();
