@@ -89,8 +89,8 @@ async function RecentArticles() {
             </Title>
             
             {/* Authors */}
-            <Group gap="xs" wrap="wrap" align="flex-start">
-              <IconUsers size={16} style={{ marginTop: 3 }} />
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <IconUsers size={16} style={{ marginTop: 3, flexShrink: 0 }} />
               <Text size="sm" c="dimmed" style={{ flex: 1 }}>
                 {article.authorDetails && article.authorDetails.length > 0
                   ? article.authorDetails.map((author: any) => author.name).join(', ')

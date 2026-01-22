@@ -336,8 +336,8 @@ export default function ArticlesPage() {
                     </Anchor>
 
                     {/* Authors */}
-                    <Group gap="xs" wrap="wrap" align="flex-start">
-                      <IconUsers size={14} style={{ marginTop: 3 }} />
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
+                      <IconUsers size={14} style={{ marginTop: 3, flexShrink: 0 }} />
                       <Text size="sm" c="dimmed" lineClamp={2} style={{ flex: 1 }}>
                         {article.authorDetails && article.authorDetails.length > 0
                           ? article.authorDetails.map(author => author.name).join(', ')
