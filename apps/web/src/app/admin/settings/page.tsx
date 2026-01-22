@@ -210,6 +210,22 @@ export default function JournalSettingsPage() {
   const [bots, setBots] = useState<BotInstallation[]>([]);
   const [botsLoading, setBotsLoading] = useState(false);
   const [botsError, setBotsError] = useState<string | null>(null);
+
+  // Bot executor status state
+  const [botExecutorStatus, setBotExecutorStatus] = useState<{
+    healthy: boolean;
+    registeredCount: number;
+    installedCount: number;
+    bots: Array<{
+      botId: string;
+      name: string;
+      isEnabled: boolean;
+      isRegistered: boolean;
+      status: 'ready' | 'not_loaded' | 'disabled';
+    }>;
+  } | null>(null);
+  const [executorStatusLoading, setExecutorStatusLoading] = useState(false);
+  const [reloadingBots, setReloadingBots] = useState(false);
   
   // Modal states
   const [installModalOpened, { open: openInstallModal, close: closeInstallModal }] = useDisclosure(false);
@@ -301,10 +317,67 @@ export default function JournalSettingsPage() {
     }
   };
 
+  // Fetch bot executor status
+  const fetchExecutorStatus = async () => {
+    try {
+      setExecutorStatusLoading(true);
+      const response = await fetch('http://localhost:4000/api/bot-management/status/executor', {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch executor status');
+      }
+
+      const data = await response.json();
+      setBotExecutorStatus(data.data);
+    } catch (err) {
+      console.error('Failed to fetch executor status:', err);
+      setBotExecutorStatus(null);
+    } finally {
+      setExecutorStatusLoading(false);
+    }
+  };
+
+  // Reload bots into executor
+  const handleReloadBots = async () => {
+    try {
+      setReloadingBots(true);
+      const response = await fetch('http://localhost:4000/api/bot-management/reload', {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reload bots');
+      }
+
+      const data = await response.json();
+      notifications.show({
+        title: 'Bots Reloaded',
+        message: `Successfully loaded ${data.data.loadedCount} bot(s)`,
+        color: 'green'
+      });
+
+      // Refresh status and bot list
+      await fetchExecutorStatus();
+      await fetchBots();
+    } catch (err) {
+      notifications.show({
+        title: 'Reload Failed',
+        message: err instanceof Error ? err.message : 'Failed to reload bots',
+        color: 'red'
+      });
+    } finally {
+      setReloadingBots(false);
+    }
+  };
+
   // Fetch bots when switching to bots tab
   useEffect(() => {
     if (activeTab === 'bots') {
       fetchBots();
+      fetchExecutorStatus();
     }
   }, [activeTab]);
 
@@ -1349,6 +1422,51 @@ export default function JournalSettingsPage() {
                     </Button>
                   </Group>
                 </Group>
+
+                {/* Bot System Status */}
+                {botExecutorStatus && !botExecutorStatus.healthy && (
+                  <Alert
+                    icon={<IconAlertCircle size={16} />}
+                    color="yellow"
+                    title="Bot System Issue Detected"
+                  >
+                    <Stack gap="sm">
+                      <Text size="sm">
+                        Some bots are not loaded into the executor. This can happen if the database
+                        wasn't ready when the server started. Bots that are not loaded cannot process
+                        commands or be configured.
+                      </Text>
+                      <Group gap="xs">
+                        {botExecutorStatus.bots
+                          .filter(bot => bot.isEnabled && !bot.isRegistered)
+                          .map(bot => (
+                            <Badge key={bot.botId} color="red" variant="light">
+                              {bot.name}: Not Loaded
+                            </Badge>
+                          ))}
+                      </Group>
+                      <Button
+                        size="sm"
+                        variant="filled"
+                        color="yellow"
+                        leftSection={<IconRefresh size={16} />}
+                        onClick={handleReloadBots}
+                        loading={reloadingBots}
+                        style={{ alignSelf: 'flex-start' }}
+                      >
+                        Reload All Bots
+                      </Button>
+                    </Stack>
+                  </Alert>
+                )}
+
+                {botExecutorStatus && botExecutorStatus.healthy && (
+                  <Alert icon={<IconCheck size={16} />} color="green" title="Bot System Healthy">
+                    <Text size="sm">
+                      All {botExecutorStatus.registeredCount} enabled bot(s) are loaded and ready.
+                    </Text>
+                  </Alert>
+                )}
 
                 {/* Error display */}
                 {botsError && (

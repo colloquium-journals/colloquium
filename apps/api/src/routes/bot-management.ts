@@ -1,12 +1,11 @@
 import express from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
-import { DatabaseBotManager } from '@colloquium/bots/src/framework/botManager';
 import { BotInstallationSource, BotPluginError } from '@colloquium/bots/src/framework/plugin';
 import { parseYamlConfig, validateYamlConfig } from '../utils/yamlConfig';
+import { botManager, botExecutor } from '../bots';
 
 const router = express.Router();
-const botManager = new DatabaseBotManager();
 
 // Helper function to check if a bot is required
 const isRequiredBot = (botId: string): boolean => {
@@ -492,6 +491,87 @@ router.post('/install-defaults', authenticate, adminMiddleware, async (req, res)
     res.status(500).json({
       error: {
         message: 'Failed to install default bots',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Get bot executor status - shows which bots are actually registered and ready
+router.get('/status/executor', authenticate, adminMiddleware, async (req, res) => {
+  try {
+    // Get all installed bots from database
+    const installations = await botManager.list();
+
+    // Get bots registered in the executor
+    const registeredBots = botExecutor.getCommandBots();
+    const registeredBotIds = new Set(registeredBots.map(bot => bot.id));
+
+    // Build status for each installed bot
+    const botStatuses = installations.map(installation => {
+      const botId = installation.manifest.colloquium.botId;
+      const isRegistered = registeredBotIds.has(botId);
+
+      return {
+        botId,
+        name: installation.manifest.name,
+        isEnabled: installation.isEnabled,
+        isRegistered,
+        status: !installation.isEnabled
+          ? 'disabled'
+          : isRegistered
+            ? 'ready'
+            : 'not_loaded'
+      };
+    });
+
+    const allReady = botStatuses.every(bot => !bot.isEnabled || bot.isRegistered);
+
+    res.json({
+      data: {
+        healthy: allReady,
+        registeredCount: registeredBots.length,
+        installedCount: installations.length,
+        bots: botStatuses
+      }
+    });
+  } catch (error) {
+    console.error('Error getting bot executor status:', error);
+    res.status(500).json({
+      error: {
+        message: 'Failed to get bot executor status',
+        type: 'server_error'
+      }
+    });
+  }
+});
+
+// Reload all bots into the executor
+router.post('/reload', authenticate, adminMiddleware, async (req, res) => {
+  try {
+    console.log('🔄 Manual bot reload triggered by admin...');
+
+    await botManager.reloadAllBots();
+
+    const registeredBots = botExecutor.getCommandBots();
+
+    console.log(`✅ Manual bot reload complete: ${registeredBots.length} bot(s) loaded`);
+
+    res.json({
+      data: {
+        message: 'Bots reloaded successfully',
+        loadedCount: registeredBots.length,
+        bots: registeredBots.map(bot => ({
+          botId: bot.id,
+          name: bot.name
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error reloading bots:', error);
+    res.status(500).json({
+      error: {
+        message: 'Failed to reload bots',
         type: 'server_error'
       }
     });
