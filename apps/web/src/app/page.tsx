@@ -101,13 +101,15 @@ async function RecentArticles() {
 
             {/* Keywords/Tags */}
             {article.keywords && article.keywords.length > 0 && (
-              <Group gap="xs" wrap="wrap" align="flex-start">
-                <IconTag size={16} style={{ marginTop: 4 }} />
-                {article.keywords.map((keyword: string, index: number) => (
-                  <Badge key={index} size="sm" variant="light" color="blue">
-                    {keyword}
-                  </Badge>
-                ))}
+              <Group gap="xs" align="flex-start" wrap="nowrap">
+                <IconTag size={16} style={{ marginTop: 4, flexShrink: 0 }} />
+                <Group gap="xs" wrap="wrap" style={{ flex: 1 }}>
+                  {article.keywords.map((keyword: string, index: number) => (
+                    <Badge key={index} size="sm" variant="light" color="blue">
+                      {keyword}
+                    </Badge>
+                  ))}
+                </Group>
               </Group>
             )}
 
