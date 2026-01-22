@@ -20,7 +20,6 @@ Templates receive author information in several formats to accommodate different
   {{name}}            <!-- Author's full name -->
   {{email}}           <!-- Email address (if available) -->
   {{orcidId}}         <!-- ORCID identifier -->
-  {{orcidVerified}}   <!-- Boolean: ORCID verification status -->
   {{affiliation}}     <!-- Institution/organization -->
   {{bio}}             <!-- Author biography -->
   {{website}}         <!-- Personal/professional website -->
@@ -75,7 +74,6 @@ Templates receive author information in several formats to accommodate different
       <a href="https://orcid.org/{{orcidId}}" target="_blank">
         <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID">
         {{orcidId}}
-        {{#if orcidVerified}}<span class="verified">✓</span>{{/if}}
       </a>
     </div>
     {{/if}}
@@ -128,7 +126,6 @@ Templates receive author information in several formats to accommodate different
       {{#if orcidId}}
       <a href="https://orcid.org/{{orcidId}}" class="orcid-link" target="_blank" rel="noopener">
         <img src="https://orcid.org/sites/default/files/images/orcid_16x16.png" alt="ORCID iD" />
-        {{#if orcidVerified}}<span class="verified-badge">Verified</span>{{/if}}
       </a>
       {{/if}}
     </div>
@@ -199,7 +196,6 @@ The bot handles both data formats from the Colloquium API:
         "name": "John Doe",
         "email": "john@university.edu",
         "orcidId": "0000-0000-0000-0000",
-        "orcidVerified": true,
         "affiliation": "University of Science",
         "bio": "Professor of Computer Science",
         "website": "https://johndoe.com"

@@ -21,7 +21,6 @@ import botManagementRoutes from './routes/bot-management';
 import botConfigFilesRoutes from './routes/bot-config-files';
 import contentRoutes from './routes/content';
 import eventsRoutes, { closeAllConnections } from './routes/events';
-import orcidRoutes from './routes/orcid';
 import reviewersRoutes from './routes/reviewers';
 import formatsRoutes from './routes/formats';
 
@@ -133,7 +132,6 @@ app.use('/api/bot-management', botManagementRoutes);
 app.use('/api/bot-config-files', botConfigFilesRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/events', eventsRoutes);
-app.use('/api/orcid', orcidRoutes);
 app.use('/api/reviewers', reviewersRoutes);
 app.use('/api/formats', formatsRoutes);
 

@@ -57,7 +57,6 @@ Templates have access to these variables:
 - `{{name}}` - Author's full name
 - `{{email}}` - Email address (if available)
 - `{{orcidId}}` - ORCID identifier
-- `{{orcidVerified}}` - Boolean: ORCID verification status
 - `{{affiliation}}` - Institution/organization
 - `{{bio}}` - Author biography
 - `{{website}}` - Personal/professional website

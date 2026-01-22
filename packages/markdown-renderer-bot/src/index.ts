@@ -331,8 +331,7 @@ const renderCommand: BotCommand = {
       return {
         messages: [{
           content: `❌ **Rendering Failed**\n\nAn error occurred while rendering the Markdown file:\n\`\`\`\n${error instanceof Error ? error.message : 'Unknown error'}\n\`\`\``
-        }],
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        }]
       };
     }
   }
@@ -642,26 +641,6 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
       } catch (error) {
         console.warn(`Failed to load template file ${templateFile.fileId} for ${templateName}:`, error);
       }
-    } else {
-      // Try to use default engine if requested engine not available
-      const defaultFile = templateDef.files.find((file: any) => file.engine === templateDef.defaultEngine);
-      if (defaultFile) {
-        console.warn(`Template ${templateName} doesn't support ${pdfEngine}, using ${templateDef.defaultEngine}`);
-        try {
-          const templateContent = await fetchTemplateContentById(defaultFile.fileId);
-          return {
-            name: templateDef.name,
-            title: templateDef.title,
-            description: templateDef.description,
-            engines: templateDef.files.map((f: any) => f.engine),
-            defaultEngine: templateDef.defaultEngine,
-            [`${templateDef.defaultEngine}Template`]: templateContent,
-            metadata: templateDef.metadata || {}
-          };
-        } catch (error) {
-          console.warn(`Failed to load default template file for ${templateName}:`, error);
-        }
-      }
     }
   }
 
@@ -672,12 +651,7 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
     
     // Validate that the template supports the requested engine
     if (template.engines && !template.engines.includes(pdfEngine)) {
-      console.warn(`Template ${templateName} does not support engine ${pdfEngine}, using fallback`);
-      // Use the template's default engine or fallback to html
-      const fallbackEngine = template.defaultEngine || 'html';
-      if (template.engines.includes(fallbackEngine)) {
-        console.log(`Using fallback engine: ${fallbackEngine}`);
-      }
+      console.warn(`Template ${templateName} does not support engine ${pdfEngine}`);
     }
     
     return template;
@@ -821,7 +795,6 @@ async function prepareAuthorData(metadata: any): Promise<{
           name: author.name || 'Unknown Author',
           email: author.email || null,
           orcidId: author.orcidId || null,
-          orcidVerified: author.orcidVerified || false,
           affiliation: author.affiliation || null,
           bio: author.bio || null,
           website: author.website || null,
@@ -841,7 +814,6 @@ async function prepareAuthorData(metadata: any): Promise<{
         name: name.trim(),
         email: null,
         orcidId: null,
-        orcidVerified: false,
         affiliation: null,
         bio: null,
         website: null,

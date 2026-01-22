@@ -57,7 +57,6 @@ For manuscripts with registered authors and full metadata:
         "name": "Dr. Alice Johnson",
         "email": "alice.johnson@university.edu",
         "orcidId": "0000-0002-1825-0097",
-        "orcidVerified": true,
         "affiliation": "Department of Computer Science, University of Technology",
         "bio": "Professor of Machine Learning and AI. Research interests include neural networks and deep learning applications.",
         "website": "https://alicejohnson.cs.university.edu"
@@ -71,7 +70,6 @@ For manuscripts with registered authors and full metadata:
         "name": "Dr. Bob Smith",
         "email": "bob.smith@techcorp.com",
         "orcidId": "0000-0003-1234-5678",
-        "orcidVerified": false,
         "affiliation": "TechCorp Research Division",
         "bio": null,
         "website": null
@@ -93,7 +91,6 @@ For manuscripts with registered authors and full metadata:
       name: "Dr. Alice Johnson",
       email: "alice.johnson@university.edu",
       orcidId: "0000-0002-1825-0097",
-      orcidVerified: true,
       affiliation: "Department of Computer Science, University of Technology",
       bio: "Professor of Machine Learning and AI. Research interests include neural networks and deep learning applications.",
       website: "https://alicejohnson.cs.university.edu",
@@ -106,7 +103,6 @@ For manuscripts with registered authors and full metadata:
       name: "Dr. Bob Smith",
       email: "bob.smith@techcorp.com",
       orcidId: "0000-0003-1234-5678",
-      orcidVerified: false,
       affiliation: "TechCorp Research Division",
       bio: null,
       website: null,
@@ -143,7 +139,6 @@ Some authors registered, some not:
         "name": "Dr. Registered User",
         "email": "registered@university.edu",
         "orcidId": "0000-0001-2345-6789",
-        "orcidVerified": true,
         "affiliation": "Research University"
       }
     },
@@ -167,7 +162,6 @@ Some authors registered, some not:
       name: "Dr. Registered User",
       email: "registered@university.edu",
       orcidId: "0000-0001-2345-6789",
-      orcidVerified: true,
       affiliation: "Research University",
       bio: null,
       website: null,
@@ -180,7 +174,6 @@ Some authors registered, some not:
       name: "Guest Author Name",  // Fallback from authors array
       email: null,
       orcidId: null,
-      orcidVerified: false,
       affiliation: null,
       bio: null,
       website: null,
@@ -221,7 +214,6 @@ Some authors registered, some not:
     {{#if orcidId}}
     <p class="orcid">
       ORCID: <a href="https://orcid.org/{{orcidId}}">{{orcidId}}</a>
-      {{#if orcidVerified}}<span class="verified">✓</span>{{/if}}
     </p>
     {{/if}}
     {{#if website}}<p><a href="{{website}}">Website</a></p>{{/if}}

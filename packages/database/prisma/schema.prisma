@@ -264,8 +264,6 @@ model users {
   affiliation                                     String?
   bio                                             String?
   website                                         String?
-  orcidVerified                                   Boolean                     @default(false)
-  orcidAccessToken                                String?
   role                                            GlobalRole                  @default(USER)
   action_editors_action_editors_assignedByTousers action_editors[]            @relation("action_editors_assignedByTousers")
   action_editors_action_editors_editorIdTousers   action_editors[]            @relation("action_editors_editorIdTousers")

@@ -18,7 +18,6 @@ import {
   Loader,
   Divider,
   Badge,
-  Modal
 } from '@mantine/core';
 import {
   IconCheck,
@@ -28,11 +27,8 @@ import {
   IconWorld,
   IconBuilding,
   IconAt,
-  IconShieldCheck,
-  IconUnlink
 } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
-import { useDisclosure } from '@mantine/hooks';
 import Link from 'next/link';
 
 interface ProfileFormData {
@@ -43,11 +39,6 @@ interface ProfileFormData {
   website: string;
 }
 
-interface ORCIDStatus {
-  orcidId: string | null;
-  verified: boolean;
-  hasToken: boolean;
-}
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -57,9 +48,6 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [orcidStatus, setOrcidStatus] = useState<ORCIDStatus | null>(null);
-  const [orcidLoading, setOrcidLoading] = useState(false);
-  const [unlinkModalOpened, { open: openUnlinkModal, close: closeUnlinkModal }] = useDisclosure(false);
 
   const form = useForm<ProfileFormData>({
     initialValues: {
@@ -72,8 +60,6 @@ export default function EditProfilePage() {
     validate: {
       name: (value) => value.trim().length === 0 ? 'Name is required' : null,
       orcidId: (value) => {
-        // Skip validation if ORCID is verified (managed by OAuth)
-        if (orcidStatus?.verified) return null;
         if (!value) return null; // ORCID is optional
         const orcidRegex = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
         return orcidRegex.test(value) ? null : 'Invalid ORCID ID format (e.g., 0000-0000-0000-0000)';
@@ -92,20 +78,6 @@ export default function EditProfilePage() {
     }
   });
 
-  // Fetch ORCID status
-  const fetchOrcidStatus = async () => {
-    try {
-      const response = await fetch('http://localhost:4000/api/orcid/status', {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setOrcidStatus(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch ORCID status:', err);
-    }
-  };
 
   useEffect(() => {
     const fetchCurrentProfile = async () => {
@@ -115,10 +87,7 @@ export default function EditProfilePage() {
       }
 
       try {
-        const [profileResponse] = await Promise.all([
-          fetch('http://localhost:4000/api/users/me', { credentials: 'include' }),
-          fetchOrcidStatus()
-        ]);
+        const profileResponse = await fetch('http://localhost:4000/api/users/me', { credentials: 'include' });
 
         if (!profileResponse.ok) {
           throw new Error('Failed to fetch profile');
@@ -144,31 +113,6 @@ export default function EditProfilePage() {
     fetchCurrentProfile();
   }, [isAuthenticated]);
 
-  // Handle ORCID OAuth callback results
-  useEffect(() => {
-    const orcidSuccess = searchParams.get('orcid_success');
-    const orcidError = searchParams.get('orcid_error');
-
-    if (orcidSuccess === 'verified') {
-      setSuccess('ORCID verified successfully!');
-      fetchOrcidStatus();
-      refreshUser();
-      // Clean up URL
-      router.replace('/profile/edit');
-    } else if (orcidError) {
-      const errorMessages: Record<string, string> = {
-        'token_exchange_failed': 'Failed to verify ORCID. Please try again.',
-        'orcid_already_linked': 'This ORCID is already linked to another account.',
-        'session_expired': 'Session expired. Please try again.',
-        'server_error': 'Server error occurred. Please try again later.',
-        'access_denied': 'ORCID verification was cancelled.',
-        'invalid_state': 'Invalid request state. Please try again.'
-      };
-      setError(errorMessages[orcidError] || 'ORCID verification failed');
-      // Clean up URL
-      router.replace('/profile/edit');
-    }
-  }, [searchParams, router, refreshUser]);
 
   const handleSubmit = async (values: ProfileFormData) => {
     try {
@@ -176,12 +120,9 @@ export default function EditProfilePage() {
       setError(null);
       setSuccess(null);
 
-      // Only send non-empty values, exclude ORCID if verified (managed by OAuth)
+      // Only send non-empty values
       const updateData: Partial<ProfileFormData> = {};
       Object.entries(values).forEach(([key, value]) => {
-        // Skip ORCID if it's verified (managed separately)
-        if (key === 'orcidId' && orcidStatus?.verified) return;
-        
         if (value.trim()) {
           updateData[key as keyof ProfileFormData] = value.trim();
         }
@@ -222,57 +163,7 @@ export default function EditProfilePage() {
     return `https://orcid.org/${orcidId}`;
   };
 
-  const handleVerifyOrcid = async () => {
-    try {
-      setOrcidLoading(true);
-      setError(null);
 
-      const response = await fetch('http://localhost:4000/api/orcid/auth', {
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to start ORCID verification');
-      }
-
-      const data = await response.json();
-      
-      // Redirect to ORCID OAuth
-      window.location.href = data.data.authUrl;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start ORCID verification');
-      setOrcidLoading(false);
-    }
-  };
-
-  const handleUnlinkOrcid = async () => {
-    try {
-      setOrcidLoading(true);
-      setError(null);
-
-      const response = await fetch('http://localhost:4000/api/orcid/unlink', {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to unlink ORCID');
-      }
-
-      setSuccess('ORCID account unlinked successfully');
-      await fetchOrcidStatus();
-      await refreshUser();
-      
-      // Clear ORCID from form
-      form.setFieldValue('orcidId', '');
-      
-      closeUnlinkModal();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to unlink ORCID');
-    } finally {
-      setOrcidLoading(false);
-    }
-  };
 
   if (!isAuthenticated) {
     return (
@@ -369,83 +260,13 @@ export default function EditProfilePage() {
               <Stack gap="md">
                 <Title order={3}>Academic Information</Title>
                 
-                <Stack gap="xs">
-                  <Group gap="xs" align="center">
-                    <Text fw={500} size="sm">ORCID iD</Text>
-                    {orcidStatus?.verified && (
-                      <Badge
-                        size="xs"
-                        color="green"
-                        variant="light"
-                        leftSection={<IconShieldCheck size={12} />}
-                      >
-                        Verified
-                      </Badge>
-                    )}
-                  </Group>
-                  
-                  {orcidStatus?.verified ? (
-                    <Card withBorder padding="sm" bg="green.0">
-                      <Group justify="space-between" align="center">
-                        <Group gap="xs">
-                          <IconShieldCheck size={16} color="green" />
-                          <Stack gap={2}>
-                            <Text size="sm" fw={500}>
-                              {orcidStatus.orcidId}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              Verified ORCID identifier
-                            </Text>
-                          </Stack>
-                        </Group>
-                        <Group gap="xs">
-                          <Anchor
-                            href={formatORCIDUrl(orcidStatus.orcidId!)}
-                            target="_blank"
-                            size="sm"
-                          >
-                            View Profile
-                          </Anchor>
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            color="red"
-                            leftSection={<IconUnlink size={14} />}
-                            onClick={openUnlinkModal}
-                            loading={orcidLoading}
-                          >
-                            Unlink
-                          </Button>
-                        </Group>
-                      </Group>
-                    </Card>
-                  ) : (
-                    <Stack gap="xs">
-                      <TextInput
-                        placeholder="0000-0000-0000-0000"
-                        leftSection={<IconExternalLink size={16} />}
-                        {...form.getInputProps('orcidId')}
-                        disabled={orcidStatus?.verified}
-                        rightSection={
-                          <Button
-                            size="xs"
-                            variant="light"
-                            onClick={handleVerifyOrcid}
-                            loading={orcidLoading}
-                            leftSection={<IconShieldCheck size={14} />}
-                          >
-                            Verify
-                          </Button>
-                        }
-                        rightSectionWidth={80}
-                      />
-                      <Text size="xs" c="dimmed">
-                        Click "Verify" to authenticate your ORCID through the official ORCID system.
-                        This ensures your identifier is genuine and links to your verified academic profile.
-                      </Text>
-                    </Stack>
-                  )}
-                </Stack>
+                <TextInput
+                  label="ORCID iD"
+                  placeholder="0000-0000-0000-0000"
+                  leftSection={<IconExternalLink size={16} />}
+                  {...form.getInputProps('orcidId')}
+                  description="Your ORCID identifier (e.g., 0000-0000-0000-0000). Optional but recommended for academic verification."
+                />
 
                 <TextInput
                   label="Affiliation"
@@ -517,33 +338,6 @@ export default function EditProfilePage() {
         </Card>
       </Stack>
 
-      {/* Unlink ORCID Modal */}
-      <Modal
-        opened={unlinkModalOpened}
-        onClose={closeUnlinkModal}
-        title="Unlink ORCID Account"
-        centered
-      >
-        <Stack gap="md">
-          <Text>
-            Are you sure you want to unlink your ORCID account? This will remove verification 
-            and you'll need to verify again if you want to re-link it.
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button variant="outline" onClick={closeUnlinkModal}>
-              Cancel
-            </Button>
-            <Button
-              color="red"
-              onClick={handleUnlinkOrcid}
-              loading={orcidLoading}
-              leftSection={<IconUnlink size={16} />}
-            >
-              Unlink ORCID
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Container>
   );
 }

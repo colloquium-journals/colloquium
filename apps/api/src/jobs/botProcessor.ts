@@ -131,50 +131,10 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
           }
         }
 
-        // Handle bot errors
+        // Log bot errors for monitoring but don't create separate warning messages
+        // since bots should handle their own error messaging
         if (botResponse.errors && botResponse.errors.length > 0) {
           console.warn(`Bot ${botResponse.botId} reported errors:`, botResponse.errors);
-          
-          const botUserId = botExecutor.getBotUserId(botResponse.botId || '');
-          if (botUserId) {
-            // Create an error message visible to users
-            const errorMessage = await prisma.messages.create({
-              data: {
-                id: randomUUID(),
-                content: `⚠️ **Bot Processing Warning**\n\nThe ${botResponse.botId} bot encountered some issues while processing your request. Some features may not work as expected.`,
-                conversationId: message.conversationId,
-                authorId: botUserId,
-                parentId: message.id,
-                privacy: 'AUTHOR_VISIBLE',
-                isBot: true,
-                updatedAt: new Date()
-              },
-              include: {
-                users: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true
-                  }
-                }
-              }
-            });
-
-            // Broadcast error message
-            broadcastToConversation(conversationId, {
-              type: 'new-message',
-              message: {
-                id: errorMessage.id,
-                content: errorMessage.content,
-                privacy: errorMessage.privacy,
-                author: errorMessage.users,
-                createdAt: errorMessage.createdAt,
-                updatedAt: errorMessage.updatedAt,
-                parentId: errorMessage.parentId,
-                isBot: errorMessage.isBot
-              }
-            });
-          }
         }
       }
     }
