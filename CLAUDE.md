@@ -1,30 +1,77 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
 "Colloquium" - Open-source scientific journal publishing platform with conversational review processes and extensible bot ecosystem.
 
-**Stack**: Next.js 15, Express.js, TypeScript, Prisma ORM, PostgreSQL, Magic link auth, Mantine UI
+**Stack**: Next.js 14, Express.js, TypeScript, Prisma ORM, PostgreSQL, Magic link auth, Mantine UI
 
 ## Architecture
 
 ```
 apps/
-├── web/          # Next.js frontend  
-├── api/          # Express.js backend
+├── web/                    # Next.js 14 frontend (port 3000)
+├── api/                    # Express.js backend (port 4000)
 packages/
-├── database/     # Prisma schema
-├── bots/         # Bot framework
-└── [others]/     # Shared packages
+├── database/               # Prisma schema and client
+├── bots/                   # Bot framework core
+├── types/                  # Shared TypeScript types and Zod schemas
+├── auth/                   # Authentication utilities
+├── ui/                     # Shared React components
+├── config/                 # Shared ESLint config
+├── editorial-bot/          # Editorial workflow bot
+├── markdown-renderer-bot/  # Markdown to HTML rendering
+├── reference-bot/          # Reference/citation processing
+├── reviewer-checklist-bot/ # Reviewer checklist automation
+├── create-colloquium-bot/  # npx template for new bots
+└── create-colloquium-journal/ # npx template for new journals
 ```
+
+Uses Turborepo for monorepo orchestration with npm workspaces.
 
 ## Development Commands
 
-- `npm run dev` - Start development servers
-- `npm run test` - Run tests
-- `npm run lint` - Run linting
+```bash
+# Start all services (frontend, API, required Docker containers)
+npm run dev
+
+# Run all tests across workspaces
+npm run test
+
+# Run tests for a specific workspace
+cd apps/api && npm test
+cd apps/web && npm test
+
+# Run a single test file
+cd apps/api && npx jest tests/routes/articles.test.ts
+cd apps/web && npx jest src/components/__tests__/Button.test.tsx
+
+# Run tests matching a pattern
+cd apps/api && npx jest --testNamePattern="should create manuscript"
+
+# Watch mode for tests
+cd apps/api && npm run test:watch
+
+# Linting and type checking
+npm run lint
+npm run type-check
+
+# Database operations
+npm run db:migrate          # Run Prisma migrations
+npm run db:seed             # Seed with sample data
+npm run db:studio           # Open Prisma Studio (port 5555)
+npm run db:reset            # Reset database (interactive)
+npm run db:reset-quick      # Reset database (no confirmation)
+npm run db:clear            # Clear database without seeding
+
+# Docker services
+npm run docker:up           # Start postgres, redis, mailhog
+
+# Build
+npm run build               # Build all packages and apps
+```
 
 ## Key Systems
 
@@ -78,6 +125,18 @@ REDIS_PORT=6379
 - **Bot mentions**: `@bot-name command` triggers async processing
 - **Real-time**: Server-Sent Events for live updates
 
+## Environment Setup
+
+Required environment variables (see `.env.example`):
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection for job queues
+- `JWT_SECRET` / `MAGIC_LINK_SECRET` - Auth secrets
+- `FRONTEND_URL` / `API_URL` - App URLs (localhost:3000 / localhost:4000)
+
+Development services:
+- **MailHog**: http://localhost:8025 (email testing)
+- **Prisma Studio**: http://localhost:5555 (database UI)
+
 ## Code Style
 
 - TypeScript throughout
@@ -120,70 +179,26 @@ REDIS_PORT=6379
 
 ## Static Asset Hosting for Published Content
 
-### Architecture Decision
-
-**Problem**: Asset files (images, documents) in published articles were served through authenticated API endpoints, creating performance bottlenecks and authentication complexity for public content.
-
-**Solution**: Implemented dual-tier asset hosting:
+Dual-tier asset hosting for performance and security:
 
 ```
-Draft/Review Stage:     /api/articles/{id}/files/{fileId}/download    (authenticated)
-Published Stage:        /static/published/{id}/{filename}             (static, public)
+Draft/Review:    /api/articles/{id}/files/{fileId}/download  (authenticated)
+Published:       /static/published/{id}/{filename}           (static, public)
 ```
 
-### Implementation Details
+**Workflow**: When manuscript status → PUBLISHED:
+1. ASSET files copied to `/static/published/{manuscriptId}/`
+2. RENDERED HTML updated with static URLs
+3. Express serves with long-term caching
 
-**Asset Publishing Workflow**:
-1. **Publication Trigger**: When manuscript status changes to PUBLISHED
-2. **Asset Copy**: All ASSET files copied to `/static/published/{manuscriptId}/`
-3. **URL Rewriting**: RENDERED HTML files updated with static URLs
-4. **Static Serving**: Express serves files directly with long-term caching
+**Key Files**:
+- `apps/api/src/services/publishedAssetManager.ts`
+- `apps/api/src/services/botActionProcessor.ts` (publication hooks)
 
-**File Structure**:
-```
-apps/api/
-├── uploads/manuscripts/{id}/     # Draft/review assets (API served)
-└── static/published/{id}/        # Published assets (static served)
-    ├── figure1.png              # Original filenames preserved
-    ├── data.csv
-    └── manifest.json            # Asset metadata tracking
-```
-
-**Key Components**:
-- **PublishedAssetManager**: `/apps/api/src/services/publishedAssetManager.ts`
-- **Static Middleware**: `/apps/api/src/app.ts` - Express static serving
-- **Publication Hooks**: `/apps/api/src/services/botActionProcessor.ts`
-- **Migration Script**: `/apps/api/src/scripts/migrate-published-assets.ts`
-
-### Benefits
-
-**Performance**:
-- **No API overhead**: Direct file serving without authentication logic
-- **CDN-ready**: Standard HTTP headers for caching and distribution
-- **Reduced server load**: Assets bypass application layer
-
-**Security**:
-- **Public access only for published content**: Draft assets remain protected
-- **Immutable content**: Published assets never change (1-year cache)
-- **Clean separation**: Published content isolated from drafts
-
-**Scalability**:
-- **Horizontal scaling**: Easy to distribute across CDNs
-- **Cost efficiency**: Static hosting cheaper than API serving
-- **Global distribution**: Ready for multi-region deployment
-
-### Migration Strategy
-
-**Existing Content**: Run migration script to copy already-published assets:
-```bash
-npm run migrate-published-assets
-```
-
-**New Publications**: Automatic asset publishing on status change to PUBLISHED
-
-**Retraction Handling**: Assets automatically removed from static hosting when manuscripts retracted
+**Migration**: `npm run migrate-published-assets` (for existing published content)
 
 ## Security Notes
 
-- **Bot Authentication**: 
-  - Authenticate bots to API with X-Bot-Token header
+- **Bot Authentication**: Bots authenticate to API with `X-Bot-Token` header
+- **User Roles**: ADMIN, EDITOR_IN_CHIEF, ACTION_EDITOR, USER, BOT (see `GlobalRole` enum)
+- **Message Privacy**: PUBLIC, AUTHOR_VISIBLE, REVIEWER_ONLY, EDITOR_ONLY, ADMIN_ONLY
