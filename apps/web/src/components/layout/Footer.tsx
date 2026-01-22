@@ -5,14 +5,20 @@ import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 
 export function Footer() {
   const { settings } = useJournalSettings();
-  
+
   const currentYear = new Date().getFullYear();
-  
+
   return (
-    <footer className="journal-footer" style={{ 
-      marginTop: 'auto',
-      padding: '2rem 0'
-    }}>
+    <footer
+      className="journal-footer"
+      style={{
+        marginTop: 'auto',
+        marginLeft: 'calc(-1 * var(--mantine-spacing-md))',
+        marginRight: 'calc(-1 * var(--mantine-spacing-md))',
+        marginBottom: 'calc(-1 * var(--mantine-spacing-md))',
+        padding: '2rem var(--mantine-spacing-md)'
+      }}
+    >
       <Container size="xl">
         <Stack gap="md">
           {/* Custom Footer Content */}
