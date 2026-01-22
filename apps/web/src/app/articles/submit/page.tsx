@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { 
-  Title, 
-  Card, 
-  TextInput, 
+import {
+  Title,
+  Card,
+  TextInput,
   Textarea,
-  Button, 
-  Stack, 
-  Group, 
+  Button,
+  Stack,
+  Group,
   Alert,
   TagsInput,
   Grid,
@@ -21,21 +21,28 @@ import {
   Loader,
   ActionIcon,
   Tooltip,
-  Box
+  Box,
+  Modal,
+  Table,
+  Badge
 } from '@mantine/core';
 import FileDropzone from '@/components/files/FileDropzone';
-import { 
-  IconCheck, 
-  IconAlertCircle, 
-  IconFileText, 
-  IconUsers, 
+import {
+  IconCheck,
+  IconAlertCircle,
+  IconFileText,
+  IconUsers,
   IconUpload,
   IconX,
   IconExclamationMark,
   IconInfoCircle,
   IconBuilding,
-  IconExternalLink
+  IconExternalLink,
+  IconFileSpreadsheet,
+  IconDownload,
+  IconFileTypeCsv
 } from '@tabler/icons-react';
+import { downloadTemplate, parseAuthorFile, ImportedAuthor, ParseResult } from '@/utils/authorImport';
 import { useForm } from '@mantine/form';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { RequireProfileCompletion } from '@/components/auth/RequireProfileCompletion';
@@ -76,6 +83,12 @@ export default function SubmitArticlePage() {
   const [supportedFormats, setSupportedFormats] = useState<FormatInfo[]>([]);
   const [loadingFormats, setLoadingFormats] = useState(true);
   const [authorLookupLoading, setAuthorLookupLoading] = useState<{ [index: number]: boolean }>({});
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importedAuthors, setImportedAuthors] = useState<ImportedAuthor[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importFileProcessing, setImportFileProcessing] = useState(false);
+  const [importDragOver, setImportDragOver] = useState(false);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Load supported formats
   useEffect(() => {
@@ -462,7 +475,88 @@ export default function SubmitArticlePage() {
     return supportedFormats.flatMap(format => format.mimeTypes);
   };
 
+  const handleImportFileChange = async (file: File | null) => {
+    if (!file) return;
 
+    setImportFileProcessing(true);
+    setImportErrors([]);
+    setImportedAuthors([]);
+
+    try {
+      const result = await parseAuthorFile(file);
+      setImportedAuthors(result.authors);
+      setImportErrors(result.errors);
+    } catch (error) {
+      setImportErrors(['Failed to process file']);
+    } finally {
+      setImportFileProcessing(false);
+    }
+  };
+
+  const handleImportDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setImportDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith('.csv') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        handleImportFileChange(file);
+      } else {
+        setImportErrors([`Invalid file type: "${file.name}". Please upload a CSV or Excel file (.csv, .xlsx, .xls)`]);
+      }
+    }
+  };
+
+  const handleImportInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImportFileChange(file);
+    }
+  };
+
+  const handleAddImportedAuthors = async () => {
+    if (importedAuthors.length === 0) return;
+
+    const currentAuthors = form.values.authors;
+
+    // Check for existing corresponding author
+    const hasExistingCorresponding = currentAuthors.some(a => a.isCorresponding);
+
+    // Convert imported authors to AuthorInput format
+    const newAuthors: AuthorInput[] = importedAuthors.map((imported, index) => ({
+      email: imported.email,
+      name: imported.name,
+      affiliation: imported.affiliation,
+      isExistingUser: false,
+      // Only set as corresponding if no existing corresponding and this is the first imported one marked
+      isCorresponding: !hasExistingCorresponding && imported.isCorresponding
+    }));
+
+    // If multiple imported authors are marked as corresponding, only keep the first
+    let foundCorresponding = hasExistingCorresponding;
+    for (const author of newAuthors) {
+      if (author.isCorresponding) {
+        if (foundCorresponding) {
+          author.isCorresponding = false;
+        } else {
+          foundCorresponding = true;
+        }
+      }
+    }
+
+    // Filter out duplicates (by email) that already exist in current authors
+    const existingEmails = new Set(currentAuthors.map(a => a.email.toLowerCase()));
+    const filteredNewAuthors = newAuthors.filter(a => !existingEmails.has(a.email.toLowerCase()));
+
+    // Merge authors
+    const mergedAuthors = [...currentAuthors, ...filteredNewAuthors];
+    form.setFieldValue('authors', mergedAuthors);
+
+    // Close modal and reset state
+    setImportModalOpen(false);
+    setImportedAuthors([]);
+    setImportErrors([]);
+  };
 
   // Show loading state while checking authentication
   if (authLoading) {
@@ -569,11 +663,164 @@ export default function SubmitArticlePage() {
 
             {/* Authors */}
             <Stack gap="lg">
-              <Group gap="xs" align="center">
-                <IconUsers size={20} />
-                <Title order={3}>Authors</Title>
+              <Group gap="xs" align="center" justify="space-between">
+                <Group gap="xs" align="center">
+                  <IconUsers size={20} />
+                  <Title order={3}>Authors</Title>
+                </Group>
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconFileSpreadsheet size={16} />}
+                  onClick={() => setImportModalOpen(true)}
+                >
+                  Import from file
+                </Button>
               </Group>
-                
+
+              {/* Import Modal */}
+              <Modal
+                opened={importModalOpen}
+                onClose={() => {
+                  setImportModalOpen(false);
+                  setImportedAuthors([]);
+                  setImportErrors([]);
+                }}
+                title="Import Authors from File"
+                size="lg"
+              >
+                <Stack gap="md">
+                  <Text size="sm" c="dimmed">
+                    Upload a CSV or Excel file with author information. Required columns: email, name.
+                    Optional columns: affiliation, corresponding.
+                  </Text>
+
+                  <Group gap="xs">
+                    <Text size="sm" fw={500}>Download template:</Text>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      leftSection={<IconFileTypeCsv size={14} />}
+                      onClick={() => downloadTemplate('csv')}
+                    >
+                      CSV
+                    </Button>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      leftSection={<IconDownload size={14} />}
+                      onClick={() => downloadTemplate('xlsx')}
+                    >
+                      Excel
+                    </Button>
+                  </Group>
+
+                  <input
+                    ref={importFileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleImportInputChange}
+                    style={{ display: 'none' }}
+                  />
+                  <Box
+                    onDrop={handleImportDrop}
+                    onDragOver={(e) => { e.preventDefault(); setImportDragOver(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); setImportDragOver(false); }}
+                    onClick={() => importFileInputRef.current?.click()}
+                    style={{
+                      border: `2px dashed ${importDragOver ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-4)'}`,
+                      borderRadius: '8px',
+                      padding: '24px',
+                      backgroundColor: importDragOver ? 'var(--mantine-color-blue-0)' : 'var(--mantine-color-gray-0)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <Stack align="center" gap="xs">
+                      <IconUpload size={32} color="var(--mantine-color-gray-6)" />
+                      <Text size="sm" fw={500}>
+                        Drag and drop a file here, or click to select
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        Accepts CSV or Excel files (.csv, .xlsx, .xls)
+                      </Text>
+                    </Stack>
+                  </Box>
+
+                  {importFileProcessing && (
+                    <Group gap="xs">
+                      <Loader size="sm" />
+                      <Text size="sm">Processing file...</Text>
+                    </Group>
+                  )}
+
+                  {importErrors.length > 0 && (
+                    <Alert
+                      icon={<IconAlertCircle size={16} />}
+                      color={importedAuthors.length > 0 ? 'yellow' : 'red'}
+                      title={importedAuthors.length > 0 ? 'Warnings' : 'Errors'}
+                    >
+                      <Stack gap="xs">
+                        {importErrors.map((error, index) => (
+                          <Text key={index} size="sm">{error}</Text>
+                        ))}
+                      </Stack>
+                    </Alert>
+                  )}
+
+                  {importedAuthors.length > 0 && (
+                    <Stack gap="sm">
+                      <Text size="sm" fw={500}>
+                        Preview ({importedAuthors.length} author{importedAuthors.length !== 1 ? 's' : ''} found):
+                      </Text>
+                      <Table striped withTableBorder>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Email</Table.Th>
+                            <Table.Th>Name</Table.Th>
+                            <Table.Th>Affiliation</Table.Th>
+                            <Table.Th>Corresponding</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {importedAuthors.map((author, index) => (
+                            <Table.Tr key={index}>
+                              <Table.Td>{author.email}</Table.Td>
+                              <Table.Td>{author.name}</Table.Td>
+                              <Table.Td>{author.affiliation || '—'}</Table.Td>
+                              <Table.Td>
+                                {author.isCorresponding ? (
+                                  <Badge color="blue" size="sm">Yes</Badge>
+                                ) : '—'}
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                      <Group justify="flex-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setImportModalOpen(false);
+                            setImportedAuthors([]);
+                            setImportErrors([]);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleAddImportedAuthors}
+                          leftSection={<IconCheck size={16} />}
+                        >
+                          Add {importedAuthors.length} author{importedAuthors.length !== 1 ? 's' : ''}
+                        </Button>
+                      </Group>
+                    </Stack>
+                  )}
+                </Stack>
+              </Modal>
+
                 <div>
                   <Group gap="xs" align="center" mb="xs">
                     <Text size="sm" fw={500}>Authors *</Text>
