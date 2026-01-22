@@ -353,40 +353,38 @@ export default function ArticlesPage() {
 
                     {/* Keywords */}
                     {article.keywords.length > 0 && (
-                      <Group gap="xs">
-                        <IconTag size={14} />
-                        <Group gap="xs">
-                          {article.keywords.slice(0, 3).map((keyword, index) => (
-                            <Badge 
-                              key={index} 
-                              size="xs" 
-                              variant={selectedTag === keyword ? "filled" : "light"}
-                              color={selectedTag === keyword ? "blue" : undefined}
-                              style={{ 
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease'
-                              }}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleTagClick(keyword);
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = selectedTag === keyword ? '' : 'var(--mantine-color-gray-2)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = '';
-                              }}
-                            >
-                              {keyword}
-                            </Badge>
-                          ))}
-                          {article.keywords.length > 3 && (
-                            <Text size="xs" c="dimmed">
-                              +{article.keywords.length - 3} more
-                            </Text>
-                          )}
-                        </Group>
+                      <Group gap="xs" wrap="wrap" align="flex-start">
+                        <IconTag size={14} style={{ marginTop: 2 }} />
+                        {article.keywords.slice(0, 3).map((keyword, index) => (
+                          <Badge
+                            key={index}
+                            size="xs"
+                            variant={selectedTag === keyword ? "filled" : "light"}
+                            color={selectedTag === keyword ? "blue" : undefined}
+                            style={{
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleTagClick(keyword);
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = selectedTag === keyword ? '' : 'var(--mantine-color-gray-2)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '';
+                            }}
+                          >
+                            {keyword}
+                          </Badge>
+                        ))}
+                        {article.keywords.length > 3 && (
+                          <Text size="xs" c="dimmed">
+                            +{article.keywords.length - 3} more
+                          </Text>
+                        )}
                       </Group>
                     )}
 
