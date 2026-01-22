@@ -528,7 +528,6 @@ export default function SubmitArticlePage() {
               <Group gap="xs" align="center">
                 <IconFileText size={20} />
                 <Title order={3}>Basic Information</Title>
-                {getStatusIcon('title')}
               </Group>
                 
                 <Group align="flex-end" gap="xs">
@@ -573,7 +572,6 @@ export default function SubmitArticlePage() {
               <Group gap="xs" align="center">
                 <IconUsers size={20} />
                 <Title order={3}>Authors</Title>
-                {getStatusIcon('authors')}
               </Group>
                 
                 <div>
@@ -771,7 +769,6 @@ export default function SubmitArticlePage() {
               <Group gap="xs" align="center">
                 <IconCheck size={20} />
                 <Title order={3}>Review & Submit</Title>
-                {getStatusIcon('agreeToTerms')}
               </Group>
 
                 <Group gap="xs" align="center">
