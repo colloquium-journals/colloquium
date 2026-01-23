@@ -157,14 +157,14 @@ export default function ReviewResponsePage() {
       <Container size="sm" py="xl">
         <Paper p="xl" shadow="sm">
           <Stack align="center" gap="lg">
-            {response.status === 'ACCEPTED' ? (
+            {response.status === 'IN_PROGRESS' ? (
               <IconCheck size={48} color="green" />
             ) : (
               <IconX size={48} color="red" />
             )}
             
             <Title order={2} ta="center">
-              {response.status === 'ACCEPTED' ? 'Invitation Accepted!' : 'Invitation Declined'}
+              {response.status === 'IN_PROGRESS' ? 'Invitation Accepted!' : 'Invitation Declined'}
             </Title>
             
             <Text ta="center" size="lg">
@@ -176,7 +176,7 @@ export default function ReviewResponsePage() {
               <Text><strong>Manuscript:</strong> {response.manuscript}</Text>
             </Stack>
             
-            {response.status === 'ACCEPTED' && (
+            {response.status === 'IN_PROGRESS' && (
               <Alert icon={<IconMail size="1rem" />} title="Next Steps" color="green">
                 You will receive further instructions from the editorial team about accessing the manuscript and submitting your review.
               </Alert>

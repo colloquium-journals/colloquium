@@ -1,4 +1,4 @@
-import { z } from 'zod';
+
 import { CommandBot, BotCommand } from '@colloquium/types';
 import { randomUUID } from 'crypto';
 
@@ -385,134 +385,6 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
   }
 }
 
-/**
- * Check if user has permission to assign reviewers to a manuscript
- */
-async function checkReviewerAssignmentPermission(context: any): Promise<boolean> {
-  const validRoles = ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'];
-
-  const contextRole = context.triggeredBy?.userRole;
-  if (contextRole) return validRoles.includes(contextRole);
-
-  const userId = context.triggeredBy?.userId;
-  const serviceToken = context.serviceToken;
-  if (!userId || !serviceToken) return false;
-
-  try {
-    const response = await fetch(`${context.config?.apiUrl || 'http://localhost:4000'}/api/users/${userId}`, {
-      headers: { 'X-Bot-Token': serviceToken, 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) return false;
-    const user = await response.json();
-    return validRoles.includes(user.role);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Validate that mentioned reviewers exist and can be assigned
- */
-async function validateReviewers(mentions: string[], manuscriptId: string, context: any): Promise<{ isValid: boolean; error?: string }> {
-  try {
-    const { serviceToken } = context;
-    
-    if (!serviceToken) {
-      return {
-        isValid: false,
-        error: 'Bot service token required for API access'
-      };
-    }
-
-    // Remove @ symbols to get usernames for lookup
-    const usernames = mentions.map(mention => mention.replace('@', ''));
-    const users = [];
-
-    // Search for each user individually using the user search API
-    for (const username of usernames) {
-      const userSearchResponse = await fetch(`http://localhost:4000/api/users?search=${encodeURIComponent(username)}`, {
-        headers: {
-          'X-Bot-Token': serviceToken,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!userSearchResponse.ok) {
-        return {
-          isValid: false,
-          error: 'Unable to search for users due to a system error. Please try again later.'
-        };
-      }
-
-      const userSearchResults = await userSearchResponse.json();
-      const user = userSearchResults.users?.find((u: any) => u.name === username);
-      
-      if (user) {
-        users.push(user);
-      }
-    }
-
-    // Check if all mentioned users were found
-    const foundUsernames = users.map((u: any) => u.name);
-    const missingUsers = usernames.filter(name => !foundUsernames.includes(name));
-
-    if (missingUsers.length > 0) {
-      return {
-        isValid: false,
-        error: `The following users were not found: ${missingUsers.map(name => `@${name}`).join(', ')}. Please check the usernames and try again.`
-      };
-    }
-
-    // Get manuscript data to check for conflicts and existing assignments
-    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!manuscriptResponse.ok) {
-      return {
-        isValid: false,
-        error: 'Unable to validate reviewer assignments due to a system error. Please try again later.'
-      };
-    }
-
-    const manuscript = await manuscriptResponse.json();
-
-    // Check if any of the users are authors of this manuscript (conflict of interest)
-    const authorIds = (manuscript.authors || []).map((author: any) => author.id);
-    const conflictUsers = users.filter((user: any) => authorIds.includes(user.id));
-
-    if (conflictUsers.length > 0) {
-      return {
-        isValid: false,
-        error: `Cannot assign authors as reviewers: ${conflictUsers.map((u: any) => `@${u.name}`).join(', ')}. This would create a conflict of interest.`
-      };
-    }
-
-    // Check if any users are already assigned as reviewers
-    const existingReviewerIds = (manuscript.reviewAssignments || []).map((assignment: any) => assignment.reviewer.id);
-    const alreadyAssignedUsers = users.filter((user: any) => existingReviewerIds.includes(user.id));
-
-    if (alreadyAssignedUsers.length > 0) {
-      const alreadyAssigned = alreadyAssignedUsers.map((u: any) => `@${u.name}`).join(', ');
-      return {
-        isValid: false,
-        error: `The following users are already assigned as reviewers: ${alreadyAssigned}. Please remove them from the list or use a different command to update existing assignments.`
-      };
-    }
-
-    return { isValid: true };
-  } catch (error) {
-    console.error('Reviewer validation failed:', error);
-    return {
-      isValid: false,
-      error: 'Unable to validate reviewers due to a system error. Please try again later.'
-    };
-  }
-}
-
 // Define commands for the editorial bot
 const acceptCommand: BotCommand = {
   name: 'accept',
@@ -758,274 +630,6 @@ const assignEditorCommand: BotCommand = {
   }
 };
 
-const assignReviewerCommand: BotCommand = {
-  name: 'assign-reviewer',
-  description: 'Assign accepted reviewers to start the review process',
-  usage: '@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"]',
-  help: `Assigns reviewers who have already accepted invitations to start the review process.
-
-**Usage:**
-\`@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"]\`
-
-**Parameters:**
-- **reviewers**: Comma-separated list of reviewer @mentions or email addresses
-- **deadline**: Review deadline in YYYY-MM-DD format (optional)
-
-**Requirements:**
-- Reviewers must have first been invited using \`@editorial-bot invite-reviewer\`
-- Reviewers must have accepted the invitation using \`@editorial-bot accept-review\`
-- Only ACCEPTED invitations can be assigned
-
-**Workflow:**
-1. Editor invites reviewers: \`@editorial-bot invite-reviewer reviewer@uni.edu\`
-2. Reviewer accepts invitation: \`@editorial-bot accept-review\`
-3. Editor assigns reviewer: \`@editorial-bot assign-reviewer reviewer@uni.edu\`
-4. Review process begins (status becomes IN_PROGRESS)
-
-**Examples:**
-- \`@editorial-bot assign-reviewer reviewer@university.edu\`
-- \`@editorial-bot assign-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"\``,
-  parameters: [
-    {
-      name: 'reviewers',
-      description: 'Comma-separated list of reviewer @mentions or email addresses',
-      type: 'string',
-      required: true,
-      examples: ['reviewer@university.edu', '@DrSmith,expert@domain.com']
-    },
-    {
-      name: 'deadline',
-      description: 'Review deadline in YYYY-MM-DD format (optional)',
-      type: 'string',
-      required: false,
-      validation: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format').optional(),
-      examples: ['2024-02-15', '2024-03-01']
-    }
-  ],
-  examples: [
-    '@editorial-bot assign-reviewer reviewer@university.edu',
-    '@editorial-bot assign-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"'
-  ],
-  permissions: ['assign_reviewers'],
-  async execute(params, context) {
-    const { reviewers, deadline } = params;
-    const { manuscriptId } = context;
-
-    // Check user permissions for reviewer assignment
-    const userId = context.triggeredBy?.userId;
-    const hasPermission = await checkReviewerAssignmentPermission(context);
-    
-    if (!hasPermission) {
-      return {
-        messages: [{
-          content: '❌ **Access Denied**\n\nYou do not have permission to assign reviewers to this manuscript. Only action editors, managing editors, editor-in-chief, or admins can assign reviewers.'
-        }]
-      };
-    }
-
-    // Process @mentions and email addresses to ensure proper formatting
-    const reviewerList = reviewers.split(',').map((r: string) => r.trim());
-    const processedReviewers = processMentions(reviewerList);
-
-    // Return mock data in test environment
-    if (process.env.NODE_ENV === 'test') {
-      return {
-        messages: [{
-          content: `👥 **Reviewers Assigned**\n\n**Manuscript ID:** ${manuscriptId}\n**Reviewers:** ${processedReviewers.join(', ')}\n**Deadline:** ${deadline || 'No deadline specified'}\n\n✅ Reviewers have been assigned and can now begin their review.`
-        }],
-        actions: [{
-          type: 'ASSIGN_REVIEWER',
-          data: { 
-            reviewers: processedReviewers, 
-            deadline: deadline || null, 
-            assignedDate: new Date().toISOString().split('T')[0],
-            assignedBy: userId
-          }
-        }]
-      };
-    }
-
-    try {
-      // Import prisma here to avoid circular dependencies
-      const { prisma } = await import('@colloquium/database');
-      
-      const results = {
-        assigned: [] as any[],
-        notInvited: [] as any[],
-        alreadyAssigned: [] as any[],
-        failed: [] as any[]
-      };
-
-      // Convert reviewer inputs to email addresses
-      const reviewerEmails = [];
-      for (const reviewer of processedReviewers) {
-        if (reviewer.includes('@') && !reviewer.startsWith('@')) {
-          // It's an email address
-          reviewerEmails.push(reviewer.toLowerCase());
-        } else {
-          // It's a @mention, find the user's email
-          const username = reviewer.replace('@', '');
-          const user = await prisma.users.findFirst({
-            where: { name: username },
-            select: { email: true }
-          });
-          if (user) {
-            reviewerEmails.push(user.email);
-          } else {
-            results.notInvited.push({
-              input: reviewer,
-              reason: 'User not found'
-            });
-            continue;
-          }
-        }
-      }
-
-      // Check each reviewer's invitation status
-      for (const email of reviewerEmails) {
-        // Find the user
-        const user = await prisma.users.findUnique({
-          where: { email: email.toLowerCase() }
-        });
-
-        if (!user) {
-          results.notInvited.push({
-            email,
-            reason: 'User not found'
-          });
-          continue;
-        }
-
-        // Check if they have an accepted invitation for this manuscript
-        const existingAssignment = await prisma.review_assignments.findUnique({
-          where: {
-            manuscriptId_reviewerId: {
-              manuscriptId,
-              reviewerId: user.id
-            }
-          }
-        });
-
-        if (!existingAssignment) {
-          results.notInvited.push({
-            email,
-            reason: 'No invitation found. Use invite-reviewer command first.'
-          });
-          continue;
-        }
-
-        if (existingAssignment.status === 'IN_PROGRESS' || existingAssignment.status === 'COMPLETED') {
-          results.alreadyAssigned.push({
-            email,
-            status: existingAssignment.status
-          });
-          continue;
-        }
-
-        if (existingAssignment.status !== 'ACCEPTED') {
-          results.notInvited.push({
-            email,
-            reason: `Invitation status is ${existingAssignment.status}. Reviewer must accept invitation first.`
-          });
-          continue;
-        }
-
-        // Update the assignment to IN_PROGRESS and set deadline if provided via API
-        const { serviceToken } = context;
-        const updateResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/reviewers/${user.id}`, {
-          method: 'PUT',
-          headers: {
-            'X-Bot-Token': serviceToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            status: 'IN_PROGRESS',
-            dueDate: deadline || existingAssignment.dueDate
-          })
-        });
-
-        if (!updateResponse.ok) {
-          results.failed.push({
-            email,
-            error: `Failed to update reviewer assignment: ${updateResponse.statusText}`
-          });
-          continue;
-        }
-
-        const updateResult = await updateResponse.json();
-        const updatedAssignment = updateResult.assignment;
-
-        results.assigned.push({
-          email,
-          reviewerId: user.id,
-          assignmentId: updatedAssignment.id,
-          deadline: updatedAssignment.dueDate ? new Date(updatedAssignment.dueDate).toISOString().split('T')[0] : 'No deadline'
-        });
-
-        // TODO: Broadcast reviewer assignment via SSE
-        // Note: Disabled due to cross-package import issues
-        // This should be handled by the API layer when the bot action is processed
-      }
-
-      // Prepare response message
-      let response = `👥 **Reviewer Assignment Results**\n\n`;
-      response += `**Manuscript ID:** ${manuscriptId}\n\n`;
-
-      if (results.assigned.length > 0) {
-        response += `✅ **Successfully Assigned (${results.assigned.length}):**\n`;
-        results.assigned.forEach(r => {
-          response += `- ${r.email} (deadline: ${r.deadline})\n`;
-        });
-        response += '\n';
-      }
-
-      if (results.alreadyAssigned.length > 0) {
-        response += `ℹ️ **Already Assigned (${results.alreadyAssigned.length}):**\n`;
-        results.alreadyAssigned.forEach(r => {
-          response += `- ${r.email} (status: ${r.status})\n`;
-        });
-        response += '\n';
-      }
-
-      if (results.notInvited.length > 0) {
-        response += `❌ **Cannot Assign (${results.notInvited.length}):**\n`;
-        results.notInvited.forEach(r => {
-          response += `- ${r.email}: ${r.reason}\n`;
-        });
-        response += '\n';
-      }
-
-      if (results.assigned.length === 0) {
-        response += '⚠️ No reviewers were assigned. Make sure reviewers have accepted their invitations first.';
-      } else {
-        response += `🎉 ${results.assigned.length} reviewer(s) successfully assigned and can now begin their review.`;
-      }
-
-      return {
-        messages: [{ content: response }],
-        actions: results.assigned.length > 0 ? [{
-          type: 'ASSIGN_REVIEWER',
-          data: { 
-            reviewers: results.assigned.map(r => r.email),
-            deadline: deadline || null,
-            assignedDate: new Date().toISOString().split('T')[0],
-            assignedBy: userId,
-            assignmentResults: results
-          }
-        }] : undefined
-      };
-
-    } catch (error) {
-      console.error('Error in assign-reviewer command:', error);
-      return {
-        messages: [{
-          content: `❌ **Assignment Failed**\n\nAn error occurred while assigning reviewers: ${error instanceof Error ? error.message : 'Unknown error'}`
-        }]
-      };
-    }
-  }
-};
-
 const inviteReviewerCommand: BotCommand = {
   name: 'invite-reviewer',
   description: 'Send email invitations to potential reviewers',
@@ -1041,10 +645,10 @@ const inviteReviewerCommand: BotCommand = {
 - **message**: Custom message to include in invitation email (optional)
 
 **Workflow:**
-1. Sends invitation email to reviewers
+1. Sends invitation email to reviewers with accept/decline links
 2. Creates pending review assignment with PENDING status
-3. Reviewers can accept with \`@editorial-bot accept-review\`
-4. Editors can then assign accepted reviewers with \`@editorial-bot assign-reviewer\`
+3. Reviewers accept or decline via the links in the email or conversation message
+4. Accepting goes directly to IN_PROGRESS (review begins immediately)
 
 **Examples:**
 - \`@editorial-bot invite-reviewer reviewer@university.edu\`
@@ -1273,29 +877,31 @@ Decline: ${declineUrl}
     }
 
     // Generate response message
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     let responseMessage = '📧 **Reviewer Invitations Processed**\n\n';
-    
+
     if (results.invited.length > 0) {
-      const emailSuccessCount = results.invited.filter(r => r.emailSent).length;
       const emailFailureCount = results.invited.filter(r => !r.emailSent).length;
-      
-      responseMessage += `**✅ Successfully Invited (${results.invited.length}):**\n`;
+
+      responseMessage += `✅ **Successfully Invited (${results.invited.length})**\n`;
       results.invited.forEach(r => {
+        const acceptLink = `${frontendUrl}/review-response/${r.invitationId}?action=accept`;
+        const declineLink = `${frontendUrl}/review-response/${r.invitationId}?action=decline`;
         if (r.emailSent) {
-          responseMessage += `- ${r.email} ✉️ (email sent)\n`;
+          responseMessage += `- ${r.email} — [Accept](${acceptLink}) | [Decline](${declineLink})\n`;
         } else {
-          responseMessage += `- ${r.email} ⚠️ (invitation created but email failed: ${r.emailError})\n`;
+          responseMessage += `- ${r.email} ⚠️ (email failed: ${r.emailError}) — [Accept](${acceptLink}) | [Decline](${declineLink})\n`;
         }
       });
       responseMessage += '\n';
-      
+
       if (emailFailureCount > 0) {
-        responseMessage += `**⚠️ Email Delivery Issues:** ${emailFailureCount} invitation(s) were created in the system but emails failed to send. Please check your SMTP configuration or manually notify the reviewers.\n\n`;
+        responseMessage += `**⚠️ Email Delivery Issues:** ${emailFailureCount} invitation(s) were created but emails failed to send. Share the links above with the reviewers directly.\n\n`;
       }
     }
 
     if (results.alreadyInvited.length > 0) {
-      responseMessage += `**ℹ️ Already Invited/Assigned (${results.alreadyInvited.length}):**\n`;
+      responseMessage += `ℹ️ **Already Invited/Assigned (${results.alreadyInvited.length}):**\n`;
       results.alreadyInvited.forEach(r => {
         responseMessage += `- ${r.email} (${r.status})\n`;
       });
@@ -1303,14 +909,12 @@ Decline: ${declineUrl}
     }
 
     if (results.failed.length > 0) {
-      responseMessage += `**❌ Failed (${results.failed.length}):**\n`;
+      responseMessage += `❌ **Failed (${results.failed.length}):**\n`;
       results.failed.forEach(r => {
         responseMessage += `- ${r.email}: ${r.error}\n`;
       });
       responseMessage += '\n';
     }
-
-    responseMessage += `Reviewers can accept invitations using: \`@editorial-bot accept-review\``;
 
     return {
       messages: [{ content: responseMessage }]
@@ -1425,7 +1029,7 @@ const summaryCommand: BotCommand = {
       }
       
       if (manuscriptData.acceptedReviewers?.length > 0) {
-        summary += `- Assign ${manuscriptData.acceptedReviewers.length} accepted reviewer(s) using \`@editorial-bot assign-reviewer\`\n`;
+        summary += `- ${manuscriptData.acceptedReviewers.length} reviewer(s) accepted and review is in progress\n`;
       }
       
       if (manuscriptData.completedReviews < manuscriptData.totalReviews) {
@@ -1515,153 +1119,6 @@ const respondCommand: BotCommand = {
     };
   }
 };
-
-const acceptReviewCommand: BotCommand = {
-  name: 'accept-review',
-  description: 'Accept a review invitation for the current manuscript',
-  usage: '@editorial-bot accept-review [message="optional message"]',
-  help: `Accept a review invitation for the current manuscript. This command can only be used by users who have been invited as reviewers.
-
-**Usage:**
-\`@editorial-bot accept-review [message="optional message"]\`
-
-**Parameters:**
-- **message**: Optional message to include with your acceptance (optional)
-
-**Requirements:**
-- You must have been invited as a reviewer for this manuscript
-- The invitation must be in PENDING status
-- Command must be used in the manuscript's conversation
-
-**Workflow:**
-1. Editor sends invitation with \`@editorial-bot invite-reviewer\`
-2. You receive invitation email
-3. You accept with \`@editorial-bot accept-review\`
-4. Editor can then assign you with \`@editorial-bot assign-reviewer\`
-
-**Examples:**
-- \`@editorial-bot accept-review\`
-- \`@editorial-bot accept-review message="Happy to review this work"\``,
-  parameters: [
-    {
-      name: 'message',
-      description: 'Optional message to include with your acceptance',
-      type: 'string',
-      required: false,
-      examples: ['Happy to review this work', 'I have expertise in this area']
-    }
-  ],
-  examples: [
-    '@editorial-bot accept-review',
-    '@editorial-bot accept-review message="Happy to review this work"'
-  ],
-  permissions: [],
-  async execute(params, context) {
-    const { message } = params;
-    const { manuscriptId, userId } = context;
-
-    if (!userId) {
-      return {
-        messages: [{
-          content: '❌ **Authentication Required**\n\nYou must be logged in to accept review invitations.'
-        }]
-      };
-    }
-
-    try {
-      // Import prisma here to avoid circular dependencies
-      const { prisma } = await import('@colloquium/database');
-      // Check if user has a pending invitation for this manuscript
-      const invitation = await prisma.review_assignments.findUnique({
-        where: {
-          manuscriptId_reviewerId: {
-            manuscriptId,
-            reviewerId: userId
-          }
-        },
-        include: {
-          users: {
-            select: {
-              name: true,
-              email: true
-            }
-          },
-          manuscripts: {
-            select: {
-              title: true
-            }
-          }
-        }
-      });
-
-      if (!invitation) {
-        return {
-          messages: [{
-            content: '❌ **No Invitation Found**\n\nYou do not have a review invitation for this manuscript. Invitations are sent by editors using `@editorial-bot invite-reviewer`.'
-          }]
-        };
-      }
-
-      if (invitation.status !== 'PENDING') {
-        const statusMessage = invitation.status === 'ACCEPTED' 
-          ? 'You have already accepted this review invitation.'
-          : invitation.status === 'DECLINED'
-          ? 'You have previously declined this review invitation.'
-          : `Your review invitation status is: ${invitation.status}`;
-          
-        return {
-          messages: [{
-            content: `ℹ️ **Invitation Already Responded**\n\n${statusMessage}`
-          }]
-        };
-      }
-
-      // Accept the invitation via API
-      const { serviceToken } = context;
-      const acceptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/reviewers/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'X-Bot-Token': serviceToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status: 'ACCEPTED'
-        })
-      });
-
-      if (!acceptResponse.ok) {
-        return {
-          messages: [{
-            content: `❌ **Failed to Accept Invitation**\n\nSystem error: ${acceptResponse.statusText}. Please try again later.`
-          }]
-        };
-      }
-
-      let responseMessage = `✅ **Review Invitation Accepted**\n\n`;
-      responseMessage += `**Reviewer:** ${invitation.users.name || invitation.users.email}\n`;
-      responseMessage += `**Manuscript:** ${invitation.manuscripts.title}\n\n`;
-      
-      if (message) {
-        responseMessage += `**Message:** ${message}\n\n`;
-      }
-      
-      responseMessage += `Thank you for accepting! The editor can now assign you as a reviewer using \`@editorial-bot assign-reviewer\`.`;
-
-      return {
-        messages: [{ content: responseMessage }]
-      };
-
-    } catch (error) {
-      console.error('Failed to accept review invitation:', error);
-      return {
-        messages: [{
-          content: '❌ **Error**\n\nFailed to accept review invitation. Please try again or contact the editor.'
-        }]
-      };
-    }
-  }
-};
-
 
 const submitCommand: BotCommand = {
   name: 'submit',
@@ -1755,16 +1212,15 @@ const helpCommand: BotCommand = {
       description: 'Optional: Get detailed help for a specific command',
       type: 'string',
       required: false,
-      examples: ['accept', 'reject', 'assign-reviewer', 'invite-reviewer', 'accept-review', 'assign-editor', 'summary']
+      examples: ['accept', 'reject', 'invite-reviewer', 'assign-editor', 'summary']
     }
   ],
   examples: [
     '@editorial-bot help',
     '@editorial-bot help accept',
     '@editorial-bot help reject',
-    '@editorial-bot help assign-reviewer',
     '@editorial-bot help invite-reviewer',
-    '@editorial-bot help accept-review'
+    '@editorial-bot help assign-editor'
   ],
   permissions: [],
   async execute(params, context) {
@@ -1772,7 +1228,7 @@ const helpCommand: BotCommand = {
     
     if (command) {
       // Return help for specific command
-      const commands = [acceptCommand, rejectCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, respondCommand, submitCommand];
+      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, summaryCommand, respondCommand, submitCommand];
       const targetCommand = commands.find(cmd => cmd.name === command);
       
       if (!targetCommand) {
@@ -1813,19 +1269,19 @@ Assists with manuscript editorial workflows, status updates, reviewer assignment
 
 ## 🚀 Getting Started
 
-This bot helps automate editorial workflows. Use \`accept\` or \`reject\` to make editorial decisions, and \`assign-reviewer\` to assign reviewers.
+This bot helps automate editorial workflows. Use \`invite-reviewer\` to invite reviewers, and \`accept\` or \`reject\` to make editorial decisions.
 
 ## 📋 Workflow Steps
 
-1. Submit manuscript → 2. Assign action editor → 3. Assign reviewers → 4. Track progress → 5. Make decision (accept/reject)
+1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept via links → 5. Track progress → 6. Make decision (accept/reject)
 
 ## Overview
 
-The Editorial Bot streamlines manuscript management by automating reviewer assignments, progress tracking, and editorial decisions.
+The Editorial Bot streamlines manuscript management by automating reviewer invitations, progress tracking, and editorial decisions.
 
 ## Quick Start
 
-Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot assign-reviewer <reviewers>, @editorial-bot accept, and @editorial-bot reject
+Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot invite-reviewer <reviewers>, @editorial-bot accept, and @editorial-bot reject
 
 ## Available Commands
 
@@ -1838,8 +1294,8 @@ Usage: \`@editorial-bot reject [reason="reason for rejection"]\`
 **assign-editor** - Assign an action editor to a manuscript
 Usage: \`@editorial-bot assign-editor <editor> [message="custom message"]\`
 
-**assign-reviewer** - Assign reviewers to a manuscript
-Usage: \`@editorial-bot assign-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
+**invite-reviewer** - Send email invitations to potential reviewers
+Usage: \`@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
 
 **summary** - Generate a summary showing status, assigned editor, and reviewers
 Usage: \`@editorial-bot summary [format="brief|detailed"]\`
@@ -1852,7 +1308,7 @@ Usage: \`@editorial-bot submit <assignment-id> recommendation=<accept|minor_revi
 
 ## Keywords
 
-This bot also responds to these keywords: \`editorial decision\`, \`review status\`, \`assign reviewer\`, \`assign editor\`, \`manuscript status\`, \`make decision\`
+This bot also responds to these keywords: \`editorial decision\`, \`review status\`, \`invite reviewer\`, \`assign editor\`, \`manuscript status\`, \`make decision\`
 
 ## Complete Examples
 
@@ -1862,7 +1318,7 @@ This bot also responds to these keywords: \`editorial decision\`, \`review statu
 
 \`@editorial-bot reject reason="Insufficient methodology"\`
 
-\`@editorial-bot assign-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
+\`@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
 
 \`@editorial-bot summary format="detailed"\`
 
@@ -1886,17 +1342,16 @@ export const editorialBot: CommandBot = {
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management',
   version: '2.3.0',
-  commands: [acceptCommand, rejectCommand, assignEditorCommand, assignReviewerCommand, inviteReviewerCommand, acceptReviewCommand, summaryCommand, respondCommand, submitCommand, helpCommand],
-  keywords: ['editorial decision', 'review status', 'assign reviewer', 'assign editor', 'manuscript status', 'make decision'],
+  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, summaryCommand, respondCommand, submitCommand, helpCommand],
+  keywords: ['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {
     overview: 'The Editorial Bot streamlines manuscript management by automating reviewer assignments, progress tracking, and editorial decisions.',
-    quickStart: 'Start by using @editorial-bot help to see all available commands. New workflow: @editorial-bot invite-reviewer <reviewers> to send invitations, then reviewers use @editorial-bot accept-review, then @editorial-bot assign-reviewer <reviewers> to start reviews. Use @editorial-bot accept or @editorial-bot reject to make editorial decisions.',
+    quickStart: 'Start by using @editorial-bot help to see all available commands. Use @editorial-bot invite-reviewer <reviewers> to send invitations with accept/decline links. Reviewers accept via the links and review begins immediately. Use @editorial-bot accept or @editorial-bot reject to make editorial decisions.',
     examples: [
       '@editorial-bot assign-editor @DrEditor',
       '@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
-      '@editorial-bot assign-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
       '@editorial-bot accept reason="High quality research"',
       '@editorial-bot reject reason="Insufficient methodology"',
       '@editorial-bot summary format="detailed"'
@@ -1905,12 +1360,12 @@ export const editorialBot: CommandBot = {
   customHelpSections: [
     {
       title: '🚀 Getting Started',
-      content: 'This bot helps automate editorial workflows. Use `accept` or `reject` to make editorial decisions, and `assign-reviewer` to assign reviewers.',
+      content: 'This bot helps automate editorial workflows. Use `invite-reviewer` to invite reviewers, and `accept` or `reject` to make editorial decisions.',
       position: 'before'
     },
     {
       title: '📋 Workflow Steps',
-      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept → 5. Assign reviewers → 6. Track progress → 7. Make decision (accept/reject)',
+      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept via links → 5. Track progress → 6. Make decision (accept/reject)',
       position: 'before'
     },
     {

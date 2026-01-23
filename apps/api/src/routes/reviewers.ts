@@ -679,7 +679,7 @@ router.post('/invitations/:id/respond',
     }
 
     // Update the assignment status
-    const newStatus = response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED';
+    const newStatus = response === 'ACCEPT' ? 'IN_PROGRESS' : 'DECLINED';
     const updatedAssignment = await prisma.review_assignments.update({
       where: { id },
       data: {
@@ -980,7 +980,7 @@ router.get('/invitations/:id/public',
 
     // Check if invitation is still pending
     if (assignment.status !== 'PENDING') {
-      const statusMessage = assignment.status === 'ACCEPTED' 
+      const statusMessage = assignment.status === 'IN_PROGRESS'
         ? 'This invitation has already been accepted.'
         : assignment.status === 'DECLINED'
         ? 'This invitation has already been declined.'
@@ -996,7 +996,7 @@ router.get('/invitations/:id/public',
 
     // If action is provided, process the response
     if (action) {
-      const newStatus = action === 'accept' ? 'ACCEPTED' : 'DECLINED';
+      const newStatus = action === 'accept' ? 'IN_PROGRESS' : 'DECLINED';
       
       try {
         // Update the assignment status
@@ -1028,8 +1028,8 @@ router.get('/invitations/:id/public',
 
             if (editorialBotUser) {
               const reviewerName = updatedAssignment.users.name || updatedAssignment.users.email;
-              const actionText = newStatus === 'ACCEPTED' ? 'accepted' : 'declined';
-              const messageContent = `📋 **Reviewer Invitation ${newStatus}**\n\n**${reviewerName}** has ${actionText} the review invitation for "${updatedAssignment.manuscripts.title}".`;
+              const actionText = newStatus === 'IN_PROGRESS' ? 'accepted' : 'declined';
+              const messageContent = `📋 **Reviewer Invitation ${newStatus === 'IN_PROGRESS' ? 'Accepted' : 'Declined'}**\n\n**${reviewerName}** has ${actionText} the review invitation for "${updatedAssignment.manuscripts.title}".`;
 
               // Create the bot message
               await prisma.messages.create({
@@ -1153,8 +1153,8 @@ router.post('/invitations/:id/respond-public',
       });
     }
 
-    const newStatus = action === 'accept' ? 'ACCEPTED' : 'DECLINED';
-    
+    const newStatus = action === 'accept' ? 'IN_PROGRESS' : 'DECLINED';
+
     try {
       // Update the assignment status
       const updatedAssignment = await prisma.review_assignments.update({
