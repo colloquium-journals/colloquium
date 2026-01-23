@@ -175,6 +175,11 @@ router.get('/me', authenticate, async (req, res, next) => {
                 status: true,
                 submittedAt: true,
                 publishedAt: true,
+                conversations: {
+                  select: { id: true },
+                  orderBy: { createdAt: 'asc' },
+                  take: 1
+                },
                 _count: {
                   select: {
                     conversations: true
@@ -192,7 +197,30 @@ router.get('/me', authenticate, async (req, res, next) => {
                 id: true,
                 title: true,
                 status: true,
-                submittedAt: true
+                submittedAt: true,
+                conversations: {
+                  select: { id: true },
+                  orderBy: { createdAt: 'asc' },
+                  take: 1
+                }
+              }
+            }
+          },
+          orderBy: { assignedAt: 'desc' }
+        },
+        action_editors_action_editors_editorIdTousers: {
+          include: {
+            manuscripts: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                submittedAt: true,
+                conversations: {
+                  select: { id: true },
+                  orderBy: { createdAt: 'asc' },
+                  take: 1
+                }
               }
             }
           },
@@ -217,6 +245,7 @@ router.get('/me', authenticate, async (req, res, next) => {
     // Format authored manuscripts
     const authoredPapers = user.manuscript_authors.map(am => ({
       id: am.manuscripts.id,
+      conversationId: am.manuscripts.conversations[0]?.id ?? null,
       title: am.manuscripts.title,
       status: am.manuscripts.status,
       submittedAt: am.manuscripts.submittedAt,
@@ -229,6 +258,7 @@ router.get('/me', authenticate, async (req, res, next) => {
     // Format review assignments
     const reviewAssignments = user.review_assignments.map(ra => ({
       id: ra.id,
+      conversationId: ra.manuscripts.conversations[0]?.id ?? null,
       manuscript: {
         id: ra.manuscripts.id,
         title: ra.manuscripts.title,
@@ -239,6 +269,19 @@ router.get('/me', authenticate, async (req, res, next) => {
       assignedAt: ra.assignedAt,
       dueDate: ra.dueDate,
       completedAt: ra.completedAt
+    }));
+
+    // Format editor assignments
+    const editorAssignments = user.action_editors_action_editors_editorIdTousers.map(ae => ({
+      id: ae.id,
+      conversationId: ae.manuscripts.conversations[0]?.id ?? null,
+      manuscript: {
+        id: ae.manuscripts.id,
+        title: ae.manuscripts.title,
+        status: ae.manuscripts.status,
+        submittedAt: ae.manuscripts.submittedAt
+      },
+      assignedAt: ae.assignedAt
     }));
 
     const profile = {
@@ -259,7 +302,8 @@ router.get('/me', authenticate, async (req, res, next) => {
         conversationsJoined: user._count.conversation_participants
       },
       authoredPapers,
-      reviewAssignments
+      reviewAssignments,
+      editorAssignments
     };
 
     res.json(profile);
@@ -499,7 +543,7 @@ router.get('/:id', async (req, res, next) => {
               }
             }
           },
-          orderBy: { manuscript: { publishedAt: 'desc' } }
+          orderBy: { manuscripts: { publishedAt: 'desc' } }
         },
         _count: {
           select: {

@@ -33,7 +33,8 @@ import {
   IconExternalLink,
   IconCheck,
   IconClock,
-  IconAlertCircle
+  IconAlertCircle,
+  IconGavel
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -57,6 +58,7 @@ interface UserProfile {
   };
   authoredPapers: Array<{
     id: string;
+    conversationId: string | null;
     title: string;
     status: string;
     submittedAt: string;
@@ -67,6 +69,7 @@ interface UserProfile {
   }>;
   reviewAssignments: Array<{
     id: string;
+    conversationId: string | null;
     manuscript: {
       id: string;
       title: string;
@@ -77,6 +80,17 @@ interface UserProfile {
     assignedAt: string;
     dueDate: string | null;
     completedAt: string | null;
+  }>;
+  editorAssignments: Array<{
+    id: string;
+    conversationId: string | null;
+    manuscript: {
+      id: string;
+      title: string;
+      status: string;
+      submittedAt: string;
+    };
+    assignedAt: string;
   }>;
 }
 
@@ -285,172 +299,227 @@ export default function ProfilePage() {
         </Card>
 
         {/* Tabbed Content */}
-        <Tabs defaultValue="papers">
-          <Tabs.List>
-            <Tabs.Tab value="papers" leftSection={<IconFileText size={16} />}>
-              My Papers ({profile.authoredPapers.length})
-            </Tabs.Tab>
-            <Tabs.Tab value="reviews" leftSection={<IconEye size={16} />}>
-              Review Assignments ({profile.reviewAssignments.length})
-            </Tabs.Tab>
-          </Tabs.List>
+        {(profile.authoredPapers.length > 0 || profile.reviewAssignments.length > 0 || profile.editorAssignments.length > 0) && (
+          <Tabs defaultValue={
+            profile.authoredPapers.length > 0 ? 'papers' :
+            profile.reviewAssignments.length > 0 ? 'reviews' : 'editor'
+          }>
+            <Tabs.List>
+              {profile.authoredPapers.length > 0 && (
+                <Tabs.Tab value="papers" leftSection={<IconFileText size={16} />}>
+                  My Papers ({profile.authoredPapers.length})
+                </Tabs.Tab>
+              )}
+              {profile.reviewAssignments.length > 0 && (
+                <Tabs.Tab value="reviews" leftSection={<IconEye size={16} />}>
+                  Review Assignments ({profile.reviewAssignments.length})
+                </Tabs.Tab>
+              )}
+              {profile.editorAssignments.length > 0 && (
+                <Tabs.Tab value="editor" leftSection={<IconGavel size={16} />}>
+                  Editor Assignments ({profile.editorAssignments.length})
+                </Tabs.Tab>
+              )}
+            </Tabs.List>
 
-          <Tabs.Panel value="papers" pt="md">
-            {profile.authoredPapers.length === 0 ? (
-              <Card shadow="xs" padding="xl" radius="md">
-                <Stack align="center" gap="md">
-                  <IconFileText size={48} color="gray" />
-                  <Text size="lg" fw={500}>No papers yet</Text>
-                  <Text c="dimmed" ta="center">
-                    Start by submitting your first manuscript to begin building your academic portfolio.
-                  </Text>
-                  <Button component={Link} href="/articles/submit">
-                    Submit Paper
-                  </Button>
-                </Stack>
-              </Card>
-            ) : (
-              <Stack gap="md">
-                {profile.authoredPapers.map((paper) => (
-                  <Card key={paper.id} shadow="sm" padding="lg" radius="md">
-                    <Group justify="space-between" align="flex-start">
-                      <Stack gap="xs" style={{ flex: 1 }}>
-                        <Group gap="xs">
-                          <Anchor
-                            component={Link}
-                            href={`/manuscripts/${paper.id}`}
-                            fw={500}
-                            lineClamp={2}
-                          >
-                            {paper.title}
-                          </Anchor>
-                          <Badge color={getStatusColor(paper.status)} variant="light" size="sm">
-                            {paper.status}
-                          </Badge>
-                          {paper.isCorresponding && (
-                            <Badge color="blue" variant="outline" size="sm">
-                              Corresponding Author
+            {profile.authoredPapers.length > 0 && (
+              <Tabs.Panel value="papers" pt="md">
+                <Stack gap="md">
+                  {profile.authoredPapers.map((paper) => (
+                    <Card key={paper.id} shadow="sm" padding="lg" radius="md">
+                      <Group justify="space-between" align="flex-start">
+                        <Stack gap="xs" style={{ flex: 1 }}>
+                          <Group gap="xs">
+                            {paper.conversationId ? (
+                              <Anchor
+                                component={Link}
+                                href={`/submissions/${paper.conversationId}`}
+                                fw={500}
+                                lineClamp={2}
+                              >
+                                {paper.title}
+                              </Anchor>
+                            ) : (
+                              <Text fw={500} lineClamp={2}>{paper.title}</Text>
+                            )}
+                            <Badge color={getStatusColor(paper.status)} variant="light" size="sm">
+                              {paper.status}
                             </Badge>
-                          )}
-                        </Group>
-                        
-                        <Group gap="lg">
-                          <Group gap="xs">
-                            <IconCalendar size={14} />
-                            <Text size="xs" c="dimmed">
-                              Submitted: {formatDate(paper.submittedAt)}
-                            </Text>
+                            {paper.isCorresponding && (
+                              <Badge color="blue" variant="outline" size="sm">
+                                Corresponding Author
+                              </Badge>
+                            )}
                           </Group>
-                          
-                          {paper.publishedAt && (
-                            <Group gap="xs">
-                              <IconCheck size={14} />
-                              <Text size="xs" c="dimmed">
-                                Published: {formatDate(paper.publishedAt)}
-                              </Text>
-                            </Group>
-                          )}
-                          
-                          {paper.conversationCount > 0 && (
-                            <Group gap="xs">
-                              <IconMessage size={14} />
-                              <Text size="xs" c="dimmed">
-                                {paper.conversationCount} conversation{paper.conversationCount !== 1 ? 's' : ''}
-                              </Text>
-                            </Group>
-                          )}
-                        </Group>
-                      </Stack>
-                      
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        component={Link}
-                        href={`/manuscripts/${paper.id}`}
-                      >
-                        View
-                      </Button>
-                    </Group>
-                  </Card>
-                ))}
-              </Stack>
-            )}
-          </Tabs.Panel>
 
-          <Tabs.Panel value="reviews" pt="md">
-            {profile.reviewAssignments.length === 0 ? (
-              <Card shadow="xs" padding="xl" radius="md">
-                <Stack align="center" gap="md">
-                  <IconEye size={48} color="gray" />
-                  <Text size="lg" fw={500}>No review assignments</Text>
-                  <Text c="dimmed" ta="center">
-                    You haven't been assigned any papers to review yet.
-                  </Text>
-                </Stack>
-              </Card>
-            ) : (
-              <Stack gap="md">
-                {profile.reviewAssignments.map((assignment) => (
-                  <Card key={assignment.id} shadow="sm" padding="lg" radius="md">
-                    <Group justify="space-between" align="flex-start">
-                      <Stack gap="xs" style={{ flex: 1 }}>
-                        <Group gap="xs">
-                          <Anchor
-                            component={Link}
-                            href={`/manuscripts/${assignment.manuscript.id}`}
-                            fw={500}
-                            lineClamp={2}
-                          >
-                            {assignment.manuscript.title}
-                          </Anchor>
-                          <Badge color={getStatusColor(assignment.status)} variant="light" size="sm">
-                            {assignment.status}
-                          </Badge>
-                        </Group>
-                        
-                        <Group gap="lg">
-                          <Group gap="xs">
-                            <IconCalendar size={14} />
-                            <Text size="xs" c="dimmed">
-                              Assigned: {formatDate(assignment.assignedAt)}
-                            </Text>
+                          <Group gap="lg">
+                            <Group gap="xs">
+                              <IconCalendar size={14} />
+                              <Text size="xs" c="dimmed">
+                                Submitted: {formatDate(paper.submittedAt)}
+                              </Text>
+                            </Group>
+
+                            {paper.publishedAt && (
+                              <Group gap="xs">
+                                <IconCheck size={14} />
+                                <Text size="xs" c="dimmed">
+                                  Published: {formatDate(paper.publishedAt)}
+                                </Text>
+                              </Group>
+                            )}
+
+                            {paper.conversationCount > 0 && (
+                              <Group gap="xs">
+                                <IconMessage size={14} />
+                                <Text size="xs" c="dimmed">
+                                  {paper.conversationCount} conversation{paper.conversationCount !== 1 ? 's' : ''}
+                                </Text>
+                              </Group>
+                            )}
                           </Group>
-                          
-                          {assignment.dueDate && (
-                            <Group gap="xs">
-                              <IconClock size={14} />
-                              <Text size="xs" c="dimmed">
-                                Due: {formatDate(assignment.dueDate)}
-                              </Text>
-                            </Group>
-                          )}
-                          
-                          {assignment.completedAt && (
-                            <Group gap="xs">
-                              <IconCheck size={14} />
-                              <Text size="xs" c="dimmed">
-                                Completed: {formatDate(assignment.completedAt)}
-                              </Text>
-                            </Group>
-                          )}
-                        </Group>
-                      </Stack>
-                      
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        component={Link}
-                        href={`/manuscripts/${assignment.manuscript.id}`}
-                      >
-                        View
-                      </Button>
-                    </Group>
-                  </Card>
-                ))}
-              </Stack>
+                        </Stack>
+
+                        {paper.conversationId && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            component={Link}
+                            href={`/submissions/${paper.conversationId}`}
+                          >
+                            View
+                          </Button>
+                        )}
+                      </Group>
+                    </Card>
+                  ))}
+                </Stack>
+              </Tabs.Panel>
             )}
-          </Tabs.Panel>
-        </Tabs>
+
+            {profile.reviewAssignments.length > 0 && (
+              <Tabs.Panel value="reviews" pt="md">
+                <Stack gap="md">
+                  {profile.reviewAssignments.map((assignment) => (
+                    <Card key={assignment.id} shadow="sm" padding="lg" radius="md">
+                      <Group justify="space-between" align="flex-start">
+                        <Stack gap="xs" style={{ flex: 1 }}>
+                          <Group gap="xs">
+                            {assignment.conversationId ? (
+                              <Anchor
+                                component={Link}
+                                href={`/submissions/${assignment.conversationId}`}
+                                fw={500}
+                                lineClamp={2}
+                              >
+                                {assignment.manuscript.title}
+                              </Anchor>
+                            ) : (
+                              <Text fw={500} lineClamp={2}>{assignment.manuscript.title}</Text>
+                            )}
+                            <Badge color={getStatusColor(assignment.status)} variant="light" size="sm">
+                              {assignment.status}
+                            </Badge>
+                          </Group>
+
+                          <Group gap="lg">
+                            <Group gap="xs">
+                              <IconCalendar size={14} />
+                              <Text size="xs" c="dimmed">
+                                Assigned: {formatDate(assignment.assignedAt)}
+                              </Text>
+                            </Group>
+
+                            {assignment.dueDate && (
+                              <Group gap="xs">
+                                <IconClock size={14} />
+                                <Text size="xs" c="dimmed">
+                                  Due: {formatDate(assignment.dueDate)}
+                                </Text>
+                              </Group>
+                            )}
+
+                            {assignment.completedAt && (
+                              <Group gap="xs">
+                                <IconCheck size={14} />
+                                <Text size="xs" c="dimmed">
+                                  Completed: {formatDate(assignment.completedAt)}
+                                </Text>
+                              </Group>
+                            )}
+                          </Group>
+                        </Stack>
+
+                        {assignment.conversationId && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            component={Link}
+                            href={`/submissions/${assignment.conversationId}`}
+                          >
+                            View
+                          </Button>
+                        )}
+                      </Group>
+                    </Card>
+                  ))}
+                </Stack>
+              </Tabs.Panel>
+            )}
+
+            {profile.editorAssignments.length > 0 && (
+              <Tabs.Panel value="editor" pt="md">
+                <Stack gap="md">
+                  {profile.editorAssignments.map((assignment) => (
+                    <Card key={assignment.id} shadow="sm" padding="lg" radius="md">
+                      <Group justify="space-between" align="flex-start">
+                        <Stack gap="xs" style={{ flex: 1 }}>
+                          <Group gap="xs">
+                            {assignment.conversationId ? (
+                              <Anchor
+                                component={Link}
+                                href={`/submissions/${assignment.conversationId}`}
+                                fw={500}
+                                lineClamp={2}
+                              >
+                                {assignment.manuscript.title}
+                              </Anchor>
+                            ) : (
+                              <Text fw={500} lineClamp={2}>{assignment.manuscript.title}</Text>
+                            )}
+                            <Badge color={getStatusColor(assignment.manuscript.status)} variant="light" size="sm">
+                              {assignment.manuscript.status}
+                            </Badge>
+                          </Group>
+
+                          <Group gap="lg">
+                            <Group gap="xs">
+                              <IconCalendar size={14} />
+                              <Text size="xs" c="dimmed">
+                                Assigned: {formatDate(assignment.assignedAt)}
+                              </Text>
+                            </Group>
+                          </Group>
+                        </Stack>
+
+                        {assignment.conversationId && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            component={Link}
+                            href={`/submissions/${assignment.conversationId}`}
+                          >
+                            View
+                          </Button>
+                        )}
+                      </Group>
+                    </Card>
+                  ))}
+                </Stack>
+              </Tabs.Panel>
+            )}
+          </Tabs>
+        )}
       </Stack>
     </Container>
   );
