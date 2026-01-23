@@ -11,10 +11,11 @@ import {
   ActionIcon,
   Anchor
 } from '@mantine/core';
-import { 
-  IconMail, 
-  IconCalendar, 
-  IconExternalLink 
+import {
+  IconMail,
+  IconCalendar,
+  IconExternalLink,
+  IconCheck
 } from '@tabler/icons-react';
 
 interface UserProfileData {
@@ -24,6 +25,7 @@ interface UserProfileData {
   role?: string;
   affiliation?: string;
   orcid?: string;
+  orcidVerified?: boolean;
   joinedAt?: string;
   bio?: string;
 }
@@ -124,7 +126,7 @@ export function UserProfileHover({ user, children, disabled = false }: UserProfi
                     <Text size="sm" c="dimmed">
                       <strong>ORCID:</strong>
                     </Text>
-                    <Anchor 
+                    <Anchor
                       href={`https://orcid.org/${user.orcid}`}
                       target="_blank"
                       size="sm"
@@ -132,6 +134,11 @@ export function UserProfileHover({ user, children, disabled = false }: UserProfi
                       {user.orcid}
                       <IconExternalLink size={12} style={{ marginLeft: '4px' }} />
                     </Anchor>
+                    {user.orcidVerified && (
+                      <Badge size="xs" color="green" variant="light" leftSection={<IconCheck size={10} />}>
+                        Verified
+                      </Badge>
+                    )}
                   </Group>
                 )}
                 {user.joinedAt && (

@@ -127,7 +127,6 @@ describe('Validation Schemas', () => {
     it('should validate valid user update data', () => {
       const validData = {
         name: 'Jane Doe',
-        orcidId: '0000-0000-0000-0001',
         bio: 'A researcher in the field',
         affiliations: ['University A', 'Institute B']
       };

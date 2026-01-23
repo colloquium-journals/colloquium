@@ -5,7 +5,6 @@ import { Permission, Role } from '@colloquium/auth';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { UserUpdateSchema, UserQuerySchema, IdSchema } from '../schemas/validation';
 import { z } from 'zod';
-import axios from 'axios';
 
 const router = Router();
 
@@ -18,38 +17,9 @@ const updateProfileSchema = z.object({
   name: z.string().optional(),
   bio: z.string().optional(),
   affiliation: z.string().optional(),
-  website: z.string().url().optional(),
-  orcidId: z.string().optional()
+  website: z.string().url().optional()
 });
 
-// ORCID API integration
-async function fetchORCIDProfile(orcidId: string) {
-  try {
-    const cleanOrcidId = orcidId.replace(/[^0-9X-]/g, '');
-    const response = await axios.get(
-      `https://pub.orcid.org/v3.0/${cleanOrcidId}/person`,
-      {
-        headers: {
-          'Accept': 'application/json'
-        },
-        timeout: 5000
-      }
-    );
-
-    const profile = response.data as any; // ORCID API response type
-    const name = profile.name;
-    const affiliations = profile.addresses?.address || [];
-    
-    return {
-      name: name ? `${name['given-names']?.value || ''} ${name['family-name']?.value || ''}`.trim() : null,
-      affiliation: affiliations.length > 0 ? affiliations[0].country?.value : null,
-      verified: true
-    };
-  } catch (error) {
-    console.error('ORCID API error:', error);
-    return { verified: false };
-  }
-}
 
 // GET /api/users - List users (for admin or bot service tokens)
 router.get('/', authenticateWithBots, (req: any, res, next) => {
@@ -89,6 +59,7 @@ router.get('/', authenticateWithBots, (req: any, res, next) => {
           email: true,
           name: true,
           orcidId: true,
+          orcidVerified: true,
           role: true,
           affiliation: true,
           createdAt: true,
@@ -137,10 +108,11 @@ router.get('/lookup', authenticate, async (req, res, next) => {
         email: true,
         name: true,
         orcidId: true,
+        orcidVerified: true,
         affiliation: true
       }
     });
-    
+
     if (!user) {
       return res.status(404).json({
         error: 'User Not Found',
@@ -289,6 +261,7 @@ router.get('/me', authenticate, async (req, res, next) => {
       email: user.email,
       name: user.name,
       orcidId: user.orcidId,
+      orcidVerified: user.orcidVerified,
       bio: user.bio,
       affiliation: user.affiliation,
       website: user.website,
@@ -364,6 +337,7 @@ router.get('/profile/:identifier', authenticate, async (req, res, next) => {
         email: true,
         name: true,
         orcidId: true,
+        orcidVerified: true,
         bio: true,
         affiliation: true,
         website: true,
@@ -372,7 +346,7 @@ router.get('/profile/:identifier', authenticate, async (req, res, next) => {
         updatedAt: true
       }
     });
-    
+
     if (!user) {
       return res.status(404).json({
         error: 'User not found',
@@ -431,55 +405,13 @@ router.put('/me', authenticate, async (req, res, next) => {
       });
     }
 
-    const { name, orcidId, bio, affiliation, website } = validation.data;
+    const { name, bio, affiliation, website } = validation.data;
     const updates: any = { updatedAt: new Date() };
 
-    // Only update provided fields
     if (name !== undefined) updates.name = name;
     if (bio !== undefined) updates.bio = bio;
     if (affiliation !== undefined) updates.affiliation = affiliation;
     if (website !== undefined) updates.website = website;
-
-    // Handle ORCID ID update with verification
-    if (orcidId !== undefined) {
-      if (orcidId) {
-        // Check if ORCID ID is already taken by another user
-        const existingUser = await prisma.users.findFirst({
-          where: {
-            orcidId,
-            id: { not: req.user!.id }
-          }
-        });
-
-        if (existingUser) {
-          return res.status(400).json({
-            error: 'ORCID ID Already Used',
-            message: 'This ORCID ID is already associated with another account'
-          });
-        }
-
-        // Verify ORCID profile and optionally populate data
-        const orcidProfile = await fetchORCIDProfile(orcidId);
-        if (orcidProfile.verified) {
-          updates.orcidId = orcidId;
-          // Optionally auto-populate name and affiliation if not already set
-          if (!name && orcidProfile.name && !req.user!.name) {
-            updates.name = orcidProfile.name;
-          }
-          if (!affiliation && orcidProfile.affiliation && !req.user!.name) {
-            updates.affiliation = orcidProfile.affiliation;
-          }
-        } else {
-          return res.status(400).json({
-            error: 'ORCID Verification Failed',
-            message: 'Could not verify ORCID ID. Please check the ID and try again.'
-          });
-        }
-      } else {
-        // Remove ORCID ID
-        updates.orcidId = null;
-      }
-    }
 
     const updatedUser = await prisma.users.update({
       where: { id: req.user!.id },
@@ -489,6 +421,7 @@ router.put('/me', authenticate, async (req, res, next) => {
         email: true,
         name: true,
         orcidId: true,
+        orcidVerified: true,
         bio: true,
         affiliation: true,
         website: true,
@@ -517,6 +450,7 @@ router.get('/:id', async (req, res, next) => {
         id: true,
         name: true,
         orcidId: true,
+        orcidVerified: true,
         bio: true,
         affiliation: true,
         website: true,
@@ -581,6 +515,7 @@ router.get('/:id', async (req, res, next) => {
       id: user.id,
       name: user.name,
       orcidId: user.orcidId,
+      orcidVerified: user.orcidVerified,
       bio: user.bio,
       affiliation: user.affiliation,
       website: user.website,

@@ -23,6 +23,7 @@ import contentRoutes from './routes/content';
 import eventsRoutes, { closeAllConnections } from './routes/events';
 import reviewersRoutes from './routes/reviewers';
 import formatsRoutes from './routes/formats';
+import orcidRoutes from './routes/orcid';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -134,6 +135,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/reviewers', reviewersRoutes);
 app.use('/api/formats', formatsRoutes);
+app.use('/api/auth/orcid', orcidRoutes);
 
 // Error handling middleware
 app.use(notFound);

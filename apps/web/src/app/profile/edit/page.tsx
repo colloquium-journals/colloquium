@@ -33,7 +33,6 @@ import Link from 'next/link';
 
 interface ProfileFormData {
   name: string;
-  orcidId: string;
   bio: string;
   affiliation: string;
   website: string;
@@ -48,26 +47,23 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [orcidId, setOrcidId] = useState<string | null>(null);
+  const [orcidVerified, setOrcidVerified] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
 
   const form = useForm<ProfileFormData>({
     initialValues: {
       name: '',
-      orcidId: '',
       bio: '',
       affiliation: '',
       website: ''
     },
     validate: {
       name: (value) => value.trim().length === 0 ? 'Name is required' : null,
-      orcidId: (value) => {
-        if (!value) return null; // ORCID is optional
-        const orcidRegex = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
-        return orcidRegex.test(value) ? null : 'Invalid ORCID ID format (e.g., 0000-0000-0000-0000)';
-      },
       bio: (value) => value.length > 1000 ? 'Bio must be less than 1000 characters' : null,
       affiliation: (value) => value.length > 200 ? 'Affiliation must be less than 200 characters' : null,
       website: (value) => {
-        if (!value) return null; // Website is optional
+        if (!value) return null;
         try {
           new URL(value);
           return null;
@@ -78,6 +74,25 @@ export default function EditProfilePage() {
     }
   });
 
+
+  useEffect(() => {
+    // Handle ORCID OAuth callback query params
+    const orcidStatus = searchParams.get('orcid');
+    if (orcidStatus === 'verified') {
+      setSuccess('ORCID verified successfully!');
+    } else if (orcidStatus === 'error') {
+      const reason = searchParams.get('reason');
+      const messages: Record<string, string> = {
+        denied: 'ORCID authorization was denied.',
+        invalid_state: 'Invalid session state. Please try again.',
+        session_expired: 'Session expired. Please try again.',
+        already_claimed: 'This ORCID is already linked to another account.',
+        exchange_failed: 'Failed to verify with ORCID. Please try again.',
+        not_configured: 'ORCID integration is not configured.',
+      };
+      setError(messages[reason || ''] || 'ORCID verification failed.');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const fetchCurrentProfile = async () => {
@@ -94,11 +109,12 @@ export default function EditProfilePage() {
         }
 
         const profile = await profileResponse.json();
-        
-        // Populate form with current values
+
+        setOrcidId(profile.orcidId || null);
+        setOrcidVerified(profile.orcidVerified || false);
+
         form.setValues({
           name: profile.name || '',
-          orcidId: profile.orcidId || '',
           bio: profile.bio || '',
           affiliation: profile.affiliation || '',
           website: profile.website || ''
@@ -159,8 +175,27 @@ export default function EditProfilePage() {
     }
   };
 
-  const formatORCIDUrl = (orcidId: string) => {
-    return `https://orcid.org/${orcidId}`;
+  const handleUnlinkOrcid = async () => {
+    try {
+      setUnlinking(true);
+      const response = await fetch('http://localhost:4000/api/auth/orcid', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to unlink ORCID');
+      }
+
+      setOrcidId(null);
+      setOrcidVerified(false);
+      setSuccess('ORCID unlinked successfully.');
+      await refreshUser();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unlink ORCID');
+    } finally {
+      setUnlinking(false);
+    }
   };
 
 
@@ -259,14 +294,48 @@ export default function EditProfilePage() {
               {/* Academic Information */}
               <Stack gap="md">
                 <Title order={3}>Academic Information</Title>
-                
-                <TextInput
-                  label="ORCID iD"
-                  placeholder="0000-0000-0000-0000"
-                  leftSection={<IconExternalLink size={16} />}
-                  {...form.getInputProps('orcidId')}
-                  description="Your ORCID identifier (e.g., 0000-0000-0000-0000). Optional but recommended for academic verification."
-                />
+
+                <Stack gap="xs">
+                  <Text fw={500} size="sm">ORCID iD</Text>
+                  {orcidId && orcidVerified ? (
+                    <Group gap="sm">
+                      <Badge color="green" variant="light" leftSection={<IconCheck size={12} />}>
+                        Verified
+                      </Badge>
+                      <Anchor
+                        href={`https://orcid.org/${orcidId}`}
+                        target="_blank"
+                        size="sm"
+                      >
+                        {orcidId}
+                        <IconExternalLink size={12} style={{ marginLeft: 4 }} />
+                      </Anchor>
+                      <Button
+                        variant="subtle"
+                        color="red"
+                        size="xs"
+                        onClick={handleUnlinkOrcid}
+                        loading={unlinking}
+                      >
+                        Unlink
+                      </Button>
+                    </Group>
+                  ) : (
+                    <Group gap="sm">
+                      <Button
+                        variant="light"
+                        component="a"
+                        href="http://localhost:4000/api/auth/orcid"
+                        leftSection={<IconExternalLink size={16} />}
+                      >
+                        Link ORCID
+                      </Button>
+                      <Text size="xs" c="dimmed">
+                        Verify your identity via ORCID OAuth
+                      </Text>
+                    </Group>
+                  )}
+                </Stack>
 
                 <TextInput
                   label="Affiliation"

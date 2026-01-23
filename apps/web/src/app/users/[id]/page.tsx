@@ -24,7 +24,8 @@ import {
   IconCalendar,
   IconMessage,
   IconAlertCircle,
-  IconUser
+  IconUser,
+  IconCheck
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -33,6 +34,7 @@ interface PublicProfile {
   id: string;
   name: string | null;
   orcidId: string | null;
+  orcidVerified: boolean;
   bio: string | null;
   affiliation: string | null;
   website: string | null;
@@ -161,6 +163,11 @@ export default function PublicProfilePage() {
                         {profile.orcidId}
                         <IconExternalLink size={12} style={{ marginLeft: 4 }} />
                       </Anchor>
+                      {profile.orcidVerified && (
+                        <Badge size="xs" color="green" variant="light" leftSection={<IconCheck size={10} />}>
+                          Verified
+                        </Badge>
+                      )}
                     </Group>
                   )}
                   
@@ -277,19 +284,19 @@ export default function PublicProfilePage() {
         </Card>
 
         {/* ORCID Integration Notice */}
-        {profile.orcidId && (
-          <Card shadow="xs" padding="md" radius="md" bg="blue.0">
+        {profile.orcidId && profile.orcidVerified && (
+          <Card shadow="xs" padding="md" radius="md" bg="green.0">
             <Group gap="xs">
-              <IconExternalLink size={16} />
+              <IconCheck size={16} color="var(--mantine-color-green-6)" />
               <Text size="sm">
-                This profile is verified through ORCID integration.
+                This profile is verified through ORCID OAuth.
               </Text>
               <Anchor
                 href={`https://orcid.org/${profile.orcidId}`}
                 target="_blank"
                 size="sm"
               >
-                View full ORCID profile
+                View ORCID profile
               </Anchor>
             </Group>
           </Card>

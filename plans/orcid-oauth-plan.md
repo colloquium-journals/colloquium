@@ -187,6 +187,26 @@ For development, use the sandbox:
 - Test error handling (invalid code, expired state, network errors)
 - E2E test with ORCID sandbox (manual/CI)
 
+## Development Setup
+
+The implementation is complete. To activate it:
+
+1. Create a sandbox account at https://sandbox.orcid.org
+2. Go to https://sandbox.orcid.org/developer-tools
+3. Register an application:
+   - **Application URL**: `http://localhost:3000`
+   - **Redirect URI**: `http://localhost:4000/api/auth/orcid/callback`
+4. Add to your `.env`:
+   ```bash
+   ORCID_CLIENT_ID=APP-XXXXXXXXXXXXXXXX
+   ORCID_CLIENT_SECRET=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   ORCID_REDIRECT_URI=http://localhost:4000/api/auth/orcid/callback
+   ORCID_BASE_URL=https://sandbox.orcid.org
+   ```
+5. Restart the API server
+
+For production: register at https://orcid.org/developer-tools (requires HTTPS redirect URI) and set `ORCID_BASE_URL=https://orcid.org`.
+
 ## Future Considerations
 
 - **requireOrcid enforcement**: When journal setting `requireOrcid` is true, require verified ORCID before manuscript submission

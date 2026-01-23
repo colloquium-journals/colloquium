@@ -259,6 +259,7 @@ model users {
   email                                           String                      @unique
   name                                            String?
   orcidId                                         String?                     @unique
+  orcidVerified                                   Boolean                     @default(false)
   createdAt                                       DateTime                    @default(now())
   updatedAt                                       DateTime
   affiliation                                     String?

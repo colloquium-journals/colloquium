@@ -32,7 +32,8 @@ import {
   IconAlertTriangle,
   IconUserCog,
   IconUserCheck,
-  IconScale
+  IconScale,
+  IconCheck
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import FileList, { FileItem } from '@/components/submissions/FileList';
@@ -69,6 +70,7 @@ interface Author {
   name: string;
   email: string;
   orcidId?: string;
+  orcidVerified?: boolean;
   order: number;
   isCorresponding: boolean;
 }
@@ -395,13 +397,18 @@ export default function ArticleDetailPage() {
                               </Badge>
                             )}
                             {author.orcidId && (
-                              <Anchor
-                                href={`https://orcid.org/${author.orcidId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <OrcidIcon size={14} />
-                              </Anchor>
+                              <Group gap={2}>
+                                <Anchor
+                                  href={`https://orcid.org/${author.orcidId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <OrcidIcon size={14} />
+                                </Anchor>
+                                {author.orcidVerified && (
+                                  <IconCheck size={12} color="var(--mantine-color-green-6)" />
+                                )}
+                              </Group>
                             )}
                           </Group>
                         ))

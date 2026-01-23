@@ -168,7 +168,8 @@ router.get('/', optionalAuth, async (req, res, next) => {
                   id: true,
                   name: true,
                   email: true,
-                  orcidId: true
+                  orcidId: true,
+                  orcidVerified: true
                 }
               }
             },
@@ -190,6 +191,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
         name: rel.users.name,
         email: rel.users.email,
         orcidId: rel.users.orcidId,
+        orcidVerified: rel.users.orcidVerified,
         order: rel.order,
         isCorresponding: rel.isCorresponding
       })),
@@ -670,7 +672,8 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
                 id: true,
                 name: true,
                 email: true,
-                orcidId: true
+                orcidId: true,
+                orcidVerified: true
               }
             }
           },
@@ -776,6 +779,7 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
         name: rel.users.name,
         email: rel.users.email,
         orcidId: rel.users.orcidId,
+        orcidVerified: rel.users.orcidVerified,
         order: rel.order,
         isCorresponding: rel.isCorresponding
       })),

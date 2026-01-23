@@ -18,7 +18,6 @@ export const UserCreateSchema = z.object({
 
 export const UserUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
-  orcidId: z.string().optional(),
   bio: z.string().optional(),
   affiliations: z.array(z.string()).optional()
 });

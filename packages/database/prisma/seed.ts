@@ -98,6 +98,7 @@ async function main() {
       name: 'Alice Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0002-1825-0097',
+      orcidVerified: true,
       affiliation: 'University of Technology',
       bio: 'Assistant Professor of Computer Science specializing in machine learning and academic publishing systems.',
       updatedAt: new Date()
@@ -113,6 +114,7 @@ async function main() {
       name: 'Bob Scientist',
       role: GlobalRole.USER,
       orcidId: '0000-0003-4567-8901',
+      orcidVerified: true,
       affiliation: 'Research Institute of Advanced Studies',
       bio: 'Senior Research Scientist with expertise in digital publishing platforms and peer review systems.',
       updatedAt: new Date()
@@ -143,6 +145,7 @@ async function main() {
       name: 'Diana Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0004-5678-9012',
+      orcidVerified: true,
       affiliation: 'International Research Institute',
       bio: 'Senior Scientist specializing in computational biology and bioinformatics.',
       updatedAt: new Date()
@@ -158,6 +161,7 @@ async function main() {
       name: 'Edward Mitchell',
       role: GlobalRole.USER,
       orcidId: '0000-0005-6789-0123',
+      orcidVerified: true,
       affiliation: 'Cambridge University',
       bio: 'Professor of Theoretical Physics and Mathematics.',
       updatedAt: new Date()
@@ -201,6 +205,7 @@ async function main() {
       name: 'Helena Schmidt',
       role: GlobalRole.USER,
       orcidId: '0000-0006-7890-1234',
+      orcidVerified: true,
       affiliation: 'Max Planck Institute',
       bio: 'Postdoctoral Researcher in quantum computing and cryptography.',
       updatedAt: new Date()

@@ -44,6 +44,7 @@ interface UserProfile {
   email: string;
   name: string | null;
   orcidId: string | null;
+  orcidVerified: boolean;
   bio: string | null;
   affiliation: string | null;
   website: string | null;
@@ -231,6 +232,11 @@ export default function ProfilePage() {
                         {profile.orcidId}
                         <IconExternalLink size={12} style={{ marginLeft: 4 }} />
                       </Anchor>
+                      {profile.orcidVerified && (
+                        <Badge size="xs" color="green" variant="light" leftSection={<IconCheck size={10} />}>
+                          Verified
+                        </Badge>
+                      )}
                     </Group>
                   )}
                   
