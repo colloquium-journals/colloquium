@@ -136,6 +136,7 @@ router.post('/', authenticate, (req, res, next) => {
 
     const format = await prisma.supported_formats.create({
       data: {
+        id: require('crypto').randomUUID(),
         name: formatData.name,
         displayName: formatData.displayName,
         fileExtensions: formatData.fileExtensions,
@@ -143,7 +144,8 @@ router.post('/', authenticate, (req, res, next) => {
         description: formatData.description,
         rendererBotId: formatData.rendererBotId,
         validatorBotId: formatData.validatorBotId,
-        isActive: true
+        isActive: true,
+        updatedAt: new Date()
       }
     });
 

@@ -385,7 +385,7 @@ router.post('/', authenticate, (req, res, next) => {
                 fileContent
               );
             } catch (formatError) {
-              console.warn('Format detection failed, using fallback:', formatError.message);
+              console.warn('Format detection failed, using fallback:', formatError instanceof Error ? formatError.message : formatError);
               // Fallback format detection based on file extension
               const ext = path.extname(file.originalname).toLowerCase();
               formatDetectionResult = {
@@ -1529,7 +1529,7 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
       include: {
         action_editors: {
           include: {
-            editor: {
+            users_action_editors_editorIdTousers: {
               select: {
                 id: true,
                 name: true,
@@ -1567,7 +1567,7 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
     }
 
     // Verify the user has appropriate role to be an action editor
-    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR];
+    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ACTION_EDITOR];
     if (!validEditorRoles.includes(editor.role as GlobalRole)) {
       return res.status(400).json({
         error: 'Invalid editor role',
@@ -1585,7 +1585,7 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
           assignedAt: new Date()
         },
         include: {
-          editor: {
+          users_action_editors_editorIdTousers: {
             select: {
               id: true,
               name: true,
@@ -1600,21 +1600,22 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
         message: 'Action editor updated successfully',
         assignment: {
           manuscriptId,
-          editor: updatedAssignment.editor,
+          editor: updatedAssignment.users_action_editors_editorIdTousers,
           assignedAt: updatedAssignment.assignedAt,
-          previousEditor: manuscript.action_editors.editor
+          previousEditor: manuscript.action_editors.users_action_editors_editorIdTousers
         }
       });
     } else {
       // Create new assignment
       const newAssignment = await prisma.action_editors.create({
         data: {
+          id: require('crypto').randomUUID(),
           manuscriptId,
           editorId: validatedData.editorId,
           assignedAt: new Date()
         },
         include: {
-          editor: {
+          users_action_editors_editorIdTousers: {
             select: {
               id: true,
               name: true,
@@ -1629,7 +1630,7 @@ router.post('/:id/action-editor', authenticate, requireActionEditorPermission, a
         message: 'Action editor assigned successfully',
         assignment: {
           manuscriptId,
-          editor: newAssignment.editor,
+          editor: newAssignment.users_action_editors_editorIdTousers,
           assignedAt: newAssignment.assignedAt
         }
       });
@@ -1667,7 +1668,7 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
     const existingAssignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
-        editor: {
+        users_action_editors_editorIdTousers: {
           select: {
             id: true,
             name: true,
@@ -1702,7 +1703,7 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
       });
     }
 
-    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR];
+    const validEditorRoles = [GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.ACTION_EDITOR];
     if (!validEditorRoles.includes(newEditor.role as GlobalRole)) {
       return res.status(400).json({
         error: 'Invalid editor role',
@@ -1718,7 +1719,7 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
         assignedAt: new Date()
       },
       include: {
-        editor: {
+        users_action_editors_editorIdTousers: {
           select: {
             id: true,
             name: true,
@@ -1733,9 +1734,9 @@ router.put('/:id/action-editor', authenticate, requireActionEditorPermission, as
       message: 'Action editor assignment updated successfully',
       assignment: {
         manuscriptId,
-        editor: updatedAssignment.editor,
+        editor: updatedAssignment.users_action_editors_editorIdTousers,
         assignedAt: updatedAssignment.assignedAt,
-        previousEditor: existingAssignment.editor
+        previousEditor: existingAssignment.users_action_editors_editorIdTousers
       }
     });
 
@@ -1763,7 +1764,7 @@ router.delete('/:id/action-editor', authenticate, requireActionEditorPermission,
     const existingAssignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
-        editor: {
+        users_action_editors_editorIdTousers: {
           select: {
             id: true,
             name: true,
@@ -1789,7 +1790,7 @@ router.delete('/:id/action-editor', authenticate, requireActionEditorPermission,
       message: 'Action editor assignment removed successfully',
       removedAssignment: {
         manuscriptId,
-        editor: existingAssignment.editor,
+        editor: existingAssignment.users_action_editors_editorIdTousers,
         assignedAt: existingAssignment.assignedAt
       }
     });
@@ -1851,7 +1852,7 @@ router.get('/:id/action-editor', authenticate, async (req, res, next) => {
     const assignment = await prisma.action_editors.findUnique({
       where: { manuscriptId },
       include: {
-        editor: {
+        users_action_editors_editorIdTousers: {
           select: {
             id: true,
             name: true,
@@ -1873,7 +1874,7 @@ router.get('/:id/action-editor', authenticate, async (req, res, next) => {
     res.json({
       assignment: {
         manuscriptId,
-        editor: assignment.editor,
+        editor: assignment.users_action_editors_editorIdTousers,
         assignedAt: assignment.assignedAt
       }
     });
@@ -1943,6 +1944,7 @@ router.post('/:id/reviewers', authenticateWithBots, async (req, res, next) => {
     // Create the assignment
     const assignment = await prisma.review_assignments.create({
       data: {
+        id: require('crypto').randomUUID(),
         manuscriptId,
         reviewerId,
         status,

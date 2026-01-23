@@ -66,7 +66,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
     // Verify bot exists and user has permission
     const bot = await prisma.bot_definitions.findUnique({
       where: { id: botId },
-      include: { install: true }
+      include: { bot_installs: true }
     });
 
     if (!bot) {
@@ -103,6 +103,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
     // Store file metadata in database
     const configFile = await prisma.bot_config_files.create({
       data: {
+        id: require('crypto').randomUUID(),
         botId,
         filename: file.originalname,
         storedName: file.filename,
@@ -110,9 +111,10 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
         mimetype: file.mimetype,
         size: file.size,
         checksum,
-        category: 'general', // Default category for backwards compatibility
+        category: 'general',
         description,
         uploadedBy: req.user!.id,
+        updatedAt: new Date(),
         metadata: {
           originalName: file.originalname,
           encoding: file.encoding
@@ -121,9 +123,6 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
       include: {
         bot_definitions: {
           select: { id: true, name: true }
-        },
-        users: {
-          select: { id: true, name: true, email: true }
         }
       }
     });
@@ -138,7 +137,7 @@ router.post('/:botId/files', authenticate, upload.single('file'), async (req, re
         size: configFile.size,
         checksum: configFile.checksum,
         uploadedAt: configFile.uploadedAt,
-        uploadedBy: configFile.users,
+        uploadedBy: configFile.uploadedBy,
         downloadUrl: `/api/bot-config-files/${configFile.id}/download`
       }
     });
@@ -244,7 +243,7 @@ router.get('/:fileId/content', authenticate, async (req, res, next) => {
 
     const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
-      include: { bot: true }
+      include: { bot_definitions: true }
     });
 
     if (!configFile) {
@@ -289,7 +288,7 @@ router.delete('/:fileId', authenticate, async (req, res, next) => {
 
     const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
-      include: { bot: true }
+      include: { bot_definitions: true }
     });
 
     if (!configFile) {
@@ -329,7 +328,7 @@ router.patch('/:fileId', authenticate, async (req, res, next) => {
 
     const configFile = await prisma.bot_config_files.findUnique({
       where: { id: fileId },
-      include: { bot: true }
+      include: { bot_definitions: true }
     });
 
     if (!configFile) {

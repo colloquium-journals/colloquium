@@ -16,7 +16,7 @@ export const startBotWorker = () => {
         console.log(`✅ Bot job ${job.id} completed successfully`);
         return result;
       } catch (error) {
-        console.error(`❌ Bot job ${job.id} failed:`, error.message);
+        console.error(`❌ Bot job ${job.id} failed:`, error instanceof Error ? error.message : error);
         throw error;
       }
     });

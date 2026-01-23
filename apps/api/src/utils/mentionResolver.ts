@@ -35,10 +35,10 @@ export async function resolveMentions(content: string, conversationId: string): 
   const userRegex = /@([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}(?:\s+\([^)]+\))?)(?=\s|$|[.,!?;:])/g;
   
   // Get conversation participants for user resolution
-  const participants = await prisma.conversationParticipant.findMany({
+  const participants = await prisma.conversation_participants.findMany({
     where: { conversationId },
     include: {
-      user: {
+      users: {
         select: {
           id: true,
           name: true,
@@ -76,31 +76,31 @@ export async function resolveMentions(content: string, conversationId: string): 
  * Resolve a user mention to an actual user ID
  */
 async function resolveUserMention(
-  mentionText: string, 
-  participants: Array<{ user: { id: string; name: string | null; email: string } }>
+  mentionText: string,
+  participants: Array<{ users: { id: string; name: string | null; email: string } }>
 ): Promise<{ id: string } | null> {
   // Check if it's a disambiguated mention like "John Smith (email@domain.com)"
   const emailMatch = mentionText.match(/^(.+?)\s+\(([^)]+)\)$/);
-  
+
   if (emailMatch) {
     // Disambiguated mention - match by display name AND email
     const displayName = emailMatch[1].trim();
     const email = emailMatch[2].trim();
-    
+
     const user = participants.find(p => {
-      const userDisplayName = p.user.name || p.user.email;
-      return userDisplayName === displayName && p.user.email === email;
+      const userDisplayName = p.users.name || p.users.email;
+      return userDisplayName === displayName && p.users.email === email;
     });
-    
-    return user ? { id: user.user.id } : null;
+
+    return user ? { id: user.users.id } : null;
   } else {
     // Simple mention - match by display name only
     const user = participants.find(p => {
-      const userDisplayName = p.user.name || p.user.email;
+      const userDisplayName = p.users.name || p.users.email;
       return userDisplayName === mentionText;
     });
-    
-    return user ? { id: user.user.id } : null;
+
+    return user ? { id: user.users.id } : null;
   }
 }
 

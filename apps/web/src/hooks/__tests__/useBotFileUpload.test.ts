@@ -57,7 +57,7 @@ describe('useBotFileUpload', () => {
     const { result } = renderHook(() => useBotFileUpload());
 
     await act(async () => {
-      await result.current.uploadFile('bot-1', mockFile, 'template', 'Test file');
+      await result.current.uploadFile('bot-1', mockFile, 'Test file');
     });
 
     expect(fetch).toHaveBeenCalledWith(
@@ -86,7 +86,7 @@ describe('useBotFileUpload', () => {
     const { result } = renderHook(() => useBotFileUpload());
 
     await act(async () => {
-      await result.current.uploadFile('bot-1', mockFile, 'template', 'Test file');
+      await result.current.uploadFile('bot-1', mockFile, 'Test file');
     });
 
     expect(notifications.show).toHaveBeenCalledWith({
@@ -225,7 +225,7 @@ describe('useBotFileUpload', () => {
     const { result } = renderHook(() => useBotFileUpload());
 
     act(() => {
-      result.current.uploadFile('bot-1', mockFile, 'template', 'Test file');
+      result.current.uploadFile('bot-1', mockFile, 'Test file');
     });
 
     // Check that upload state is set
@@ -245,7 +245,7 @@ describe('useBotFileUpload', () => {
     const { result } = renderHook(() => useBotFileUpload());
 
     await act(async () => {
-      await result.current.uploadFile('bot-1', mockFile, 'template', 'Test file');
+      await result.current.uploadFile('bot-1', mockFile, 'Test file');
     });
 
     expect(notifications.show).toHaveBeenCalledWith({

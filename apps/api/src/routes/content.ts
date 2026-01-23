@@ -219,16 +219,8 @@ async function getEditorialBoardMembers() {
         createdAt: true,
         _count: {
           select: {
-            authoredArticles: {
-              where: {
-                status: 'PUBLISHED'
-              }
-            },
-            assignedReviews: {
-              where: {
-                status: 'COMPLETED'
-              }
-            }
+            manuscript_authors: true,
+            review_assignments: true
           }
         }
       }
@@ -236,8 +228,8 @@ async function getEditorialBoardMembers() {
 
     return editors.map(editor => ({
       ...editor,
-      publishedPapers: editor._count.authoredArticles,
-      completedReviews: editor._count.assignedReviews
+      publishedPapers: editor._count.manuscript_authors,
+      completedReviews: editor._count.review_assignments
     }));
   } catch (error) {
     console.error('Error fetching editorial board members:', error);

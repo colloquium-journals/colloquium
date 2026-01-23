@@ -169,7 +169,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
             authorId: systemBotUserId,
             isBot: true,
             parentId: messageId,
-            privacy: message.privacy,
+            privacy: 'AUTHOR_VISIBLE',
             updatedAt: new Date()
           },
           include: {

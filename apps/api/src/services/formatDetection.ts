@@ -121,14 +121,16 @@ export class FormatDetectionService {
    * Register a new format in the database
    */
   async registerFormat(formatDef: Omit<FormatDefinition, 'isActive'>): Promise<void> {
-    await prisma.supportedFormat.create({
+    await prisma.supported_formats.create({
       data: {
+        id: require('crypto').randomUUID(),
         name: formatDef.name,
         displayName: formatDef.displayName,
         fileExtensions: formatDef.fileExtensions,
         mimeTypes: formatDef.mimeTypes,
         description: formatDef.description,
-        isActive: true
+        isActive: true,
+        updatedAt: new Date()
       }
     });
 

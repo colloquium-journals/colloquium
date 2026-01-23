@@ -34,18 +34,18 @@ router.put('/:id',
     const userRole = req.user.role;
 
     // Check if message exists and get conversation context
-    const existingMessage = await prisma.message.findUnique({
+    const existingMessage = await prisma.messages.findUnique({
       where: { id },
-      include: { 
-        author: true,
-        conversation: {
+      include: {
+        users: true,
+        conversations: {
           include: {
-            participants: {
+            conversation_participants: {
               include: {
-                user: true
+                users: true
               }
             },
-            manuscript: true
+            manuscripts: true
           }
         }
       }
@@ -67,7 +67,7 @@ router.put('/:id',
     const isManagingEditor = userRole === 'MANAGING_EDITOR';
     
     // Check if user is a participant in the conversation
-    const isParticipant = existingMessage.conversation.participants.some(p => p.userId === userId);
+    const isParticipant = existingMessage.conversations.conversation_participants.some((p: any) => p.userId === userId);
     
     if (!isAuthor && !isAdmin && !isEditorInChief && !isManagingEditor) {
       return res.status(403).json({
@@ -104,17 +104,16 @@ router.put('/:id',
       // For now, skip edit history creation
 
       // Update the message
-      const updatedMessage = await tx.message.update({
+      const updatedMessage = await tx.messages.update({
         where: { id },
         data: {
           content,
           editedAt: new Date()
         },
         include: {
-          author: {
+          users: {
             select: { id: true, name: true, email: true }
           }
-          // TODO: Add editHistory when messageEdit model is implemented
         }
       });
 
@@ -140,12 +139,12 @@ router.get('/:id/edit-history',
     const userRole = req.user.role;
 
     // Check if message exists and user has access
-    const message = await prisma.message.findUnique({
+    const message = await prisma.messages.findUnique({
       where: { id },
       include: {
-        conversation: {
+        conversations: {
           include: {
-            participants: true
+            conversation_participants: true
           }
         }
       }
@@ -161,7 +160,7 @@ router.get('/:id/edit-history',
     }
 
     // Check permissions
-    const isParticipant = message.conversation.participants.some(p => p.userId === userId);
+    const isParticipant = message.conversations.conversation_participants.some((p: any) => p.userId === userId);
     const isAdmin = userRole === 'ADMIN';
     const isEditor = userRole === 'EDITOR_IN_CHIEF' || userRole === 'MANAGING_EDITOR';
 
@@ -303,9 +302,9 @@ router.delete('/:id',
     const userRole = req.user.role;
 
     // Check if message exists
-    const existingMessage = await prisma.message.findUnique({
+    const existingMessage = await prisma.messages.findUnique({
       where: { id },
-      include: { author: true }
+      include: { users: true }
     });
 
     if (!existingMessage) {
@@ -331,7 +330,7 @@ router.delete('/:id',
     }
 
     // Soft delete the message
-    await prisma.message.update({
+    await prisma.messages.update({
       where: { id },
       data: {
         deleted: true,

@@ -8,6 +8,7 @@ interface User {
   name: string | null;
   role: string;
   orcidId: string | null;
+  affiliation: string | null;
   createdAt: string;
 }
 

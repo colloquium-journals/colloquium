@@ -133,7 +133,7 @@ router.post('/invite',
       where: { id: manuscriptId },
       include: {
         manuscript_authors: {
-          include: { user: true }
+          include: { users: true }
         }
       }
     });
@@ -164,8 +164,10 @@ router.post('/invite',
         if (!reviewer) {
           reviewer = await prisma.users.create({
             data: {
+              id: require('crypto').randomUUID(),
               email: email.toLowerCase(),
-              role: 'USER'
+              role: 'USER',
+              updatedAt: new Date()
             }
           });
         }
@@ -192,6 +194,7 @@ router.post('/invite',
         // Create review assignment
         const assignment = await prisma.review_assignments.create({
           data: {
+            id: require('crypto').randomUUID(),
             manuscriptId,
             reviewerId: reviewer.id,
             status: autoAssign ? 'ACCEPTED' : 'PENDING',
@@ -343,16 +346,17 @@ router.post('/assign',
     // Create assignment
     const assignment = await prisma.review_assignments.create({
       data: {
+        id: require('crypto').randomUUID(),
         manuscriptId,
         reviewerId,
         status: 'ACCEPTED',
         dueDate: dueDate ? new Date(dueDate) : undefined
       },
       include: {
-        reviewer: {
+        users: {
           select: { id: true, name: true, email: true }
         },
-        manuscript: {
+        manuscripts: {
           select: { id: true, title: true }
         }
       }
@@ -381,7 +385,7 @@ router.get('/assignments/:manuscriptId',
     const assignments = await prisma.review_assignments.findMany({
       where: { manuscriptId },
       include: {
-        reviewer: {
+        users: {
           select: {
             id: true,
             name: true,
@@ -425,8 +429,8 @@ router.put('/assignments/:id',
     const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
-        reviewer: true,
-        manuscript: true
+        users: true,
+        manuscripts: true
       }
     });
 
@@ -467,10 +471,10 @@ router.put('/assignments/:id',
       where: { id },
       data: updateData,
       include: {
-        reviewer: {
+        users: {
           select: { id: true, name: true, email: true }
         },
-        manuscript: {
+        manuscripts: {
           select: { id: true, title: true }
         }
       }
@@ -588,13 +592,14 @@ router.post('/bulk-assign',
         // Create assignment
         const newAssignment = await prisma.review_assignments.create({
           data: {
+            id: require('crypto').randomUUID(),
             manuscriptId,
             reviewerId: assignment.reviewerId,
             status: 'ACCEPTED',
             dueDate: assignment.dueDate ? new Date(assignment.dueDate) : undefined
           },
           include: {
-            reviewer: {
+            users: {
               select: { id: true, name: true, email: true }
             }
           }
@@ -633,11 +638,11 @@ router.post('/invitations/:id/respond',
     const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
-        reviewer: true,
-        manuscript: {
+        users: true,
+        manuscripts: {
           include: {
             manuscript_authors: {
-              include: { user: true }
+              include: { users: true }
             }
           }
         }
@@ -682,17 +687,17 @@ router.post('/invitations/:id/respond',
         ...(response === 'ACCEPT' && availableUntil && { dueDate: new Date(availableUntil) })
       },
       include: {
-        reviewer: {
+        users: {
           select: { id: true, name: true, email: true }
         },
-        manuscript: {
+        manuscripts: {
           select: { id: true, title: true }
         }
       }
     });
 
     // Create a message in the manuscript's editorial conversation to notify editors
-    const editorialConversation = await prisma.conversation.findFirst({
+    const editorialConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId: assignment.manuscriptId,
         type: 'EDITORIAL'
@@ -700,16 +705,18 @@ router.post('/invitations/:id/respond',
     });
 
     if (editorialConversation) {
-      const responseMessage = response === 'ACCEPT' 
-        ? `✅ **Review Invitation Accepted**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n**Manuscript:** ${assignment.manuscript.title}${message ? `\n**Message:** ${message}` : ''}`
-        : `❌ **Review Invitation Declined**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n**Manuscript:** ${assignment.manuscript.title}${message ? `\n**Reason:** ${message}` : ''}`;
+      const responseMessage = response === 'ACCEPT'
+        ? `✅ **Review Invitation Accepted**\n\n**Reviewer:** ${assignment.users.name || assignment.users.email}\n**Manuscript:** ${assignment.manuscripts.title}${message ? `\n**Message:** ${message}` : ''}`
+        : `❌ **Review Invitation Declined**\n\n**Reviewer:** ${assignment.users.name || assignment.users.email}\n**Manuscript:** ${assignment.manuscripts.title}${message ? `\n**Reason:** ${message}` : ''}`;
 
-      await prisma.message.create({
+      await prisma.messages.create({
         data: {
+          id: require('crypto').randomUUID(),
           content: responseMessage,
           conversationId: editorialConversation.id,
           authorId: userId,
           privacy: 'EDITOR_ONLY',
+          updatedAt: new Date(),
           metadata: {
             type: 'review_invitation_response',
             assignmentId: assignment.id,
@@ -723,16 +730,16 @@ router.post('/invitations/:id/respond',
     try {
       const editors = await prisma.users.findMany({
         where: {
-          role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
+          role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'] }
         },
         select: { email: true, name: true }
       });
 
-      const emailSubject = `Review ${response === 'ACCEPT' ? 'Accepted' : 'Declined'}: ${assignment.manuscript.title}`;
+      const emailSubject = `Review ${response === 'ACCEPT' ? 'Accepted' : 'Declined'}: ${assignment.manuscripts.title}`;
       const emailContent = `
         <h2>Review Invitation ${response === 'ACCEPT' ? 'Accepted' : 'Declined'}</h2>
-        <p><strong>Reviewer:</strong> ${assignment.reviewer.name || assignment.reviewer.email}</p>
-        <p><strong>Manuscript:</strong> ${assignment.manuscript.title}</p>
+        <p><strong>Reviewer:</strong> ${assignment.users.name || assignment.users.email}</p>
+        <p><strong>Manuscript:</strong> ${assignment.manuscripts.title}</p>
         ${message ? `<p><strong>${response === 'ACCEPT' ? 'Message' : 'Reason'}:</strong> ${message}</p>` : ''}
         ${response === 'ACCEPT' && availableUntil ? `<p><strong>Available until:</strong> ${new Date(availableUntil).toLocaleDateString()}</p>` : ''}
       `;
@@ -751,7 +758,7 @@ router.post('/invitations/:id/respond',
               </p>
             </div>
           `,
-          text: `Review Invitation ${response}\n\nReviewer: ${assignment.reviewer.name || assignment.reviewer.email}\nManuscript: ${assignment.manuscript.title}${message ? `\n${response === 'ACCEPT' ? 'Message' : 'Reason'}: ${message}` : ''}`
+          text: `Review Invitation ${response}\n\nReviewer: ${assignment.users.name || assignment.users.email}\nManuscript: ${assignment.manuscripts.title}${message ? `\n${response === 'ACCEPT' ? 'Message' : 'Reason'}: ${message}` : ''}`
         });
       }
     } catch (emailError) {
@@ -782,11 +789,11 @@ router.post('/assignments/:id/submit',
     const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
-        reviewer: true,
-        manuscript: {
+        users: true,
+        manuscripts: {
           include: {
             manuscript_authors: {
-              include: { user: true }
+              include: { users: true }
             }
           }
         }
@@ -843,7 +850,7 @@ router.post('/assignments/:id/submit',
     };
 
     // Create message in review conversation
-    const reviewConversation = await prisma.conversation.findFirst({
+    const reviewConversation = await prisma.conversations.findFirst({
       where: {
         manuscriptId: assignment.manuscriptId,
         type: 'REVIEW'
@@ -851,12 +858,14 @@ router.post('/assignments/:id/submit',
     });
 
     if (reviewConversation) {
-      await prisma.message.create({
+      await prisma.messages.create({
         data: {
-          content: `📝 **Review Submitted**\n\n**Reviewer:** ${assignment.reviewer.name || assignment.reviewer.email}\n\n**Recommendation:** ${recommendation}\n\n**Review:**\n${reviewContent}${score ? `\n\n**Score:** ${score}/10` : ''}`,
+          id: require('crypto').randomUUID(),
+          content: `📝 **Review Submitted**\n\n**Reviewer:** ${assignment.users.name || assignment.users.email}\n\n**Recommendation:** ${recommendation}\n\n**Review:**\n${reviewContent}${score ? `\n\n**Score:** ${score}/10` : ''}`,
           conversationId: reviewConversation.id,
           authorId: userId,
           privacy: 'AUTHOR_VISIBLE',
+          updatedAt: new Date(),
           metadata: {
             type: 'review_submission',
             assignmentId: id,
@@ -869,12 +878,14 @@ router.post('/assignments/:id/submit',
 
       // Create confidential comments for editors only
       if (confidentialComments) {
-        await prisma.message.create({
+        await prisma.messages.create({
           data: {
+            id: require('crypto').randomUUID(),
             content: `🔒 **Confidential Comments**\n\n${confidentialComments}`,
             conversationId: reviewConversation.id,
             authorId: userId,
             privacy: 'EDITOR_ONLY',
+            updatedAt: new Date(),
             metadata: {
               type: 'confidential_review_comments',
               assignmentId: id
@@ -888,7 +899,7 @@ router.post('/assignments/:id/submit',
     try {
       const editors = await prisma.users.findMany({
         where: {
-          role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
+          role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'] }
         },
         select: { email: true, name: true }
       });
@@ -897,12 +908,12 @@ router.post('/assignments/:id/submit',
         await transporter.sendMail({
           from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
           to: editor.email,
-          subject: `Review Submitted: ${assignment.manuscript.title}`,
+          subject: `Review Submitted: ${assignment.manuscripts.title}`,
           html: `
             <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
               <h1 style="color: #2563eb; margin-bottom: 24px;">Review Submitted</h1>
-              <p><strong>Reviewer:</strong> ${assignment.reviewer.name || assignment.reviewer.email}</p>
-              <p><strong>Manuscript:</strong> ${assignment.manuscript.title}</p>
+              <p><strong>Reviewer:</strong> ${assignment.users.name || assignment.users.email}</p>
+              <p><strong>Manuscript:</strong> ${assignment.manuscripts.title}</p>
               <p><strong>Recommendation:</strong> ${recommendation}</p>
               ${score ? `<p><strong>Score:</strong> ${score}/10</p>` : ''}
               <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
@@ -910,7 +921,7 @@ router.post('/assignments/:id/submit',
               </p>
             </div>
           `,
-          text: `Review Submitted\n\nReviewer: ${assignment.reviewer.name || assignment.reviewer.email}\nManuscript: ${assignment.manuscript.title}\nRecommendation: ${recommendation}${score ? `\nScore: ${score}/10` : ''}`
+          text: `Review Submitted\n\nReviewer: ${assignment.users.name || assignment.users.email}\nManuscript: ${assignment.manuscripts.title}\nRecommendation: ${recommendation}${score ? `\nScore: ${score}/10` : ''}`
         });
       }
     } catch (emailError) {
@@ -1040,7 +1051,7 @@ router.get('/invitations/:id/public',
 
         // Broadcast SSE update to manuscript conversations
         try {
-          const { broadcastToConversation } = await import('../events');
+          const { broadcastToConversation } = await import('./events');
           await broadcastToConversation(`manuscript-${assignment.manuscriptId}`, {
             type: 'reviewer-invitation-response',
             response: {
@@ -1167,11 +1178,13 @@ router.post('/invitations/:id/respond-public',
 
           await prisma.messages.create({
             data: {
+              id: require('crypto').randomUUID(),
               content: responseMessage,
               conversationId: editorialConversation.id,
               authorId: assignment.users.id,
               privacy: 'EDITOR_ONLY',
               isBot: true,
+              updatedAt: new Date(),
               metadata: {
                 type: 'review_invitation_response',
                 assignmentId: id,
@@ -1189,7 +1202,7 @@ router.post('/invitations/:id/respond-public',
       try {
         const editors = await prisma.users.findMany({
           where: {
-            role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'] }
+            role: { in: ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'] }
           },
           select: { email: true, name: true }
         });
@@ -1252,10 +1265,10 @@ router.get('/invitations/:id',
     const assignment = await prisma.review_assignments.findUnique({
       where: { id },
       include: {
-        reviewer: {
+        users: {
           select: { id: true, name: true, email: true }
         },
-        manuscript: {
+        manuscripts: {
           select: {
             id: true,
             title: true,
@@ -1263,7 +1276,7 @@ router.get('/invitations/:id',
             submittedAt: true,
             manuscript_authors: {
               include: {
-                user: {
+                users: {
                   select: {
                     name: true,
                     email: true,

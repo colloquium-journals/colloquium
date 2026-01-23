@@ -76,6 +76,7 @@ interface BotInstallation {
     email?: string;
   };
   category?: string;
+  config?: any;
   isEnabled: boolean;
   isDefault: boolean;
   isRequired?: boolean;

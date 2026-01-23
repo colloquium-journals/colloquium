@@ -18,7 +18,8 @@ const renderWithProvider = (component: React.ReactElement) => {
 
 describe('Text Formatting Integration', () => {
   const defaultProps = {
-    conversationId: 'test-conversation-id'
+    conversationId: 'test-conversation-id',
+    messageId: 'test-message-id'
   };
 
   describe('Basic Text Formatting', () => {

@@ -66,19 +66,21 @@ async function seedFormats() {
   ];
 
   for (const formatData of formats) {
-    const existingFormat = await prisma.supportedFormat.findUnique({
+    const existingFormat = await prisma.supported_formats.findUnique({
       where: { name: formatData.name }
     });
 
     if (!existingFormat) {
-      await prisma.supportedFormat.create({
+      await prisma.supported_formats.create({
         data: {
+          id: require('crypto').randomUUID(),
           name: formatData.name,
           displayName: formatData.displayName,
           fileExtensions: formatData.fileExtensions,
           mimeTypes: formatData.mimeTypes,
           description: formatData.description,
-          isActive: true
+          isActive: true,
+          updatedAt: new Date()
         }
       });
       console.log(`✅ Created format: ${formatData.displayName}`);

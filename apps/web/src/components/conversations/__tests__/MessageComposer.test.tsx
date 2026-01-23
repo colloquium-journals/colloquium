@@ -4,7 +4,16 @@ import '@testing-library/jest-dom';
 import { MantineProvider } from '@mantine/core';
 import { MessageComposer } from '../MessageComposer';
 import { AuthProvider, useAuth } from '../../../contexts/AuthContext';
-import { User } from '@colloquium/types';
+interface User {
+  id: string;
+  email: string;
+  name?: string | null;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
 import { 
   mockBots, 
   mockBotsApiCall, 
@@ -379,7 +388,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
     fireEvent.click(addButton); // Try to add again
 
     // Should only have one mention in the textarea
-    const textarea = screen.getByTestId('message-input');
+    const textarea = screen.getByTestId('message-input') as HTMLTextAreaElement;
     expect(textarea.value.split('@editorial-bot').length - 1).toBe(1);
     
     // Should only have one bot in mentioned bots

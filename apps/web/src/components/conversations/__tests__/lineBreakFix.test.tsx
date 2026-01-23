@@ -18,7 +18,8 @@ const renderWithProvider = (component: React.ReactElement) => {
 
 describe('Line Break Fix for Bot Mentions', () => {
   const defaultProps = {
-    conversationId: 'test-conversation-id'
+    conversationId: 'test-conversation-id',
+    messageId: 'test-message-id'
   };
 
   it('should render bot mention followed by command without line breaks', () => {
