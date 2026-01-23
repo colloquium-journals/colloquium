@@ -1,30 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Group, 
-  Text, 
-  Avatar, 
-  ActionIcon, 
-  Menu, 
-  Badge, 
+import {
+  Group,
+  Text,
+  Avatar,
+  ActionIcon,
+  Menu,
+  Badge,
   Stack,
   Tooltip,
-  Divider,
   Modal,
   TextInput,
   Textarea,
   Button
 } from '@mantine/core';
-import { 
-  IconDots, 
-  IconArrowBack, 
-  IconFlag, 
-  IconEye, 
-  IconLock, 
-  IconUsers, 
+import {
+  IconDots,
+  IconArrowBack,
+  IconFlag,
+  IconEye,
+  IconLock,
+  IconUsers,
   IconShield,
-  IconInfoCircle,
   IconEdit,
   IconHistory,
   IconLink
@@ -56,15 +54,18 @@ interface MessageCardProps {
   message: MessageData;
   onReply: (content: string) => void;
   onEdit?: (messageId: string, content: string, reason?: string) => void;
+  onPrivacyChange?: (messageId: string, privacy: string) => void;
   isReply?: boolean;
   conversationId: string;
+  isActionEditor?: boolean;
 }
 
-export function MessageCard({ message, onReply, onEdit, isReply = false, conversationId }: MessageCardProps) {
+export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply = false, conversationId, isActionEditor = false }: MessageCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [editReason, setEditReason] = useState('');
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [currentPrivacy, setCurrentPrivacy] = useState(message.privacy);
   const { user } = useAuth();
 
   const copyMessageLink = () => {
@@ -94,21 +95,59 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
   // Check if user can edit this message
   const canEdit = () => {
     if (!user || message.isBot) return false;
-    
+
     const isAuthor = user.id === message.author.id;
     const isAdmin = user.role === 'ADMIN';
     const isEditor = user.role === 'EDITOR_IN_CHIEF' || user.role === 'MANAGING_EDITOR';
-    
+
     // Authors can edit within 24 hours, admins/editors anytime
     if (isAdmin || isEditor) return true;
-    
+
     if (isAuthor) {
       const hoursSinceCreated = (Date.now() - new Date(message.createdAt).getTime()) / (1000 * 60 * 60);
       return hoursSinceCreated <= 24;
     }
-    
+
     return false;
   };
+
+  // Check if user can edit visibility
+  const canEditVisibility = () => {
+    if (!user) return false;
+    const isAdmin = user.role === 'ADMIN';
+    const isEditor = user.role === 'EDITOR_IN_CHIEF' || user.role === 'MANAGING_EDITOR';
+    return isAdmin || isEditor || isActionEditor;
+  };
+
+  const handlePrivacyChange = async (newPrivacy: string) => {
+    if (newPrivacy === currentPrivacy) return;
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/messages/${message.id}/privacy`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ privacy: newPrivacy }),
+      });
+
+      if (response.ok) {
+        setCurrentPrivacy(newPrivacy);
+        onPrivacyChange?.(message.id, newPrivacy);
+      }
+    } catch (error) {
+      console.error('Failed to update message visibility:', error);
+    }
+  };
+
+  const privacyOptions = [
+    { value: 'PUBLIC', label: 'Public', icon: IconEye, color: 'green' },
+    { value: 'AUTHOR_VISIBLE', label: 'Authors & Reviewers', icon: IconUsers, color: 'blue' },
+    { value: 'REVIEWER_ONLY', label: 'Reviewers Only', icon: IconShield, color: 'orange' },
+    { value: 'EDITOR_ONLY', label: 'Editors Only', icon: IconLock, color: 'red' },
+    { value: 'ADMIN_ONLY', label: 'Admins Only', icon: IconLock, color: 'red' },
+  ];
 
   const getInitials = (name: string) => {
     return name
@@ -127,9 +166,9 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
     if (diffMinutes < 60) {
-      return `${diffMinutes} minutes ago`;
+      return `${diffMinutes} ${diffMinutes === 1 ? 'minute' : 'minutes'} ago`;
     } else if (diffHours < 24) {
-      return `${diffHours} hours ago`;
+      return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
     } else {
       return date.toLocaleDateString();
     }
@@ -141,54 +180,48 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
         return {
           icon: IconEye,
           label: 'Public',
-          description: 'Visible to everyone',
-          color: 'green',
-          audience: ['Authors', 'Reviewers', 'Editors', 'Admins', 'Public']
+          tooltip: 'Visible to everyone',
+          color: 'green'
         };
       case 'AUTHOR_VISIBLE':
         return {
           icon: IconUsers,
           label: 'Authors & Reviewers',
-          description: 'Visible to authors, reviewers, editors, and admins',
-          color: 'blue',
-          audience: ['Authors', 'Reviewers', 'Editors', 'Admins']
+          tooltip: 'Hidden from the public',
+          color: 'blue'
         };
       case 'REVIEWER_ONLY':
         return {
           icon: IconShield,
           label: 'Reviewers Only',
-          description: 'Only visible to reviewers, editors, and admins',
-          color: 'orange',
-          audience: ['Reviewers', 'Editors', 'Admins']
+          tooltip: 'Hidden from authors',
+          color: 'orange'
         };
       case 'EDITOR_ONLY':
         return {
           icon: IconLock,
           label: 'Editors Only',
-          description: 'Only visible to editors and admins',
-          color: 'red',
-          audience: ['Editors', 'Admins']
+          tooltip: 'Hidden from authors and reviewers',
+          color: 'red'
         };
       case 'ADMIN_ONLY':
         return {
           icon: IconLock,
           label: 'Admins Only',
-          description: 'Only visible to admins',
-          color: 'red',
-          audience: ['Admins']
+          tooltip: 'Hidden from editors',
+          color: 'red'
         };
       default:
         return {
           icon: IconEye,
           label: 'Unknown',
-          description: 'Visibility level unknown',
-          color: 'gray',
-          audience: ['Unknown']
+          tooltip: 'Visibility level unknown',
+          color: 'gray'
         };
     }
   };
 
-  const visibilityInfo = getVisibilityInfo(message.privacy);
+  const visibilityInfo = getVisibilityInfo(currentPrivacy);
 
   return (
     <div
@@ -271,20 +304,7 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
           </Group>
 
           <Group gap="sm" align="center">
-            <Tooltip 
-              label={
-                <Stack gap="xs">
-                  <Text size="sm" fw={500}>{visibilityInfo.description}</Text>
-                  <Divider />
-                  <Text size="xs" fw={500}>Visible to:</Text>
-                  {visibilityInfo.audience.map((role, index) => (
-                    <Text key={index} size="xs">• {role}</Text>
-                  ))}
-                </Stack>
-              }
-              multiline
-              withArrow
-            >
+            <Tooltip label={visibilityInfo.tooltip} withArrow>
               <Badge 
                 size="xs" 
                 variant="light" 
@@ -295,7 +315,7 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
               </Badge>
             </Tooltip>
             
-            <Menu shadow="md" width={150} position="bottom-end">
+            <Menu shadow="md" width={200} position="bottom-end">
               <Menu.Target>
                 <ActionIcon variant="subtle" size="sm">
                   <IconDots size={14} />
@@ -325,18 +345,40 @@ export function MessageCard({ message, onReply, onEdit, isReply = false, convers
                     Edit
                   </Menu.Item>
                 )}
-                {message.editedAt && (
-                  <Menu.Item 
-                    leftSection={<IconHistory size={14} />}
-                    onClick={() => {
-                      // TODO: Show edit history modal
-                      console.log('Show edit history for message', message.id);
-                    }}
-                  >
-                    Edit History
-                  </Menu.Item>
+                {canEditVisibility() && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Label>Change visibility</Menu.Label>
+                    {privacyOptions.map((option) => (
+                      <Menu.Item
+                        key={option.value}
+                        leftSection={<option.icon size={14} />}
+                        color={option.value === currentPrivacy ? option.color : undefined}
+                        fw={option.value === currentPrivacy ? 600 : undefined}
+                        disabled={option.value === currentPrivacy}
+                        onClick={() => handlePrivacyChange(option.value)}
+                      >
+                        {option.label}
+                      </Menu.Item>
+                    ))}
+                  </>
                 )}
-                <Menu.Item 
+                {message.editedAt && (
+                  <>
+                    <Menu.Divider />
+                    <Menu.Item
+                      leftSection={<IconHistory size={14} />}
+                      onClick={() => {
+                        // TODO: Show edit history modal
+                        console.log('Show edit history for message', message.id);
+                      }}
+                    >
+                      Edit History
+                    </Menu.Item>
+                  </>
+                )}
+                <Menu.Divider />
+                <Menu.Item
                   leftSection={<IconFlag size={14} />}
                   color="red"
                 >
