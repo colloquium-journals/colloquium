@@ -48,6 +48,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
       triggeredBy: {
         messageId: message.id,
         userId: user.id,
+        userRole: user.role,
         trigger: 'MENTION' as any
       },
       journal: {
@@ -78,7 +79,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
                 conversationId: message.conversationId,
                 authorId: botUserId,
                 parentId: botMessage.replyTo || message.id,
-                privacy: 'AUTHOR_VISIBLE',
+                privacy: message.privacy,
                 isBot: true,
                 updatedAt: new Date()
               },
@@ -168,7 +169,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
             authorId: systemBotUserId,
             isBot: true,
             parentId: messageId,
-            privacy: 'AUTHOR_VISIBLE',
+            privacy: message.privacy,
             updatedAt: new Date()
           },
           include: {
