@@ -5,6 +5,7 @@ import { MentionSuggestion } from '@/components/shared/MentionSuggest';
 
 interface UseMentionInputProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
+  containerRef: React.RefObject<HTMLDivElement>;
   value: string;
   onChange: (value: string) => void;
   suggestions: MentionSuggestion[];
@@ -20,7 +21,7 @@ interface MentionState {
   position: { top: number; left: number };
 }
 
-export function useMentionInput({ textareaRef, value, onChange, suggestions, onSelectSuggestion }: UseMentionInputProps) {
+export function useMentionInput({ textareaRef, containerRef, value, onChange, suggestions, onSelectSuggestion }: UseMentionInputProps) {
   const [mentionState, setMentionState] = useState<MentionState>({
     isActive: false,
     query: '',
@@ -30,12 +31,12 @@ export function useMentionInput({ textareaRef, value, onChange, suggestions, onS
     position: { top: 0, left: 0 }
   });
 
-  // Calculate cursor position for suggestion popup
+  // Calculate cursor position for suggestion popup (relative to container)
   const calculatePosition = useCallback((textarea: HTMLTextAreaElement, cursorPos: number) => {
     const textBeforeCursor = textarea.value.substring(0, cursorPos);
     const lines = textBeforeCursor.split('\n');
     const currentLine = lines[lines.length - 1];
-    
+
     // Create a temporary element to measure text width
     const temp = document.createElement('span');
     const computedStyle = window.getComputedStyle(textarea);
@@ -49,24 +50,27 @@ export function useMentionInput({ textareaRef, value, onChange, suggestions, onS
     temp.style.left = '-9999px';
     temp.textContent = currentLine;
     document.body.appendChild(temp);
-    
+
     const textWidth = temp.offsetWidth;
     document.body.removeChild(temp);
-    
-    const rect = textarea.getBoundingClientRect();
-    const lineHeight = parseInt(computedStyle.lineHeight) || parseInt(computedStyle.fontSize) * 1.2 || 20;
-    
-    // Account for textarea padding
+
+    const computedLineHeight = parseInt(computedStyle.lineHeight) || parseInt(computedStyle.fontSize) * 1.2 || 20;
     const paddingTop = parseInt(computedStyle.paddingTop) || 0;
     const paddingLeft = parseInt(computedStyle.paddingLeft) || 0;
-    
-    // Calculate position relative to viewport (since MentionSuggest uses position: fixed)
-    const top = rect.top + paddingTop + (lines.length - 1) * lineHeight + lineHeight + 4;
-    const left = rect.left + paddingLeft + textWidth + 8;
-    
-    
+
+    // Calculate position relative to the container
+    const containerEl = containerRef.current;
+    const textareaRect = textarea.getBoundingClientRect();
+    const containerRect = containerEl ? containerEl.getBoundingClientRect() : textareaRect;
+
+    const offsetTop = textareaRect.top - containerRect.top;
+    const offsetLeft = textareaRect.left - containerRect.left;
+
+    const top = offsetTop + paddingTop + (lines.length - 1) * computedLineHeight + computedLineHeight + 4 - textarea.scrollTop;
+    const left = offsetLeft + paddingLeft + textWidth + 8;
+
     return { top, left };
-  }, []);
+  }, [containerRef]);
 
   // Detect @ mentions and update state
   const handleTextChange = useCallback((newValue: string) => {

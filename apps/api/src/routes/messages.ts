@@ -3,12 +3,19 @@ import { prisma } from '@colloquium/database';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { MessageUpdateSchema, IdSchema } from '../schemas/validation';
 import { requireAuth } from '../middleware/auth';
+import { canUserSeeMessage } from './conversations';
+import { broadcastToConversation } from './events';
 import { z } from 'zod';
 
 // Enhanced message edit schema with reason
 const MessageEditSchema = z.object({
   content: z.string().min(1, 'Content cannot be empty').max(10000, 'Content is too long'),
   reason: z.string().optional()
+});
+
+// Privacy update schema
+const PrivacyUpdateSchema = z.object({
+  privacy: z.enum(['PUBLIC', 'AUTHOR_VISIBLE', 'REVIEWER_ONLY', 'EDITOR_ONLY', 'ADMIN_ONLY'])
 });
 
 const router = Router();
@@ -175,6 +182,111 @@ router.get('/:id/edit-history',
       messageId: id,
       editHistory,
       totalEdits: editHistory.length
+    });
+  })
+);
+
+// PATCH /api/messages/:id/privacy - Update message visibility
+router.patch('/:id/privacy',
+  requireAuth,
+  validateRequest({
+    params: z.object({ id: IdSchema }),
+    body: PrivacyUpdateSchema
+  }),
+  asyncHandler(async (req: any, res: any) => {
+    const { id } = req.params;
+    const { privacy } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Get message with conversation and manuscript context
+    const message = await prisma.messages.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true }
+        },
+        conversations: {
+          include: {
+            manuscripts: {
+              include: {
+                action_editors: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({
+        error: {
+          message: 'Message not found',
+          type: 'NotFoundError'
+        }
+      });
+    }
+
+    const manuscriptId = message.conversations.manuscriptId;
+    const isAdmin = userRole === 'ADMIN';
+    const isEditorInChief = userRole === 'EDITOR_IN_CHIEF';
+    const isManagingEditor = userRole === 'MANAGING_EDITOR';
+    const isAssignedActionEditor = message.conversations.manuscripts?.action_editors?.editorId === userId;
+
+    // Permission check: Admin, Editor-in-Chief, Managing Editor, or assigned Action Editor
+    const hasEditPermission = isAdmin || isEditorInChief || isManagingEditor || isAssignedActionEditor;
+
+    if (!hasEditPermission) {
+      return res.status(403).json({
+        error: {
+          message: 'You do not have permission to change message visibility',
+          type: 'ForbiddenError'
+        }
+      });
+    }
+
+    // For action editors: verify they can see the current message
+    if (isAssignedActionEditor && !isAdmin && !isEditorInChief && !isManagingEditor) {
+      const canSee = await canUserSeeMessage(userId, userRole, message.privacy, manuscriptId);
+      if (!canSee) {
+        return res.status(403).json({
+          error: {
+            message: 'You cannot change visibility of a message you cannot see',
+            type: 'ForbiddenError'
+          }
+        });
+      }
+    }
+
+    // Update the message privacy
+    const updatedMessage = await prisma.messages.update({
+      where: { id },
+      data: {
+        privacy: privacy as any,
+        updatedAt: new Date()
+      },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    });
+
+    // Broadcast the privacy change via SSE
+    await broadcastToConversation(message.conversationId, {
+      type: 'message-privacy-changed',
+      messageId: id,
+      privacy,
+      updatedBy: { id: userId, name: req.user.name }
+    }, manuscriptId);
+
+    res.json({
+      message: 'Message visibility updated successfully',
+      data: {
+        id: updatedMessage.id,
+        privacy: updatedMessage.privacy,
+        author: updatedMessage.users
+      }
     });
   })
 );

@@ -44,11 +44,16 @@ export { DatabaseBotManager } from './framework/botManager';
 
 // All core bots have been moved to standalone packages:
 // - @colloquium/editorial-bot
-// - @colloquium/reference-bot  
+// - @colloquium/reference-bot
 // - @colloquium/markdown-renderer-bot
 // - @colloquium/reviewer-checklist-bot
 
 // No legacy core bots remain
+
+// Export testing utilities
+// Note: Import from '@colloquium/bots/testing' for testing utilities
+// This is exported as a namespace to avoid polluting the main export
+export * as testing from './testing';
 
 // Export types
 export * from '@colloquium/types';

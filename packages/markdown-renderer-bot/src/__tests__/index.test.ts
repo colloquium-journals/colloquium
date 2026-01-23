@@ -91,7 +91,7 @@ describe('Markdown Renderer Bot', () => {
   it('should have correct bot metadata', () => {
     expect(markdownRendererBot.id).toBe('markdown-renderer');
     expect(markdownRendererBot.name).toBe('Markdown Renderer');
-    expect(markdownRendererBot.description).toBe('Renders Markdown manuscripts into beautiful HTML using configurable journal templates');
+    expect(markdownRendererBot.description).toBe('Renders Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines');
     expect(markdownRendererBot.version).toBe('1.0.0');
   });
 
@@ -105,7 +105,7 @@ describe('Markdown Renderer Bot', () => {
   });
 
   it('should have the expected keywords', () => {
-    expect(markdownRendererBot.keywords).toEqual(['markdown', 'render', 'template', 'html', 'format']);
+    expect(markdownRendererBot.keywords).toEqual(['markdown', 'render', 'template', 'pdf', 'latex', 'typst', 'academic']);
   });
 
   it('should have the expected permissions', () => {
@@ -121,34 +121,40 @@ describe('Markdown Renderer Bot', () => {
 
     it('should exist and have correct metadata', () => {
       expect(renderCommand).toBeDefined();
-      expect(renderCommand!.description).toBe('Render Markdown files to HTML using journal templates');
+      expect(renderCommand!.description).toBe('Render Markdown files to PDF or HTML using journal templates');
       expect(renderCommand!.permissions).toEqual(['read_manuscript_files', 'upload_files']);
     });
 
     it('should have correct parameters', () => {
-      expect(renderCommand!.parameters).toHaveLength(4);
-      
+      expect(renderCommand!.parameters).toHaveLength(3);
+
+      const outputParam = renderCommand!.parameters.find(p => p.name === 'output');
+      expect(outputParam).toBeDefined();
+      expect(outputParam!.type).toBe('string');
+      expect(outputParam!.required).toBe(false);
+      expect(outputParam!.enumValues).toEqual(['pdf', 'html', 'pdf,html']);
+
       const templateParam = renderCommand!.parameters.find(p => p.name === 'template');
       expect(templateParam).toBeDefined();
       expect(templateParam!.type).toBe('string');
       expect(templateParam!.required).toBe(false);
-      expect(templateParam!.defaultValue).toBe('academic-standard');
-      
-      const outputParam = renderCommand!.parameters.find(p => p.name === 'output');
-      expect(outputParam).toBeDefined();
-      expect(outputParam!.type).toBe('enum');
-      expect(outputParam!.enumValues).toContain('html');
-      expect(outputParam!.enumValues).toContain('pdf');
-      expect(outputParam!.enumValues).toContain('both');
+
+      const engineParam = renderCommand!.parameters.find(p => p.name === 'engine');
+      expect(engineParam).toBeDefined();
+      expect(engineParam!.type).toBe('string');
+      expect(engineParam!.required).toBe(false);
+      expect(engineParam!.enumValues).toEqual(['typst', 'latex', 'html']);
     });
 
     it('should execute successfully with default parameters', async () => {
       const mockContext = {
         manuscriptId: 'test-manuscript-123',
         conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: {
@@ -166,57 +172,80 @@ describe('Markdown Renderer Bot', () => {
       // Mock Blob
       global.Blob = jest.fn().mockImplementation((content, options) => ({
         size: Array.isArray(content) ? content[0].length : content.length,
-        type: options?.type || 'text/html'
+        type: options?.type || 'application/pdf'
       }));
 
-      // Mock successful file upload
       (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        // Pandoc service
+        if (url.includes('localhost:8080/convert')) {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mock-pdf-content').buffer)
+          });
+        }
+        // File upload
         if (options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({
               files: [{
                 id: 'file-123',
-                filename: 'manuscript.html',
-                downloadUrl: 'http://localhost/download/manuscript.html',
+                filename: 'manuscript.pdf',
+                downloadUrl: '/api/articles/test-manuscript-123/files/file-123/download',
                 size: 1024
               }]
             })
           });
         }
+        // Download file (check before /files since download URLs contain both)
+        if (url.includes('/download')) {
+          return Promise.resolve({
+            ok: true,
+            text: () => Promise.resolve('# Test Manuscript\n\nContent here.')
+          });
+        }
+        // Files list
+        if (url.includes('/files')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{
+                originalName: 'manuscript.md',
+                fileType: 'SOURCE',
+                mimetype: 'text/markdown',
+                downloadUrl: '/api/articles/test-manuscript-123/files/1/download'
+              }]
+            })
+          });
+        }
+        // Manuscript metadata
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
-            files: [{
-              originalName: 'manuscript.md',
-              fileType: 'SOURCE',
-              mimetype: 'text/markdown',
-              downloadUrl: 'http://localhost/download/manuscript.md'
-            }],
             title: 'Test Manuscript',
             authors: ['John Doe'],
             abstract: 'Test abstract'
-          }),
-          text: () => Promise.resolve('# Test Manuscript\n\nContent here.')
+          })
         });
       });
 
       const result = await renderCommand!.execute({}, mockContext);
-      
+
       expect(result).toBeDefined();
       expect(result.messages).toHaveLength(1);
       expect(result.messages[0].content).toContain('Markdown Rendered Successfully');
       expect(result.messages[0].content).toContain('manuscript.md');
-      expect(result.messages[0].content).toContain('Academic Standard');
     });
 
     it('should handle missing markdown file', async () => {
       const mockContext = {
         manuscriptId: 'test-manuscript-123',
         conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -236,7 +265,7 @@ describe('Markdown Renderer Bot', () => {
       });
 
       const result = await renderCommand!.execute({}, mockContext);
-      
+
       expect(result.messages[0].content).toContain('No Markdown File Found');
     });
 
@@ -244,9 +273,11 @@ describe('Markdown Renderer Bot', () => {
       const mockContext = {
         manuscriptId: 'test-manuscript-123',
         conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -261,7 +292,38 @@ describe('Markdown Renderer Bot', () => {
         size: 1024,
       }));
 
-      // Test PDF output
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url.includes('localhost:8080/convert')) {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mock-pdf').buffer)
+          });
+        }
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ id: 'f1', filename: 'manuscript.pdf', downloadUrl: '/download/f1', size: 512 }]
+            })
+          });
+        }
+        if (url.includes('/files')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ originalName: 'manuscript.md', fileType: 'SOURCE', mimetype: 'text/markdown', downloadUrl: '/download/md' }]
+            })
+          });
+        }
+        if (url.includes('/download')) {
+          return Promise.resolve({ ok: true, text: () => Promise.resolve('# Title\n\nBody') });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ title: 'Test', authors: ['A'], abstract: 'B' })
+        });
+      });
+
       const result = await renderCommand!.execute({ output: 'pdf' }, mockContext);
       expect(result.messages[0].content).toContain('Markdown Rendered Successfully');
     });
@@ -270,9 +332,11 @@ describe('Markdown Renderer Bot', () => {
       const mockContext = {
         manuscriptId: 'test-manuscript-123',
         conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -287,10 +351,42 @@ describe('Markdown Renderer Bot', () => {
         size: 1024,
       }));
 
-      const result = await renderCommand!.execute({ 
-        customCss: 'body { font-size: 18px; }' 
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url.includes('localhost:8080/convert')) {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mock-pdf').buffer)
+          });
+        }
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ id: 'f1', filename: 'manuscript.pdf', downloadUrl: '/download/f1', size: 512 }]
+            })
+          });
+        }
+        if (url.includes('/files')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ originalName: 'manuscript.md', fileType: 'SOURCE', mimetype: 'text/markdown', downloadUrl: '/download/md' }]
+            })
+          });
+        }
+        if (url.includes('/download')) {
+          return Promise.resolve({ ok: true, text: () => Promise.resolve('# Title\n\nBody') });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ title: 'Test', authors: ['A'], abstract: 'B' })
+        });
+      });
+
+      const result = await renderCommand!.execute({
+        customCss: 'body { font-size: 18px; }'
       }, mockContext);
-      
+
       expect(result.messages[0].content).toContain('Markdown Rendered Successfully');
     });
   });
@@ -311,6 +407,7 @@ describe('Markdown Renderer Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -326,34 +423,35 @@ describe('Markdown Renderer Bot', () => {
       expect(result.messages[0].content).toContain('Usage Examples');
     });
 
-    it('should list file-based templates when available', async () => {
+    it('should list configured templates when available', async () => {
       const mockContext = {
         manuscriptId: 'test-manuscript-123',
         conversationId: 'test-conversation-456',
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
-        config: {}
+        config: {
+          templates: {
+            'custom-academic': {
+              name: 'custom-academic',
+              title: 'Custom Academic Template',
+              description: 'A custom academic template',
+              defaultEngine: 'typst',
+              files: [
+                { fileId: 'file-001', filename: 'custom-academic.typ', engine: 'typst' }
+              ]
+            }
+          }
+        }
       };
 
-      // Mock file-based templates
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          files: [{
-            filename: 'custom-template.html',
-            description: 'Custom Academic Template',
-            uploadedAt: '2024-01-15'
-          }]
-        })
-      });
-
       const result = await templatesCommand!.execute({}, mockContext);
-      
-      expect(result.messages[0].content).toContain('File-based Templates');
+
+      expect(result.messages[0].content).toContain('Configured Templates');
       expect(result.messages[0].content).toContain('Custom Academic Template');
     });
 
@@ -364,6 +462,7 @@ describe('Markdown Renderer Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -379,7 +478,7 @@ describe('Markdown Renderer Bot', () => {
 
       const result = await templatesCommand!.execute({}, mockContext);
       
-      expect(result.messages[0].content).toContain('Config Templates (Legacy)');
+      expect(result.messages[0].content).toContain('Custom Templates (Legacy)');
       expect(result.messages[0].content).toContain('My Custom Template');
     });
   });
@@ -400,6 +499,7 @@ describe('Markdown Renderer Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },

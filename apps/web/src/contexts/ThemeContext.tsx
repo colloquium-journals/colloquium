@@ -67,7 +67,7 @@ export function ThemeProvider({
       const listener = (e: MediaQueryListEvent) => {
         setColorSchemeState(e.matches ? 'dark' : 'light');
       };
-      
+
       mediaQuery.addEventListener('change', listener);
       return () => mediaQuery.removeEventListener('change', listener);
     }

@@ -31,8 +31,16 @@ export interface CommandSuggestion {
   botName: string;
 }
 
+export interface ActiveCommandInfo {
+  botId: string;
+  command: BotCommand | null;
+  commandEndPos: number;
+  position: { top: number; left: number };
+}
+
 interface UseCommandInputProps {
   textareaRef: React.RefObject<HTMLTextAreaElement>;
+  containerRef: React.RefObject<HTMLDivElement>;
   value: string;
   onChange: (value: string) => void;
 }
@@ -47,7 +55,9 @@ interface CommandState {
   position: { top: number; left: number };
 }
 
-export function useCommandInput({ textareaRef, value, onChange }: UseCommandInputProps) {
+// ActiveCommandState is exported as ActiveCommandInfo
+
+export function useCommandInput({ textareaRef, containerRef, value, onChange }: UseCommandInputProps) {
   const [commandState, setCommandState] = useState<CommandState>({
     isActive: false,
     botId: '',
@@ -58,6 +68,7 @@ export function useCommandInput({ textareaRef, value, onChange }: UseCommandInpu
     position: { top: 0, left: 0 }
   });
 
+  const [activeCommand, setActiveCommand] = useState<ActiveCommandInfo | null>(null);
   const [botCommands, setBotCommands] = useState<Record<string, BotCommand[]>>({});
   const [loadingCommands, setLoadingCommands] = useState<Record<string, boolean>>({});
 
@@ -89,12 +100,12 @@ export function useCommandInput({ textareaRef, value, onChange }: UseCommandInpu
     return [];
   }, [botCommands, loadingCommands]);
 
-  // Calculate cursor position for suggestion popup
+  // Calculate cursor position for suggestion popup (relative to container)
   const calculatePosition = useCallback((textarea: HTMLTextAreaElement, cursorPos: number) => {
     const textBeforeCursor = textarea.value.substring(0, cursorPos);
     const lines = textBeforeCursor.split('\n');
     const currentLine = lines[lines.length - 1];
-    
+
     // Create a temporary element to measure text width
     const temp = document.createElement('span');
     const computedStyle = window.getComputedStyle(textarea);
@@ -108,57 +119,107 @@ export function useCommandInput({ textareaRef, value, onChange }: UseCommandInpu
     temp.style.left = '-9999px';
     temp.textContent = currentLine;
     document.body.appendChild(temp);
-    
+
     const textWidth = temp.offsetWidth;
     document.body.removeChild(temp);
-    
-    const rect = textarea.getBoundingClientRect();
-    const lineHeight = parseInt(computedStyle.lineHeight) || parseInt(computedStyle.fontSize) * 1.2 || 20;
-    
-    // Account for textarea padding
+
+    const computedLineHeight = parseInt(computedStyle.lineHeight) || parseInt(computedStyle.fontSize) * 1.2 || 20;
     const paddingTop = parseInt(computedStyle.paddingTop) || 0;
     const paddingLeft = parseInt(computedStyle.paddingLeft) || 0;
-    
-    // Calculate position relative to viewport
-    const top = rect.top + paddingTop + (lines.length - 1) * lineHeight + lineHeight + 4;
-    const left = rect.left + paddingLeft + textWidth + 8;
-    
+
+    // Calculate position relative to the container
+    const containerEl = containerRef.current;
+    const textareaRect = textarea.getBoundingClientRect();
+    const containerRect = containerEl ? containerEl.getBoundingClientRect() : textareaRect;
+
+    const offsetTop = textareaRect.top - containerRect.top;
+    const offsetLeft = textareaRect.left - containerRect.left;
+
+    const top = offsetTop + paddingTop + (lines.length - 1) * computedLineHeight + computedLineHeight + 4 - textarea.scrollTop;
+    const left = offsetLeft + paddingLeft + textWidth + 8;
+
     return { top, left };
-  }, []);
+  }, [containerRef]);
+
+  // Shared detection logic for parameter mode
+  const detectParameterMode = useCallback(async (text: string, cursorPos: number) => {
+    if (!textareaRef.current) return false;
+
+    const textBeforeCursor = text.substring(0, cursorPos);
+
+    const parameterModeRegex = /@(\w+(?:-\w+)*)\s+(\w+(?:-\w+)*)\s/;
+    const paramMatch = textBeforeCursor.match(parameterModeRegex);
+
+    if (paramMatch) {
+      const [fullParamMatch, botId, commandName] = paramMatch;
+      const commands = await fetchBotCommands(botId);
+      const matchedCommand = commands.find((cmd: BotCommand) => cmd.name === commandName);
+
+      if (matchedCommand && matchedCommand.parameters && matchedCommand.parameters.length > 0) {
+        const commandEndPos = textBeforeCursor.indexOf(fullParamMatch) + fullParamMatch.length;
+        const textAfterCommand = textBeforeCursor.substring(commandEndPos);
+        const currentToken = textAfterCommand.split(/\s+/).pop() || '';
+
+        const paramNames = matchedCommand.parameters.map((p: BotCommandParameter) => p.name);
+        const looksLikeParam = currentToken === '' ||
+          paramNames.some((name: string) => name.startsWith(currentToken)) ||
+          paramNames.some((name: string) => currentToken.startsWith(name + '='));
+
+        if (looksLikeParam) {
+          const position = calculatePosition(textareaRef.current, cursorPos);
+          setActiveCommand({
+            botId,
+            command: matchedCommand,
+            commandEndPos,
+            position
+          });
+          setCommandState(prev => ({ ...prev, isActive: false }));
+          return true;
+        }
+      }
+    }
+
+    setActiveCommand(null);
+    return false;
+  }, [textareaRef, fetchBotCommands, calculatePosition]);
 
   // Detect bot commands and update state
   const handleTextChange = useCallback(async (newValue: string) => {
     onChange(newValue);
-    
+
     if (!textareaRef.current) return;
-    
+
     const cursorPos = textareaRef.current.selectionStart || 0;
     const textBeforeCursor = newValue.substring(0, cursorPos);
-    
-    // Look for @bot-id pattern followed by a space and then potential command
+
+    // First, check if we're in parameter entry mode
+    const inParamMode = await detectParameterMode(newValue, cursorPos);
+    if (inParamMode) return;
+
+    // Look for @bot-id pattern followed by a space and then potential command (autocomplete mode)
     const botMentionRegex = /@(\w+(?:-\w+)*)\s+(\w*)$/;
     const match = textBeforeCursor.match(botMentionRegex);
-    
+
     if (!match) {
       setCommandState(prev => ({ ...prev, isActive: false }));
       return;
     }
-    
+
     const [fullMatch, botId, commandQuery] = match;
     const startPos = textBeforeCursor.length - commandQuery.length;
-    
+
     // Fetch commands for this bot
     const commands = await fetchBotCommands(botId);
-    
+
     if (!commands.length) {
       setCommandState(prev => ({ ...prev, isActive: false }));
       return;
     }
-    
+
     // Filter commands based on query
     const filtered: CommandSuggestion[] = commands
-      .filter((cmd: BotCommand) => 
-        commandQuery === '' || 
+      .filter((cmd: BotCommand) =>
+        commandQuery === '' ||
         cmd.name.toLowerCase().includes(commandQuery.toLowerCase()) ||
         cmd.description.toLowerCase().includes(commandQuery.toLowerCase())
       )
@@ -170,10 +231,10 @@ export function useCommandInput({ textareaRef, value, onChange }: UseCommandInpu
         botId,
         botName: botId // We could fetch this from bot data if needed
       }));
-    
+
     // Calculate position for suggestion popup
     const position = calculatePosition(textareaRef.current, cursorPos);
-    
+
     setCommandState({
       isActive: true,
       botId,
@@ -229,13 +290,13 @@ export function useCommandInput({ textareaRef, value, onChange }: UseCommandInpu
   // Handle command selection
   const handleSelectCommand = useCallback((command: CommandSuggestion) => {
     if (!textareaRef.current) return;
-    
+
     const beforeCommand = value.substring(0, commandState.startPos);
     const afterCursor = value.substring(textareaRef.current.selectionStart || 0);
     const newValue = `${beforeCommand}${command.name} ${afterCursor}`;
-    
+
     onChange(newValue);
-    
+
     // Set cursor position after the command
     const newCursorPos = commandState.startPos + command.name.length + 1; // +1 for space
     setTimeout(() => {
@@ -244,21 +305,48 @@ export function useCommandInput({ textareaRef, value, onChange }: UseCommandInpu
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
       }
     }, 0);
-    
+
     setCommandState(prev => ({ ...prev, isActive: false }));
-  }, [value, commandState.startPos, onChange, textareaRef]);
+
+    // Show parameter hints if the selected command has parameters
+    const fullCommand = botCommands[command.botId]?.find((cmd: BotCommand) => cmd.name === command.name);
+    if (fullCommand && fullCommand.parameters && fullCommand.parameters.length > 0) {
+      const position = calculatePosition(textareaRef.current, newCursorPos);
+      setActiveCommand({
+        botId: command.botId,
+        command: fullCommand,
+        commandEndPos: commandState.startPos + command.name.length,
+        position
+      });
+    }
+  }, [value, commandState.startPos, onChange, textareaRef, botCommands, calculatePosition]);
+
+  // Handle cursor position changes (click, arrow keys)
+  const handleCursorChange = useCallback(async () => {
+    if (!textareaRef.current) return;
+    const cursorPos = textareaRef.current.selectionStart || 0;
+    const text = textareaRef.current.value;
+    await detectParameterMode(text, cursorPos);
+  }, [textareaRef, detectParameterMode]);
 
   // Close suggestions
   const handleCloseCommands = useCallback(() => {
     setCommandState(prev => ({ ...prev, isActive: false }));
   }, []);
 
+  const clearActiveCommand = useCallback(() => {
+    setActiveCommand(null);
+  }, []);
+
   return {
     commandState,
+    activeCommand,
     handleTextChange,
     handleKeyDown,
     handleSelectCommand,
     handleCloseCommands,
+    handleCursorChange,
+    clearActiveCommand,
     isLoadingCommands: loadingCommands[commandState.botId] || false
   };
 }

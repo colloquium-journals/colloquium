@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@colloquium/bots": ["../bots/src/index.ts"],
+      "@colloquium/bots/testing": ["../bots/src/testing/index.ts"],
+      "@colloquium/types": ["../types/src/index.ts"]
+    },
+    "noEmit": true
+  },
+  "include": ["src/**/*"]
+}

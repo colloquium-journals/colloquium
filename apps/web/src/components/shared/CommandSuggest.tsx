@@ -58,7 +58,7 @@ export function CommandSuggest({
       radius="md"
       p="xs"
       style={{
-        position: 'fixed',
+        position: 'absolute',
         top: position.top,
         left: position.left,
         zIndex: 1000,

@@ -2,6 +2,7 @@ import { AppShellLayout } from '@/components/layout/AppShell';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { JournalSettingsProvider } from '@/contexts/JournalSettingsContext';
 import { ThemeWrapper } from '@/components/layout/ThemeWrapper';
+import { ColorSchemeScript } from '@mantine/core';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dates/styles.css';
@@ -20,6 +21,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <ColorSchemeScript defaultColorScheme="light" />
+      </head>
       <body>
         <JournalSettingsProvider>
           <ThemeWrapper>

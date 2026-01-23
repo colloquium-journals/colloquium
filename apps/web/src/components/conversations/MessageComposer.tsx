@@ -18,8 +18,9 @@ import {
 } from '@mantine/core';
 import { IconSend, IconAt, IconX, IconLock, IconEye, IconUsers, IconShield, IconMarkdown, IconHelp } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { MentionSuggest } from '@/components/shared/MentionSuggest';
+import { MentionSuggest, MentionSuggestion } from '@/components/shared/MentionSuggest';
 import { CommandSuggest } from '@/components/shared/CommandSuggest';
+import { ParameterHints } from '@/components/shared/ParameterHints';
 import { useMentionSuggestions } from '@/hooks/useMentionSuggestions';
 import { useMentionInput } from '@/hooks/useMentionInput';
 import { useCommandInput } from '@/hooks/useCommandInput';
@@ -105,7 +106,14 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
   const [privacy, setPrivacy] = useState(getDefaultPrivacy(user?.role));
   const [loadingBots, setLoadingBots] = useState(false);
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
+  const [isMac, setIsMac] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Detect Mac platform for keyboard shortcut display
+  useEffect(() => {
+    setIsMac(typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform));
+  }, []);
 
   // Expose methods via ref
   useImperativeHandle(ref, () => ({
@@ -129,52 +137,53 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
 
   const {
     commandState,
+    activeCommand,
     handleTextChange: handleCommandTextChange,
     handleKeyDown: handleCommandKeyDown,
     handleSelectCommand,
     handleCloseCommands,
+    handleCursorChange,
+    clearActiveCommand,
     isLoadingCommands
   } = useCommandInput({
     textareaRef,
+    containerRef,
     value: content,
     onChange: setContent
   });
 
-  // Track the last selected bot for command autocomplete
-  const lastSelectedBotRef = useRef<string | null>(null);
 
   // Enhanced mention selection that triggers command autocomplete for bots
   const handleEnhancedSelectSuggestion = useCallback((suggestion: MentionSuggestion) => {
     // Replicate the mention selection logic from useMentionInput
     if (!textareaRef.current) return;
-    
+
     // Find the current mention state by looking for @ symbol
     const cursorPos = textareaRef.current.selectionStart || 0;
     const textBeforeCursor = content.substring(0, cursorPos);
     const lastAtPos = textBeforeCursor.lastIndexOf('@');
-    
+
     if (lastAtPos === -1) return;
-    
+
     const beforeMention = content.substring(0, lastAtPos);
     const afterCursor = content.substring(cursorPos);
     const newValue = `${beforeMention}@${suggestion.name} ${afterCursor}`;
-    
+
     setContent(newValue);
-    
-    // Set cursor position after the mention
+
+    // Set cursor position after the mention, then trigger command autocomplete for bots
     const newCursorPos = lastAtPos + suggestion.name.length + 2; // +2 for @ and space
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        // Trigger command autocomplete immediately for bot mentions
+        if (suggestion.type === 'bot') {
+          handleCommandTextChange(newValue);
+        }
       }
     }, 0);
-    
-    // If the selected suggestion is a bot, store it for command autocomplete
-    if (suggestion.type === 'bot') {
-      lastSelectedBotRef.current = suggestion.name;
-    }
-  }, [content, textareaRef]);
+  }, [content, textareaRef, handleCommandTextChange]);
 
   const {
     mentionState,
@@ -184,6 +193,7 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
     handleCloseSuggestions
   } = useMentionInput({
     textareaRef,
+    containerRef,
     value: content,
     onChange: setContent,
     suggestions: allSuggestions,
@@ -255,18 +265,6 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
   const handleTextChange = (newValue: string) => {
     handleMentionTextChange(newValue);
     handleCommandTextChange(newValue);
-    
-    // Check if we just completed a bot mention and should trigger command autocomplete
-    if (lastSelectedBotRef.current) {
-      const botPattern = new RegExp(`@${lastSelectedBotRef.current}\\s$`);
-      if (botPattern.test(newValue)) {
-        // Clear the flag and trigger command autocomplete after a short delay
-        lastSelectedBotRef.current = null;
-        setTimeout(() => {
-          handleCommandTextChange(newValue);
-        }, 50);
-      }
-    }
   };
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
@@ -292,15 +290,18 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
     // Use bot ID for the @-mention, not the display name
     const botMention = `@${bot.id}`;
     const newContent = content + (content ? ' ' : '') + botMention + ' ';
-    
+
     setContent(newContent);
     setMentionedBots([...mentionedBots, bot]);
-    
-    // Focus back to textarea
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.setSelectionRange(newContent.length, newContent.length);
-    }
+
+    // Focus back to textarea and trigger command autocomplete
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newContent.length, newContent.length);
+        handleCommandTextChange(newContent);
+      }
+    }, 0);
   };
 
   const removeBotMention = (botId: string) => {
@@ -351,13 +352,14 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
 
         {/* Message Input */}
         <Stack gap="xs">
-          <div style={{ position: 'relative' }}>
+          <div ref={containerRef} style={{ position: 'relative' }}>
             <Textarea
               ref={textareaRef}
               placeholder={placeholder}
               value={content}
               onChange={(e) => handleTextChange(e.target.value)}
               onKeyDown={handleKeyPress}
+              onClick={handleCursorChange}
               minRows={3}
               autosize
               maxRows={8}
@@ -367,7 +369,7 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
             {/* Mention Suggestions */}
             <MentionSuggest
               suggestions={mentionState.filteredSuggestions}
-              isVisible={mentionState.isActive && !commandState.isActive}
+              isVisible={mentionState.isActive && !commandState.isActive && !activeCommand}
               position={mentionState.position}
               selectedIndex={mentionState.selectedIndex}
               onSelect={handleEnhancedSelectSuggestion}
@@ -384,7 +386,9 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
               onSelect={handleSelectCommand}
               onClose={handleCloseCommands}
             />
-            
+
+            {/* Parameter Hints - shown when a command is selected */}
+            <ParameterHints activeCommand={activeCommand} onClose={clearActiveCommand} />
           </div>
           
           {/* Formatting Help */}
@@ -523,20 +527,21 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
               w={180}
               comboboxProps={{ size: 'xs' }}
             />
-
-            <Text size="xs" c="dimmed">
-              Tip: Use Ctrl+Enter to send
-            </Text>
           </Group>
 
-          <Button
-            leftSection={<IconSend size={16} />}
-            onClick={handleSubmit}
-            loading={isSubmitting}
-            disabled={!canSubmit}
-          >
-            Send Message
-          </Button>
+          <Stack gap={4} align="flex-end">
+            <Button
+              leftSection={<IconSend size={16} />}
+              onClick={handleSubmit}
+              loading={isSubmitting}
+              disabled={!canSubmit}
+            >
+              Send Message
+            </Button>
+            <Text size="xs" c="dimmed">
+              {isMac ? '⌘' : 'Ctrl'}+Enter to send
+            </Text>
+          </Stack>
         </Group>
       </Stack>
     </Paper>

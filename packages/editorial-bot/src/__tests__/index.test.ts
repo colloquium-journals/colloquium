@@ -64,6 +64,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: {
@@ -96,6 +97,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -143,6 +145,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -175,6 +178,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -202,6 +206,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -226,6 +231,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -280,6 +286,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -309,6 +316,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -338,6 +346,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -363,6 +372,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -395,6 +405,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -418,6 +429,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -450,6 +462,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -473,6 +486,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },
@@ -494,6 +508,7 @@ describe('Editorial Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'ADMIN',
           trigger: 'MENTION' as const
         },
         journal: { id: 'test-journal', settings: {} },

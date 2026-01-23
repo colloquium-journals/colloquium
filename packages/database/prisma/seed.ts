@@ -1,5 +1,8 @@
 import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel, MessagePrivacy } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import { papers, createSeedFiles } from './seed-content';
 
 const prisma = new PrismaClient();
 
@@ -221,20 +224,23 @@ async function main() {
   console.log('✅ Sample users created');
 
   // Create sample manuscripts with different statuses and varying author counts
+  // Papers with rich content are defined in seed-content.ts
   const manuscripts = [
     {
-      title: 'A Novel Approach to Academic Publishing: The Colloquium Platform',
-      abstract: 'This paper introduces Colloquium, an open-source platform that democratizes scientific journal publishing through conversational review processes and an extensible bot ecosystem. We demonstrate how this approach can reduce barriers to academic publishing while maintaining rigorous peer review standards.',
+      title: papers.colloquiumPlatform.title,
+      abstract: papers.colloquiumPlatform.abstract,
       status: ManuscriptStatus.UNDER_REVIEW,
       authors: [authorUser.id],
-      keywords: ['academic publishing', 'peer review', 'open source', 'conversational review']
+      keywords: ['academic publishing', 'peer review', 'open source', 'conversational review'],
+      contentKey: 'colloquiumPlatform'
     },
     {
-      title: 'Machine Learning Applications in Automated Peer Review Systems',
-      abstract: 'This study explores the integration of machine learning algorithms into peer review workflows, examining their effectiveness in identifying plagiarism, statistical errors, and methodological issues while maintaining reviewer anonymity and reducing bias.',
+      title: papers.mlPeerReview.title,
+      abstract: papers.mlPeerReview.abstract,
       status: ManuscriptStatus.SUBMITTED,
       authors: [author2.id, author3.id],
-      keywords: ['machine learning', 'peer review', 'automation', 'bias reduction', 'plagiarism detection']
+      keywords: ['machine learning', 'peer review', 'automation', 'bias reduction', 'NLP'],
+      contentKey: 'mlPeerReview'
     },
     {
       title: 'Blockchain Technology for Transparent Academic Publishing',
@@ -265,7 +271,7 @@ async function main() {
       abstract: 'This comprehensive study presents findings from a large-scale collaborative effort involving multiple research institutions worldwide. We analyzed genomic data from over 100,000 samples to identify novel patterns in gene expression and regulatory networks, demonstrating the power of international scientific cooperation.',
       status: ManuscriptStatus.PUBLISHED,
       authors: [author2.id, author5.id, author6.id, author7.id, author8.id, author9.id, author10.id, authorUser.id],
-      keywords: ['computational biology', 'genomics', 'collaboration', 'big data', 'international cooperation', 'gene expression', 'regulatory networks'],
+      keywords: ['computational biology', 'genomics', 'collaboration', 'big data', 'international cooperation'],
       publishedAt: new Date('2024-02-20'),
       doi: '10.1038/s41467-024-45892-3'
     },
@@ -277,20 +283,21 @@ async function main() {
       keywords: ['quantum computing', 'cryptography', 'security', 'algorithms', 'quantum cryptography']
     },
     {
-      title: 'Interdisciplinary Approaches to Climate Change Modeling',
-      abstract: 'This paper presents novel interdisciplinary methodologies combining atmospheric science, computer modeling, and statistical analysis to improve accuracy in climate change predictions.',
+      title: papers.climateModeling.title,
+      abstract: papers.climateModeling.abstract,
       status: ManuscriptStatus.PUBLISHED,
       authors: [author8.id, author5.id, author10.id],
-      keywords: ['climate change', 'modeling', 'interdisciplinary research', 'atmospheric science', 'statistical analysis'],
+      keywords: ['climate change', 'modeling', 'interdisciplinary research', 'agent-based modeling'],
       publishedAt: new Date('2024-03-10'),
-      doi: '10.1007/s10584-024-03456-7'
+      doi: '10.1007/s10584-024-03456-7',
+      contentKey: 'climateModeling'
     },
     {
       title: 'Artificial Intelligence Ethics in Academic Research: Guidelines and Best Practices',
       abstract: 'A comprehensive framework for ethical AI implementation in academic research, developed through extensive consultation with ethicists, computer scientists, and social scientists.',
       status: ManuscriptStatus.ACCEPTED,
       authors: [author2.id, author4.id, author8.id, author10.id, author6.id],
-      keywords: ['artificial intelligence', 'ethics', 'research guidelines', 'best practices', 'responsible AI', 'academic research']
+      keywords: ['artificial intelligence', 'ethics', 'research guidelines', 'best practices', 'responsible AI']
     },
     {
       title: 'Nanotechnology Applications in Medical Device Manufacturing',
@@ -304,7 +311,7 @@ async function main() {
       abstract: 'An analysis of emerging trends in open access publishing, examining both technological innovations and social factors that influence the adoption of open science practices.',
       status: ManuscriptStatus.PUBLISHED,
       authors: [author4.id, author2.id, author3.id, authorUser.id, author8.id, author10.id],
-      keywords: ['open access', 'publishing', 'open science', 'technology trends', 'social factors', 'scientific communication'],
+      keywords: ['open access', 'publishing', 'open science', 'technology trends', 'social factors'],
       publishedAt: new Date('2024-01-25'),
       doi: '10.1371/journal.pone.0298765'
     }
@@ -734,218 +741,110 @@ This work demonstrates the potential for innovative approaches to academic publi
 
   console.log('✅ Sample conversations created');
 
-  // Create ManuscriptFile records for all manuscripts
-  const manuscriptFiles = [
-    // Manuscript 1: Colloquium Platform paper
-    {
-      manuscriptId: createdManuscripts[0]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000001000-123456789.md',
-          originalName: 'colloquium-platform-paper.md',
-          mimetype: 'text/markdown',
-          size: 15432,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000001000-123456789.md',
-          uploadedBy: authorUser.id
-        },
-        {
-          filename: 'architecture-diagram.png',
-          originalName: 'system-architecture.png',
-          mimetype: 'image/png',
-          size: 45623,
-          fileType: 'ASSET',
-          path: '/uploads/manuscripts/architecture-diagram.png',
-          uploadedBy: authorUser.id
-        }
-      ]
-    },
-    // Manuscript 2: ML in Peer Review paper
-    {
-      manuscriptId: createdManuscripts[1]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000002000-234567890.md',
-          originalName: 'ml-peer-review-paper.md',
-          mimetype: 'text/markdown',
-          size: 18734,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000002000-234567890.md',
-          uploadedBy: author2.id
-        },
-        {
-          filename: 'ml-results-chart.png',
-          originalName: 'performance-results.png',
-          mimetype: 'image/png',
-          size: 67234,
-          fileType: 'ASSET',
-          path: '/uploads/manuscripts/ml-results-chart.png',
-          uploadedBy: author2.id
-        }
-      ]
-    },
-    // Manuscript 3: Blockchain paper
-    {
-      manuscriptId: createdManuscripts[2]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000003000-345678901.md',
-          originalName: 'blockchain-publishing-paper.md',
-          mimetype: 'text/markdown',
-          size: 21456,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000003000-345678901.md',
-          uploadedBy: author3.id
-        }
-      ]
-    },
-    // Manuscript 4: Open Science Platforms paper
-    {
-      manuscriptId: createdManuscripts[3]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000004000-456789012.md',
-          originalName: 'open-science-platforms-paper.md',
-          mimetype: 'text/markdown',
-          size: 24789,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000004000-456789012.md',
-          uploadedBy: author4.id
-        }
-      ]
-    },
-    // Manuscript 5: Digital Transformation paper
-    {
-      manuscriptId: createdManuscripts[4]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000005000-567890123.md',
-          originalName: 'digital-transformation-libraries.md',
-          mimetype: 'text/markdown',
-          size: 27634,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000005000-567890123.md',
-          uploadedBy: author4.id
-        }
-      ]
-    },
-    // Manuscript 6: Large-Scale Collaborative Research paper
-    {
-      manuscriptId: createdManuscripts[5]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000006000-678901234.md',
-          originalName: 'collaborative-genomics-paper.md',
-          mimetype: 'text/markdown',
-          size: 32145,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000006000-678901234.md',
-          uploadedBy: author2.id
-        }
-      ]
-    },
-    // Manuscript 7: Quantum Computing Applications paper
-    {
-      manuscriptId: createdManuscripts[6]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000007000-789012345.md',
-          originalName: 'quantum-computing-cryptography.md',
-          mimetype: 'text/markdown',
-          size: 28456,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000007000-789012345.md',
-          uploadedBy: author9.id
-        }
-      ]
-    },
-    // Manuscript 8: Interdisciplinary Climate Change paper
-    {
-      manuscriptId: createdManuscripts[7]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000008000-890123456.md',
-          originalName: 'interdisciplinary-climate-modeling.md',
-          mimetype: 'text/markdown',
-          size: 31789,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000008000-890123456.md',
-          uploadedBy: author8.id
-        }
-      ]
-    },
-    // Manuscript 9: AI Ethics paper
-    {
-      manuscriptId: createdManuscripts[8]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000009000-901234567.md',
-          originalName: 'ai-ethics-guidelines.md',
-          mimetype: 'text/markdown',
-          size: 35234,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000009000-901234567.md',
-          uploadedBy: author2.id
-        }
-      ]
-    },
-    // Manuscript 10: Nanotechnology paper
-    {
-      manuscriptId: createdManuscripts[9]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000010000-012345678.md',
-          originalName: 'nanotechnology-medical-devices.md',
-          mimetype: 'text/markdown',
-          size: 33567,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000010000-012345678.md',
-          uploadedBy: author7.id
-        }
-      ]
-    },
-    // Manuscript 11: Future of Open Access Publishing paper
-    {
-      manuscriptId: createdManuscripts[10]?.id,
-      files: [
-        {
-          filename: 'manuscript-1703000011000-123456789.md',
-          originalName: 'future-open-access-publishing.md',
-          mimetype: 'text/markdown',
-          size: 29890,
-          fileType: 'SOURCE',
-          path: '/uploads/manuscripts/manuscript-1703000011000-123456789.md',
-          uploadedBy: author4.id
-        }
-      ]
-    }
-  ];
+  // Create realistic content files (markdown and images) on disk
+  console.log('📝 Creating realistic manuscript content files...');
+  const uploadsDir = path.resolve(__dirname, '../../../apps/api/uploads/manuscripts');
+  const createdFiles = createSeedFiles(uploadsDir);
 
-  for (const manuscriptFileData of manuscriptFiles) {
-    if (!manuscriptFileData.manuscriptId) continue;
+  // Map contentKey to manuscript index for linking files
+  const contentKeyToIndex: Record<string, number> = {
+    'colloquiumPlatform': 0,
+    'mlPeerReview': 1,
+    'climateModeling': 7
+  };
 
-    for (const fileData of manuscriptFileData.files) {
-      const existingFile = await prisma.manuscript_files.findFirst({
-        where: {
-          manuscriptId: manuscriptFileData.manuscriptId,
-          filename: fileData.filename
-        }
+  // Create ManuscriptFile records linking manuscripts to their files
+  for (const [contentKey, manuscriptIndex] of Object.entries(contentKeyToIndex)) {
+    const manuscript = createdManuscripts[manuscriptIndex];
+    if (!manuscript) continue;
+
+    const paper = papers[contentKey as keyof typeof papers];
+    if (!paper) continue;
+
+    // Create SOURCE file record for markdown
+    const mdFilename = `${contentKey}.md`;
+    const mdFileInfo = createdFiles.get(mdFilename);
+    if (mdFileInfo) {
+      const existingMd = await prisma.manuscript_files.findFirst({
+        where: { manuscriptId: manuscript.id, filename: mdFilename }
       });
-
-      if (!existingFile) {
+      if (!existingMd) {
         await prisma.manuscript_files.create({
           data: {
             id: randomUUID(),
-            manuscriptId: manuscriptFileData.manuscriptId,
-            filename: fileData.filename,
-            originalName: fileData.originalName,
-            mimetype: fileData.mimetype,
-            size: fileData.size,
-            path: fileData.path,
-            fileType: fileData.fileType,
+            manuscriptId: manuscript.id,
+            filename: mdFilename,
+            originalName: mdFilename,
+            mimetype: 'text/markdown',
+            size: mdFileInfo.size,
+            path: mdFileInfo.path,
+            fileType: 'SOURCE',
             uploadedAt: new Date()
           }
         });
+      }
+    }
+
+    // Create ASSET file records for images
+    for (const img of paper.images) {
+      const imgFileInfo = createdFiles.get(img.filename);
+      if (imgFileInfo) {
+        const existingImg = await prisma.manuscript_files.findFirst({
+          where: { manuscriptId: manuscript.id, filename: img.filename }
+        });
+        if (!existingImg) {
+          await prisma.manuscript_files.create({
+            data: {
+              id: randomUUID(),
+              manuscriptId: manuscript.id,
+              filename: img.filename,
+              originalName: img.filename,
+              mimetype: 'image/png',
+              size: imgFileInfo.size,
+              path: imgFileInfo.path,
+              fileType: 'ASSET',
+              uploadedAt: new Date()
+            }
+          });
+        } else {
+          // Update size if file already exists
+          await prisma.manuscript_files.update({
+            where: { id: existingImg.id },
+            data: { size: imgFileInfo.size }
+          });
+        }
+      }
+    }
+
+    // Create BIBLIOGRAPHY file record if paper has bibliography
+    if (paper.bibliography) {
+      const bibFilename = `${contentKey}-${paper.bibliography.filename}`;
+      const bibFileInfo = createdFiles.get(bibFilename);
+      if (bibFileInfo) {
+        const existingBib = await prisma.manuscript_files.findFirst({
+          where: { manuscriptId: manuscript.id, filename: bibFilename }
+        });
+        if (!existingBib) {
+          await prisma.manuscript_files.create({
+            data: {
+              id: randomUUID(),
+              manuscriptId: manuscript.id,
+              filename: bibFilename,
+              originalName: paper.bibliography.filename,
+              mimetype: 'application/x-bibtex',
+              size: bibFileInfo.size,
+              path: bibFileInfo.path,
+              fileType: 'BIBLIOGRAPHY',
+              uploadedAt: new Date()
+            }
+          });
+        } else {
+          // Update size if file already exists
+          await prisma.manuscript_files.update({
+            where: { id: existingBib.id },
+            data: { size: bibFileInfo.size }
+          });
+        }
       }
     }
   }

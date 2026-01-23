@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Stack**: Next.js 14, Express.js, TypeScript, Prisma ORM, PostgreSQL, Magic link auth, Mantine UI
 
+**Roadmap**: See [plans/TODO.md](plans/TODO.md) for the high-level feature roadmap and links to detailed plans.
+
 ## Architecture
 
 ```

@@ -32,6 +32,7 @@ interface MessageThreadProps {
   messages: MessageData[];
   onReply: (messageId: string, content: string) => void;
   onEdit: (messageId: string, content: string, reason?: string) => void;
+  onPrivacyChange?: (messageId: string, privacy: string) => void;
   conversationId: string;
   onSubmit: (content: string, privacy?: string) => void;
   totalMessageCount?: number;
@@ -41,17 +42,20 @@ interface MessageThreadProps {
     visible: boolean;
     createdAt: string;
   }>;
+  isActionEditor?: boolean;
 }
 
-export function MessageThread({ 
-  messages, 
-  onReply, 
-  onEdit, 
-  conversationId, 
-  onSubmit, 
+export function MessageThread({
+  messages,
+  onReply,
+  onEdit,
+  onPrivacyChange,
+  conversationId,
+  onSubmit,
   totalMessageCount,
   visibleMessageCount,
-  messageVisibilityMap 
+  messageVisibilityMap,
+  isActionEditor = false
 }: MessageThreadProps) {
   const [showAllMessages, setShowAllMessages] = useState(false);
   const [hideBotMessages, setHideBotMessages] = useState(() => {
@@ -142,8 +146,10 @@ export function MessageThread({
         message={message}
         onReply={() => handleReplyToMessage(message)}
         onEdit={(messageId, content, reason) => onEdit(messageId, content, reason)}
+        onPrivacyChange={onPrivacyChange}
         isReply={false}
         conversationId={conversationId}
+        isActionEditor={isActionEditor}
       />
     );
   };
@@ -261,32 +267,34 @@ export function MessageThread({
   return (
     <Stack gap="md">
       {/* Message Controls */}
-      <Group justify="space-between" align="center">
-        <Group gap="sm">
-          <Text size="sm" c="dimmed">
-            {hideBotMessages 
-              ? `${humanMessageCount} human message${humanMessageCount !== 1 ? 's' : ''}` 
-              : `${allMessages.length} total message${allMessages.length !== 1 ? 's' : ''}`}
-            {botMessageCount > 0 && hideBotMessages && (
-              <span> ({botMessageCount} bot message{botMessageCount !== 1 ? 's' : ''} hidden)</span>
-            )}
-          </Text>
-        </Group>
-        
-        {botMessageCount > 0 && (
-          <Group gap="sm" align="center">
-            <Text size="xs" c="dimmed">
-              {botMessageCount} bot message{botMessageCount !== 1 ? 's' : ''}
+      {allMessages.length > 0 && (
+        <Group justify="space-between" align="center">
+          <Group gap="sm">
+            <Text size="sm" c="dimmed">
+              {hideBotMessages
+                ? `${humanMessageCount} human message${humanMessageCount !== 1 ? 's' : ''}`
+                : `${allMessages.length} total message${allMessages.length !== 1 ? 's' : ''}`}
+              {botMessageCount > 0 && hideBotMessages && (
+                <span> ({botMessageCount} bot message{botMessageCount !== 1 ? 's' : ''} hidden)</span>
+              )}
             </Text>
-            <Switch
-              size="sm"
-              label="Hide bot messages"
-              checked={hideBotMessages}
-              onChange={(event) => setHideBotMessages(event.currentTarget.checked)}
-            />
           </Group>
-        )}
-      </Group>
+
+          {botMessageCount > 0 && (
+            <Group gap="sm" align="center">
+              <Text size="xs" c="dimmed">
+                {botMessageCount} bot message{botMessageCount !== 1 ? 's' : ''}
+              </Text>
+              <Switch
+                size="sm"
+                label="Hide bot messages"
+                checked={hideBotMessages}
+                onChange={(event) => setHideBotMessages(event.currentTarget.checked)}
+              />
+            </Group>
+          )}
+        </Group>
+      )}
 
       {/* Show hidden messages indicator */}
       {hiddenCount > 0 && (

@@ -58,6 +58,7 @@ describe('useMentionInput', () => {
   ];
 
   let mockTextareaRef: React.RefObject<HTMLTextAreaElement>;
+  let mockContainerRef: React.RefObject<HTMLDivElement>;
   let mockOnChange: jest.Mock;
 
   beforeEach(() => {
@@ -70,7 +71,12 @@ describe('useMentionInput', () => {
       setSelectionRange: jest.fn()
     } as unknown as HTMLTextAreaElement;
 
+    const mockContainer = {
+      getBoundingClientRect: () => ({ top: 80, left: 80, width: 400, height: 200 })
+    } as unknown as HTMLDivElement;
+
     mockTextareaRef = { current: mockTextarea };
+    mockContainerRef = { current: mockContainer };
     mockOnChange = jest.fn();
   });
 
@@ -90,6 +96,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -107,6 +114,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -131,6 +139,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -156,6 +165,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -178,6 +188,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -212,6 +223,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -252,6 +264,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: 'Hello @',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -286,6 +299,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -321,6 +335,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: 'Hello @john',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -349,6 +364,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions
@@ -371,6 +387,7 @@ describe('useMentionInput', () => {
     const { result, container } = renderHookWithContainer(() =>
       useMentionInput({
         textareaRef: mockTextareaRef,
+        containerRef: mockContainerRef,
         value: '',
         onChange: mockOnChange,
         suggestions: mockSuggestions

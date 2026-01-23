@@ -16,7 +16,8 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-// Global test utilities for bot testing
+// Global test utilities for bot testing (legacy support)
+// Note: New testing utilities should be imported directly from '@colloquium/bots/testing'
 global.testUtils = {
   // Mock bot context
   createMockBotContext: () => ({
@@ -25,13 +26,19 @@ global.testUtils = {
     triggeredBy: {
       messageId: 'test-message-id',
       userId: 'test-user-id',
-      trigger: 'MENTION' as const
+      userRole: 'ADMIN',
+      trigger: 'mention' // BotTrigger.MENTION value
+    },
+    journal: {
+      id: 'test-journal',
+      settings: {}
     },
     config: {
       isEnabled: true
-    }
+    },
+    serviceToken: 'test-service-token'
   }),
-  
+
   // Mock command execution
   createMockParsedCommand: (botId: string, command: string, parameters: Record<string, any> = {}) => ({
     botId,
@@ -40,7 +47,7 @@ global.testUtils = {
     rawText: `@${botId} ${command}`,
     isUnrecognized: false
   }),
-  
+
   // Mock bot response
   createMockBotResponse: (content: string, actions: any[] = []) => ({
     messages: [{ content }],

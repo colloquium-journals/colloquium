@@ -6,6 +6,7 @@ export function createBotContext(params: {
   triggeredBy: {
     messageId: string;
     userId: string;
+    userRole: string;
     trigger: BotTrigger;
   };
   journal?: {

@@ -304,6 +304,7 @@ enum ManuscriptFileType {
   ASSET
   RENDERED
   SUPPLEMENTARY
+  BIBLIOGRAPHY
 }
 
 enum ManuscriptStatus {

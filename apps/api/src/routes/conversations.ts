@@ -234,7 +234,12 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             id: true,
             title: true,
             authors: true,
-            status: true
+            status: true,
+            action_editors: {
+              select: {
+                editorId: true
+              }
+            }
           }
         },
         conversation_participants: {

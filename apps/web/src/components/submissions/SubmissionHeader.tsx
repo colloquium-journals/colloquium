@@ -692,33 +692,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
               </Title>
             )}
             
-            {/* Authors directly below title */}
-            <Group gap="md" mb="md">
-              {submission.authors.map((author) => (
-                <Group key={author.id} gap="sm">
-                  <Avatar size="sm" color="blue">
-                    {author.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                  </Avatar>
-                  <Box>
-                    <Group gap="xs" align="center">
-                      <Text size="sm" fw={500}>
-                        {author.name}
-                      </Text>
-                      {author.isCorresponding && (
-                        <Badge size="xs" variant="light" color="orange">
-                          Corresponding
-                        </Badge>
-                      )}
-                    </Group>
-                    {author.affiliation && (
-                      <Text size="xs" c="dimmed">{author.affiliation}</Text>
-                    )}
-                  </Box>
-                </Group>
-              ))}
-            </Group>
-            
-            {isEditing ? (
+            {isEditing && (
               <Textarea
                 value={editData.abstract}
                 onChange={(e) => setEditData(prev => ({ ...prev, abstract: e.target.value }))}
@@ -728,16 +702,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 variant="filled"
                 style={{ maxWidth: '80%' }}
               />
-            ) : (
-              submission.abstract && (
-                <Text size="sm" c="dimmed" lineClamp={isEditing ? undefined : 3} style={{ maxWidth: '80%' }}>
-                  {submission.abstract}
-                </Text>
-              )
             )}
             
-            {/* Keywords */}
-            {isEditing ? (
+            {isEditing && (
               <Stack gap="lg" mt="sm" style={{ maxWidth: '80%' }}>
                 <TagsInput
                   value={editData.keywords}
@@ -746,7 +713,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                   label="Keywords"
                   variant="filled"
                 />
-                
+
                 {/* File Revision Upload - Only in Edit Mode */}
                 <Box>
                   <Divider mb="md" />
@@ -755,11 +722,11 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                       <IconUpload size={16} />
                       <Text fw={500} size="sm">Upload Revised Files (Optional)</Text>
                     </Group>
-                    
+
                     <Text size="sm" c="dimmed">
                       Upload revised versions of your manuscript files. These will be added as new versions.
                     </Text>
-                    
+
                     <FileDropzone
                       value={revisionFiles}
                       onFilesChange={setRevisionFiles}
@@ -769,7 +736,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                       allowFolders={false}
                       maxFileSize={50 * 1024 * 1024}
                     />
-                    
+
                     {revisionFiles.length > 0 && (
                       <Group justify="flex-end">
                         <Button
@@ -795,27 +762,34 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                   </Stack>
                 </Box>
               </Stack>
-            ) : (
-              (submission.keywords && submission.keywords.length > 0) && (
-                <Box mt="sm">
-                  <Text size="sm" fw={500} c="dimmed" mb="xs">Keywords:</Text>
-                  <Group gap="xs">
-                    {submission.keywords.map((keyword, index) => (
-                      <Badge key={index} size="sm" variant="light" color="gray">
-                        {keyword}
-                      </Badge>
-                    ))}
-                  </Group>
-                </Box>
-              )
             )}
           </Box>
         </Group>
 
-        <Divider />
-
         {/* Organized Information Section */}
         <Stack gap="md">
+          {/* Authors */}
+          <Group gap="xs" align="center">
+            <IconUser size={16} />
+            <Text fw={500} size="sm">Authors:</Text>
+            <Group gap="md">
+              {submission.authors.map((author) => (
+                <Group key={author.id} gap="xs">
+                  <Avatar size="xs" color="blue">
+                    {author.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </Avatar>
+                  <Text size="sm" fw={500}>{author.name}</Text>
+                  {author.isCorresponding && (
+                    <Badge size="xs" variant="light" color="orange">Corresponding</Badge>
+                  )}
+                  {author.affiliation && (
+                    <Text size="xs" c="dimmed">({author.affiliation})</Text>
+                  )}
+                </Group>
+              ))}
+            </Group>
+          </Group>
+
           {/* Assigned Editor */}
           <Group gap="xs" align="center">
             <IconUserCog size={16} />

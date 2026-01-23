@@ -36,6 +36,7 @@ describe('Editorial Bot - Decision Making Tests', () => {
     triggeredBy: {
       messageId: 'message-789',
       userId: 'editor-001',
+      userRole: 'ADMIN',
       trigger: 'MENTION' as const
     },
     journal: {

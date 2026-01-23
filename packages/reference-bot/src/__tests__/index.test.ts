@@ -48,6 +48,7 @@ describe('Reference Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: {
@@ -73,6 +74,7 @@ describe('Reference Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: {
@@ -94,6 +96,7 @@ describe('Reference Bot', () => {
         triggeredBy: {
           messageId: 'test-message-789',
           userId: 'test-user-001',
+          userRole: 'USER',
           trigger: 'MENTION' as const
         },
         journal: {

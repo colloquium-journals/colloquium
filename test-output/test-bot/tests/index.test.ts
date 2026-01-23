@@ -8,6 +8,7 @@ describe('Test Bot Bot', () => {
     triggeredBy: {
       messageId: 'test-message',
       userId: 'test-user',
+      userRole: 'USER',
       trigger: 'mention' as any
     },
     journal: {

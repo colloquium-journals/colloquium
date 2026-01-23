@@ -16,7 +16,7 @@ import {
 } from '@mantine/core';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { IconUser, IconLogout, IconLogin, IconSettings, IconRobot, IconSun, IconMoon } from '@tabler/icons-react';
+import { IconUser, IconLogout, IconLogin, IconSettings, IconRobot, IconSun, IconMoon, IconDeviceDesktop, IconCheck } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -33,7 +33,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
   const router = useRouter();
   const { user, logout, isAuthenticated } = useAuth();
   const { settings, loading } = useJournalSettings();
-  const { colorScheme, toggleColorScheme, isDarkModeEnabled } = useTheme();
+  const { colorScheme, themeMode, setThemeMode, isDarkModeEnabled } = useTheme();
   
   const toggleNav = () => setNavOpened(!navOpened);
   const closeNav = () => setNavOpened(false);
@@ -174,30 +174,43 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
 
           {/* Right Section */}
           <Group gap="md">
-            {/* Dark Mode Toggle */}
+            {/* Theme Selector */}
             {isDarkModeEnabled && (
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={toggleColorScheme}
-                leftSection={colorScheme === 'dark' ? <IconSun size={16} /> : <IconMoon size={16} />}
-                hiddenFrom="md"
-              >
-                {colorScheme === 'dark' ? 'Light' : 'Dark'}
-              </Button>
-            )}
-            
-            {isDarkModeEnabled && (
-              <Button
-                variant="subtle"
-                size="compact-sm"
-                onClick={toggleColorScheme}
-                p="xs"
-                visibleFrom="md"
-                title={`Switch to ${colorScheme === 'dark' ? 'light' : 'dark'} mode`}
-              >
-                {colorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
-              </Button>
+              <Menu shadow="md" width={160}>
+                <Menu.Target>
+                  <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    p="xs"
+                    title="Theme"
+                  >
+                    {colorScheme === 'dark' ? <IconMoon size={18} /> : <IconSun size={18} />}
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    leftSection={<IconSun size={14} />}
+                    rightSection={themeMode === 'light' ? <IconCheck size={14} /> : null}
+                    onClick={() => setThemeMode('light')}
+                  >
+                    Light
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconMoon size={14} />}
+                    rightSection={themeMode === 'dark' ? <IconCheck size={14} /> : null}
+                    onClick={() => setThemeMode('dark')}
+                  >
+                    Dark
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconDeviceDesktop size={14} />}
+                    rightSection={themeMode === 'auto' ? <IconCheck size={14} /> : null}
+                    onClick={() => setThemeMode('auto')}
+                  >
+                    System
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
             )}
 
             {isAuthenticated && user && !user.name && (
@@ -255,12 +268,31 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                     Profile
                   </Menu.Item>
                   {isDarkModeEnabled && (
-                    <Menu.Item
-                      leftSection={colorScheme === 'dark' ? <IconSun size={14} /> : <IconMoon size={14} />}
-                      onClick={toggleColorScheme}
-                    >
-                      {colorScheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                    </Menu.Item>
+                    <>
+                      <Menu.Divider />
+                      <Menu.Label>Theme</Menu.Label>
+                      <Menu.Item
+                        leftSection={<IconSun size={14} />}
+                        rightSection={themeMode === 'light' ? <IconCheck size={14} /> : null}
+                        onClick={() => setThemeMode('light')}
+                      >
+                        Light
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconMoon size={14} />}
+                        rightSection={themeMode === 'dark' ? <IconCheck size={14} /> : null}
+                        onClick={() => setThemeMode('dark')}
+                      >
+                        Dark
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconDeviceDesktop size={14} />}
+                        rightSection={themeMode === 'auto' ? <IconCheck size={14} /> : null}
+                        onClick={() => setThemeMode('auto')}
+                      >
+                        System
+                      </Menu.Item>
+                    </>
                   )}
                   {user.role === 'ADMIN' && (
                     <>

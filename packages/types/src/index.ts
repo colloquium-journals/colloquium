@@ -143,6 +143,7 @@ export interface BotContext {
   triggeredBy: {
     messageId: string;
     userId: string;
+    userRole: string;
     trigger: BotTrigger;
   };
   journal: {

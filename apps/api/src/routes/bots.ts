@@ -198,6 +198,7 @@ router.post('/:id/execute/:command', authenticate, async (req, res, next) => {
         triggeredBy: {
           messageId: '',
           userId: req.user!.id,
+          userRole: req.user!.role,
           trigger: 'MENTION' as any
         },
         journal: {

@@ -5,6 +5,7 @@ import { Stack, Paper, Title, Text, Badge, Group, Loader, Alert } from '@mantine
 import { IconAlertCircle } from '@tabler/icons-react';
 import { MessageThread } from './MessageThread';
 import { useSSE } from '../../hooks/useSSE';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Mock data types (will be replaced with real API calls)
 interface ConversationData {
@@ -15,6 +16,9 @@ interface ConversationData {
     title: string;
     authors: string[];
     status: string;
+    action_editors?: {
+      editorId: string;
+    } | null;
   } | null;
   messages: MessageData[];
   totalMessageCount?: number;
@@ -64,6 +68,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
   const [conversation, setConversation] = useState<ConversationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   // Handle real-time messages
   const handleNewMessage = useCallback((newMessage: MessageData) => {
@@ -240,6 +245,20 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     }
   };
 
+  const handlePrivacyChange = (messageId: string, privacy: string) => {
+    setConversation(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg.id === messageId ? { ...msg, privacy } : msg
+        )
+      };
+    });
+  };
+
+  const isActionEditor = !!(user && conversation?.manuscript?.action_editors?.editorId === user.id);
+
   if (loading) {
     return (
       <Paper shadow="sm" p="xl" radius="md">
@@ -264,15 +283,17 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     <Stack gap="lg">
 
       {/* Message Thread */}
-      <MessageThread 
+      <MessageThread
         messages={conversation.messages}
         onReply={(messageId, content) => handlePostMessage(content, messageId)}
         onEdit={handleEditMessage}
+        onPrivacyChange={handlePrivacyChange}
         onSubmit={(content, privacy) => handlePostMessage(content, undefined, privacy)}
         conversationId={conversationId}
         totalMessageCount={conversation.totalMessageCount}
         visibleMessageCount={conversation.visibleMessageCount}
         messageVisibilityMap={conversation.messageVisibilityMap}
+        isActionEditor={isActionEditor}
       />
     </Stack>
   );

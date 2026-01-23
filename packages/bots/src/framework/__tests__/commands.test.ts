@@ -1,4 +1,5 @@
-import { CommandParser, type CommandBot, type BotCommand } from '../commands';
+import { CommandParser } from '../commands';
+import type { CommandBot, BotCommand } from '@colloquium/types';
 
 describe('CommandParser', () => {
   let parser: CommandParser;

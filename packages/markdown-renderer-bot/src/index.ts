@@ -847,66 +847,93 @@ async function collectAssetFiles(
   serviceToken: string
 ): Promise<Array<{filename: string; content: string; encoding: string}>> {
   const assetFiles: Array<{filename: string; content: string; encoding: string}> = [];
-  
+
   try {
+    // Log input details for debugging
+    console.log(`DEBUG collectAssetFiles: manuscriptFiles count: ${manuscriptFiles.length}`);
+    console.log(`DEBUG collectAssetFiles: manuscriptFiles details:`, JSON.stringify(manuscriptFiles.map(f => ({
+      originalName: f.originalName,
+      fileType: f.fileType,
+      downloadUrl: f.downloadUrl
+    })), null, 2));
+    console.log(`DEBUG collectAssetFiles: serviceToken present: ${!!serviceToken}, length: ${serviceToken?.length || 0}`);
+
     // Find all image references in the markdown
     const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
     const imageMatches = [...markdownContent.matchAll(imagePattern)];
-    
-    console.log(`DEBUG: Found ${imageMatches.length} image references in markdown`);
-    
+
+    console.log(`DEBUG collectAssetFiles: Found ${imageMatches.length} image references in markdown`);
+
     for (const match of imageMatches) {
       const imagePath = match[2];
       const cleanFilename = imagePath.replace(/^\.?\//, '');
-      
-      console.log(`DEBUG: Looking for image file: ${cleanFilename}`);
-      
+
+      console.log(`DEBUG collectAssetFiles: Looking for image file: "${cleanFilename}"`);
+
+      // Log all ASSET files for comparison
+      const assetFilesInList = manuscriptFiles.filter(f => f.fileType === 'ASSET');
+      console.log(`DEBUG collectAssetFiles: Available ASSET files: ${assetFilesInList.length}`,
+        assetFilesInList.map(f => `"${f.originalName}"`).join(', '));
+
       // Find the corresponding asset file
-      const assetFile = manuscriptFiles.find(file => 
-        file.fileType === 'ASSET' && 
-        (file.originalName === cleanFilename || 
+      const assetFile = manuscriptFiles.find(file =>
+        file.fileType === 'ASSET' &&
+        (file.originalName === cleanFilename ||
          file.originalName.endsWith('/' + cleanFilename) ||
          file.path?.endsWith(cleanFilename))
       );
-      
+
       if (assetFile) {
-        console.log(`DEBUG: Found asset file: ${assetFile.originalName}, downloading...`);
-        
+        console.log(`DEBUG collectAssetFiles: Found asset file: ${assetFile.originalName}, downloading from ${assetFile.downloadUrl}...`);
+
         try {
           // Download the asset file
-          const response = await fetch(assetFile.downloadUrl.startsWith('http') ? 
-            assetFile.downloadUrl : 
-            `http://localhost:4000${assetFile.downloadUrl}`, {
+          const downloadUrl = assetFile.downloadUrl.startsWith('http') ?
+            assetFile.downloadUrl :
+            `http://localhost:4000${assetFile.downloadUrl}`;
+          console.log(`DEBUG collectAssetFiles: Full download URL: ${downloadUrl}`);
+
+          const response = await fetch(downloadUrl, {
             headers: {
               'x-bot-token': serviceToken
             }
           });
-          
+
+          console.log(`DEBUG collectAssetFiles: Download response status: ${response.status} ${response.statusText}`);
+
           if (response.ok) {
             const buffer = await response.arrayBuffer();
             const base64Content = Buffer.from(buffer).toString('base64');
-            
+
             assetFiles.push({
               filename: cleanFilename,
               content: base64Content,
               encoding: 'base64'
             });
-            
-            console.log(`DEBUG: Successfully collected asset: ${cleanFilename} (${buffer.byteLength} bytes)`);
+
+            console.log(`DEBUG collectAssetFiles: Successfully collected asset: ${cleanFilename} (${buffer.byteLength} bytes)`);
           } else {
-            console.warn(`Failed to download asset ${cleanFilename}: ${response.statusText}`);
+            const errorText = await response.text().catch(() => 'Could not read error body');
+            console.warn(`DEBUG collectAssetFiles: Failed to download asset ${cleanFilename}: ${response.status} ${response.statusText} - ${errorText}`);
           }
         } catch (downloadError) {
-          console.warn(`Error downloading asset ${cleanFilename}:`, downloadError);
+          console.warn(`DEBUG collectAssetFiles: Error downloading asset ${cleanFilename}:`, downloadError);
         }
       } else {
-        console.warn(`DEBUG: Asset file not found: ${cleanFilename}`);
+        console.warn(`DEBUG collectAssetFiles: Asset file not found in list: "${cleanFilename}"`);
+        // Log comparison details
+        for (const file of manuscriptFiles) {
+          if (file.fileType === 'ASSET') {
+            console.log(`DEBUG collectAssetFiles: Comparing "${file.originalName}" === "${cleanFilename}": ${file.originalName === cleanFilename}`);
+          }
+        }
       }
     }
   } catch (error) {
-    console.warn('Error collecting asset files:', error);
+    console.warn('DEBUG collectAssetFiles: Error collecting asset files:', error);
   }
-  
+
+  console.log(`DEBUG collectAssetFiles: Returning ${assetFiles.length} asset files`);
   return assetFiles;
 }
 

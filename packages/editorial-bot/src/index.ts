@@ -266,51 +266,26 @@ function processMentions(mentions: string[]): string[] {
 /**
  * Check if user has permission to assign action editors
  */
-async function checkActionEditorAssignmentPermission(userId: string, context: any): Promise<boolean> {
+async function checkActionEditorAssignmentPermission(context: any): Promise<boolean> {
+  const validRoles = ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'];
+
+  // Use role from context if available (internal framework path)
+  const contextRole = context.triggeredBy?.userRole;
+  if (contextRole) return validRoles.includes(contextRole);
+
+  // Fall back to API lookup (external tool path)
+  const userId = context.triggeredBy?.userId;
+  const serviceToken = context.serviceToken;
+  if (!userId || !serviceToken) return false;
+
   try {
-    console.log('🔍 Checking action editor assignment permission for userId:', userId);
-    console.log('🔍 Context:', JSON.stringify(context, null, 2));
-    
-    const { serviceToken } = context;
-    
-    if (!serviceToken) {
-      console.log('❌ Bot service token required for API access');
-      return false;
-    }
-
-    // Get user with role information via API
-    const userResponse = await fetch(`http://localhost:4000/api/users/${userId}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
+    const response = await fetch(`${context.config?.apiUrl || 'http://localhost:4000'}/api/users/${userId}`, {
+      headers: { 'X-Bot-Token': serviceToken, 'Content-Type': 'application/json' }
     });
-
-    if (!userResponse.ok) {
-      console.log('❌ Failed to fetch user data:', userResponse.status, userResponse.statusText);
-      return false;
-    }
-
-    const user = await userResponse.json();
-    console.log('🔍 Found user:', user);
-
-    if (!user) {
-      console.log('❌ User not found');
-      return false;
-    }
-
-    // Only admin, editor-in-chief, and managing editor can assign action editors
-    const hasPermission = user.role === 'ADMIN' || 
-           user.role === 'EDITOR_IN_CHIEF' || 
-           user.role === 'ACTION_EDITOR';
-    
-    console.log('🔍 User role:', user.role);
-    console.log('🔍 Valid roles:', ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR']);
-    console.log('🔍 Has permission:', hasPermission);
-    
-    return hasPermission;
-  } catch (error) {
-    console.error('Action editor assignment permission check failed:', error);
+    if (!response.ok) return false;
+    const user = await response.json();
+    return validRoles.includes(user.role);
+  } catch {
     return false;
   }
 }
@@ -413,54 +388,24 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
 /**
  * Check if user has permission to assign reviewers to a manuscript
  */
-async function checkReviewerAssignmentPermission(userId: string, manuscriptId: string, context: any): Promise<boolean> {
+async function checkReviewerAssignmentPermission(context: any): Promise<boolean> {
+  const validRoles = ['ADMIN', 'EDITOR_IN_CHIEF', 'ACTION_EDITOR'];
+
+  const contextRole = context.triggeredBy?.userRole;
+  if (contextRole) return validRoles.includes(contextRole);
+
+  const userId = context.triggeredBy?.userId;
+  const serviceToken = context.serviceToken;
+  if (!userId || !serviceToken) return false;
+
   try {
-    const { serviceToken } = context;
-    
-    if (!serviceToken) {
-      return false;
-    }
-
-    // Get user with role information via API
-    const userResponse = await fetch(`http://localhost:4000/api/users/${userId}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
+    const response = await fetch(`${context.config?.apiUrl || 'http://localhost:4000'}/api/users/${userId}`, {
+      headers: { 'X-Bot-Token': serviceToken, 'Content-Type': 'application/json' }
     });
-
-    if (!userResponse.ok) {
-      return false;
-    }
-
-    const user = await userResponse.json();
-
-    if (!user) {
-      return false;
-    }
-
-    // Admin and editor-in-chief always have permission
-    if (user.role === 'ADMIN' || user.role === 'EDITOR_IN_CHIEF' || user.role === 'ACTION_EDITOR') {
-      return true;
-    }
-
-    // Get manuscript data to check if user is the action editor for this manuscript
-    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!manuscriptResponse.ok) {
-      return false;
-    }
-
-    const manuscript = await manuscriptResponse.json();
-
-    return manuscript.action_editors?.editorId === userId;
-  } catch (error) {
-    console.error('Permission check failed:', error);
+    if (!response.ok) return false;
+    const user = await response.json();
+    return validRoles.includes(user.role);
+  } catch {
     return false;
   }
 }
@@ -760,9 +705,9 @@ const assignEditorCommand: BotCommand = {
     const { editor, message } = params;
     const { manuscriptId } = context;
 
-    // Check user permissions for action editor assignment (skip in test environment)
-    const userId = context.userId || context.triggeredBy?.userId;
-    const hasPermission = process.env.NODE_ENV === 'test' ? true : await checkActionEditorAssignmentPermission(userId, context);
+    // Check user permissions for action editor assignment
+    const userId = context.triggeredBy?.userId;
+    const hasPermission = await checkActionEditorAssignmentPermission(context);
     
     if (!hasPermission) {
       return {
@@ -866,9 +811,9 @@ const assignReviewerCommand: BotCommand = {
     const { reviewers, deadline } = params;
     const { manuscriptId } = context;
 
-    // Check user permissions for reviewer assignment (skip in test environment)
-    const userId = context.userId || context.triggeredBy?.userId;
-    const hasPermission = process.env.NODE_ENV === 'test' ? true : await checkReviewerAssignmentPermission(userId, manuscriptId, context);
+    // Check user permissions for reviewer assignment
+    const userId = context.triggeredBy?.userId;
+    const hasPermission = await checkReviewerAssignmentPermission(context);
     
     if (!hasPermission) {
       return {

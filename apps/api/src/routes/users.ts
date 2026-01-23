@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma, GlobalRole as PrismaGlobalRole } from '@colloquium/database';
-import { authenticate, requireRole, requirePermission, requireAnyRole } from '../middleware/auth';
+import { authenticate, authenticateWithBots, requireRole, requirePermission, requireAnyRole } from '../middleware/auth';
 import { Permission, Role } from '@colloquium/auth';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { UserUpdateSchema, UserQuerySchema, IdSchema } from '../schemas/validation';
@@ -51,8 +51,11 @@ async function fetchORCIDProfile(orcidId: string) {
   }
 }
 
-// GET /api/users - List users (for admin)
-router.get('/', authenticate, (req, res, next) => {
+// GET /api/users - List users (for admin or bot service tokens)
+router.get('/', authenticateWithBots, (req: any, res, next) => {
+  // Bot service tokens can access user search
+  if (req.botContext) return next();
+  // Regular users need ADMIN role
   const { GlobalRole } = require('@colloquium/auth');
   return requireRole(GlobalRole.ADMIN)(req, res, next);
 }, async (req, res, next) => {

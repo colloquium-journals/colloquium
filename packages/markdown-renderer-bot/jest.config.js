@@ -7,7 +7,13 @@ module.exports = {
     '**/?(*.)+(spec|test).ts'
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.test.json' }],
+  },
+  moduleNameMapper: {
+    // Map workspace packages to their source for testing
+    '^@colloquium/bots$': '<rootDir>/../bots/src/index.ts',
+    '^@colloquium/bots/testing$': '<rootDir>/../bots/src/testing/index.ts',
+    '^@colloquium/types$': '<rootDir>/../types/src/index.ts',
   },
   collectCoverageFrom: [
     'src/**/*.ts',

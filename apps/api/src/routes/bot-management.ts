@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
-import { BotInstallationSource, BotPluginError } from '@colloquium/bots/src/framework/plugin';
+import { BotInstallationSource, BotPluginError } from '@colloquium/bots';
 import { parseYamlConfig, validateYamlConfig } from '../utils/yamlConfig';
 import { botManager, botExecutor } from '../bots';
 
