@@ -58,8 +58,10 @@ const JournalSettingsSchema = z.object({
   // Submission Settings
   submissionsOpen: z.boolean().default(true),
   maxFileSize: z.number().min(1).max(500).default(50),
+  maxSupplementalFiles: z.number().min(0).max(100).default(10),
   allowedFileTypes: z.array(z.string()).default(['pdf', 'docx', 'tex', 'zip']),
   requireOrcid: z.boolean().default(false),
+  autoSubmissionCommands: z.array(z.string()).default([]),
   
   // Review Settings
   defaultReviewPeriod: z.number().min(7).max(365).default(30),
@@ -105,8 +107,10 @@ const defaultSettings = {
   customCss: undefined as string | undefined,
   submissionsOpen: true,
   maxFileSize: 50,
+  maxSupplementalFiles: 10,
   allowedFileTypes: ['pdf', 'docx', 'tex', 'zip'],
   requireOrcid: false,
+  autoSubmissionCommands: [] as string[],
   defaultReviewPeriod: 30,
   allowPublicReviews: true,
   requireReviewerRegistration: true,
@@ -214,6 +218,7 @@ router.get('/', async (req, res, next) => {
       secondaryColor: journalSettings.secondaryColor,
       submissionsOpen: journalSettings.submissionsOpen,
       maxFileSize: journalSettings.maxFileSize,
+      maxSupplementalFiles: journalSettings.maxSupplementalFiles,
       allowedFileTypes: journalSettings.allowedFileTypes,
       requireOrcid: journalSettings.requireOrcid,
       allowPublicReviews: journalSettings.allowPublicReviews,

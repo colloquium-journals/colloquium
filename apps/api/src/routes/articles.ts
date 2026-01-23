@@ -10,6 +10,7 @@ import { authenticate, requirePermission, optionalAuth, authenticateWithBots } f
 import { Permission, hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermission, hasGlobalPermission } from '@colloquium/auth';
 import { fileStorage } from '../services/fileStorage';
 import { formatDetection } from '../services/formatDetection';
+import { getBotQueue } from '../jobs';
 
 const router = Router();
 
@@ -77,7 +78,7 @@ const upload = multer({
   fileFilter,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
-    files: 5 // Maximum 5 files per submission
+    files: 20 // Maximum 20 files per submission
   }
 });
 
@@ -221,7 +222,7 @@ router.post('/', authenticate, (req, res, next) => {
   // Check permissions dynamically
   const { Permission } = require('@colloquium/auth');
   return requirePermission(Permission.SUBMIT_MANUSCRIPT)(req, res, next);
-}, upload.array('files', 5), async (req, res, next) => {
+}, upload.array('files', 20), async (req, res, next) => {
   try {
     
     // Parse and validate the manuscript data
@@ -264,6 +265,36 @@ router.post('/', authenticate, (req, res, next) => {
                 typeof req.body.keywords === 'string' ? req.body.keywords.split(',').map((k: string) => k.trim()) : [],
       metadata: req.body.metadata ? JSON.parse(req.body.metadata) : {}
     });
+
+    // Server-side validation: check supplemental file count limit
+    const files = req.files as Express.Multer.File[];
+    if (files && files.length > 0) {
+      const assetFileCount = files.filter((file, index) => {
+        if (index === 0) return false; // First file is SOURCE
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext === '.bib' || ext === '.bibtex') return false; // Bibliography files
+        return true;
+      }).length;
+
+      const settingsRecord = await prisma.journal_settings.findFirst({
+        where: { id: 'singleton' }
+      });
+      const journalSettings = (settingsRecord?.settings as any) || {};
+      const maxSupplementalFiles = journalSettings.maxSupplementalFiles ?? 10;
+
+      if (maxSupplementalFiles > 0 && assetFileCount > maxSupplementalFiles) {
+        // Clean up uploaded files
+        files.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+        return res.status(400).json({
+          error: 'Validation Error',
+          message: `Too many supplemental files. Maximum allowed: ${maxSupplementalFiles}, received: ${assetFileCount}`
+        });
+      }
+    }
 
     // Start a transaction to ensure data consistency
     const { randomUUID } = require('crypto');
@@ -369,13 +400,20 @@ router.post('/', authenticate, (req, res, next) => {
             const crypto = require('crypto');
             const checksum = crypto.createHash('sha256').update(fileContent).digest('hex');
             
-            // Determine file type (first file is source, others are assets)
-            const fileType = i === 0 ? ManuscriptFileType.SOURCE : ManuscriptFileType.ASSET;
+            // Determine file type based on position and extension
+            const ext = path.extname(file.originalname).toLowerCase();
+            let fileType: ManuscriptFileType;
+            if (i === 0) {
+              fileType = ManuscriptFileType.SOURCE;
+            } else if (ext === '.bib' || ext === '.bibtex') {
+              fileType = ManuscriptFileType.BIBLIOGRAPHY;
+            } else {
+              fileType = ManuscriptFileType.ASSET;
+            }
             
             // Correct MIME type for known academic formats
             let correctedMimeType = file.mimetype;
-            const ext = path.extname(file.originalname).toLowerCase();
-            
+
             if (file.mimetype === 'application/octet-stream') {
               switch (ext) {
                 case '.md':
@@ -511,6 +549,54 @@ router.post('/', authenticate, (req, res, next) => {
         title: result.conversation.title,
         type: result.conversation.type,
         privacy: result.conversation.privacy
+      }
+    });
+
+    // Fire-and-forget: auto-invoke bot commands configured in journal settings
+    setImmediate(async () => {
+      try {
+        const settingsRecord = await prisma.journal_settings.findFirst({
+          where: { id: 'singleton' }
+        });
+        const journalSettings = (settingsRecord?.settings as any) || {};
+        const autoCommands: string[] = journalSettings.autoSubmissionCommands || [];
+        if (autoCommands.length === 0) return;
+
+        const botUser = await prisma.users.findFirst({
+          where: { email: 'editorial-bot@colloquium.bot' }
+        });
+        if (!botUser) return;
+
+        const botQueue = getBotQueue();
+
+        for (const command of autoCommands) {
+          const message = await prisma.messages.create({
+            data: {
+              id: randomUUID(),
+              content: command,
+              conversationId: result.conversation.id,
+              authorId: botUser.id,
+              privacy: 'AUTHOR_VISIBLE',
+              isBot: false,
+              updatedAt: new Date(),
+              metadata: { type: 'auto_submission_command' }
+            }
+          });
+
+          await botQueue.add('bot-processing', {
+            messageId: message.id,
+            conversationId: result.conversation.id,
+            userId: botUser.id,
+            manuscriptId: result.manuscript.id
+          }, {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 2000 },
+            removeOnComplete: true,
+            removeOnFail: false,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to auto-invoke submission commands:', err);
       }
     });
   } catch (error) {
@@ -851,7 +937,10 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
     }
     
     res.setHeader('Content-Type', file.mimetype);
-    res.setHeader('Content-Length', file.size.toString());
+
+    // Use actual file size from disk, not database (may be stale)
+    const fileStats = fs.statSync(filePath);
+    res.setHeader('Content-Length', fileStats.size.toString());
 
     // Stream the file
     const fileStream = fs.createReadStream(filePath);
@@ -1059,7 +1148,8 @@ router.get('/:id/files', authenticateWithBots, async (req, res, next) => {
         source: formattedFiles.filter(f => f.fileType === 'SOURCE').length,
         asset: formattedFiles.filter(f => f.fileType === 'ASSET').length,
         rendered: formattedFiles.filter(f => f.fileType === 'RENDERED').length,
-        supplementary: formattedFiles.filter(f => f.fileType === 'SUPPLEMENTARY').length
+        supplementary: formattedFiles.filter(f => f.fileType === 'SUPPLEMENTARY').length,
+        bibliography: formattedFiles.filter(f => f.fileType === 'BIBLIOGRAPHY').length
       }
     });
   } catch (error) {
@@ -1126,8 +1216,8 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
       }
     }
 
-    // Determine file type: revisions are SOURCE files, bot uploads use provided type or default to SUPPLEMENTARY
-    const finalFileType = isRevisionUpload ? 'SOURCE' : (fileType || 'SUPPLEMENTARY');
+    // Base file type: revisions are SOURCE files, bot uploads use provided type or default to SUPPLEMENTARY
+    const baseFileType = isRevisionUpload ? 'SOURCE' : (fileType || 'SUPPLEMENTARY');
 
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
@@ -1145,10 +1235,16 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
         const fileContent = fs.readFileSync(file.path);
         const crypto = require('crypto');
         const checksum = crypto.createHash('sha256').update(fileContent).digest('hex');
-        
+
         // Correct MIME type for known academic formats
         let correctedMimeType = file.mimetype;
         const ext = path.extname(file.originalname).toLowerCase();
+
+        // Auto-detect bibliography files unless explicitly specified otherwise
+        let finalFileType = baseFileType;
+        if (!fileType && (ext === '.bib' || ext === '.bibtex')) {
+          finalFileType = 'BIBLIOGRAPHY';
+        }
         
         if (file.mimetype === 'application/octet-stream') {
           switch (ext) {

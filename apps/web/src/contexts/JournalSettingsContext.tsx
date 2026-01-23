@@ -12,6 +12,7 @@ interface JournalSettings {
   publisherName?: string;
   publisherLocation?: string;
   submissionsOpen: boolean;
+  maxSupplementalFiles?: number;
   customCss?: string;
   customFooter?: string;
   maintenanceMode: boolean;

@@ -44,8 +44,10 @@ import {
 } from '@tabler/icons-react';
 import { downloadTemplate, parseAuthorFile, ImportedAuthor, ParseResult } from '@/utils/authorImport';
 import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { RequireProfileCompletion } from '@/components/auth/RequireProfileCompletion';
+import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 
 interface SubmissionData {
   title: string;
@@ -77,8 +79,9 @@ interface FormatInfo {
 export default function SubmitArticlePage() {
   const router = useRouter();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { settings: journalSettings } = useJournalSettings();
+  const maxSupplementalFiles = journalSettings.maxSupplementalFiles ?? 10;
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [supportedFormats, setSupportedFormats] = useState<FormatInfo[]>([]);
   const [loadingFormats, setLoadingFormats] = useState(true);
@@ -219,7 +222,11 @@ export default function SubmitArticlePage() {
         const maxSize = 50 * 1024 * 1024; // 50MB
         const oversizedFiles = value.filter(file => file.size > maxSize);
         if (oversizedFiles.length > 0) return 'Asset files must be smaller than 50MB';
-        
+
+        if (maxSupplementalFiles > 0 && value.length > maxSupplementalFiles) {
+          return `Maximum ${maxSupplementalFiles} supplemental file${maxSupplementalFiles !== 1 ? 's' : ''} allowed`;
+        }
+
         return null;
       },
       agreeToTerms: (value) => !value ? 'You must agree to the terms and conditions' : null
@@ -248,7 +255,6 @@ export default function SubmitArticlePage() {
   const handleSubmit = async (values: SubmissionData) => {
     try {
       setLoading(true);
-      setError(null);
 
       // Create FormData for file upload
       const formData = new FormData();
@@ -300,8 +306,19 @@ export default function SubmitArticlePage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit article');
+        let fullMessage = 'Failed to submit article';
+        try {
+          const errorData = await response.json();
+          const message = errorData.message || errorData.error?.message || fullMessage;
+          const details = errorData.details || errorData.error?.details;
+          fullMessage = message;
+          if (details && typeof details === 'object') {
+            fullMessage += ': ' + Object.values(details).join(', ');
+          }
+        } catch {
+          fullMessage = `Failed to submit article (${response.status} ${response.statusText})`;
+        }
+        throw new Error(fullMessage);
       }
 
       const result = await response.json();
@@ -317,7 +334,12 @@ export default function SubmitArticlePage() {
         }
       }, 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during submission');
+      notifications.show({
+        title: 'Submission Failed',
+        message: err instanceof Error ? err.message : 'An error occurred during submission',
+        color: 'red',
+        autoClose: 10000
+      });
     } finally {
       setLoading(false);
     }
@@ -607,12 +629,6 @@ export default function SubmitArticlePage() {
           </Stack>
 
 
-        {/* Error Alert */}
-        {error && (
-          <Alert icon={<IconAlertCircle size={16} />} color="red" onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
 
         {/* Single Page Form */}
         <form onSubmit={form.onSubmit(handleSubmit)}>
@@ -999,9 +1015,10 @@ export default function SubmitArticlePage() {
                     onFilesChange={(files) => form.setFieldValue('assetFiles', files)}
                     accept=".png,.jpg,.jpeg,.gif,.svg,.pdf,.csv,.xlsx,.zip,.tar.gz,.webp,.tiff,.eps,.ai,.psd,.fig,.sketch"
                     placeholder="Upload supporting files or drag a folder of assets"
-                    description="Images, data files, figures, or any supplementary materials • Supports folder upload • Max 50MB per file"
+                    description={`Images, data files, figures, or any supplementary materials • Supports folder upload • Max 50MB per file${maxSupplementalFiles > 0 ? ` • Max ${maxSupplementalFiles} files` : ''}`}
                     allowFolders={true}
                     maxFileSize={50 * 1024 * 1024}
+                    maxFiles={maxSupplementalFiles > 0 ? maxSupplementalFiles : undefined}
                   />
                   {form.errors.assetFiles && (
                     <Text size="sm" c="red" mt="xs">{form.errors.assetFiles}</Text>

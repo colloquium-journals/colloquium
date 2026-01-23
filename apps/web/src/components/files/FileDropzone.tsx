@@ -29,6 +29,7 @@ interface FileDropzoneProps {
   onFilesChange: (files: File[]) => void;
   accept?: string;
   maxFileSize?: number;
+  maxFiles?: number;
   multiple?: boolean;
   allowFolders?: boolean;
   value?: File[];
@@ -40,6 +41,7 @@ export function FileDropzone({
   onFilesChange,
   accept,
   maxFileSize = 50 * 1024 * 1024, // 50MB
+  maxFiles,
   multiple = true,
   allowFolders = true,
   value = [],
@@ -83,6 +85,12 @@ export function FileDropzone({
     const oversizedFiles = filesArray.filter(file => file.size > maxFileSize);
     if (oversizedFiles.length > 0) {
       alert(`Some files are too large. Maximum size is ${Math.round(maxFileSize / (1024 * 1024))}MB`);
+      return;
+    }
+
+    // Validate max file count
+    if (maxFiles && (value.length + filesArray.length) > maxFiles) {
+      alert(`Too many files. Maximum allowed: ${maxFiles}`);
       return;
     }
 

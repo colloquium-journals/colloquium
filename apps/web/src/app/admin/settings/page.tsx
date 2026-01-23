@@ -60,6 +60,8 @@ import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { YamlInput } from '@/components/YamlInput';
+import { BotCommandInput } from '@/components/shared/BotCommandInput';
+import { MentionSuggestion } from '@/components/shared/MentionSuggest';
 import { parseMarkdown } from '@/lib/markdown';
 import yaml from 'js-yaml';
 
@@ -136,9 +138,11 @@ interface JournalSettings {
   // Submission Settings
   submissionsOpen: boolean;
   maxFileSize: number; // in MB
+  maxSupplementalFiles: number;
   allowedFileTypes: string[];
   requireOrcid: boolean;
-  
+  autoSubmissionCommands: string[];
+
   // Review Settings
   defaultReviewPeriod: number; // in days
   allowPublicReviews: boolean;
@@ -182,8 +186,10 @@ export default function JournalSettingsPage() {
     secondaryColor: '#424242',
     submissionsOpen: true,
     maxFileSize: 50,
+    maxSupplementalFiles: 10,
     allowedFileTypes: ['pdf', 'docx', 'tex', 'zip'],
     requireOrcid: false,
+    autoSubmissionCommands: [],
     defaultReviewPeriod: 30,
     allowPublicReviews: true,
     requireReviewerRegistration: true,
@@ -373,13 +379,25 @@ export default function JournalSettingsPage() {
     }
   };
 
-  // Fetch bots when switching to bots tab
+  // Fetch bots when switching to bots or submissions tab
   useEffect(() => {
     if (activeTab === 'bots') {
       fetchBots();
       fetchExecutorStatus();
+    } else if (activeTab === 'submissions') {
+      fetchBots();
     }
   }, [activeTab]);
+
+  const botSuggestions: MentionSuggestion[] = bots
+    .filter(bot => bot.isEnabled)
+    .map(bot => ({
+      id: bot.botId,
+      name: bot.botId,
+      displayName: bot.name,
+      type: 'bot' as const,
+      description: bot.description,
+    }));
 
   // Fetch users with role filtering
   const fetchUsers = async () => {
@@ -1179,6 +1197,29 @@ export default function JournalSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, customFooter: e.target.value })}
                   minRows={3}
                 />
+
+                <Divider label="Theme" />
+
+                <Switch
+                  label="Enable Dark Mode"
+                  description="Allow users to switch between light and dark themes"
+                  checked={settings.enableDarkMode}
+                  onChange={(e) => setSettings({ ...settings, enableDarkMode: e.currentTarget.checked })}
+                />
+
+                {settings.enableDarkMode && (
+                  <Select
+                    label="Default Theme"
+                    description="Default theme for new visitors"
+                    value={settings.defaultTheme}
+                    onChange={(value) => setSettings({ ...settings, defaultTheme: (value as 'light' | 'dark' | 'auto') || 'light' })}
+                    data={[
+                      { value: 'light', label: 'Light' },
+                      { value: 'dark', label: 'Dark' },
+                      { value: 'auto', label: 'Follow System' }
+                    ]}
+                  />
+                )}
               </Stack>
             </Card>
           </Tabs.Panel>
@@ -1204,12 +1245,58 @@ export default function JournalSettingsPage() {
                   max={500}
                 />
 
+                <NumberInput
+                  label="Maximum Supplemental Files"
+                  description="Maximum number of supplemental/asset files per submission (0 = unlimited)"
+                  value={settings.maxSupplementalFiles}
+                  onChange={(value) => setSettings({ ...settings, maxSupplementalFiles: Number(value) ?? 10 })}
+                  min={0}
+                  max={100}
+                />
+
                 <Switch
                   label="Require ORCID"
                   description="Require authors to provide ORCID iD"
                   checked={settings.requireOrcid}
                   onChange={(e) => setSettings({ ...settings, requireOrcid: e.currentTarget.checked })}
                 />
+
+                <Divider label="Auto-Invoke Commands" />
+                <Text size="sm" c="dimmed">
+                  Bot commands to automatically run on every new submission.
+                  Use the format @bot-name command (e.g., @markdown-renderer render).
+                </Text>
+                {(settings.autoSubmissionCommands || []).map((cmd, index) => (
+                  <Group key={index}>
+                    <BotCommandInput
+                      value={cmd}
+                      onChange={(newValue) => {
+                        const updated = [...(settings.autoSubmissionCommands || [])];
+                        updated[index] = newValue;
+                        setSettings({ ...settings, autoSubmissionCommands: updated });
+                      }}
+                      bots={botSuggestions}
+                    />
+                    <ActionIcon color="red" variant="light" onClick={() => {
+                      const updated = (settings.autoSubmissionCommands || []).filter((_, i) => i !== index);
+                      setSettings({ ...settings, autoSubmissionCommands: updated });
+                    }}>
+                      <IconTrash size={16} />
+                    </ActionIcon>
+                  </Group>
+                ))}
+                <Button
+                  variant="light"
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => {
+                    setSettings({
+                      ...settings,
+                      autoSubmissionCommands: [...(settings.autoSubmissionCommands || []), '']
+                    });
+                  }}
+                >
+                  Add Command
+                </Button>
 
                 <Divider label="Review Settings" />
 
@@ -1368,28 +1455,6 @@ export default function JournalSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, maintenanceMode: e.currentTarget.checked })}
                 />
 
-                <Divider label="Theme Settings" />
-
-                <Switch
-                  label="Enable Dark Mode"
-                  description="Allow users to switch between light and dark themes"
-                  checked={settings.enableDarkMode}
-                  onChange={(e) => setSettings({ ...settings, enableDarkMode: e.currentTarget.checked })}
-                />
-
-                {settings.enableDarkMode && (
-                  <Select
-                    label="Default Theme"
-                    description="Default theme for new visitors"
-                    value={settings.defaultTheme}
-                    onChange={(value) => setSettings({ ...settings, defaultTheme: (value as 'light' | 'dark' | 'auto') || 'light' })}
-                    data={[
-                      { value: 'light', label: 'Light Theme' },
-                      { value: 'dark', label: 'Dark Theme' },
-                      { value: 'auto', label: 'Auto (Follow System)' }
-                    ]}
-                  />
-                )}
               </Stack>
             </Card>
           </Tabs.Panel>
