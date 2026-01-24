@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -28,7 +28,6 @@ import {
   IconAt,
 } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
-import Link from 'next/link';
 
 interface ProfileFormData {
   name: string;
@@ -141,6 +140,53 @@ export default function EditProfilePage() {
     fetchCurrentProfile();
   }, [isAuthenticated]);
 
+
+  const isDirtyRef = useRef(false);
+  isDirtyRef.current = form.isDirty();
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+      }
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      if (!isDirtyRef.current) return;
+      const anchor = (e.target as HTMLElement).closest('a');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#')) return;
+      // Only guard internal navigation
+      if (anchor.target === '_blank') return;
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+      } catch {
+        return;
+      }
+      if (!window.confirm('You have unsaved changes. Discard them?')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      document.removeEventListener('click', handleClick, true);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    if (form.isDirty()) {
+      if (!window.confirm('You have unsaved changes. Discard them?')) {
+        return;
+      }
+    }
+    router.push('/profile');
+  }, [form, router]);
 
   const handleSubmit = async (values: ProfileFormData) => {
     if (usernameStatus === 'taken') {
@@ -268,16 +314,7 @@ export default function EditProfilePage() {
       <Stack gap="xl">
         {/* Header */}
         <Stack gap="xs">
-          <Group justify="space-between" align="center">
-            <Title order={1}>Edit Profile</Title>
-            <Button
-              variant="outline"
-              component={Link}
-              href="/profile"
-            >
-              Cancel
-            </Button>
-          </Group>
+          <Title order={1}>Edit Profile</Title>
           <Text c="dimmed">
             Update your profile information and academic credentials.
           </Text>
@@ -412,8 +449,7 @@ export default function EditProfilePage() {
               <Group justify="flex-end" gap="md">
                 <Button
                   variant="outline"
-                  component={Link}
-                  href="/profile"
+                  onClick={handleCancel}
                   disabled={saving}
                 >
                   Cancel
