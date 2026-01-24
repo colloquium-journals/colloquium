@@ -56,7 +56,7 @@ describe('Bot Config Files API', () => {
       });
 
       // Verify file was stored in database
-      const dbFile = await prisma.botConfigFile.findFirst({
+      const dbFile = await prisma.bot_config_files.findFirst({
         where: { botId: testBot.id }
       });
       expect(dbFile).toBeTruthy();
@@ -159,7 +159,7 @@ describe('Bot Config Files API', () => {
   describe('GET /api/bot-config-files/:botId/files', () => {
     it('should list all files for a bot', async () => {
       // Create test files
-      const file1 = await prisma.botConfigFile.create({
+      const file1 = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'template.html',
@@ -174,7 +174,7 @@ describe('Bot Config Files API', () => {
         }
       });
 
-      const file2 = await prisma.botConfigFile.create({
+      const file2 = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'styles.css',
@@ -204,7 +204,7 @@ describe('Bot Config Files API', () => {
 
     it('should filter files by category', async () => {
       // Create test files in different categories
-      await prisma.botConfigFile.create({
+      await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'template.html',
@@ -218,7 +218,7 @@ describe('Bot Config Files API', () => {
         }
       });
 
-      await prisma.botConfigFile.create({
+      await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'styles.css',
@@ -250,7 +250,7 @@ describe('Bot Config Files API', () => {
       await fs.writeFile(testFilePath, '<html>test</html>');
 
       // Create file record
-      const configFile = await prisma.botConfigFile.create({
+      const configFile = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'test-delete.html',
@@ -272,7 +272,7 @@ describe('Bot Config Files API', () => {
       expect(response.body.success).toBe(true);
 
       // Verify file was deleted from database
-      const deletedFile = await prisma.botConfigFile.findUnique({
+      const deletedFile = await prisma.bot_config_files.findUnique({
         where: { id: configFile.id }
       });
       expect(deletedFile).toBeNull();
@@ -286,7 +286,7 @@ describe('Bot Config Files API', () => {
       const regularUser = await createTestUser('user@test.com', 'USER');
       const userCookie = await getAuthCookie(regularUser.id);
 
-      const configFile = await prisma.botConfigFile.create({
+      const configFile = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'test.html',
@@ -315,7 +315,7 @@ describe('Bot Config Files API', () => {
       const testFilePath = path.join(uploadDir, 'download-test.html');
       await fs.writeFile(testFilePath, testContent);
 
-      const configFile = await prisma.botConfigFile.create({
+      const configFile = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'download-test.html',
@@ -355,7 +355,7 @@ describe('Bot Config Files API', () => {
       const testFilePath = path.join(uploadDir, 'content-test.html');
       await fs.writeFile(testFilePath, testContent);
 
-      const configFile = await prisma.botConfigFile.create({
+      const configFile = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'content-test.html',
@@ -380,7 +380,7 @@ describe('Bot Config Files API', () => {
     });
 
     it('should reject content reading for binary files', async () => {
-      const configFile = await prisma.botConfigFile.create({
+      const configFile = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'image.png',
@@ -405,7 +405,7 @@ describe('Bot Config Files API', () => {
 
   describe('PATCH /api/bot-config-files/:fileId', () => {
     it('should update file metadata successfully', async () => {
-      const configFile = await prisma.botConfigFile.create({
+      const configFile = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'update-test.html',
@@ -436,7 +436,7 @@ describe('Bot Config Files API', () => {
 
     it('should prevent category conflicts', async () => {
       // Create first file
-      await prisma.botConfigFile.create({
+      await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'conflict.html',
@@ -451,7 +451,7 @@ describe('Bot Config Files API', () => {
       });
 
       // Create second file with different category
-      const configFile2 = await prisma.botConfigFile.create({
+      const configFile2 = await prisma.bot_config_files.create({
         data: {
           botId: testBot.id,
           filename: 'conflict.html',
@@ -481,7 +481,7 @@ describe('Bot Config Files API', () => {
   describe('GET /api/bot-config-files/:botId/categories', () => {
     it('should list file categories with counts', async () => {
       // Create files in different categories
-      await prisma.botConfigFile.createMany({
+      await prisma.bot_config_files.createMany({
         data: [
           {
             botId: testBot.id,

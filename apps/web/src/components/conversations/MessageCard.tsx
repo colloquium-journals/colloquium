@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageContent } from './MessageContent';
+import { MessageActions } from './MessageActions';
 import { UserProfileHover } from '../shared';
 
 interface MessageData {
@@ -48,6 +49,7 @@ interface MessageData {
   createdAt: string;
   editedAt?: string;
   isBot: boolean;
+  metadata?: { actions?: any[] };
 }
 
 interface MessageCardProps {
@@ -390,12 +392,20 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
         </Group>
 
         {/* Message Content */}
-        <MessageContent 
+        <MessageContent
           content={message.content}
           conversationId={conversationId}
           messageId={message.id}
           size="sm"
         />
+
+        {/* Bot Message Actions */}
+        {message.metadata?.actions?.length ? (
+          <MessageActions
+            messageId={message.id}
+            actions={message.metadata.actions}
+          />
+        ) : null}
 
       </Stack>
 

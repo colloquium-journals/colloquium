@@ -11,7 +11,7 @@ describe('Bot Mentions Integration', () => {
 
   beforeAll(async () => {
     // Create test user
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         email: 'test@example.com',
         name: 'Test User',
@@ -29,7 +29,7 @@ describe('Bot Mentions Integration', () => {
 
     // Create test conversation
     // Create test manuscript first
-    const manuscript = await prisma.manuscript.create({
+    const manuscript = await prisma.manuscripts.create({
       data: {
         title: 'Test Manuscript',
         abstract: 'Test abstract',
@@ -37,7 +37,7 @@ describe('Bot Mentions Integration', () => {
       }
     });
 
-    const conversation = await prisma.conversation.create({
+    const conversation = await prisma.conversations.create({
       data: {
         title: 'Test Conversation',
         type: ConversationType.EDITORIAL,
@@ -50,9 +50,9 @@ describe('Bot Mentions Integration', () => {
 
   afterAll(async () => {
     // Clean up test data
-    await prisma.message.deleteMany({ where: { conversationId } });
-    await prisma.conversation.deleteMany({ where: { id: conversationId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    await prisma.messages.deleteMany({ where: { conversationId } });
+    await prisma.conversations.deleteMany({ where: { id: conversationId } });
+    await prisma.users.deleteMany({ where: { id: userId } });
   });
 
   describe('Simple Bot Mentions', () => {
@@ -71,7 +71,7 @@ describe('Bot Mentions Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { conversationId },
         orderBy: { createdAt: 'desc' },
         take: 2
@@ -102,7 +102,7 @@ describe('Bot Mentions Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -131,7 +131,7 @@ describe('Bot Mentions Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -160,7 +160,7 @@ describe('Bot Mentions Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 2500));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -188,7 +188,7 @@ describe('Bot Mentions Integration', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -212,7 +212,7 @@ describe('Bot Mentions Integration', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -225,7 +225,7 @@ describe('Bot Mentions Integration', () => {
     });
 
     it('should not respond to unknown bot names', async () => {
-      const initialMessageCount = await prisma.message.count({
+      const initialMessageCount = await prisma.messages.count({
         where: { conversationId }
       });
 
@@ -240,7 +240,7 @@ describe('Bot Mentions Integration', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const finalMessageCount = await prisma.message.count({
+      const finalMessageCount = await prisma.messages.count({
         where: { conversationId }
       });
 
@@ -263,7 +263,7 @@ describe('Bot Mentions Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Bot should still respond (likely with an error message or help)
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -288,7 +288,7 @@ describe('Bot Mentions Integration', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -317,7 +317,7 @@ describe('Bot Mentions Integration', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Should have responses from both bots
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true

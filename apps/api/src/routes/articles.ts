@@ -1945,15 +1945,19 @@ router.post('/:id/reviewers', authenticateWithBots, async (req, res, next) => {
       });
     }
 
-    // Create the assignment
+    // Create the assignment with a response token for email-based auth
+    const crypto = require('crypto');
+    const responseToken = crypto.randomBytes(32).toString('hex');
+
     const assignment = await prisma.review_assignments.create({
       data: {
-        id: require('crypto').randomUUID(),
+        id: crypto.randomUUID(),
         manuscriptId,
         reviewerId,
         status,
         assignedAt: new Date(),
-        dueDate: dueDate ? new Date(dueDate) : null
+        dueDate: dueDate ? new Date(dueDate) : null,
+        responseToken
       },
       include: {
         users: {
@@ -1971,6 +1975,7 @@ router.post('/:id/reviewers', authenticateWithBots, async (req, res, next) => {
       message: 'Reviewer assignment created successfully',
       assignment: {
         id: assignment.id,
+        responseToken: assignment.responseToken,
         reviewer: {
           id: assignment.users.id,
           name: assignment.users.name,

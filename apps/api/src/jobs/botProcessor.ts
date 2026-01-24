@@ -72,17 +72,23 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
 
           // Create bot response messages
           for (const botMessage of botResponse.messages) {
+            const messageData: any = {
+              id: randomUUID(),
+              content: botMessage.content,
+              conversationId: message.conversationId,
+              authorId: botUserId,
+              parentId: botMessage.replyTo || message.id,
+              privacy: message.privacy,
+              isBot: true,
+              updatedAt: new Date()
+            };
+
+            if (botMessage.actions?.length) {
+              messageData.metadata = { actions: botMessage.actions };
+            }
+
             const responseMessage = await prisma.messages.create({
-              data: {
-                id: randomUUID(),
-                content: botMessage.content,
-                conversationId: message.conversationId,
-                authorId: botUserId,
-                parentId: botMessage.replyTo || message.id,
-                privacy: message.privacy,
-                isBot: true,
-                updatedAt: new Date()
-              },
+              data: messageData,
               include: {
                 users: {
                   select: {
@@ -99,11 +105,12 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
               id: responseMessage.id,
               content: responseMessage.content,
               privacy: responseMessage.privacy,
-              author: responseMessage.users,
+              author: (responseMessage as any).users,
               createdAt: responseMessage.createdAt,
               updatedAt: responseMessage.updatedAt,
               parentId: responseMessage.parentId,
-              isBot: responseMessage.isBot
+              isBot: responseMessage.isBot,
+              metadata: responseMessage.metadata
             };
 
             // Broadcast the bot response via SSE with permission filtering

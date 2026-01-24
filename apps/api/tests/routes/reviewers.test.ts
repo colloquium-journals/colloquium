@@ -5,15 +5,15 @@ import { createMockUser, createMockManuscript, createMockJWT } from '../utils/te
 // Mock the database module
 jest.mock('@colloquium/database', () => ({
   prisma: {
-    user: {
+    users: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn()
     },
-    manuscript: {
+    manuscripts: {
       findUnique: jest.fn()
     },
-    reviewAssignment: {
+    review_assignments: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -54,7 +54,7 @@ describe('Reviewer Management API', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.user.findUnique.mockResolvedValue(mockEditor);
+    prisma.users.findUnique.mockResolvedValue(mockEditor);
   });
 
   describe('GET /api/reviewers/search', () => {
@@ -64,8 +64,8 @@ describe('Reviewer Management API', () => {
         createMockUser({ id: 'reviewer-2', name: 'Jones', email: 'jones@institute.org' })
       ];
 
-      prisma.user.findMany.mockResolvedValue(mockReviewers);
-      prisma.reviewAssignment.findMany.mockResolvedValue([]);
+      prisma.users.findMany.mockResolvedValue(mockReviewers);
+      prisma.review_assignments.findMany.mockResolvedValue([]);
 
       const response = await request(app)
         .get('/api/reviewers/search')
@@ -112,7 +112,7 @@ describe('Reviewer Management API', () => {
       const mockAuthor = createMockUser({ role: 'USER' });
       const authorToken = createMockJWT({ role: 'USER' });
       
-      prisma.user.findUnique.mockResolvedValue(mockAuthor);
+      prisma.users.findUnique.mockResolvedValue(mockAuthor);
 
       const response = await request(app)
         .get('/api/reviewers/search')
@@ -134,13 +134,13 @@ describe('Reviewer Management API', () => {
     it('should send reviewer invitations', async () => {
       const mockReviewer = createMockUser({ email: 'reviewer@example.com' });
       
-      prisma.manuscript.findUnique.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue({
         ...mockManuscript,
         authorRelations: []
       });
-      prisma.user.findUnique.mockResolvedValue(mockReviewer);
-      prisma.reviewAssignment.findUnique.mockResolvedValue(null);
-      prisma.reviewAssignment.create.mockResolvedValue({
+      prisma.users.findUnique.mockResolvedValue(mockReviewer);
+      prisma.review_assignments.findUnique.mockResolvedValue(null);
+      prisma.review_assignments.create.mockResolvedValue({
         id: 'assignment-id',
         manuscriptId: mockManuscript.id,
         reviewerId: mockReviewer.id,
@@ -206,7 +206,7 @@ describe('Reviewer Management API', () => {
     });
 
     it('should handle manuscript not found', async () => {
-      prisma.manuscript.findUnique.mockResolvedValue(null);
+      prisma.manuscripts.findUnique.mockResolvedValue(null);
 
       const response = await request(app)
         .post('/api/reviewers/invite')
@@ -226,10 +226,10 @@ describe('Reviewer Management API', () => {
     it('should assign reviewer directly', async () => {
       const mockReviewer = createMockUser({ id: 'reviewer-id' });
       
-      prisma.manuscript.findUnique.mockResolvedValue(mockManuscript);
-      prisma.user.findUnique.mockResolvedValue(mockReviewer);
-      prisma.reviewAssignment.findUnique.mockResolvedValue(null);
-      prisma.reviewAssignment.create.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscript);
+      prisma.users.findUnique.mockResolvedValue(mockReviewer);
+      prisma.review_assignments.findUnique.mockResolvedValue(null);
+      prisma.review_assignments.create.mockResolvedValue({
         id: 'assignment-id',
         manuscriptId: mockManuscript.id,
         reviewerId: mockReviewer.id,
@@ -255,9 +255,9 @@ describe('Reviewer Management API', () => {
     it('should handle duplicate assignment', async () => {
       const mockReviewer = createMockUser({ id: 'reviewer-id' });
       
-      prisma.manuscript.findUnique.mockResolvedValue(mockManuscript);
-      prisma.user.findUnique.mockResolvedValue(mockReviewer);
-      prisma.reviewAssignment.findUnique.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscript);
+      prisma.users.findUnique.mockResolvedValue(mockReviewer);
+      prisma.review_assignments.findUnique.mockResolvedValue({
         id: 'existing-assignment',
         status: 'PENDING'
       });
@@ -305,7 +305,7 @@ describe('Reviewer Management API', () => {
         }
       ];
 
-      prisma.reviewAssignment.findMany.mockResolvedValue(mockAssignments);
+      prisma.review_assignments.findMany.mockResolvedValue(mockAssignments);
 
       const response = await request(app)
         .get(`/api/reviewers/assignments/${mockManuscript.id}`)
@@ -349,13 +349,13 @@ describe('Reviewer Management API', () => {
         manuscript: mockManuscript
       };
 
-      prisma.user.findUnique.mockImplementation((query: any) => {
+      prisma.users.findUnique.mockImplementation((query: any) => {
         if (query.where.id === 'reviewer-id') return mockReviewer;
         return mockEditor;
       });
       
-      prisma.reviewAssignment.findUnique.mockResolvedValue(mockAssignment);
-      prisma.reviewAssignment.update.mockResolvedValue({
+      prisma.review_assignments.findUnique.mockResolvedValue(mockAssignment);
+      prisma.review_assignments.update.mockResolvedValue({
         ...mockAssignment,
         status: 'ACCEPTED'
       });
@@ -380,8 +380,8 @@ describe('Reviewer Management API', () => {
         manuscript: mockManuscript
       };
 
-      prisma.reviewAssignment.findUnique.mockResolvedValue(mockAssignment);
-      prisma.reviewAssignment.update.mockResolvedValue({
+      prisma.review_assignments.findUnique.mockResolvedValue(mockAssignment);
+      prisma.review_assignments.update.mockResolvedValue({
         ...mockAssignment,
         status: 'ACCEPTED'
       });
@@ -406,7 +406,7 @@ describe('Reviewer Management API', () => {
         manuscript: mockManuscript
       };
 
-      prisma.reviewAssignment.findUnique.mockResolvedValue(mockAssignment);
+      prisma.review_assignments.findUnique.mockResolvedValue(mockAssignment);
       
       const updatedAssignment = {
         ...mockAssignment,
@@ -414,7 +414,7 @@ describe('Reviewer Management API', () => {
         completedAt: expect.any(Date)
       };
       
-      prisma.reviewAssignment.update.mockResolvedValue(updatedAssignment);
+      prisma.review_assignments.update.mockResolvedValue(updatedAssignment);
 
       const response = await request(app)
         .put('/api/reviewers/assignments/assignment-id')
@@ -424,7 +424,7 @@ describe('Reviewer Management API', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(prisma.reviewAssignment.update).toHaveBeenCalledWith({
+      expect(prisma.review_assignments.update).toHaveBeenCalledWith({
         where: { id: 'assignment-id' },
         data: expect.objectContaining({
           status: 'COMPLETED',

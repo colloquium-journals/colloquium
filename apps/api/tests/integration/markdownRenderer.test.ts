@@ -15,7 +15,7 @@ describe('Markdown Renderer Bot Integration', () => {
 
   beforeAll(async () => {
     // Create test user
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         email: 'test-markdown@example.com',
         name: 'Markdown Test User',
@@ -32,7 +32,7 @@ describe('Markdown Renderer Bot Integration', () => {
     );
 
     // Create test manuscript
-    const manuscript = await prisma.manuscript.create({
+    const manuscript = await prisma.manuscripts.create({
       data: {
         title: 'Test Markdown Manuscript',
         abstract: 'Test abstract for markdown rendering',
@@ -42,7 +42,7 @@ describe('Markdown Renderer Bot Integration', () => {
     manuscriptId = manuscript.id;
 
     // Create test conversation
-    const conversation = await prisma.conversation.create({
+    const conversation = await prisma.conversations.create({
       data: {
         title: 'Markdown Test Conversation',
         type: ConversationType.EDITORIAL,
@@ -87,7 +87,7 @@ Testing complete.
     fs.writeFileSync(markdownPath, markdownContent);
 
     // Create markdown file record
-    const markdownFile = await prisma.manuscriptFile.create({
+    const markdownFile = await prisma.manuscript_files.create({
       data: {
         manuscriptId: manuscript.id,
         originalName: 'test-document.md',
@@ -107,7 +107,7 @@ Testing complete.
     const imagePath = path.join(uploadDir, imageFilename);
     fs.writeFileSync(imagePath, imageData);
 
-    const imageFile = await prisma.manuscriptFile.create({
+    const imageFile = await prisma.manuscript_files.create({
       data: {
         manuscriptId: manuscript.id,
         originalName: 'test-image.png',
@@ -125,7 +125,7 @@ Testing complete.
   afterAll(async () => {
     // Clean up test files
     try {
-      const files = await prisma.manuscriptFile.findMany({
+      const files = await prisma.manuscript_files.findMany({
         where: { manuscriptId }
       });
       
@@ -139,11 +139,11 @@ Testing complete.
     }
 
     // Clean up database records
-    await prisma.manuscriptFile.deleteMany({ where: { manuscriptId } });
-    await prisma.message.deleteMany({ where: { conversationId } });
-    await prisma.conversation.deleteMany({ where: { id: conversationId } });
-    await prisma.manuscript.deleteMany({ where: { id: manuscriptId } });
-    await prisma.user.deleteMany({ where: { id: userId } });
+    await prisma.manuscript_files.deleteMany({ where: { manuscriptId } });
+    await prisma.messages.deleteMany({ where: { conversationId } });
+    await prisma.conversations.deleteMany({ where: { id: conversationId } });
+    await prisma.manuscripts.deleteMany({ where: { id: manuscriptId } });
+    await prisma.users.deleteMany({ where: { id: userId } });
   });
 
   describe('Basic Markdown Rendering', () => {
@@ -161,7 +161,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -190,7 +190,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -220,7 +220,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -260,7 +260,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -296,7 +296,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -329,7 +329,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -360,7 +360,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -392,7 +392,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Check for bot response
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: { 
           conversationId,
           isBot: true
@@ -409,7 +409,7 @@ Testing complete.
 
     it('should handle missing manuscript files', async () => {
       // Create a conversation with a manuscript that has no files
-      const emptyManuscript = await prisma.manuscript.create({
+      const emptyManuscript = await prisma.manuscripts.create({
         data: {
           title: 'Empty Test Manuscript',
           abstract: 'No files',
@@ -417,7 +417,7 @@ Testing complete.
         }
       });
 
-      const emptyConversation = await prisma.conversation.create({
+      const emptyConversation = await prisma.conversations.create({
         data: {
           title: 'Empty Test Conversation',
           type: ConversationType.EDITORIAL,
@@ -440,7 +440,7 @@ Testing complete.
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Check for bot response
-        const messages = await prisma.message.findMany({
+        const messages = await prisma.messages.findMany({
           where: { 
             conversationId: emptyConversation.id,
             isBot: true
@@ -454,9 +454,9 @@ Testing complete.
 
       } finally {
         // Clean up
-        await prisma.message.deleteMany({ where: { conversationId: emptyConversation.id } });
-        await prisma.conversation.deleteMany({ where: { id: emptyConversation.id } });
-        await prisma.manuscript.deleteMany({ where: { id: emptyManuscript.id } });
+        await prisma.messages.deleteMany({ where: { conversationId: emptyConversation.id } });
+        await prisma.conversations.deleteMany({ where: { id: emptyConversation.id } });
+        await prisma.manuscripts.deleteMany({ where: { id: emptyManuscript.id } });
       }
     });
   });
@@ -476,7 +476,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check if a PDF file was actually created
-      const pdfFiles = await prisma.manuscriptFile.findMany({
+      const pdfFiles = await prisma.manuscript_files.findMany({
         where: {
           manuscriptId,
           fileType: ManuscriptFileType.RENDERED,
@@ -511,7 +511,7 @@ Testing complete.
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Check if an HTML file was created
-      const htmlFiles = await prisma.manuscriptFile.findMany({
+      const htmlFiles = await prisma.manuscript_files.findMany({
         where: {
           manuscriptId,
           fileType: ManuscriptFileType.RENDERED,

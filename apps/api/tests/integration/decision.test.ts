@@ -11,7 +11,7 @@ describe('Simplified Editorial Decision Workflow', () => {
 
   beforeAll(async () => {
     // Create test editor
-    const editor = await prisma.user.create({
+    const editor = await prisma.users.create({
       data: {
         email: 'editor@test.com',
         name: 'Test Editor',
@@ -27,7 +27,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     );
 
     // Create test manuscript
-    const manuscript = await prisma.manuscript.create({
+    const manuscript = await prisma.manuscripts.create({
       data: {
         title: 'Test Manuscript for Bot Decision Workflow',
         abstract: 'Test abstract',
@@ -39,7 +39,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     manuscriptId = manuscript.id;
 
     // Create manuscript conversation
-    const conversation = await prisma.conversation.create({
+    const conversation = await prisma.conversations.create({
       data: {
         title: 'Manuscript Discussion',
         type: 'SEMI_PUBLIC',
@@ -50,7 +50,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     conversationId = conversation.id;
 
     // Add editor as participant
-    await prisma.conversationParticipant.create({
+    await prisma.conversation_participants.create({
       data: {
         conversationId,
         userId: editorId,
@@ -59,7 +59,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     });
 
     // Create some mock completed reviews
-    const reviewer1 = await prisma.user.create({
+    const reviewer1 = await prisma.users.create({
       data: {
         email: 'reviewer1@test.com',
         name: 'Reviewer 1',
@@ -67,7 +67,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       }
     });
 
-    const reviewer2 = await prisma.user.create({
+    const reviewer2 = await prisma.users.create({
       data: {
         email: 'reviewer2@test.com',
         name: 'Reviewer 2',
@@ -75,7 +75,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       }
     });
 
-    await prisma.reviewAssignment.create({
+    await prisma.review_assignments.create({
       data: {
         manuscriptId,
         reviewerId: reviewer1.id,
@@ -84,7 +84,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       }
     });
 
-    await prisma.reviewAssignment.create({
+    await prisma.review_assignments.create({
       data: {
         manuscriptId,
         reviewerId: reviewer2.id,
@@ -96,12 +96,12 @@ describe('Simplified Editorial Decision Workflow', () => {
 
   afterAll(async () => {
     // Clean up test data
-    await prisma.message.deleteMany({});
-    await prisma.conversationParticipant.deleteMany({});
-    await prisma.conversation.deleteMany({});
-    await prisma.reviewAssignment.deleteMany({});
-    await prisma.manuscript.deleteMany({});
-    await prisma.user.deleteMany({});
+    await prisma.messages.deleteMany({});
+    await prisma.conversation_participants.deleteMany({});
+    await prisma.conversations.deleteMany({});
+    await prisma.review_assignments.deleteMany({});
+    await prisma.manuscripts.deleteMany({});
+    await prisma.users.deleteMany({});
   });
 
   describe('Bot-Only Decision Workflow', () => {
@@ -134,14 +134,14 @@ describe('Simplified Editorial Decision Workflow', () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Verify manuscript status was updated
-      const updatedManuscript = await prisma.manuscript.findUnique({
+      const updatedManuscript = await prisma.manuscripts.findUnique({
         where: { id: manuscriptId }
       });
       expect(updatedManuscript?.status).toBe('ACCEPTED');
       expect(updatedManuscript?.publishedAt).toBeTruthy();
       
       // Verify bot response message was created
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true
@@ -158,7 +158,7 @@ describe('Simplified Editorial Decision Workflow', () => {
 
     it('should process revision decision and create revision conversation', async () => {
       // Create new manuscript for revision test
-      const revisionManuscript = await prisma.manuscript.create({
+      const revisionManuscript = await prisma.manuscripts.create({
         data: {
           title: 'Revision Test Manuscript',
           abstract: 'Test abstract',
@@ -169,7 +169,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       });
 
       // Create conversation
-      const revisionConversation = await prisma.conversation.create({
+      const revisionConversation = await prisma.conversations.create({
         data: {
           title: 'Revision Discussion',
           type: 'SEMI_PUBLIC',
@@ -179,7 +179,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       });
 
       // Add editor as participant
-      await prisma.conversationParticipant.create({
+      await prisma.conversation_participants.create({
         data: {
           conversationId: revisionConversation.id,
           userId: editorId,
@@ -215,13 +215,13 @@ describe('Simplified Editorial Decision Workflow', () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Verify manuscript status
-      const updatedManuscript = await prisma.manuscript.findUnique({
+      const updatedManuscript = await prisma.manuscripts.findUnique({
         where: { id: revisionManuscript.id }
       });
       expect(updatedManuscript?.status).toBe('REVISION_REQUESTED');
       
       // Check if revision conversation was created
-      const revisionConversations = await prisma.conversation.findMany({
+      const revisionConversations = await prisma.conversations.findMany({
         where: {
           manuscriptId: revisionManuscript.id,
           title: { contains: 'Revision' }
@@ -251,7 +251,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Check that an error or help message was posted by the bot
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -283,7 +283,7 @@ describe('Simplified Editorial Decision Workflow', () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Check for summary message
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,

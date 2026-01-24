@@ -17,7 +17,7 @@ export class CommandParser {
     const commands: ParsedCommand[] = [];
     
     // Look for @bot-name command patterns
-    const mentionPattern = /@([a-zA-Z0-9-]+)\s+([a-zA-Z0-9-]+)(?:\s+(.*))?/g;
+    const mentionPattern = /@([a-zA-Z0-9-]+)\s+([a-zA-Z0-9-]+)(?:\s+(.*?))?(?=\s*@[a-zA-Z0-9-]+\s+[a-zA-Z0-9-]+|$)/g;
     let match;
 
     while ((match = mentionPattern.exec(text)) !== null) {

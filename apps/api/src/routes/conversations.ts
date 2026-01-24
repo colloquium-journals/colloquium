@@ -322,7 +322,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         createdAt: msg.createdAt,
         updatedAt: msg.updatedAt,
         parentId: msg.parentId,
-        isBot: msg.isBot
+        isBot: msg.isBot,
+        metadata: msg.metadata
       })),
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt

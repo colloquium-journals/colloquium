@@ -159,6 +159,7 @@ export interface BotResponse {
     content: string;
     replyTo?: string;
     attachments?: BotAttachment[];
+    actions?: BotMessageAction[];
   }[];
   actions?: BotAction[];
   errors?: string[];
@@ -174,6 +175,45 @@ export interface BotAttachment {
 export interface BotAction {
   type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION' | 'ASSIGN_ACTION_EDITOR' | 'EXECUTE_PUBLICATION_WORKFLOW';
   data: Record<string, any>;
+}
+
+export interface BotMessageAction {
+  id: string;
+  label: string;
+  style?: 'primary' | 'secondary' | 'danger';
+  confirmText?: string;
+  targetUserId?: string;
+  targetRoles?: string[];
+  handler: {
+    botId: string;
+    action: string;
+    params: Record<string, any>;
+  };
+  resultContent?: string;
+  resultLabel?: string;
+  triggered?: boolean;
+  triggeredBy?: string;
+  triggeredAt?: string;
+}
+
+export interface BotActionHandlerResult {
+  success: boolean;
+  updatedContent?: string;
+  updatedLabel?: string;
+  error?: string;
+}
+
+export type BotActionHandler = (
+  params: Record<string, any>,
+  context: BotActionHandlerContext
+) => Promise<BotActionHandlerResult>;
+
+export interface BotActionHandlerContext {
+  manuscriptId: string;
+  conversationId: string;
+  messageId: string;
+  triggeredBy: { userId: string; userRole: string };
+  serviceToken: string;
 }
 
 export enum BotTrigger {
@@ -257,8 +297,9 @@ export interface CommandBot {
     quickStart: string;
     examples: string[];
   };
-  customHelpSections?: BotCustomHelpSection[]; // Optional custom sections for main help
-  onInstall?: (context: BotInstallationContext) => Promise<void>; // Called when bot is installed
+  customHelpSections?: BotCustomHelpSection[];
+  onInstall?: (context: BotInstallationContext) => Promise<void>;
+  actionHandlers?: Record<string, BotActionHandler>;
 }
 
 export interface ParsedCommand {

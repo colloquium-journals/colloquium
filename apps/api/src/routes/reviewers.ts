@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
-import { requireAuth, requireAnyRole } from '../middleware/auth';
+import { requireAuth, requireAnyRole, optionalAuth } from '../middleware/auth';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { z } from 'zod';
 import { 
@@ -936,8 +936,9 @@ router.post('/assignments/:id/submit',
   })
 );
 
-// GET /api/reviewers/invitations/:id/public - Public endpoint for email-based responses (no auth required)
+// GET /api/reviewers/invitations/:id/public - Public endpoint for email-based responses
 router.get('/invitations/:id/public',
+  optionalAuth,
   validateRequest({
     params: z.object({
       id: IdSchema
@@ -978,6 +979,30 @@ router.get('/invitations/:id/public',
       });
     }
 
+    // Verify authorization when processing an action (valid token OR matching authenticated user)
+    if (action) {
+      const { token } = req.query;
+      const hasValidToken = token && token === assignment.responseToken;
+      const isAuthenticatedReviewer = req.user && req.user.id === assignment.reviewerId;
+
+      if (!hasValidToken && !isAuthenticatedReviewer) {
+        if (req.user) {
+          return res.status(403).json({
+            error: {
+              message: 'This invitation was sent to another reviewer. Only the invited reviewer can respond.',
+              type: 'ForbiddenError'
+            }
+          });
+        }
+        return res.status(403).json({
+          error: {
+            message: 'Invalid or missing invitation token. Please use the link from your invitation email.',
+            type: 'ForbiddenError'
+          }
+        });
+      }
+    }
+
     // Check if invitation is still pending
     if (assignment.status !== 'PENDING') {
       const statusMessage = assignment.status === 'IN_PROGRESS'
@@ -985,7 +1010,7 @@ router.get('/invitations/:id/public',
         : assignment.status === 'DECLINED'
         ? 'This invitation has already been declined.'
         : `This invitation status is: ${assignment.status}`;
-        
+
       return res.status(400).json({
         error: {
           message: statusMessage,
@@ -1107,6 +1132,7 @@ router.get('/invitations/:id/public',
 
 // POST /api/reviewers/invitations/:id/respond-public - Public endpoint for form-based responses
 router.post('/invitations/:id/respond-public',
+  optionalAuth,
   validateRequest({
     params: z.object({
       id: IdSchema
@@ -1114,12 +1140,12 @@ router.post('/invitations/:id/respond-public',
     body: z.object({
       action: z.enum(['accept', 'decline']),
       message: z.string().optional(),
-      token: z.string().optional() // For future CSRF protection
+      token: z.string().optional()
     })
   }),
   asyncHandler(async (req: any, res: any) => {
     const { id } = req.params;
-    const { action, message } = req.body;
+    const { action, message, token } = req.body;
 
     // Find the review assignment
     const assignment = await prisma.review_assignments.findUnique({
@@ -1139,6 +1165,27 @@ router.post('/invitations/:id/respond-public',
         error: {
           message: 'Review invitation not found',
           type: 'NotFoundError'
+        }
+      });
+    }
+
+    // Verify authorization (valid token OR matching authenticated user)
+    const hasValidToken = token && token === assignment.responseToken;
+    const isAuthenticatedReviewer = req.user && req.user.id === assignment.reviewerId;
+
+    if (!hasValidToken && !isAuthenticatedReviewer) {
+      if (req.user) {
+        return res.status(403).json({
+          error: {
+            message: 'This invitation was sent to another reviewer. Only the invited reviewer can respond.',
+            type: 'ForbiddenError'
+          }
+        });
+      }
+      return res.status(403).json({
+        error: {
+          message: 'Invalid or missing invitation token. Please use the link from your invitation email.',
+          type: 'ForbiddenError'
         }
       });
     }

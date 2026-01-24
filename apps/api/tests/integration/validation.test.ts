@@ -5,28 +5,28 @@ import { createMockUser, createMockJWT } from '../utils/testUtils';
 // Mock the database module to avoid real database connections
 jest.mock('@colloquium/database', () => ({
   prisma: {
-    user: {
+    users: {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       findMany: jest.fn()
     },
-    message: {
+    messages: {
       findUnique: jest.fn(),
       update: jest.fn(),
       create: jest.fn()
     },
-    conversation: {
+    conversations: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn()
     },
-    manuscript: {
+    manuscripts: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn()
     },
-    magicLink: {
+    magic_links: {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn()
@@ -122,9 +122,9 @@ describe('API Validation Integration Tests', () => {
       });
 
       it('should accept valid email', async () => {
-        prisma.user.findUnique.mockResolvedValue(null);
-        prisma.user.create.mockResolvedValue(createMockUser());
-        prisma.magicLink.create.mockResolvedValue({});
+        prisma.users.findUnique.mockResolvedValue(null);
+        prisma.users.create.mockResolvedValue(createMockUser());
+        prisma.magic_links.create.mockResolvedValue({});
 
         const response = await request(app)
           .post('/api/auth/login')
@@ -191,7 +191,7 @@ describe('API Validation Integration Tests', () => {
     const mockToken = createMockJWT();
 
     beforeEach(() => {
-      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.users.findUnique.mockResolvedValue(mockUser);
     });
 
     describe('PUT /api/messages/:id', () => {
@@ -242,8 +242,8 @@ describe('API Validation Integration Tests', () => {
           content: 'Original content'
         };
 
-        prisma.message.findUnique.mockResolvedValue(mockMessage);
-        prisma.message.update.mockResolvedValue({
+        prisma.messages.findUnique.mockResolvedValue(mockMessage);
+        prisma.messages.update.mockResolvedValue({
           ...mockMessage,
           content: 'Updated content',
           editedAt: new Date(),
@@ -280,8 +280,8 @@ describe('API Validation Integration Tests', () => {
           content: 'Message to delete'
         };
 
-        prisma.message.findUnique.mockResolvedValue(mockMessage);
-        prisma.message.update.mockResolvedValue({
+        prisma.messages.findUnique.mockResolvedValue(mockMessage);
+        prisma.messages.update.mockResolvedValue({
           ...mockMessage,
           deleted: true,
           deletedAt: new Date()
@@ -302,7 +302,7 @@ describe('API Validation Integration Tests', () => {
     const adminToken = createMockJWT({ userId: 'admin-user-id', role: 'ADMIN' });
 
     beforeEach(() => {
-      prisma.user.findUnique.mockResolvedValue(mockAdmin);
+      prisma.users.findUnique.mockResolvedValue(mockAdmin);
     });
 
     describe('PUT /api/settings', () => {

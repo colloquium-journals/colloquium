@@ -18,13 +18,13 @@ jest.mock('@colloquium/auth', () => ({
 // Mock the database
 jest.mock('@colloquium/database', () => ({
   prisma: {
-    user: {
+    users: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
-    magicLink: {
+    magic_links: {
       create: jest.fn(),
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -68,8 +68,8 @@ describe('Auth Routes', () => {
       const mockUser = testUtils.createMockUser();
       const { prisma } = require('@colloquium/database');
       
-      prisma.user.findUnique.mockResolvedValue(mockUser);
-      prisma.magicLink.create.mockResolvedValue({
+      prisma.users.findUnique.mockResolvedValue(mockUser);
+      prisma.magic_links.create.mockResolvedValue({
         id: 'mock-magic-link',
         token: 'mock-token',
         email: 'test@example.com'
@@ -81,7 +81,7 @@ describe('Auth Routes', () => {
         .expect(200);
 
       expect(response.body.message).toContain('Magic link sent');
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      expect(prisma.users.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@example.com' }
       });
     });
@@ -90,9 +90,9 @@ describe('Auth Routes', () => {
       const { prisma } = require('@colloquium/database');
       const mockUser = testUtils.createMockUser();
       
-      prisma.user.findUnique.mockResolvedValue(null);
-      prisma.user.create.mockResolvedValue(mockUser);
-      prisma.magicLink.create.mockResolvedValue({
+      prisma.users.findUnique.mockResolvedValue(null);
+      prisma.users.create.mockResolvedValue(mockUser);
+      prisma.magic_links.create.mockResolvedValue({
         id: 'mock-magic-link',
         token: 'mock-token',
         email: 'newuser@example.com'
@@ -106,7 +106,7 @@ describe('Auth Routes', () => {
         .expect(200);
 
       expect(response.body.message).toContain('Magic link sent');
-      expect(prisma.user.create).toHaveBeenCalledWith({
+      expect(prisma.users.create).toHaveBeenCalledWith({
         data: {
           email: 'newuser@example.com',
           role: expect.any(String)
@@ -152,8 +152,8 @@ describe('Auth Routes', () => {
         user: mockUser
       };
       
-      prisma.magicLink.findUnique.mockResolvedValue(mockMagicLink);
-      prisma.magicLink.update.mockResolvedValue({ ...mockMagicLink, usedAt: new Date() });
+      prisma.magic_links.findUnique.mockResolvedValue(mockMagicLink);
+      prisma.magic_links.update.mockResolvedValue({ ...mockMagicLink, usedAt: new Date() });
       
       const response = await request(app)
         .get('/api/auth/verify?token=valid-token&email=test@example.com')
@@ -171,7 +171,7 @@ describe('Auth Routes', () => {
     it('should reject invalid magic link token', async () => {
       const { prisma } = require('@colloquium/database');
       
-      prisma.magicLink.findUnique.mockResolvedValue(null);
+      prisma.magic_links.findUnique.mockResolvedValue(null);
       
       const response = await request(app)
         .get('/api/auth/verify?token=invalid-token&email=test@example.com')

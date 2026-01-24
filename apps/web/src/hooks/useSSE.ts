@@ -4,16 +4,18 @@ import { useAuth } from '../contexts/AuthContext';
 interface UseSSEOptions {
   enabled?: boolean;
   onNewMessage?: (message: any) => void;
+  onMessageUpdated?: (message: any) => void;
   onActionEditorAssigned?: (assignment: any) => void;
   onReviewerAssigned?: (assignment: any) => void;
   onReviewerInvitationResponse?: (response: any) => void;
 }
 
 export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
-  const { enabled = true, onNewMessage, onActionEditorAssigned, onReviewerAssigned, onReviewerInvitationResponse } = options;
+  const { enabled = true, onNewMessage, onMessageUpdated, onActionEditorAssigned, onReviewerAssigned, onReviewerInvitationResponse } = options;
   const { token } = useAuth();
   const eventSourceRef = useRef<EventSource | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
+  const onMessageUpdatedRef = useRef(onMessageUpdated);
   const onActionEditorAssignedRef = useRef(onActionEditorAssigned);
   const onReviewerAssignedRef = useRef(onReviewerAssigned);
   const onReviewerInvitationResponseRef = useRef(onReviewerInvitationResponse);
@@ -24,6 +26,10 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
   useEffect(() => {
     onNewMessageRef.current = onNewMessage;
   }, [onNewMessage]);
+
+  useEffect(() => {
+    onMessageUpdatedRef.current = onMessageUpdated;
+  }, [onMessageUpdated]);
 
   useEffect(() => {
     onActionEditorAssignedRef.current = onActionEditorAssigned;
@@ -79,6 +85,10 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
           if (data.type === 'new-message') {
             if (onNewMessageRef.current) {
               onNewMessageRef.current(data.message);
+            }
+          } else if (data.type === 'message-updated') {
+            if (onMessageUpdatedRef.current) {
+              onMessageUpdatedRef.current(data.message);
             }
           } else if (data.type === 'connected') {
             // Connection established

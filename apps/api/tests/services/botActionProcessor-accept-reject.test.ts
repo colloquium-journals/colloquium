@@ -3,7 +3,7 @@ import { prisma } from '@colloquium/database';
 
 // Test utilities
 const createTestUser = async (userData: any = {}) => {
-  return await prisma.user.create({
+  return await prisma.users.create({
     data: {
       email: userData.email || 'test@example.com',
       name: userData.name || 'Test User',
@@ -14,7 +14,7 @@ const createTestUser = async (userData: any = {}) => {
 };
 
 const createTestManuscript = async (authorId: string) => {
-  const manuscript = await prisma.manuscript.create({
+  const manuscript = await prisma.manuscripts.create({
     data: {
       title: 'Test Manuscript',
       abstract: 'Test abstract for manuscript',
@@ -56,7 +56,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
     const author = await createTestUser({ role: 'USER', email: 'author@test.com' });
     manuscript = await createTestManuscript(author.id);
     
-    reviewAssignment = await prisma.reviewAssignment.create({
+    reviewAssignment = await prisma.review_assignments.create({
       data: {
         manuscriptId: manuscript.id,
         reviewerId: reviewer.id,
@@ -65,7 +65,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       }
     });
 
-    editorialConversation = await prisma.conversation.create({
+    editorialConversation = await prisma.conversations.create({
       data: {
         title: 'Editorial Discussion',
         type: 'EDITORIAL',
@@ -74,7 +74,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       }
     });
 
-    reviewConversation = await prisma.conversation.create({
+    reviewConversation = await prisma.conversations.create({
       data: {
         title: 'Review Discussion',
         type: 'REVIEW',
@@ -85,13 +85,13 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
   });
 
   afterEach(async () => {
-    await prisma.message.deleteMany();
-    await prisma.conversationParticipant.deleteMany();
-    await prisma.conversation.deleteMany();
-    await prisma.reviewAssignment.deleteMany();
+    await prisma.messages.deleteMany();
+    await prisma.conversation_participants.deleteMany();
+    await prisma.conversations.deleteMany();
+    await prisma.review_assignments.deleteMany();
     await prisma.manuscriptAuthor.deleteMany();
-    await prisma.manuscript.deleteMany();
-    await prisma.user.deleteMany();
+    await prisma.manuscripts.deleteMany();
+    await prisma.users.deleteMany();
   });
 
   describe('handleRespondToReview', () => {
@@ -114,13 +114,13 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await botActionProcessor.processActions(actions, context);
 
       // Verify assignment status was updated
-      const updatedAssignment = await prisma.reviewAssignment.findUnique({
+      const updatedAssignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(updatedAssignment?.status).toBe('ACCEPTED');
 
       // Verify notification message was created
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: {
           conversationId: editorialConversation.id,
           isBot: true
@@ -151,13 +151,13 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await botActionProcessor.processActions(actions, context);
 
       // Verify assignment status was updated
-      const updatedAssignment = await prisma.reviewAssignment.findUnique({
+      const updatedAssignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(updatedAssignment?.status).toBe('DECLINED');
 
       // Verify notification message was created
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: {
           conversationId: editorialConversation.id,
           isBot: true
@@ -208,7 +208,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await expect(botActionProcessor.processActions(actions, context)).resolves.not.toThrow();
       
       // Assignment should not be updated
-      const assignment = await prisma.reviewAssignment.findUnique({
+      const assignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(assignment?.status).toBe('PENDING');
@@ -216,7 +216,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
 
     it('should handle already responded assignment', async () => {
       // Accept first
-      await prisma.reviewAssignment.update({
+      await prisma.review_assignments.update({
         where: { id: reviewAssignment.id },
         data: { status: 'ACCEPTED' }
       });
@@ -239,7 +239,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await expect(botActionProcessor.processActions(actions, context)).resolves.not.toThrow();
       
       // Assignment should remain ACCEPTED
-      const assignment = await prisma.reviewAssignment.findUnique({
+      const assignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(assignment?.status).toBe('ACCEPTED');
@@ -249,7 +249,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
   describe('handleSubmitReview', () => {
     beforeEach(async () => {
       // Accept the review assignment first
-      await prisma.reviewAssignment.update({
+      await prisma.review_assignments.update({
         where: { id: reviewAssignment.id },
         data: { status: 'ACCEPTED' }
       });
@@ -276,14 +276,14 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await botActionProcessor.processActions(actions, context);
 
       // Verify assignment was marked as completed
-      const updatedAssignment = await prisma.reviewAssignment.findUnique({
+      const updatedAssignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(updatedAssignment?.status).toBe('COMPLETED');
       expect(updatedAssignment?.completedAt).toBeTruthy();
 
       // Verify review message was created
-      const reviewMessages = await prisma.message.findMany({
+      const reviewMessages = await prisma.messages.findMany({
         where: {
           conversationId: reviewConversation.id,
           privacy: 'AUTHOR_VISIBLE',
@@ -297,7 +297,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       expect(reviewMessages[0].content).toContain('8/10');
 
       // Verify confidential comments were created separately
-      const confidentialMessages = await prisma.message.findMany({
+      const confidentialMessages = await prisma.messages.findMany({
         where: {
           conversationId: reviewConversation.id,
           privacy: 'EDITOR_ONLY',
@@ -328,7 +328,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await botActionProcessor.processActions(actions, context);
 
       // Verify only one message was created (no confidential comments)
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: {
           conversationId: reviewConversation.id,
           isBot: true
@@ -356,7 +356,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
 
       await botActionProcessor.processActions(actions, context);
 
-      const messages = await prisma.message.findMany({
+      const messages = await prisma.messages.findMany({
         where: {
           conversationId: reviewConversation.id,
           privacy: 'AUTHOR_VISIBLE',
@@ -368,7 +368,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
 
     it('should handle wrong assignment status', async () => {
       // Set assignment back to PENDING
-      await prisma.reviewAssignment.update({
+      await prisma.review_assignments.update({
         where: { id: reviewAssignment.id },
         data: { status: 'PENDING' }
       });
@@ -392,7 +392,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await expect(botActionProcessor.processActions(actions, context)).resolves.not.toThrow();
       
       // Assignment should not be updated to COMPLETED
-      const assignment = await prisma.reviewAssignment.findUnique({
+      const assignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(assignment?.status).toBe('PENDING');
@@ -420,7 +420,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       await expect(botActionProcessor.processActions(actions, context)).resolves.not.toThrow();
       
       // Assignment should not be updated
-      const assignment = await prisma.reviewAssignment.findUnique({
+      const assignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(assignment?.status).toBe('ACCEPTED');

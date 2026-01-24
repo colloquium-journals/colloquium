@@ -1,5 +1,5 @@
 
-import { CommandBot, BotCommand } from '@colloquium/types';
+import { CommandBot, BotCommand, BotMessageAction, BotActionHandler, BotActionHandlerContext, BotActionHandlerResult } from '@colloquium/types';
 import { randomUUID } from 'crypto';
 
 /**
@@ -47,211 +47,6 @@ const defaultProviders = {
     }
   }
 };
-
-/**
- * Fetch actual manuscript data from the database
- * This function now queries real assignment data instead of using placeholders
- */
-async function getManuscriptData(manuscriptId: string, context: any) {
-  // Return mock data in test environment
-  if (process.env.NODE_ENV === 'test') {
-    return {
-      id: manuscriptId,
-      status: 'UNDER_REVIEW',
-      submittedDate: '2024-01-15',
-      assignedEditor: '@DrEditor',
-      reviewers: [
-        {
-          mention: '@DrSmith',
-          status: 'pending',
-          assignedDate: '2024-01-20',
-          userId: 'reviewer-1',
-          reviewId: 'review-1',
-          deadline: '2024-02-15'
-        }
-      ],
-      invitedReviewers: [
-        {
-          mention: '@DrJones',
-          email: 'jones@university.edu',
-          status: 'PENDING',
-          assignedDate: '2024-01-18',
-          deadline: '2024-02-15'
-        }
-      ],
-      acceptedReviewers: [
-        {
-          mention: '@DrBrown',
-          email: 'brown@university.edu',
-          status: 'ACCEPTED',
-          assignedDate: '2024-01-17',
-          deadline: '2024-02-15'
-        }
-      ],
-      assignedReviewers: [
-        {
-          mention: '@DrSmith',
-          email: 'smith@university.edu',
-          status: 'IN_PROGRESS',
-          assignedDate: '2024-01-20',
-          deadline: '2024-02-15'
-        }
-      ],
-      declinedReviewers: [
-        {
-          mention: '@DrWilson',
-          email: 'wilson@university.edu',
-          status: 'DECLINED',
-          assignedDate: '2024-01-16',
-          deadline: '2024-02-15'
-        }
-      ],
-      allReviewAssignments: [],
-      completedReviews: 0,
-      totalReviews: 1,
-      lastActivity: '2024-01-20',
-      deadline: '2024-02-15'
-    };
-  }
-
-  try {
-    // Use API endpoint for data access following standard pattern
-    const { serviceToken } = context;
-    
-    if (!serviceToken) {
-      throw new Error('Bot service token required for API access');
-    }
-
-    // Fetch manuscript data via API
-    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!manuscriptResponse.ok) {
-      const responseText = await manuscriptResponse.text();
-      console.error('API Response Error:', {
-        status: manuscriptResponse.status,
-        statusText: manuscriptResponse.statusText,
-        body: responseText
-      });
-      throw new Error(`Failed to fetch manuscript data: ${manuscriptResponse.status} ${manuscriptResponse.statusText}`);
-    }
-
-    const manuscript = await manuscriptResponse.json();
-    console.log('Successfully fetched manuscript data:', {
-      id: manuscript.id,
-      status: manuscript.status,
-      hasActionEditor: !!manuscript.action_editors,
-      reviewAssignmentsCount: manuscript.reviewAssignments?.length || 0
-    });
-
-    if (!manuscript) {
-      throw new Error(`Manuscript with ID ${manuscriptId} not found`);
-    }
-
-    // Process reviewer data with detailed status information from API response
-    console.log('Processing reviewAssignments:', manuscript.reviewAssignments?.length || 0, 'assignments found');
-    const allReviewAssignments = (manuscript.reviewAssignments || []).map((review: any) => ({
-      mention: `@${review.reviewer.name || review.reviewer.email}`,
-      email: review.reviewer.email,
-      status: review.status, // PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, DECLINED
-      assignedDate: review.assignedAt ? new Date(review.assignedAt).toISOString().split('T')[0] : null,
-      completedDate: review.completedAt ? new Date(review.completedAt).toISOString().split('T')[0] : null,
-      userId: review.reviewer.id,
-      reviewId: review.id,
-      deadline: review.dueDate ? new Date(review.dueDate).toISOString().split('T')[0] : null
-    }));
-
-    // Separate different types of reviewer assignments
-    const invitedReviewers = allReviewAssignments.filter((r: any) => r.status === 'PENDING');
-    const acceptedReviewers = allReviewAssignments.filter((r: any) => r.status === 'ACCEPTED');
-    const assignedReviewers = allReviewAssignments.filter((r: any) => ['IN_PROGRESS', 'COMPLETED'].includes(r.status));
-    const declinedReviewers = allReviewAssignments.filter((r: any) => r.status === 'DECLINED');
-
-    // Legacy reviewers field for backward compatibility (only assigned reviewers)
-    const reviewers = assignedReviewers.map((review: any) => ({
-      mention: review.mention,
-      status: review.status === 'COMPLETED' ? 'completed' : 'pending',
-      assignedDate: review.assignedDate,
-      userId: review.userId,
-      reviewId: review.reviewId,
-      deadline: review.deadline
-    }));
-
-    // Calculate completion statistics
-    const completedReviews = reviewers.filter((r: any) => r.status === 'completed').length;
-    const totalReviews = reviewers.length;
-
-    // Determine the most recent activity date
-    const activityDates = [
-      new Date(manuscript.updatedAt),
-      ...(manuscript.reviewAssignments || []).map((r: any) => new Date(r.assignedAt))
-    ].filter(Boolean);
-    
-    const lastActivity = activityDates.length > 0 
-      ? new Date(Math.max(...activityDates.map(d => d.getTime()))).toISOString().split('T')[0]
-      : new Date(manuscript.submittedAt).toISOString().split('T')[0];
-
-    // Find the earliest review deadline if any
-    const reviewDeadlines = (manuscript.reviewAssignments || [])
-      .map((r: any) => r.dueDate)
-      .filter(Boolean)
-      .map((d: any) => new Date(d!));
-    
-    const earliestDeadline = reviewDeadlines.length > 0 
-      ? new Date(Math.min(...reviewDeadlines.map((d: any) => d.getTime()))).toISOString().split('T')[0]
-      : null;
-
-    // Debug action editor processing
-    console.log('Processing action_editors:', {
-      hasActionEditor: !!manuscript.action_editors,
-      actionEditorData: manuscript.action_editors,
-      hasUserRelation: !!manuscript.action_editors?.users_action_editors_editorIdTousers,
-      userName: manuscript.action_editors?.users_action_editors_editorIdTousers?.name
-    });
-
-    return {
-      id: manuscriptId,
-      status: manuscript.status,
-      submittedDate: new Date(manuscript.submittedAt).toISOString().split('T')[0],
-      assignedEditor: manuscript.action_editors?.users_action_editors_editorIdTousers 
-        ? `@${manuscript.action_editors.users_action_editors_editorIdTousers.name}`
-        : null,
-      reviewers,
-      invitedReviewers,
-      acceptedReviewers,
-      assignedReviewers,
-      declinedReviewers,
-      allReviewAssignments,
-      completedReviews,
-      totalReviews,
-      lastActivity,
-      deadline: earliestDeadline
-    };
-  } catch (error) {
-    // Fallback to a basic structure if API call fails
-    console.error('Failed to fetch manuscript data via API:', error);
-    return {
-      id: manuscriptId,
-      status: 'UNKNOWN',
-      submittedDate: new Date().toISOString().split('T')[0],
-      assignedEditor: null,
-      reviewers: [],
-      invitedReviewers: [],
-      acceptedReviewers: [],
-      assignedReviewers: [],
-      declinedReviewers: [],
-      allReviewAssignments: [],
-      completedReviews: 0,
-      totalReviews: 0,
-      lastActivity: new Date().toISOString().split('T')[0],
-      deadline: null
-    };
-  }
-}
 
 /**
  * Process @mention strings to ensure they're properly formatted
@@ -785,7 +580,7 @@ const inviteReviewerCommand: BotCommand = {
         // Send invitation email with links to public API endpoints
         let emailSent = false;
         let emailError = null;
-        
+
         try {
           const nodemailer = await import('nodemailer');
           const transporter = nodemailer.createTransport({
@@ -802,8 +597,9 @@ const inviteReviewerCommand: BotCommand = {
           });
 
           const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-          const acceptUrl = `${frontendUrl}/review-response/${invitation.id}?action=accept`;
-          const declineUrl = `${frontendUrl}/review-response/${invitation.id}?action=decline`;
+          const token = invitation.responseToken;
+          const acceptUrl = `${frontendUrl}/review-response/${invitation.id}?action=accept&token=${token}`;
+          const declineUrl = `${frontendUrl}/review-response/${invitation.id}?action=decline&token=${token}`;
           
           await transporter.sendMail({
             from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
@@ -896,14 +692,18 @@ Decline: ${declineUrl}
       responseMessage += '\n';
 
       if (emailFailureCount > 0) {
-        responseMessage += `**⚠️ Email Delivery Issues:** ${emailFailureCount} invitation(s) were created but emails failed to send. Share the links above with the reviewers directly.\n\n`;
+        responseMessage += `**⚠️ Email Delivery Issues:** ${emailFailureCount} invitation(s) were created but emails failed to send. The links above will work when the reviewer is logged in.\n\n`;
       }
     }
 
     if (results.alreadyInvited.length > 0) {
       responseMessage += `ℹ️ **Already Invited/Assigned (${results.alreadyInvited.length}):**\n`;
       results.alreadyInvited.forEach(r => {
-        responseMessage += `- ${r.email} (${r.status})\n`;
+        responseMessage += `- ${r.email} (${r.status})`;
+        if (r.status === 'DECLINED') {
+          responseMessage += ` — use the button below to re-invite`;
+        }
+        responseMessage += `\n`;
       });
       responseMessage += '\n';
     }
@@ -916,287 +716,32 @@ Decline: ${declineUrl}
       responseMessage += '\n';
     }
 
-    return {
-      messages: [{ content: responseMessage }]
-    };
-  }
-};
-
-const summaryCommand: BotCommand = {
-  name: 'summary',
-  description: 'Generate a summary showing status, assigned editor, invited reviewers, and review progress',
-  usage: '@editorial-bot summary [format="brief|detailed"]',
-  parameters: [
-    {
-      name: 'format',
-      description: 'Level of detail in the summary',
-      type: 'enum',
-      required: false,
-      defaultValue: 'brief',
-      enumValues: ['brief', 'detailed'],
-      examples: ['brief', 'detailed']
-    }
-  ],
-  examples: [
-    '@editorial-bot summary',
-    '@editorial-bot summary format="detailed"'
-  ],
-  permissions: ['read_manuscript'],
-  async execute(params, context) {
-    const { format } = params;
-    const { manuscriptId } = context;
-
-    // Fetch actual manuscript data
-    const manuscriptData = await getManuscriptData(manuscriptId, context);
-
-    let summary = `📊 **Manuscript Review Summary**\n\n`;
-    summary += `**Status:** ${manuscriptData.status.replace('_', ' ')}\n`;
-    summary += `**Submitted:** ${manuscriptData.submittedDate}\n`;
-    summary += `**Assigned Editor:** ${manuscriptData.assignedEditor || 'No editor assigned'}\n\n`;
-    
-    // Invited reviewers section
-    if (manuscriptData.invitedReviewers?.length > 0) {
-      summary += `📬 **Invited Reviewers (${manuscriptData.invitedReviewers.length}):** ${manuscriptData.invitedReviewers.map((r: any) => r.mention).join(', ')}\n`;
-    }
-    
-    // Accepted reviewers section
-    if (manuscriptData.acceptedReviewers?.length > 0) {
-      summary += `✅ **Accepted Invitations (${manuscriptData.acceptedReviewers.length}):** ${manuscriptData.acceptedReviewers.map((r: any) => r.mention).join(', ')}\n`;
-    }
-    
-    // Assigned reviewers section
-    if (manuscriptData.reviewers.length > 0) {
-      summary += `🔄 **Assigned Reviewers (${manuscriptData.reviewers.length}):** ${manuscriptData.reviewers.map((r: any) => r.mention).join(', ')}\n`;
-      summary += `**Review Progress:** ${manuscriptData.completedReviews}/${manuscriptData.totalReviews} reviews completed\n`;
-    } else {
-      summary += `🔄 **Assigned Reviewers:** No reviewers assigned\n`;
-      summary += `**Review Progress:** 0/0 reviews completed\n`;
-    }
-    
-    // Declined reviewers section
-    if (manuscriptData.declinedReviewers?.length > 0) {
-      summary += `❌ **Declined Invitations (${manuscriptData.declinedReviewers.length}):** ${manuscriptData.declinedReviewers.map((r: any) => r.mention).join(', ')}\n`;
-    }
-    
-    if (manuscriptData.deadline) {
-      summary += `**Review Deadline:** ${manuscriptData.deadline}\n`;
-    }
-    
-    summary += `**Last Activity:** ${manuscriptData.lastActivity}\n`;
-
-    if (format === 'detailed') {
-      summary += `\n**Detailed Reviewer Status:**\n`;
-      
-      // Show invited reviewers
-      if (manuscriptData.invitedReviewers?.length > 0) {
-        summary += `\n📬 **Invited (Awaiting Response):**\n`;
-        manuscriptData.invitedReviewers.forEach((reviewer: any, index: number) => {
-          summary += `${index + 1}. ${reviewer.mention} - ⏳ Pending Response (invited ${reviewer.assignedDate})\n`;
-        });
-      }
-      
-      // Show accepted reviewers
-      if (manuscriptData.acceptedReviewers?.length > 0) {
-        summary += `\n✅ **Accepted (Ready to Assign):**\n`;
-        manuscriptData.acceptedReviewers.forEach((reviewer: any, index: number) => {
-          summary += `${index + 1}. ${reviewer.mention} - ✅ Accepted (${reviewer.assignedDate})\n`;
-        });
-      }
-      
-      // Show assigned reviewers
-      if (manuscriptData.assignedReviewers?.length > 0) {
-        summary += `\n🔄 **Assigned (In Progress):**\n`;
-        manuscriptData.assignedReviewers.forEach((reviewer: any, index: number) => {
-          const statusIcon = reviewer.status === 'COMPLETED' ? '✅' : '⏳';
-          const statusText = reviewer.status === 'COMPLETED' ? 'Complete' : 'In Progress';
-          summary += `${index + 1}. ${reviewer.mention} - ${statusIcon} ${statusText} (assigned ${reviewer.assignedDate})\n`;
-        });
-      }
-      
-      // Show declined reviewers
-      if (manuscriptData.declinedReviewers?.length > 0) {
-        summary += `\n❌ **Declined:**\n`;
-        manuscriptData.declinedReviewers.forEach((reviewer: any, index: number) => {
-          summary += `${index + 1}. ${reviewer.mention} - ❌ Declined (${reviewer.assignedDate})\n`;
-        });
-      }
-      
-      summary += `\n**Next Steps:**\n`;
-      
-      // Provide actionable next steps based on current state
-      if (manuscriptData.invitedReviewers?.length > 0) {
-        summary += `- Follow up with ${manuscriptData.invitedReviewers.length} pending invitation(s)\n`;
-      }
-      
-      if (manuscriptData.acceptedReviewers?.length > 0) {
-        summary += `- ${manuscriptData.acceptedReviewers.length} reviewer(s) accepted and review is in progress\n`;
-      }
-      
-      if (manuscriptData.completedReviews < manuscriptData.totalReviews) {
-        summary += `- Wait for remaining ${manuscriptData.totalReviews - manuscriptData.completedReviews} review(s) to complete\n`;
-        summary += `- Follow up with in-progress reviewers if past deadline\n`;
-      } else if (manuscriptData.totalReviews > 0) {
-        summary += `- Review all feedback and make editorial decision\n`;
-        summary += `- Communicate decision to authors\n`;
-      }
-      
-      if (manuscriptData.declinedReviewers?.length > 0) {
-        summary += `- Consider inviting replacement reviewers for ${manuscriptData.declinedReviewers.length} declined invitation(s)\n`;
-      }
-    }
-
-    return {
-      messages: [{ content: summary }]
-    };
-  }
-};
-
-// Remove the manual help command - it will be auto-injected by the framework
-
-const respondCommand: BotCommand = {
-  name: 'respond',
-  description: 'Respond to a review invitation (accept or decline)',
-  usage: '@editorial-bot respond <assignment-id> <accept|decline> [message="optional message"]',
-  parameters: [
-    {
-      name: 'assignmentId',
-      description: 'The ID of the review assignment to respond to',
-      type: 'string',
-      required: true,
-      examples: ['assignment-12345']
-    },
-    {
-      name: 'response',
-      description: 'Accept or decline the review invitation',
-      type: 'enum',
-      required: true,
-      enumValues: ['accept', 'decline'],
-      examples: ['accept', 'decline']
-    },
-    {
-      name: 'message',
-      description: 'Optional message to include with your response',
-      type: 'string',
-      required: false,
-      examples: ['I am available for this review', 'I have a conflict of interest']
-    }
-  ],
-  examples: [
-    '@editorial-bot respond assignment-12345 accept',
-    '@editorial-bot respond assignment-67890 decline message="I have a conflict of interest"',
-    '@editorial-bot respond assignment-11111 accept message="Happy to review this work"'
-  ],
-  permissions: ['read_manuscript'],
-  async execute(params, context) {
-    const { assignmentId, response, message } = params;
-
-    let responseMessage = `📋 **Review Invitation Response**\n\n`;
-    responseMessage += `**Assignment ID:** ${assignmentId}\n`;
-    responseMessage += `**Response:** ${response.toUpperCase()}\n`;
-    
-    if (message) {
-      responseMessage += `**Message:** ${message}\n`;
-    }
-    
-    responseMessage += `**Processed:** ${new Date().toLocaleString()}\n\n`;
-
-    if (response === 'accept') {
-      responseMessage += `✅ Review invitation accepted. You can now begin your review.`;
-    } else {
-      responseMessage += `❌ Review invitation declined. Editors will be notified.`;
-    }
-
-    return {
-      messages: [{ content: responseMessage }],
-      actions: [{
-        type: 'RESPOND_TO_REVIEW',
-        data: { 
-          assignmentId, 
-          response: response.toUpperCase(), 
-          message 
+    // Create re-invite actions for declined reviewers
+    const declinedActions: BotMessageAction[] = results.alreadyInvited
+      .filter(r => r.status === 'DECLINED')
+      .map(r => ({
+        id: randomUUID(),
+        label: `Re-invite ${r.email}`,
+        style: 'primary' as const,
+        confirmText: `Are you sure you want to re-invite ${r.email}? Their previous decline will be reset.`,
+        targetRoles: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR', 'ACTION_EDITOR'],
+        handler: {
+          botId: 'editorial-bot',
+          action: 'REINVITE_REVIEWER',
+          params: {
+            reviewerId: r.reviewerId,
+            email: r.email,
+            manuscriptId,
+            deadline,
+            message
+          }
         }
-      }]
-    };
-  }
-};
-
-const submitCommand: BotCommand = {
-  name: 'submit',
-  description: 'Submit a review for a manuscript',
-  usage: '@editorial-bot submit <assignment-id> recommendation=<accept|minor_revision|major_revision|reject> review="your review text" [score=1-10] [confidential="editor comments"]',
-  parameters: [
-    {
-      name: 'assignmentId',
-      description: 'The ID of the review assignment',
-      type: 'string',
-      required: true,
-      examples: ['assignment-12345']
-    },
-    {
-      name: 'recommendation',
-      description: 'Your overall recommendation',
-      type: 'enum',
-      required: true,
-      enumValues: ['accept', 'minor_revision', 'major_revision', 'reject'],
-      examples: ['accept', 'minor_revision', 'major_revision', 'reject']
-    },
-    {
-      name: 'review',
-      description: 'Your detailed review of the manuscript',
-      type: 'string',
-      required: true,
-      examples: ['This manuscript presents a novel approach to...']
-    },
-    {
-      name: 'score',
-      description: 'Optional score from 1-10',
-      type: 'number',
-      required: false,
-      examples: ['8', '7', '6']
-    },
-    {
-      name: 'confidential',
-      description: 'Confidential comments for editors only',
-      type: 'string',
-      required: false,
-      examples: ['The methodology section needs clarification...']
-    }
-  ],
-  examples: [
-    '@editorial-bot submit assignment-12345 recommendation="accept" review="Excellent work with clear methodology"',
-    '@editorial-bot submit assignment-67890 recommendation="minor_revision" review="Good work but needs revision" score="7"',
-    '@editorial-bot submit assignment-11111 recommendation="major_revision" review="Interesting but needs significant work" confidential="Author seems inexperienced"'
-  ],
-  permissions: ['read_manuscript'],
-  async execute(params, context) {
-    const { assignmentId, recommendation, review, score, confidential } = params;
-
-    let responseMessage = `📝 **Review Submitted**\n\n`;
-    responseMessage += `**Assignment ID:** ${assignmentId}\n`;
-    responseMessage += `**Recommendation:** ${recommendation.replace('_', ' ').toUpperCase()}\n`;
-    
-    if (score) {
-      responseMessage += `**Score:** ${score}/10\n`;
-    }
-    
-    responseMessage += `**Submitted:** ${new Date().toLocaleString()}\n\n`;
-    responseMessage += `✅ Your review has been submitted and editors have been notified.`;
-    
-    if (confidential) {
-      responseMessage += `\n\n🔒 Confidential comments have been shared with editors only.`;
-    }
+      }));
 
     return {
-      messages: [{ content: responseMessage }],
-      actions: [{
-        type: 'SUBMIT_REVIEW',
-        data: { 
-          assignmentId, 
-          reviewContent: review,
-          recommendation: recommendation.toUpperCase(),
-          confidentialComments: confidential,
-          score: score ? parseInt(score) : undefined
-        }
+      messages: [{
+        content: responseMessage,
+        ...(declinedActions.length > 0 && { actions: declinedActions })
       }]
     };
   }
@@ -1212,7 +757,7 @@ const helpCommand: BotCommand = {
       description: 'Optional: Get detailed help for a specific command',
       type: 'string',
       required: false,
-      examples: ['accept', 'reject', 'invite-reviewer', 'assign-editor', 'summary']
+      examples: ['accept', 'reject', 'invite-reviewer', 'assign-editor']
     }
   ],
   examples: [
@@ -1228,7 +773,7 @@ const helpCommand: BotCommand = {
     
     if (command) {
       // Return help for specific command
-      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, summaryCommand, respondCommand, submitCommand];
+      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand];
       const targetCommand = commands.find(cmd => cmd.name === command);
       
       if (!targetCommand) {
@@ -1273,7 +818,7 @@ This bot helps automate editorial workflows. Use \`invite-reviewer\` to invite r
 
 ## 📋 Workflow Steps
 
-1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept via links → 5. Track progress → 6. Make decision (accept/reject)
+1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept via links → 5. Make decision (accept/reject)
 
 ## Overview
 
@@ -1297,15 +842,6 @@ Usage: \`@editorial-bot assign-editor <editor> [message="custom message"]\`
 **invite-reviewer** - Send email invitations to potential reviewers
 Usage: \`@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
 
-**summary** - Generate a summary showing status, assigned editor, and reviewers
-Usage: \`@editorial-bot summary [format="brief|detailed"]\`
-
-**respond** - Respond to a review invitation (accept or decline)
-Usage: \`@editorial-bot respond <assignment-id> <accept|decline> [message="optional message"]\`
-
-**submit** - Submit a review for a manuscript
-Usage: \`@editorial-bot submit <assignment-id> recommendation=<accept|minor_revision|major_revision|reject> review="your review text" [score=1-10] [confidential="editor comments"]\`
-
 ## Keywords
 
 This bot also responds to these keywords: \`editorial decision\`, \`review status\`, \`invite reviewer\`, \`assign editor\`, \`manuscript status\`, \`make decision\`
@@ -1319,8 +855,6 @@ This bot also responds to these keywords: \`editorial decision\`, \`review statu
 \`@editorial-bot reject reason="Insufficient methodology"\`
 
 \`@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
-
-\`@editorial-bot summary format="detailed"\`
 
 ## ℹ️ Support
 
@@ -1342,7 +876,7 @@ export const editorialBot: CommandBot = {
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management',
   version: '2.3.0',
-  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, summaryCommand, respondCommand, submitCommand, helpCommand],
+  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, helpCommand],
   keywords: ['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
@@ -1353,8 +887,7 @@ export const editorialBot: CommandBot = {
       '@editorial-bot assign-editor @DrEditor',
       '@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
       '@editorial-bot accept reason="High quality research"',
-      '@editorial-bot reject reason="Insufficient methodology"',
-      '@editorial-bot summary format="detailed"'
+      '@editorial-bot reject reason="Insufficient methodology"'
     ]
   },
   customHelpSections: [
@@ -1365,7 +898,7 @@ export const editorialBot: CommandBot = {
     },
     {
       title: '📋 Workflow Steps',
-      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept via links → 5. Track progress → 6. Make decision (accept/reject)',
+      content: '1. Submit manuscript → 2. Assign action editor → 3. Invite reviewers → 4. Reviewers accept via links → 5. Make decision (accept/reject)',
       position: 'before'
     },
     {
@@ -1373,7 +906,98 @@ export const editorialBot: CommandBot = {
       content: 'For editorial workflow questions, contact your journal administrator.',
       position: 'after'
     }
-  ]
+  ],
+  actionHandlers: {
+    REINVITE_REVIEWER: async (params, context): Promise<BotActionHandlerResult> => {
+      const { reviewerId, email, manuscriptId, deadline, message } = params;
+
+      try {
+        const { prisma } = await import('@colloquium/database');
+
+        const assignment = await prisma.review_assignments.findUnique({
+          where: {
+            manuscriptId_reviewerId: {
+              manuscriptId,
+              reviewerId
+            }
+          }
+        });
+
+        if (!assignment) {
+          return { success: false, error: 'Review assignment not found' };
+        }
+
+        if (assignment.status !== 'DECLINED') {
+          return { success: false, error: `Cannot re-invite: current status is ${assignment.status}` };
+        }
+
+        const newToken = randomUUID();
+
+        await prisma.review_assignments.update({
+          where: { id: assignment.id },
+          data: {
+            status: 'PENDING',
+            responseToken: newToken,
+            assignedAt: new Date()
+          }
+        });
+
+        // Send new invitation email
+        try {
+          const nodemailer = await import('nodemailer');
+          const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'localhost',
+            port: parseInt(process.env.SMTP_PORT || '1025'),
+            secure: false,
+            auth: process.env.SMTP_USER ? {
+              user: process.env.SMTP_USER,
+              pass: process.env.SMTP_PASS
+            } : undefined,
+            tls: { rejectUnauthorized: false }
+          });
+
+          const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const acceptUrl = `${frontendUrl}/review-response/${assignment.id}?action=accept&token=${newToken}`;
+          const declineUrl = `${frontendUrl}/review-response/${assignment.id}?action=decline&token=${newToken}`;
+
+          await transporter.sendMail({
+            from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+            to: email,
+            subject: `Review Invitation: Manuscript Review Request (Re-invitation)`,
+            html: `
+              <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                <h1 style="color: #2563eb; margin-bottom: 24px;">Review Invitation (Re-invitation)</h1>
+                <p>You have been re-invited to review a manuscript submission.</p>
+                ${message ? `<div style="background-color: #f9fafb; padding: 16px; margin: 24px 0; border-radius: 6px;"><h3 style="margin-top: 0;">Message from Editor:</h3><p style="margin-bottom: 0;">${message}</p></div>` : ''}
+                <p><strong>Review deadline:</strong> ${deadline || 'To be determined'}</p>
+                <div style="margin: 32px 0;">
+                  <a href="${acceptUrl}" style="display: inline-block; background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-right: 16px;">Accept Review</a>
+                  <a href="${declineUrl}" style="display: inline-block; background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Decline Review</a>
+                </div>
+              </div>
+            `
+          });
+        } catch (emailError) {
+          console.error('Failed to send re-invitation email:', emailError);
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const acceptLink = `${frontendUrl}/review-response/${assignment.id}?action=accept`;
+        const declineLink = `${frontendUrl}/review-response/${assignment.id}?action=decline`;
+
+        return {
+          success: true,
+          updatedContent: `📧 **Re-invitation sent to ${email}**\n\nThe reviewer's previous decline has been reset and a new invitation email has been sent.\n\n[Accept](${acceptLink}) | [Decline](${declineLink})`
+        };
+      } catch (error) {
+        console.error('REINVITE_REVIEWER handler failed:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to re-invite reviewer'
+        };
+      }
+    }
+  }
 };
 
 // Export the bot for npm package compatibility

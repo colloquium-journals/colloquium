@@ -1,4 +1,4 @@
-import { BotContext, BotResponse, BotTrigger, CommandBot, ParsedCommand } from '@colloquium/types';
+import { BotContext, BotResponse, BotTrigger, CommandBot, ParsedCommand, BotActionHandlerContext, BotActionHandlerResult } from '@colloquium/types';
 import { CommandParser } from './commands';
 
 export class BotExecutor {
@@ -25,6 +25,33 @@ export class BotExecutor {
 
   getBotUserId(botId: string): string | undefined {
     return this.botUserIds.get(botId);
+  }
+
+  async executeActionHandler(
+    botId: string,
+    actionName: string,
+    params: Record<string, any>,
+    context: BotActionHandlerContext
+  ): Promise<BotActionHandlerResult> {
+    const bot = this.commandBots.get(botId);
+    if (!bot) {
+      return { success: false, error: `Bot ${botId} is not registered` };
+    }
+
+    const handler = bot.actionHandlers?.[actionName];
+    if (!handler) {
+      return { success: false, error: `Bot ${botId} has no handler for action ${actionName}` };
+    }
+
+    try {
+      return await handler(params, context);
+    } catch (error) {
+      console.error(`Action handler ${botId}/${actionName} failed:`, error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
   }
 
   unregisterBot(botId: string): void {
@@ -69,8 +96,20 @@ export class BotExecutor {
     // Validate parameters
     const validation = this.commandParser.validateParameters(parsedCommand.parameters, command);
     if (!validation.isValid) {
+      let message = `❌ **Invalid Parameters for \`${command.name}\`**\n\n`;
+      validation.errors.forEach(err => {
+        message += `- ${err}\n`;
+      });
+      message += `\n**Usage:** \`${command.usage}\`\n`;
+      if (command.examples.length > 0) {
+        message += `\n**Examples:**\n`;
+        command.examples.slice(0, 3).forEach(ex => {
+          message += `- \`${ex}\`\n`;
+        });
+      }
       return {
         botId: parsedCommand.botId,
+        messages: [{ content: message }],
         errors: validation.errors
       };
     }

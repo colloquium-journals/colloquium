@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { prisma } from '@colloquium/database';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { MessageUpdateSchema, IdSchema } from '../schemas/validation';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, generateBotServiceToken } from '../middleware/auth';
 import { canUserSeeMessage } from './conversations';
 import { broadcastToConversation } from './events';
+import { botExecutor } from '../bots/index';
 import { z } from 'zod';
+import { BotMessageAction } from '@colloquium/types';
 
 // Enhanced message edit schema with reason
 const MessageEditSchema = z.object({
@@ -341,6 +343,140 @@ router.delete('/:id',
     res.json({
       message: 'Message deleted successfully'
     });
+  })
+);
+
+// POST /api/messages/:id/actions/:actionId - Trigger a bot message action
+router.post('/:id/actions/:actionId',
+  requireAuth,
+  asyncHandler(async (req: any, res: any) => {
+    const { id: messageId, actionId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    const message = await prisma.messages.findUnique({
+      where: { id: messageId },
+      include: {
+        conversations: {
+          include: {
+            manuscripts: true
+          }
+        }
+      }
+    });
+
+    if (!message) {
+      return res.status(404).json({
+        error: { message: 'Message not found', type: 'NotFoundError' }
+      });
+    }
+
+    const metadata = message.metadata as any;
+    if (!metadata?.actions?.length) {
+      return res.status(404).json({
+        error: { message: 'No actions found on this message', type: 'NotFoundError' }
+      });
+    }
+
+    const actions = metadata.actions as BotMessageAction[];
+    const action = actions.find(a => a.id === actionId);
+
+    if (!action) {
+      return res.status(404).json({
+        error: { message: 'Action not found', type: 'NotFoundError' }
+      });
+    }
+
+    if (action.triggered) {
+      return res.status(400).json({
+        error: { message: 'This action has already been triggered', type: 'ValidationError' }
+      });
+    }
+
+    // Authorization check
+    if (action.targetUserId && action.targetUserId !== userId) {
+      return res.status(403).json({
+        error: { message: 'You are not authorized to trigger this action', type: 'ForbiddenError' }
+      });
+    }
+
+    if (action.targetRoles?.length && !action.targetRoles.includes(userRole)) {
+      return res.status(403).json({
+        error: { message: 'Your role is not authorized to trigger this action', type: 'ForbiddenError' }
+      });
+    }
+
+    const manuscriptId = message.conversations.manuscriptId || '';
+    const serviceToken = generateBotServiceToken('system', manuscriptId, ['read_manuscript_files', 'upload_files']);
+
+    const handlerResult = await botExecutor.executeActionHandler(
+      action.handler.botId,
+      action.handler.action,
+      action.handler.params,
+      {
+        manuscriptId,
+        conversationId: message.conversationId,
+        messageId,
+        triggeredBy: { userId, userRole },
+        serviceToken
+      }
+    );
+
+    if (!handlerResult.success) {
+      return res.status(400).json({
+        error: { message: handlerResult.error || 'Action handler failed', type: 'ActionError' }
+      });
+    }
+
+    // Update action in metadata
+    const updatedActions = actions.map(a => {
+      if (a.id === actionId) {
+        return {
+          ...a,
+          triggered: true,
+          triggeredBy: userId,
+          triggeredAt: new Date().toISOString(),
+          ...(handlerResult.updatedLabel && { resultLabel: handlerResult.updatedLabel })
+        };
+      }
+      return a;
+    });
+
+    const updatedContent = handlerResult.updatedContent || message.content;
+    const updatedMetadata = { ...metadata, actions: updatedActions };
+
+    const updatedMessage = await prisma.messages.update({
+      where: { id: messageId },
+      data: {
+        content: updatedContent,
+        metadata: updatedMetadata,
+        updatedAt: new Date()
+      },
+      include: {
+        users: {
+          select: { id: true, name: true, email: true }
+        }
+      }
+    });
+
+    const formattedMessage = {
+      id: updatedMessage.id,
+      content: updatedMessage.content,
+      privacy: updatedMessage.privacy,
+      author: updatedMessage.users,
+      createdAt: updatedMessage.createdAt,
+      updatedAt: updatedMessage.updatedAt,
+      parentId: updatedMessage.parentId,
+      isBot: updatedMessage.isBot,
+      metadata: updatedMessage.metadata
+    };
+
+    await broadcastToConversation(message.conversationId, {
+      type: 'message-updated',
+      message: formattedMessage
+    }, manuscriptId);
+
+    res.json({ data: formattedMessage });
   })
 );
 

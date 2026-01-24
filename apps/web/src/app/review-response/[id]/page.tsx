@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Container, Paper, Title, Text, Button, Group, Alert, Loader, Center, Stack } from '@mantine/core';
 import { IconCheck, IconX, IconMail, IconCalendar } from '@tabler/icons-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InvitationData {
   id: string;
   status: string;
   dueDate?: string;
   reviewer: {
+    id?: string;
     name?: string;
     email: string;
   };
@@ -32,41 +34,51 @@ export default function ReviewResponsePage() {
   const searchParams = useSearchParams();
   const invitationId = params.id as string;
   const action = searchParams.get('action');
-  
+  const token = searchParams.get('token');
+  const { user, loading: authLoading } = useAuth();
+
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [response, setResponse] = useState<ResponseResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [wrongUser, setWrongUser] = useState(false);
 
   useEffect(() => {
-    if (action) {
-      // If there's an action in the URL, process it directly
-      handleDirectResponse(action);
-    } else {
-      // Otherwise, load the invitation details
-      loadInvitation();
-    }
-  }, [invitationId, action]);
+    if (authLoading) return;
+    loadInvitationAndProcess();
+  }, [invitationId, action, authLoading]);
 
-  const loadInvitation = async () => {
+  const loadInvitationAndProcess = async () => {
     try {
       setLoading(true);
-      // Load invitation data without action parameter to get invitation details
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public`);
-      
+      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public`, {
+        credentials: 'include'
+      });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error?.message || 'Failed to load invitation');
       }
-      
+
       const data = await response.json();
-      // Check if this is a response result (when action was provided) or invitation data
       if (data.invitation) {
         setInvitation(data.invitation);
+
+        // If the user is logged in as someone other than the invited reviewer and has no token, block the action
+        if (!token && user && data.invitation.reviewer.id && user.id !== data.invitation.reviewer.id) {
+          setWrongUser(true);
+          setLoading(false);
+          return;
+        }
+
+        // If there's an action in the URL and the user check passed, process it
+        if (action) {
+          await handleDirectResponse(action);
+          return;
+        }
       } else if (data.message && data.status) {
-        // This is already a processed response
         setResponse(data);
       } else {
         throw new Error('Unexpected response format');
@@ -80,16 +92,17 @@ export default function ReviewResponsePage() {
 
   const handleDirectResponse = async (responseAction: string) => {
     try {
-      setLoading(true);
-      // When action is in URL, call the API with the action parameter
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public?action=${responseAction}`);
-      
+      const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public?action=${responseAction}${tokenParam}`, {
+        credentials: 'include'
+      });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error?.message || 'Failed to process response');
       }
-      
+
       const data = await response.json();
       setResponse(data);
     } catch (err) {
@@ -107,11 +120,13 @@ export default function ReviewResponsePage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/respond-public`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           action: responseAction,
+          ...(token && { token }),
         }),
       });
       
@@ -148,6 +163,28 @@ export default function ReviewResponsePage() {
         <Alert icon={<IconX size="1rem" />} title="Error" color="red">
           {error}
         </Alert>
+      </Container>
+    );
+  }
+
+  if (wrongUser && invitation) {
+    return (
+      <Container size="sm" py="xl">
+        <Paper p="xl" shadow="sm">
+          <Stack align="center" gap="lg">
+            <IconX size={48} color="orange" />
+            <Title order={2} ta="center">
+              This Invitation Is Not For You
+            </Title>
+            <Text ta="center" size="lg">
+              This review invitation was sent to <strong>{invitation.reviewer.name || invitation.reviewer.email}</strong>.
+              Only they can accept or decline it.
+            </Text>
+            <Text size="sm" c="dimmed" ta="center">
+              If you are the invited reviewer, please log in with the correct account.
+            </Text>
+          </Stack>
+        </Paper>
       </Container>
     );
   }
@@ -252,38 +289,46 @@ export default function ReviewResponsePage() {
             </Stack>
           )}
           
-          <Alert icon={<IconMail size="1rem" />} title="Review Invitation" color="blue">
-            You have been invited to review this manuscript. Please consider your availability and expertise before responding.
-          </Alert>
-          
-          <Group justify="center" mt="xl">
-            <Button
-              size="lg"
-              color="green"
-              leftSection={<IconCheck size="1rem" />}
-              onClick={() => handleResponse('accept')}
-              loading={submitting}
-              disabled={submitting}
-            >
-              Accept Review
-            </Button>
-            
-            <Button
-              size="lg"
-              color="red"
-              variant="outline"
-              leftSection={<IconX size="1rem" />}
-              onClick={() => handleResponse('decline')}
-              loading={submitting}
-              disabled={submitting}
-            >
-              Decline Review
-            </Button>
-          </Group>
-          
-          <Text size="xs" c="dimmed" ta="center" mt="md">
-            By accepting this invitation, you agree to provide a timely and constructive review.
-          </Text>
+          {(token || (user && invitation.reviewer.id && user.id === invitation.reviewer.id)) ? (
+            <>
+              <Alert icon={<IconMail size="1rem" />} title="Review Invitation" color="blue">
+                You have been invited to review this manuscript. Please consider your availability and expertise before responding.
+              </Alert>
+
+              <Group justify="center" mt="xl">
+                <Button
+                  size="lg"
+                  color="green"
+                  leftSection={<IconCheck size="1rem" />}
+                  onClick={() => handleResponse('accept')}
+                  loading={submitting}
+                  disabled={submitting}
+                >
+                  Accept Review
+                </Button>
+
+                <Button
+                  size="lg"
+                  color="red"
+                  variant="outline"
+                  leftSection={<IconX size="1rem" />}
+                  onClick={() => handleResponse('decline')}
+                  loading={submitting}
+                  disabled={submitting}
+                >
+                  Decline Review
+                </Button>
+              </Group>
+
+              <Text size="xs" c="dimmed" ta="center" mt="md">
+                By accepting this invitation, you agree to provide a timely and constructive review.
+              </Text>
+            </>
+          ) : (
+            <Alert icon={<IconMail size="1rem" />} title="Authorization Required" color="yellow">
+              To respond to this invitation, please use the accept or decline link from your invitation email, or log in as the invited reviewer.
+            </Alert>
+          )}
         </Stack>
       </Paper>
     </Container>

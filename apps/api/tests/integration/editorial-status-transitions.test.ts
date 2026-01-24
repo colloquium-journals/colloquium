@@ -11,7 +11,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
 
   beforeAll(async () => {
     // Create test editor
-    const editor = await prisma.user.create({
+    const editor = await prisma.users.create({
       data: {
         email: 'editor@colloquium.test',
         name: 'Editorial Bot Test Editor',
@@ -41,7 +41,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
     articleId = article.id;
 
     // Create article conversation
-    const conversation = await prisma.conversation.create({
+    const conversation = await prisma.conversations.create({
       data: {
         title: 'Editorial Discussion',
         type: 'SEMI_PUBLIC',
@@ -52,7 +52,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
     conversationId = conversation.id;
 
     // Add editor as participant
-    await prisma.conversationParticipant.create({
+    await prisma.conversation_participants.create({
       data: {
         conversationId,
         userId: editorId,
@@ -63,13 +63,13 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
 
   afterEach(async () => {
     // Clean up test data
-    await prisma.message.deleteMany({
+    await prisma.messages.deleteMany({
       where: { conversationId }
     });
-    await prisma.conversationParticipant.deleteMany({
+    await prisma.conversation_participants.deleteMany({
       where: { conversationId }
     });
-    await prisma.conversation.deleteMany({
+    await prisma.conversations.deleteMany({
       where: { id: conversationId }
     });
     await prisma.article.deleteMany({
@@ -79,7 +79,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
 
   afterAll(async () => {
     // Clean up editor
-    await prisma.user.deleteMany({
+    await prisma.users.deleteMany({
       where: { email: 'editor@colloquium.test' }
     });
   });
@@ -113,7 +113,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(updatedArticle!.publishedAt).toBeTruthy();
 
       // Verify bot response message was created
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -144,7 +144,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(updatedArticle!.status).toBe('REJECTED');
       expect(updatedArticle!.publishedAt).toBeNull();
 
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -185,7 +185,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(publishedArticle!.status).toBe('PUBLISHED');
 
       // Verify bot response message contains publication confirmation
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -218,7 +218,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(unchangedArticle!.status).toBe('UNDER_REVIEW'); // Should not change
 
       // Should have an error message from the bot
-      const errorMessages = await prisma.message.findMany({
+      const errorMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -271,7 +271,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
 
       expect(rejectedArticle!.status).toBe('REJECTED');
 
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -306,7 +306,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
 
       expect(retractedArticle!.status).toBe('RETRACTED');
 
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -344,7 +344,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(unchangedArticle!.status).toBe('ACCEPTED');
 
       // Should have an error message from the bot
-      const errorMessages = await prisma.message.findMany({
+      const errorMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -501,7 +501,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(article!.status).toBe('PUBLISHED');
 
       // Verify both bot messages were created
-      const allBotMessages = await prisma.message.findMany({
+      const allBotMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true
@@ -568,7 +568,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(article!.status).toBe('UNDER_REVIEW');
 
       // Bot should respond with error message
-      const errorMessages = await prisma.message.findMany({
+      const errorMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,
@@ -650,7 +650,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(statusResponse.status).toBe(201);
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true
@@ -671,7 +671,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
       expect(statusResponse.status).toBe(201);
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const botMessages = await prisma.message.findMany({
+      const botMessages = await prisma.messages.findMany({
         where: {
           conversationId,
           isBot: true,

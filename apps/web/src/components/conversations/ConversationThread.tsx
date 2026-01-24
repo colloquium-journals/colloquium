@@ -58,6 +58,7 @@ interface MessageData {
   editedAt?: string;
   isBot: boolean;
   parentId?: string;
+  metadata?: { actions?: any[] };
 }
 
 interface ConversationThreadProps {
@@ -72,36 +73,38 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
   // Handle real-time messages
   const handleNewMessage = useCallback((newMessage: MessageData) => {
-    
-    
     setConversation(prev => {
-      
-      
-      if (!prev) {
-        return prev;
-      }
-      
-      // Check if message already exists (avoid duplicates)
-      const messageExists = prev.messages.some(msg => msg.id === newMessage.id);
-      
-      
-      if (messageExists) {
-        return prev;
-      }
+      if (!prev) return prev;
 
-      const updatedConversation = {
+      const messageExists = prev.messages.some(msg => msg.id === newMessage.id);
+      if (messageExists) return prev;
+
+      return {
         ...prev,
         messages: [...prev.messages, newMessage]
       };
-      
-      return updatedConversation;
+    });
+  }, []);
+
+  // Handle real-time message updates (e.g. action button triggers)
+  const handleMessageUpdated = useCallback((updatedMessage: MessageData) => {
+    setConversation(prev => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg.id === updatedMessage.id ? { ...msg, ...updatedMessage } : msg
+        )
+      };
     });
   }, []);
 
   // Initialize SSE connection
   const { isConnected, connectionStatus } = useSSE(conversationId, {
     enabled: !!conversationId,
-    onNewMessage: handleNewMessage
+    onNewMessage: handleNewMessage,
+    onMessageUpdated: handleMessageUpdated
   });
 
   // Mock data - will be replaced with API call

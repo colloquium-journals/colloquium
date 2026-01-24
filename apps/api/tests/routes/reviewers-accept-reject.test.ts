@@ -13,7 +13,7 @@ const generateTestToken = (user: any) => {
 };
 
 const createTestUser = async (userData: any = {}) => {
-  return await prisma.user.create({
+  return await prisma.users.create({
     data: {
       email: userData.email || 'test@example.com',
       name: userData.name || 'Test User',
@@ -24,7 +24,7 @@ const createTestUser = async (userData: any = {}) => {
 };
 
 const createTestManuscript = async (authorId: string) => {
-  const manuscript = await prisma.manuscript.create({
+  const manuscript = await prisma.manuscripts.create({
     data: {
       title: 'Test Manuscript',
       abstract: 'Test abstract for manuscript',
@@ -69,7 +69,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
     manuscript = await createTestManuscript(editor.id);
     
     // Create review assignment
-    reviewAssignment = await prisma.reviewAssignment.create({
+    reviewAssignment = await prisma.review_assignments.create({
       data: {
         manuscriptId: manuscript.id,
         reviewerId: reviewer.id,
@@ -79,7 +79,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
     });
 
     // Create editorial conversation
-    await prisma.conversation.create({
+    await prisma.conversations.create({
       data: {
         title: 'Editorial Discussion',
         type: 'EDITORIAL',
@@ -93,13 +93,13 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
   });
 
   afterEach(async () => {
-    await prisma.message.deleteMany();
-    await prisma.conversationParticipant.deleteMany();
-    await prisma.conversation.deleteMany();
-    await prisma.reviewAssignment.deleteMany();
+    await prisma.messages.deleteMany();
+    await prisma.conversation_participants.deleteMany();
+    await prisma.conversations.deleteMany();
+    await prisma.review_assignments.deleteMany();
     await prisma.manuscriptAuthor.deleteMany();
-    await prisma.manuscript.deleteMany();
-    await prisma.user.deleteMany();
+    await prisma.manuscripts.deleteMany();
+    await prisma.users.deleteMany();
   });
 
   describe('POST /api/reviewers/invitations/:id/respond', () => {
@@ -119,13 +119,13 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
       expect(response.body.status).toBe('ACCEPTED');
 
       // Verify assignment was updated in database
-      const updatedAssignment = await prisma.reviewAssignment.findUnique({
+      const updatedAssignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(updatedAssignment?.status).toBe('ACCEPTED');
 
       // Verify notification message was created
-      const notifications = await prisma.message.findMany({
+      const notifications = await prisma.messages.findMany({
         where: {
           privacy: 'EDITOR_ONLY',
           metadata: {
@@ -152,13 +152,13 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
       expect(response.body.assignment.status).toBe('DECLINED');
 
       // Verify assignment was updated
-      const updatedAssignment = await prisma.reviewAssignment.findUnique({
+      const updatedAssignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(updatedAssignment?.status).toBe('DECLINED');
 
       // Verify notification message was created
-      const notifications = await prisma.message.findMany({
+      const notifications = await prisma.messages.findMany({
         where: {
           privacy: 'EDITOR_ONLY',
           metadata: {
@@ -228,13 +228,13 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
   describe('POST /api/reviewers/assignments/:id/submit', () => {
     beforeEach(async () => {
       // Accept the review first
-      await prisma.reviewAssignment.update({
+      await prisma.review_assignments.update({
         where: { id: reviewAssignment.id },
         data: { status: 'ACCEPTED' }
       });
 
       // Create review conversation
-      await prisma.conversation.create({
+      await prisma.conversations.create({
         data: {
           title: 'Review Discussion',
           type: 'REVIEW',
@@ -263,14 +263,14 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
       expect(response.body.submission.reviewContent).toBe(reviewData.reviewContent);
 
       // Verify assignment was updated
-      const updatedAssignment = await prisma.reviewAssignment.findUnique({
+      const updatedAssignment = await prisma.review_assignments.findUnique({
         where: { id: reviewAssignment.id }
       });
       expect(updatedAssignment?.status).toBe('COMPLETED');
       expect(updatedAssignment?.completedAt).toBeTruthy();
 
       // Verify review message was created
-      const reviewMessages = await prisma.message.findMany({
+      const reviewMessages = await prisma.messages.findMany({
         where: {
           privacy: 'AUTHOR_VISIBLE',
           metadata: {
@@ -284,7 +284,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
       expect(reviewMessages[0].content).toContain(reviewData.reviewContent);
 
       // Verify confidential comments were created separately
-      const confidentialMessages = await prisma.message.findMany({
+      const confidentialMessages = await prisma.messages.findMany({
         where: {
           privacy: 'EDITOR_ONLY',
           metadata: {
@@ -313,7 +313,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
       expect(response.body.submission.confidentialComments).toBeUndefined();
 
       // Verify no confidential message was created
-      const confidentialMessages = await prisma.message.findMany({
+      const confidentialMessages = await prisma.messages.findMany({
         where: {
           privacy: 'EDITOR_ONLY',
           metadata: {
@@ -327,7 +327,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
 
     it('should not allow submitting review with wrong status', async () => {
       // Set assignment to PENDING
-      await prisma.reviewAssignment.update({
+      await prisma.review_assignments.update({
         where: { id: reviewAssignment.id },
         data: { status: 'PENDING' }
       });

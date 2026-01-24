@@ -4,25 +4,25 @@ import { BotAction } from '@colloquium/types';
 // Mock the database module
 jest.mock('@colloquium/database', () => ({
   prisma: {
-    manuscript: {
+    manuscripts: {
       findUnique: jest.fn(),
       update: jest.fn()
     },
-    user: {
+    users: {
       findUnique: jest.fn(),
       create: jest.fn()
     },
-    reviewAssignment: {
+    review_assignments: {
       findUnique: jest.fn(),
       create: jest.fn()
     },
-    conversation: {
+    conversations: {
       create: jest.fn()
     },
-    conversationParticipant: {
+    conversation_participants: {
       create: jest.fn()
     },
-    message: {
+    messages: {
       create: jest.fn()
     }
   }
@@ -77,8 +77,8 @@ describe('BotActionProcessor', () => {
         authorRelations: []
       };
       
-      prisma.manuscript.findUnique.mockResolvedValue(mockManuscript);
-      prisma.manuscript.update.mockResolvedValue({ ...mockManuscript, status: 'UNDER_REVIEW' });
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscript);
+      prisma.manuscripts.update.mockResolvedValue({ ...mockManuscript, status: 'UNDER_REVIEW' });
       
       // Mock reviewer
       const mockReviewer = {
@@ -87,9 +87,9 @@ describe('BotActionProcessor', () => {
         role: 'USER'
       };
       
-      prisma.user.findUnique.mockResolvedValue(mockReviewer);
-      prisma.reviewAssignment.findUnique.mockResolvedValue(null);
-      prisma.reviewAssignment.create.mockResolvedValue({
+      prisma.users.findUnique.mockResolvedValue(mockReviewer);
+      prisma.review_assignments.findUnique.mockResolvedValue(null);
+      prisma.review_assignments.create.mockResolvedValue({
         id: 'assignment-123',
         manuscriptId: mockContext.manuscriptId,
         reviewerId: mockReviewer.id,
@@ -99,7 +99,7 @@ describe('BotActionProcessor', () => {
       await processor.processActions(actions, mockContext);
 
       // Verify manuscript status was updated
-      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+      expect(prisma.manuscripts.update).toHaveBeenCalledWith({
         where: { id: mockContext.manuscriptId },
         data: {
           status: 'UNDER_REVIEW',
@@ -109,7 +109,7 @@ describe('BotActionProcessor', () => {
       });
 
       // Verify review assignment was created
-      expect(prisma.reviewAssignment.create).toHaveBeenCalledWith({
+      expect(prisma.review_assignments.create).toHaveBeenCalledWith({
         data: {
           manuscriptId: mockContext.manuscriptId,
           reviewerId: mockReviewer.id,
@@ -119,7 +119,7 @@ describe('BotActionProcessor', () => {
       });
 
       // Verify system message was created for status update
-      expect(prisma.message.create).toHaveBeenCalledWith({
+      expect(prisma.messages.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           content: expect.stringContaining('Manuscript Status Updated by Editorial Bot'),
           conversationId: mockContext.conversationId,
@@ -159,10 +159,10 @@ describe('BotActionProcessor', () => {
         email: 'reviewer@example.com'
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue(mockManuscript);
-      prisma.user.findUnique.mockResolvedValue(mockReviewer);
-      prisma.reviewAssignment.findUnique.mockResolvedValue(null);
-      prisma.reviewAssignment.create.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscript);
+      prisma.users.findUnique.mockResolvedValue(mockReviewer);
+      prisma.review_assignments.findUnique.mockResolvedValue(null);
+      prisma.review_assignments.create.mockResolvedValue({
         id: 'assignment-123'
       });
 
@@ -170,7 +170,7 @@ describe('BotActionProcessor', () => {
       await expect(processor.processActions(actions, mockContext)).resolves.not.toThrow();
 
       // Should still process the second action
-      expect(prisma.reviewAssignment.create).toHaveBeenCalled();
+      expect(prisma.review_assignments.create).toHaveBeenCalled();
     });
   });
 
@@ -190,8 +190,8 @@ describe('BotActionProcessor', () => {
         authorRelations: []
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue(mockManuscript);
-      prisma.user.findUnique.mockResolvedValue(null); // User doesn't exist
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscript);
+      prisma.users.findUnique.mockResolvedValue(null); // User doesn't exist
       
       const newUser = {
         id: 'new-user-123',
@@ -199,16 +199,16 @@ describe('BotActionProcessor', () => {
         role: 'USER'
       };
       
-      prisma.user.create.mockResolvedValue(newUser);
-      prisma.reviewAssignment.findUnique.mockResolvedValue(null);
-      prisma.reviewAssignment.create.mockResolvedValue({
+      prisma.users.create.mockResolvedValue(newUser);
+      prisma.review_assignments.findUnique.mockResolvedValue(null);
+      prisma.review_assignments.create.mockResolvedValue({
         id: 'assignment-123'
       });
 
       await processor.processActions([action], mockContext);
 
       // Should create new user
-      expect(prisma.user.create).toHaveBeenCalledWith({
+      expect(prisma.users.create).toHaveBeenCalledWith({
         data: {
           email: 'newreviewer@example.com',
           role: 'USER'
@@ -216,7 +216,7 @@ describe('BotActionProcessor', () => {
       });
 
       // Should create assignment with new user
-      expect(prisma.reviewAssignment.create).toHaveBeenCalledWith({
+      expect(prisma.review_assignments.create).toHaveBeenCalledWith({
         data: {
           manuscriptId: mockContext.manuscriptId,
           reviewerId: newUser.id,
@@ -248,14 +248,14 @@ describe('BotActionProcessor', () => {
         status: 'PENDING'
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue(mockManuscript);
-      prisma.user.findUnique.mockResolvedValue(mockReviewer);
-      prisma.reviewAssignment.findUnique.mockResolvedValue(existingAssignment);
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscript);
+      prisma.users.findUnique.mockResolvedValue(mockReviewer);
+      prisma.review_assignments.findUnique.mockResolvedValue(existingAssignment);
 
       await processor.processActions([action], mockContext);
 
       // Should not create new assignment
-      expect(prisma.reviewAssignment.create).not.toHaveBeenCalled();
+      expect(prisma.review_assignments.create).not.toHaveBeenCalled();
     });
   });
 
@@ -275,15 +275,15 @@ describe('BotActionProcessor', () => {
         authorRelations: []
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
-      prisma.manuscript.update.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
+      prisma.manuscripts.update.mockResolvedValue({
         ...mockManuscript,
         status: 'ACCEPTED'
       });
 
       await processor.processActions([action], mockContext);
 
-      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+      expect(prisma.manuscripts.update).toHaveBeenCalledWith({
         where: { id: mockContext.manuscriptId },
         data: {
           status: 'ACCEPTED',
@@ -292,7 +292,7 @@ describe('BotActionProcessor', () => {
         include: { authorRelations: { include: { user: true } } }
       });
 
-      expect(prisma.message.create).toHaveBeenCalledWith({
+      expect(prisma.messages.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           content: expect.stringMatching(/ACCEPTED.*High quality research/s),
           privacy: 'EDITOR_ONLY',
@@ -316,15 +316,15 @@ describe('BotActionProcessor', () => {
         authorRelations: []
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue({ status: 'ACCEPTED' });
-      prisma.manuscript.update.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue({ status: 'ACCEPTED' });
+      prisma.manuscripts.update.mockResolvedValue({
         ...mockManuscript,
         status: 'PUBLISHED'
       });
 
       await processor.processActions([action], mockContext);
 
-      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+      expect(prisma.manuscripts.update).toHaveBeenCalledWith({
         where: { id: mockContext.manuscriptId },
         data: {
           status: 'PUBLISHED',
@@ -340,12 +340,12 @@ describe('BotActionProcessor', () => {
         data: { status: 'PUBLISHED' }
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
+      prisma.manuscripts.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
 
       await expect(processor.processActions([action], mockContext)).resolves.not.toThrow();
       
       // Should not update manuscript due to validation error
-      expect(prisma.manuscript.update).not.toHaveBeenCalled();
+      expect(prisma.manuscripts.update).not.toHaveBeenCalled();
     });
 
     it('should allow REJECTED status from any state', async () => {
@@ -357,8 +357,8 @@ describe('BotActionProcessor', () => {
         }
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
-      prisma.manuscript.update.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue({ status: 'UNDER_REVIEW' });
+      prisma.manuscripts.update.mockResolvedValue({
         id: 'manuscript-123',
         status: 'REJECTED',
         authorRelations: []
@@ -366,7 +366,7 @@ describe('BotActionProcessor', () => {
 
       await processor.processActions([action], mockContext);
 
-      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+      expect(prisma.manuscripts.update).toHaveBeenCalledWith({
         where: { id: mockContext.manuscriptId },
         data: {
           status: 'REJECTED',
@@ -385,8 +385,8 @@ describe('BotActionProcessor', () => {
         }
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue({ status: 'PUBLISHED' });
-      prisma.manuscript.update.mockResolvedValue({
+      prisma.manuscripts.findUnique.mockResolvedValue({ status: 'PUBLISHED' });
+      prisma.manuscripts.update.mockResolvedValue({
         id: 'manuscript-123',
         status: 'RETRACTED',
         authorRelations: []
@@ -394,7 +394,7 @@ describe('BotActionProcessor', () => {
 
       await processor.processActions([action], mockContext);
 
-      expect(prisma.manuscript.update).toHaveBeenCalledWith({
+      expect(prisma.manuscripts.update).toHaveBeenCalledWith({
         where: { id: mockContext.manuscriptId },
         data: {
           status: 'RETRACTED',
@@ -410,12 +410,12 @@ describe('BotActionProcessor', () => {
         data: { status: 'RETRACTED' }
       };
 
-      prisma.manuscript.findUnique.mockResolvedValue({ status: 'ACCEPTED' });
+      prisma.manuscripts.findUnique.mockResolvedValue({ status: 'ACCEPTED' });
 
       await expect(processor.processActions([action], mockContext)).resolves.not.toThrow();
       
       // Should not update manuscript due to validation error
-      expect(prisma.manuscript.update).not.toHaveBeenCalled();
+      expect(prisma.manuscripts.update).not.toHaveBeenCalled();
     });
 
     it('should reject invalid status', async () => {
@@ -427,7 +427,7 @@ describe('BotActionProcessor', () => {
       await expect(processor.processActions([action], mockContext)).resolves.not.toThrow();
       
       // Should not update manuscript
-      expect(prisma.manuscript.update).not.toHaveBeenCalled();
+      expect(prisma.manuscripts.update).not.toHaveBeenCalled();
     });
   });
 
@@ -448,11 +448,11 @@ describe('BotActionProcessor', () => {
         title: 'Editorial Discussion'
       };
 
-      prisma.conversation.create.mockResolvedValue(newConversation);
+      prisma.conversations.create.mockResolvedValue(newConversation);
 
       await processor.processActions([action], mockContext);
 
-      expect(prisma.conversation.create).toHaveBeenCalledWith({
+      expect(prisma.conversations.create).toHaveBeenCalledWith({
         data: {
           title: 'Editorial Discussion',
           type: 'EDITORIAL',
@@ -462,8 +462,8 @@ describe('BotActionProcessor', () => {
       });
 
       // Should add the command user and specified participants
-      expect(prisma.conversationParticipant.create).toHaveBeenCalledTimes(3);
-      expect(prisma.conversationParticipant.create).toHaveBeenCalledWith({
+      expect(prisma.conversation_participants.create).toHaveBeenCalledTimes(3);
+      expect(prisma.conversation_participants.create).toHaveBeenCalledWith({
         data: {
           conversationId: newConversation.id,
           userId: mockContext.userId,

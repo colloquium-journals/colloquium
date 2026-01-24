@@ -227,15 +227,16 @@ model messages {
 }
 
 model review_assignments {
-  id           String       @id
-  manuscriptId String
-  reviewerId   String
-  status       ReviewStatus @default(PENDING)
-  assignedAt   DateTime     @default(now())
-  dueDate      DateTime?
-  completedAt  DateTime?
-  manuscripts  manuscripts  @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
-  users        users        @relation(fields: [reviewerId], references: [id])
+  id            String       @id
+  manuscriptId  String
+  reviewerId    String
+  status        ReviewStatus @default(PENDING)
+  assignedAt    DateTime     @default(now())
+  dueDate       DateTime?
+  completedAt   DateTime?
+  responseToken String?
+  manuscripts   manuscripts  @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  users         users        @relation(fields: [reviewerId], references: [id])
 
   @@unique([manuscriptId, reviewerId])
 }
