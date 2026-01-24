@@ -6,41 +6,54 @@ import axios from 'axios';
 
 const router = Router();
 
-const ORCID_CLIENT_ID = process.env.ORCID_CLIENT_ID;
-const ORCID_CLIENT_SECRET = process.env.ORCID_CLIENT_SECRET;
-const ORCID_REDIRECT_URI = process.env.ORCID_REDIRECT_URI;
-const ORCID_BASE_URL = process.env.ORCID_BASE_URL || 'https://sandbox.orcid.org';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+function getOrcidConfig() {
+  return {
+    clientId: process.env.ORCID_CLIENT_ID,
+    clientSecret: process.env.ORCID_CLIENT_SECRET,
+    redirectUri: process.env.ORCID_REDIRECT_URI,
+    baseUrl: process.env.ORCID_BASE_URL || 'https://sandbox.orcid.org',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+  };
+}
+
+function getStateSecret() {
+  return process.env.JWT_SECRET || process.env.MAGIC_LINK_SECRET || 'orcid-state-secret';
+}
+
+function createSignedState(userId: string): string {
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const payload = `${userId}:${nonce}`;
+  const signature = crypto.createHmac('sha256', getStateSecret()).update(payload).digest('hex');
+  return `${payload}:${signature}`;
+}
+
+function verifySignedState(state: string): { userId: string } | null {
+  const parts = state.split(':');
+  if (parts.length !== 3) return null;
+  const [userId, nonce, signature] = parts;
+  const payload = `${userId}:${nonce}`;
+  const expected = crypto.createHmac('sha256', getStateSecret()).update(payload).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'))) {
+    return null;
+  }
+  return { userId };
+}
 
 // GET /api/auth/orcid - Initiate ORCID OAuth flow
 router.get('/', authenticate, (req: any, res: Response) => {
-  if (!ORCID_CLIENT_ID || !ORCID_REDIRECT_URI) {
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=not_configured`);
+  const { clientId, redirectUri, baseUrl, frontendUrl } = getOrcidConfig();
+
+  if (!clientId || !redirectUri) {
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=not_configured`);
   }
 
-  const state = crypto.randomBytes(32).toString('hex');
+  const state = createSignedState(req.user!.id);
 
-  // Store state in a short-lived cookie
-  res.cookie('orcid_oauth_state', state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 10 * 60 * 1000 // 10 minutes
-  });
-
-  // Store user ID in a cookie so the callback can identify the user
-  res.cookie('orcid_oauth_user', req.user!.id, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 10 * 60 * 1000
-  });
-
-  const authUrl = new URL(`${ORCID_BASE_URL}/oauth/authorize`);
-  authUrl.searchParams.set('client_id', ORCID_CLIENT_ID);
+  const authUrl = new URL(`${baseUrl}/oauth/authorize`);
+  authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('scope', '/authenticate');
-  authUrl.searchParams.set('redirect_uri', ORCID_REDIRECT_URI);
+  authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', state);
 
   res.redirect(authUrl.toString());
@@ -48,45 +61,41 @@ router.get('/', authenticate, (req: any, res: Response) => {
 
 // GET /api/auth/orcid/callback - Handle ORCID OAuth callback
 router.get('/callback', async (req: Request, res: Response) => {
+  const { clientId, clientSecret, redirectUri, baseUrl, frontendUrl } = getOrcidConfig();
   const { code, state, error: oauthError } = req.query;
 
-  const storedState = req.cookies['orcid_oauth_state'];
-  const userId = req.cookies['orcid_oauth_user'];
-
-  // Clear OAuth cookies
-  res.clearCookie('orcid_oauth_state');
-  res.clearCookie('orcid_oauth_user');
-
   if (oauthError) {
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=denied`);
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=denied`);
   }
 
-  if (!state || !storedState || state !== storedState) {
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=invalid_state`);
+  if (!state || typeof state !== 'string') {
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=invalid_state`);
   }
 
-  if (!userId) {
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=session_expired`);
+  const verified = verifySignedState(state);
+  if (!verified) {
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=invalid_state`);
   }
+
+  const { userId } = verified;
 
   if (!code) {
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=no_code`);
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=no_code`);
   }
 
-  if (!ORCID_CLIENT_ID || !ORCID_CLIENT_SECRET || !ORCID_REDIRECT_URI) {
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=not_configured`);
+  if (!clientId || !clientSecret || !redirectUri) {
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=not_configured`);
   }
 
   try {
-    // Exchange code for token
     const tokenResponse = await axios.post(
-      `${ORCID_BASE_URL}/oauth/token`,
+      `${baseUrl}/oauth/token`,
       new URLSearchParams({
-        client_id: ORCID_CLIENT_ID,
-        client_secret: ORCID_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         grant_type: 'authorization_code',
         code: code as string,
-        redirect_uri: ORCID_REDIRECT_URI
+        redirect_uri: redirectUri
       }).toString(),
       {
         headers: {
@@ -100,10 +109,9 @@ router.get('/callback', async (req: Request, res: Response) => {
     const { orcid } = tokenResponse.data as { orcid: string };
 
     if (!orcid) {
-      return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=no_orcid`);
+      return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=no_orcid`);
     }
 
-    // Check if this ORCID is already claimed by another user
     const existingUser = await prisma.users.findFirst({
       where: {
         orcidId: orcid,
@@ -112,10 +120,9 @@ router.get('/callback', async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=already_claimed`);
+      return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=already_claimed`);
     }
 
-    // Update user record with verified ORCID
     await prisma.users.update({
       where: { id: userId },
       data: {
@@ -125,10 +132,10 @@ router.get('/callback', async (req: Request, res: Response) => {
       }
     });
 
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=verified`);
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=verified`);
   } catch (err: any) {
     console.error('ORCID OAuth error:', err.response?.data || err.message);
-    return res.redirect(`${FRONTEND_URL}/profile/edit?orcid=error&reason=exchange_failed`);
+    return res.redirect(`${frontendUrl}/profile/edit?orcid=error&reason=exchange_failed`);
   }
 });
 
