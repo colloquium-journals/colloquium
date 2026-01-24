@@ -14,6 +14,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     const editor = await prisma.users.create({
       data: {
         email: 'editor@test.com',
+        username: 'test-editor',
         name: 'Test Editor',
         role: 'EDITOR_IN_CHIEF'
       }
@@ -62,6 +63,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     const reviewer1 = await prisma.users.create({
       data: {
         email: 'reviewer1@test.com',
+        username: 'reviewer-one',
         name: 'Reviewer 1',
         role: 'USER'
       }
@@ -70,6 +72,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     const reviewer2 = await prisma.users.create({
       data: {
         email: 'reviewer2@test.com',
+        username: 'reviewer-two',
         name: 'Reviewer 2',
         role: 'USER'
       }

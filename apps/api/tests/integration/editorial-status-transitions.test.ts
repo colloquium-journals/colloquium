@@ -14,6 +14,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
     const editor = await prisma.users.create({
       data: {
         email: 'editor@colloquium.test',
+        username: 'editorial-test-editor',
         name: 'Editorial Bot Test Editor',
         role: 'EDITOR_IN_CHIEF'
       }

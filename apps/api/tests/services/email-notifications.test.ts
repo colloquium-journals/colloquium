@@ -17,6 +17,7 @@ const createTestUser = async (userData: any = {}) => {
     data: {
       id: randomUUID(),
       email: userData.email || 'test@example.com',
+      username: userData.username || `test-user-${randomUUID().slice(0, 8)}`,
       name: userData.name || 'Test User',
       role: userData.role || 'USER',
       updatedAt: new Date(),

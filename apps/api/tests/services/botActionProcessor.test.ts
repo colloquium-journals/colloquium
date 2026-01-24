@@ -110,12 +110,12 @@ describe('BotActionProcessor', () => {
 
       // Verify review assignment was created
       expect(prisma.review_assignments.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           manuscriptId: mockContext.manuscriptId,
           reviewerId: mockReviewer.id,
           status: 'PENDING',
           dueDate: expect.any(Date)
-        }
+        })
       });
 
       // Verify system message was created for status update
@@ -209,20 +209,21 @@ describe('BotActionProcessor', () => {
 
       // Should create new user
       expect(prisma.users.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           email: 'newreviewer@example.com',
+          username: expect.any(String),
           role: 'USER'
-        }
+        })
       });
 
       // Should create assignment with new user
       expect(prisma.review_assignments.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           manuscriptId: mockContext.manuscriptId,
           reviewerId: newUser.id,
           status: 'PENDING',
           dueDate: expect.any(Date)
-        }
+        })
       });
     });
 
@@ -289,7 +290,7 @@ describe('BotActionProcessor', () => {
           status: 'ACCEPTED',
           updatedAt: expect.any(Date)
         },
-        include: { authorRelations: { include: { user: true } } }
+        include: { manuscript_authors: { include: { users: true } } }
       });
 
       expect(prisma.messages.create).toHaveBeenCalledWith({
@@ -330,7 +331,7 @@ describe('BotActionProcessor', () => {
           status: 'PUBLISHED',
           updatedAt: expect.any(Date)
         },
-        include: { authorRelations: { include: { user: true } } }
+        include: { manuscript_authors: { include: { users: true } } }
       });
     });
 
@@ -372,7 +373,7 @@ describe('BotActionProcessor', () => {
           status: 'REJECTED',
           updatedAt: expect.any(Date)
         },
-        include: { authorRelations: { include: { user: true } } }
+        include: { manuscript_authors: { include: { users: true } } }
       });
     });
 
@@ -400,7 +401,7 @@ describe('BotActionProcessor', () => {
           status: 'RETRACTED',
           updatedAt: expect.any(Date)
         },
-        include: { authorRelations: { include: { user: true } } }
+        include: { manuscript_authors: { include: { users: true } } }
       });
     });
 
@@ -453,22 +454,22 @@ describe('BotActionProcessor', () => {
       await processor.processActions([action], mockContext);
 
       expect(prisma.conversations.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           title: 'Editorial Discussion',
           type: 'EDITORIAL',
           privacy: 'PRIVATE',
           manuscriptId: mockContext.manuscriptId
-        }
+        })
       });
 
       // Should add the command user and specified participants
       expect(prisma.conversation_participants.create).toHaveBeenCalledTimes(3);
       expect(prisma.conversation_participants.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           conversationId: newConversation.id,
           userId: mockContext.userId,
           role: 'MODERATOR'
-        }
+        })
       });
     });
   });

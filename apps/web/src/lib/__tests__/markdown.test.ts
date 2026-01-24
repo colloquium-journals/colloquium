@@ -98,9 +98,9 @@ describe('Markdown Parsing', () => {
     });
 
     it('should handle multiple mentions with markdown', () => {
-      const input = '@editorial-bot **summary** and @John Smith review';
+      const input = '@editorial-bot **summary** and @john-smith review';
       const chunks = parseMarkdownWithMentions(input);
-      
+
       expect(chunks).toHaveLength(4);
       expect(chunks[0].type).toBe('mention');
       expect(chunks[1].type).toBe('markdown');
@@ -132,27 +132,27 @@ describe('Markdown Parsing', () => {
     });
 
     it('should handle adjacent mentions', () => {
-      const input = '@editorial-bot @John Smith';
+      const input = '@editorial-bot @john-smith';
       const chunks = parseMarkdownWithMentions(input);
-      
+
       // Since a single space gets trimmed out, we only get the 2 mentions
       expect(chunks).toHaveLength(2);
       expect(chunks[0].type).toBe('mention');
       expect(chunks[0].content).toBe('@editorial-bot');
       expect(chunks[1].type).toBe('mention');
-      expect(chunks[1].content).toBe('@John Smith');
+      expect(chunks[1].content).toBe('@john-smith');
     });
 
     it('should not break with complex markdown and mentions', () => {
-      const input = '# Review Request\n\n@editorial-bot please:\n\n- **Check** formatting\n- *Verify* citations\n- Review with @John Smith\n\n```\ncode example\n```';
+      const input = '# Review Request\n\n@editorial-bot please:\n\n- **Check** formatting\n- *Verify* citations\n- Review with @john-smith\n\n```\ncode example\n```';
       const chunks = parseMarkdownWithMentions(input);
-      
+
       const mentionChunks = chunks.filter(c => c.type === 'mention');
       const markdownChunks = chunks.filter(c => c.type === 'markdown');
-      
+
       expect(mentionChunks).toHaveLength(2);
       expect(markdownChunks.length).toBeGreaterThan(0);
-      
+
       // Verify that markdown is still parsed correctly
       const combinedHtml = markdownChunks.map(c => c.html).join('');
       expect(combinedHtml).toContain('<h1>Review Request</h1>');

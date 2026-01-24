@@ -40,6 +40,7 @@ async function ensureBotUser(botId: string, botName: string): Promise<string> {
       data: {
         id: `bot-${botId}`,
         email,
+        username: botId,
         name: botName,
         role: 'BOT',
         updatedAt: new Date()

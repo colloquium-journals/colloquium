@@ -14,6 +14,7 @@ describe('Bot Mentions Integration', () => {
     const user = await prisma.users.create({
       data: {
         email: 'test@example.com',
+        username: 'test-user',
         name: 'Test User',
         role: GlobalRole.USER
       }

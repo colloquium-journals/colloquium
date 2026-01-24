@@ -48,11 +48,25 @@ router.post('/login', validateRequest({ body: loginSchema }), async (req, res, n
     });
 
     if (!user) {
-      // Create new user with AUTHOR role by default
+      // Generate username from email prefix
+      const baseUsername = email.toLowerCase().split('@')[0]
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/^[^a-z]/, 'u')
+        .slice(0, 27);
+      const paddedUsername = baseUsername.length < 3 ? baseUsername + 'x'.repeat(3 - baseUsername.length) : baseUsername;
+
+      let username = paddedUsername;
+      let suffix = 2;
+      while (await prisma.users.findUnique({ where: { username }, select: { id: true } })) {
+        username = `${paddedUsername}-${suffix}`;
+        suffix++;
+      }
+
       user = await prisma.users.create({
         data: {
           id: randomUUID(),
           email: email.toLowerCase(),
+          username,
           role: GlobalRole.USER,
           updatedAt: new Date()
         }
@@ -235,6 +249,7 @@ router.get('/me', async (req, res, next) => {
         select: {
           id: true,
           email: true,
+          username: true,
           name: true,
           role: true,
           orcidId: true,

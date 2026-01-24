@@ -8,32 +8,25 @@ export interface ResolvedMention {
   type: 'user' | 'bot';
 }
 
+const MENTION_REGEX = /(?<!\w)@([a-z][a-z0-9-]{2,29})(?=\s|$|[.,!?;:])/g;
+
+const KNOWN_BOT_IDS = [
+  'editorial-bot',
+  'plagiarism-checker',
+  'reference-bot',
+  'reviewer-checklist'
+];
+
+function isBotId(id: string): boolean {
+  return KNOWN_BOT_IDS.includes(id) || id.endsWith('-bot') || id.endsWith('-checker');
+}
+
 /**
  * Parse @mentions from message content and resolve them to user/bot IDs
  */
 export async function resolveMentions(content: string, conversationId: string): Promise<ResolvedMention[]> {
   const mentions: ResolvedMention[] = [];
-  
-  // Bot regex - matches kebab-case bot IDs
-  const botRegex = /@(editorial-bot|plagiarism-checker|reference-bot|reviewer-checklist|[\w-]*bot(?:\b|$)|[\w-]*checker(?:\b|$)|[\w-]*reviewer(?:\b|$))/gi;
-  
-  let match: RegExpExecArray | null;
-  while ((match = botRegex.exec(content)) !== null) {
-    const botId = match[1];
-    mentions.push({
-      originalText: match[0],
-      botId,
-      displayName: botId,
-      type: 'bot'
-    });
-  }
-  
-  // Reset regex
-  botRegex.lastIndex = 0;
-  
-  // User regex - matches display names with optional email disambiguation
-  const userRegex = /@([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}(?:\s+\([^)]+\))?)(?=\s|$|[.,!?;:])/g;
-  
+
   // Get conversation participants for user resolution
   const participants = await prisma.conversation_participants.findMany({
     where: { conversationId },
@@ -41,72 +34,36 @@ export async function resolveMentions(content: string, conversationId: string): 
       users: {
         select: {
           id: true,
-          name: true,
-          email: true
+          username: true,
+          name: true
         }
       }
     }
   });
-  
-  while ((match = userRegex.exec(content)) !== null) {
-    const fullMatch = match[0];
-    const mentionText = match[1].trim();
-    
-    // Skip if this position was already captured by bot regex
-    const overlaps = mentions.some(existing => 
-      match && match.index !== undefined && match.index >= content.indexOf(existing.originalText) && 
-      match && match.index !== undefined && match.index < content.indexOf(existing.originalText) + existing.originalText.length
-    );
-    
-    if (!overlaps) {
-      const resolvedUser = await resolveUserMention(mentionText, participants);
+
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(MENTION_REGEX.source, MENTION_REGEX.flags);
+
+  while ((match = regex.exec(content)) !== null) {
+    const mentionId = match[1];
+
+    if (isBotId(mentionId)) {
       mentions.push({
-        originalText: fullMatch,
-        userId: resolvedUser?.id,
-        displayName: extractDisplayName(mentionText),
+        originalText: match[0],
+        botId: mentionId,
+        displayName: mentionId,
+        type: 'bot'
+      });
+    } else {
+      const participant = participants.find(p => p.users.username === mentionId);
+      mentions.push({
+        originalText: match[0],
+        userId: participant?.users.id,
+        displayName: participant?.users.name || mentionId,
         type: 'user'
       });
     }
   }
-  
+
   return mentions;
-}
-
-/**
- * Resolve a user mention to an actual user ID
- */
-async function resolveUserMention(
-  mentionText: string,
-  participants: Array<{ users: { id: string; name: string | null; email: string } }>
-): Promise<{ id: string } | null> {
-  // Check if it's a disambiguated mention like "John Smith (email@domain.com)"
-  const emailMatch = mentionText.match(/^(.+?)\s+\(([^)]+)\)$/);
-
-  if (emailMatch) {
-    // Disambiguated mention - match by display name AND email
-    const displayName = emailMatch[1].trim();
-    const email = emailMatch[2].trim();
-
-    const user = participants.find(p => {
-      const userDisplayName = p.users.name || p.users.email;
-      return userDisplayName === displayName && p.users.email === email;
-    });
-
-    return user ? { id: user.users.id } : null;
-  } else {
-    // Simple mention - match by display name only
-    const user = participants.find(p => {
-      const userDisplayName = p.users.name || p.users.email;
-      return userDisplayName === mentionText;
-    });
-
-    return user ? { id: user.users.id } : null;
-  }
-}
-
-/**
- * Extract display name from mention text (remove email disambiguation if present)
- */
-function extractDisplayName(mentionText: string): string {
-  return mentionText.replace(/\s+\([^)]+\)$/, '');
 }

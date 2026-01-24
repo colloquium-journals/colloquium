@@ -178,6 +178,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
               users: {
                 select: {
                   id: true,
+                  username: true,
                   name: true,
                   email: true
                 }
@@ -247,6 +248,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             users: {
               select: {
                 id: true,
+                username: true,
                 name: true,
                 email: true,
                 role: true
@@ -260,6 +262,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             users: {
               select: {
                 id: true,
+                username: true,
                 name: true,
                 email: true
               }
@@ -422,6 +425,7 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
         users: {
           select: {
             id: true,
+            username: true,
             name: true,
             email: true
           }

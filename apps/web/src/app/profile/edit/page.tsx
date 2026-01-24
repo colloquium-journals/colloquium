@@ -16,7 +16,6 @@ import {
   Text,
   Anchor,
   Loader,
-  Divider,
   Badge,
 } from '@mantine/core';
 import {
@@ -33,6 +32,7 @@ import Link from 'next/link';
 
 interface ProfileFormData {
   name: string;
+  username: string;
   bio: string;
   affiliation: string;
   website: string;
@@ -50,16 +50,26 @@ export default function EditProfilePage() {
   const [orcidId, setOrcidId] = useState<string | null>(null);
   const [orcidVerified, setOrcidVerified] = useState(false);
   const [unlinking, setUnlinking] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [originalUsername, setOriginalUsername] = useState('');
 
   const form = useForm<ProfileFormData>({
     initialValues: {
       name: '',
+      username: '',
       bio: '',
       affiliation: '',
       website: ''
     },
     validate: {
       name: (value) => value.trim().length === 0 ? 'Name is required' : null,
+      username: (value) => {
+        if (!value.trim()) return 'Username is required';
+        if (!/^[a-z][a-z0-9-]{2,29}$/.test(value)) {
+          return 'Must be 3-30 chars, start with a letter, and contain only lowercase letters, numbers, and hyphens';
+        }
+        return null;
+      },
       bio: (value) => value.length > 1000 ? 'Bio must be less than 1000 characters' : null,
       affiliation: (value) => value.length > 200 ? 'Affiliation must be less than 200 characters' : null,
       website: (value) => {
@@ -112,9 +122,11 @@ export default function EditProfilePage() {
 
         setOrcidId(profile.orcidId || null);
         setOrcidVerified(profile.orcidVerified || false);
+        setOriginalUsername(profile.username || '');
 
         form.setValues({
           name: profile.name || '',
+          username: profile.username || '',
           bio: profile.bio || '',
           affiliation: profile.affiliation || '',
           website: profile.website || ''
@@ -131,6 +143,10 @@ export default function EditProfilePage() {
 
 
   const handleSubmit = async (values: ProfileFormData) => {
+    if (usernameStatus === 'taken') {
+      setError('Username is already taken. Please choose a different one.');
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
@@ -200,6 +216,32 @@ export default function EditProfilePage() {
 
 
 
+  const checkUsernameAvailability = async () => {
+    const username = form.values.username;
+    if (!username || username === originalUsername) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (!/^[a-z][a-z0-9-]{2,29}$/.test(username)) {
+      setUsernameStatus('idle');
+      return;
+    }
+    setUsernameStatus('checking');
+    try {
+      const response = await fetch(`http://localhost:4000/api/users/check-username/${username}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsernameStatus(data.available ? 'available' : 'taken');
+      } else {
+        setUsernameStatus('idle');
+      }
+    } catch {
+      setUsernameStatus('idle');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <Container size="md" py="xl">
@@ -257,17 +299,38 @@ export default function EditProfilePage() {
         {/* Profile Form */}
         <Card shadow="sm" padding="xl" radius="md">
           <form onSubmit={form.onSubmit(handleSubmit)}>
-            <Stack gap="lg">
-              {/* Basic Information */}
-              <Stack gap="md">
-                <Title order={3}>Basic Information</Title>
-                
+            <Stack gap="md">
+
                 <TextInput
                   label="Full Name"
                   placeholder="Your full name"
                   leftSection={<IconUser size={16} />}
                   required
                   {...form.getInputProps('name')}
+                />
+
+                <TextInput
+                  label="Username"
+                  placeholder="your-username"
+                  leftSection={<IconAt size={16} />}
+                  required
+                  description="Used for @mentions. Lowercase letters, numbers, and hyphens only."
+                  rightSection={
+                    usernameStatus === 'checking' ? <Loader size={14} /> :
+                    usernameStatus === 'available' ? <IconCheck size={16} color="green" /> :
+                    usernameStatus === 'taken' ? <IconAlertCircle size={16} color="red" /> :
+                    null
+                  }
+                  {...form.getInputProps('username')}
+                  error={usernameStatus === 'taken' ? 'Username is already taken' : form.getInputProps('username').error}
+                  onBlur={(e) => {
+                    form.getInputProps('username').onBlur(e);
+                    checkUsernameAvailability();
+                  }}
+                  onChange={(e) => {
+                    form.getInputProps('username').onChange(e);
+                    setUsernameStatus('idle');
+                  }}
                 />
 
                 <TextInput
@@ -287,13 +350,6 @@ export default function EditProfilePage() {
                   {...form.getInputProps('bio')}
                   description={`${form.values.bio.length}/1000 characters`}
                 />
-              </Stack>
-
-              <Divider />
-
-              {/* Academic Information */}
-              <Stack gap="md">
-                <Title order={3}>Academic Information</Title>
 
                 <Stack gap="xs">
                   <Text fw={500} size="sm">ORCID iD</Text>
@@ -351,9 +407,6 @@ export default function EditProfilePage() {
                   {...form.getInputProps('website')}
                   description="Your personal website, lab page, or academic homepage"
                 />
-              </Stack>
-
-              <Divider />
 
               {/* Actions */}
               <Group justify="flex-end" gap="md">
@@ -377,34 +430,6 @@ export default function EditProfilePage() {
           </form>
         </Card>
 
-        {/* ORCID Info Card */}
-        <Card shadow="xs" padding="lg" radius="md" bg="blue.0">
-          <Stack gap="xs">
-            <Title order={4}>About ORCID Verification</Title>
-            <Text size="sm">
-              ORCID verification ensures your identifier is authentic and controlled by you. 
-              We use ORCID's official OAuth system to verify your identity and maintain the integrity 
-              of academic credentials on our platform.
-            </Text>
-            <Group>
-              <Anchor
-                href="https://orcid.org/register"
-                target="_blank"
-                size="sm"
-              >
-                Get ORCID iD
-              </Anchor>
-              <Text size="sm" c="dimmed">•</Text>
-              <Anchor
-                href="https://orcid.org/about"
-                target="_blank"
-                size="sm"
-              >
-                Learn More
-              </Anchor>
-            </Group>
-          </Stack>
-        </Card>
       </Stack>
 
     </Container>

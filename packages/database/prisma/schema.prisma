@@ -258,6 +258,7 @@ model supported_formats {
 model users {
   id                                              String                      @id
   email                                           String                      @unique
+  username                                        String                      @unique
   name                                            String?
   orcidId                                         String?                     @unique
   orcidVerified                                   Boolean                     @default(false)

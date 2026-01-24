@@ -101,7 +101,7 @@ describe('Line Break Fix for Bot Mentions', () => {
   it('should still render block content properly', () => {
     const { container } = renderWithProvider(
       <MessageContent 
-        content="# Header\n\n@editorial-bot please review:\n\n- Item 1\n- Item 2" 
+        content={"# Header\n\n@editorial-bot please review:\n\n- Item 1\n- Item 2"}
         {...defaultProps}
       />
     );

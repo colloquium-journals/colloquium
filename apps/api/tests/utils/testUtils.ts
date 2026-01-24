@@ -55,9 +55,10 @@ export const createMockResponse = (): Partial<Response> => {
 };
 
 // Mock authenticated user
-export const createMockUser = (overrides = {}) => ({
+export const createMockUser = (overrides: any = {}) => ({
   id: 'test-user-id',
   email: 'test@example.com',
+  username: overrides.username || 'test-user',
   name: 'Test User',
   role: GlobalRole.USER,
   orcidId: null,
@@ -66,9 +67,10 @@ export const createMockUser = (overrides = {}) => ({
 });
 
 // Mock admin user
-export const createMockAdmin = (overrides = {}) => ({
+export const createMockAdmin = (overrides: any = {}) => ({
   id: 'admin-user-id',
   email: 'admin@example.com',
+  username: overrides.username || 'admin-user',
   name: 'Admin User',
   role: GlobalRole.ADMIN,
   orcidId: null,
@@ -77,9 +79,10 @@ export const createMockAdmin = (overrides = {}) => ({
 });
 
 // Mock editor user
-export const createMockEditor = (overrides = {}) => ({
+export const createMockEditor = (overrides: any = {}) => ({
   id: 'editor-user-id',
   email: 'editor@example.com',
+  username: overrides.username || 'editor-user',
   name: 'Editor User',
   role: GlobalRole.EDITOR_IN_CHIEF,
   orcidId: null,

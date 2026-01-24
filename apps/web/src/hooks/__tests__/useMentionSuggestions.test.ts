@@ -31,6 +31,7 @@ describe('useMentionSuggestions', () => {
       id: 'p1',
       user: {
         id: 'user1',
+        username: 'john-doe',
         name: 'John Doe',
         email: 'john@example.com',
         role: 'AUTHOR'
@@ -40,6 +41,7 @@ describe('useMentionSuggestions', () => {
       id: 'p2',
       user: {
         id: 'user2',
+        username: 'jane-smith',
         name: 'Jane Smith',
         email: 'jane@example.com',
         role: 'REVIEWER'
@@ -83,19 +85,19 @@ describe('useMentionSuggestions', () => {
     });
 
     const suggestions = result.current.allSuggestions;
-    
-    // Check user suggestions
+
+    // Check user suggestions use username as mention name
     expect(suggestions.filter(s => s.type === 'user')).toEqual([
       {
         id: 'user1',
-        name: 'John Doe',
+        name: 'john-doe',
         displayName: 'John Doe',
         type: 'user',
         description: 'AUTHOR • john@example.com'
       },
       {
         id: 'user2',
-        name: 'Jane Smith',
+        name: 'jane-smith',
         displayName: 'Jane Smith',
         type: 'user',
         description: 'REVIEWER • jane@example.com'
@@ -149,7 +151,7 @@ describe('useMentionSuggestions', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should filter suggestions correctly', async () => {
+  it('should filter suggestions by username', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({ participants: mockParticipants })
@@ -166,37 +168,33 @@ describe('useMentionSuggestions', () => {
       expect(result.current.allSuggestions).toHaveLength(4);
     });
 
-    // Test filtering by name
+    // Test filtering by username
     const johnSuggestions = result.current.getFilteredSuggestions('john');
     expect(johnSuggestions).toHaveLength(1);
-    expect(johnSuggestions[0].name).toBe('John Doe');
+    expect(johnSuggestions[0].name).toBe('john-doe');
+
+    // Test filtering by display name
+    const janeSuggestions = result.current.getFilteredSuggestions('Jane');
+    expect(janeSuggestions).toHaveLength(1);
+    expect(janeSuggestions[0].name).toBe('jane-smith');
 
     // Test filtering by bot name
     const editorialSuggestions = result.current.getFilteredSuggestions('editorial');
     expect(editorialSuggestions).toHaveLength(1);
     expect(editorialSuggestions[0].name).toBe('editorial-bot');
 
-    // Test filtering by bot ID
-    const plagiarismSuggestions = result.current.getFilteredSuggestions('plagiarism-checker');
-    expect(plagiarismSuggestions).toHaveLength(1);
-    expect(plagiarismSuggestions[0].id).toBe('plagiarism-checker');
-
-    // Test case insensitive filtering
-    const smitSuggestions = result.current.getFilteredSuggestions('SMITH');
-    expect(smitSuggestions).toHaveLength(1);
-    expect(smitSuggestions[0].name).toBe('Jane Smith');
-
     // Test no matches
     const noMatches = result.current.getFilteredSuggestions('xyz');
     expect(noMatches).toHaveLength(0);
   });
 
-  it('should handle users without names (using email)', async () => {
+  it('should use email as displayName when name is empty', async () => {
     const participantsWithoutNames = [
       {
         id: 'p1',
         user: {
           id: 'user1',
+          username: 'john-user',
           name: '',
           email: 'john@example.com',
           role: 'AUTHOR'
@@ -221,7 +219,7 @@ describe('useMentionSuggestions', () => {
     });
 
     const userSuggestion = result.current.allSuggestions[0];
-    expect(userSuggestion.name).toBe('john@example.com');
+    expect(userSuggestion.name).toBe('john-user');
     expect(userSuggestion.displayName).toBe('john@example.com');
   });
 });

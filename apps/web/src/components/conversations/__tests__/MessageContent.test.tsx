@@ -161,13 +161,13 @@ describe('MessageContent', () => {
 
     it('should render user mentions with different styling than bots', () => {
       renderWithProvider(
-        <MessageContent 
-          content="@John Smith please review" 
+        <MessageContent
+          content="@john-smith please review"
           {...defaultProps}
         />
       );
-      
-      const mentionElement = screen.getByText('@John Smith');
+
+      const mentionElement = screen.getByText('@john-smith');
       expect(mentionElement).toBeInTheDocument();
       expect(mentionElement).toHaveStyle({
         fontWeight: '600',
@@ -177,14 +177,14 @@ describe('MessageContent', () => {
 
     it('should handle multiple mentions', () => {
       renderWithProvider(
-        <MessageContent 
-          content="@editorial-bot and @John Smith please review" 
+        <MessageContent
+          content="@editorial-bot and @john-smith please review"
           {...defaultProps}
         />
       );
-      
+
       expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
-      expect(screen.getByText('@John Smith')).toBeInTheDocument();
+      expect(screen.getByText('@john-smith')).toBeInTheDocument();
       expect(screen.getByText('and')).toBeInTheDocument();
       expect(screen.getByText('please review')).toBeInTheDocument();
     });
@@ -211,38 +211,38 @@ describe('MessageContent', () => {
 @editorial-bot please review this article with the following criteria:
 
 - **Statistical analysis** accuracy
-- *Methodology* completeness  
+- *Methodology* completeness
 - Citation formatting
 
-Please also coordinate with @John Smith for peer review.`;
+Please also coordinate with @john-smith for peer review.`;
 
       renderWithProvider(
-        <MessageContent 
-          content={complexContent} 
+        <MessageContent
+          content={complexContent}
           {...defaultProps}
         />
       );
-      
+
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Review Request');
       expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
-      expect(screen.getByText('@John Smith')).toBeInTheDocument();
+      expect(screen.getByText('@john-smith')).toBeInTheDocument();
       expect(screen.getByText('Statistical analysis').tagName).toBe('STRONG');
       expect(screen.getByText('Methodology').tagName).toBe('EM');
     });
 
     it('should handle mentions at different positions with markdown', () => {
       renderWithProvider(
-        <MessageContent 
-          content="@editorial-bot **start**, middle *content* @John Smith **end**" 
+        <MessageContent
+          content="@editorial-bot **start**, middle *content* @john-smith **end**"
           {...defaultProps}
         />
       );
-      
+
       // Check that all elements are rendered
       expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
       expect(screen.getByText('start').tagName).toBe('STRONG');
       expect(screen.getByText('content').tagName).toBe('EM');
-      expect(screen.getByText('@John Smith')).toBeInTheDocument();
+      expect(screen.getByText('@john-smith')).toBeInTheDocument();
       expect(screen.getByText('end').tagName).toBe('STRONG');
     });
 

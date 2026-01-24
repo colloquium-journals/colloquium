@@ -15,6 +15,7 @@ const updateRoleSchema = z.object({
 
 const updateProfileSchema = z.object({
   name: z.string().optional(),
+  username: z.string().regex(/^[a-z][a-z0-9-]{2,29}$/, 'Username must be 3-30 characters, start with a letter, and contain only lowercase letters, numbers, and hyphens').optional(),
   bio: z.string().optional(),
   affiliation: z.string().optional(),
   website: z.string().url().optional()
@@ -57,6 +58,7 @@ router.get('/', authenticateWithBots, (req: any, res, next) => {
         select: {
           id: true,
           email: true,
+          username: true,
           name: true,
           orcidId: true,
           orcidVerified: true,
@@ -106,6 +108,7 @@ router.get('/lookup', authenticate, async (req, res, next) => {
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         orcidId: true,
         orcidVerified: true,
@@ -127,6 +130,28 @@ router.get('/lookup', authenticate, async (req, res, next) => {
       orcidId: user.orcidId,
       affiliation: user.affiliation
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/users/check-username/:username - Check username availability
+router.get('/check-username/:username', authenticate, async (req, res, next) => {
+  try {
+    const { username } = req.params;
+    const usernameRegex = /^[a-z][a-z0-9-]{2,29}$/;
+
+    if (!usernameRegex.test(username)) {
+      return res.json({ available: false, reason: 'Invalid format' });
+    }
+
+    const existing = await prisma.users.findUnique({
+      where: { username },
+      select: { id: true }
+    });
+
+    const available = !existing || existing.id === req.user!.id;
+    res.json({ available });
   } catch (error) {
     next(error);
   }
@@ -259,6 +284,7 @@ router.get('/me', authenticate, async (req, res, next) => {
     const profile = {
       id: user.id,
       email: user.email,
+      username: user.username,
       name: user.name,
       orcidId: user.orcidId,
       orcidVerified: user.orcidVerified,
@@ -324,17 +350,19 @@ router.get('/profile/:identifier', authenticate, async (req, res, next) => {
       });
     }
     
-    // Look up user by ID or email
+    // Look up user by ID, email, or username
     const user = await prisma.users.findFirst({
       where: {
         OR: [
           { id: identifier },
-          { email: identifier }
+          { email: identifier },
+          { username: identifier }
         ]
       },
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         orcidId: true,
         orcidVerified: true,
@@ -405,7 +433,7 @@ router.put('/me', authenticate, async (req, res, next) => {
       });
     }
 
-    const { name, bio, affiliation, website } = validation.data;
+    const { name, username, bio, affiliation, website } = validation.data;
     const updates: any = { updatedAt: new Date() };
 
     if (name !== undefined) updates.name = name;
@@ -413,12 +441,27 @@ router.put('/me', authenticate, async (req, res, next) => {
     if (affiliation !== undefined) updates.affiliation = affiliation;
     if (website !== undefined) updates.website = website;
 
+    if (username !== undefined) {
+      const existing = await prisma.users.findUnique({
+        where: { username },
+        select: { id: true }
+      });
+      if (existing && existing.id !== req.user!.id) {
+        return res.status(409).json({
+          error: 'Username Taken',
+          message: 'This username is already in use'
+        });
+      }
+      updates.username = username;
+    }
+
     const updatedUser = await prisma.users.update({
       where: { id: req.user!.id },
       data: updates,
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         orcidId: true,
         orcidVerified: true,

@@ -32,6 +32,7 @@ describe('File Access Control During Publishing Workflow', () => {
       data: {
         id: randomUUID(),
         email: 'author@fileaccess.test',
+        username: 'file-test-author',
         name: 'Test Author',
         role: 'USER',
         updatedAt: new Date()
@@ -44,6 +45,7 @@ describe('File Access Control During Publishing Workflow', () => {
       data: {
         id: randomUUID(),
         email: 'editor@fileaccess.test',
+        username: 'file-test-editor',
         name: 'Test Editor',
         role: 'EDITOR_IN_CHIEF',
         updatedAt: new Date()
@@ -56,6 +58,7 @@ describe('File Access Control During Publishing Workflow', () => {
       data: {
         id: randomUUID(),
         email: 'public@fileaccess.test',
+        username: 'file-test-public',
         name: 'Public User',
         role: 'USER',
         updatedAt: new Date()
@@ -68,6 +71,7 @@ describe('File Access Control During Publishing Workflow', () => {
       data: {
         id: randomUUID(),
         email: 'unauthorized@fileaccess.test',
+        username: 'file-test-unauth',
         name: 'Unauthorized User',
         role: 'USER',
         updatedAt: new Date()

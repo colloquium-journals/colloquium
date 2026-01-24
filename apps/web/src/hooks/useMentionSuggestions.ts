@@ -17,6 +17,7 @@ interface ConversationParticipant {
   id: string;
   user: {
     id: string;
+    username: string;
     name: string;
     email: string;
     role: string;
@@ -58,40 +59,18 @@ export function useMentionSuggestions({ conversationId, availableBots }: UseMent
 
   // Combine users and bots into suggestions
   const allSuggestions = useMemo((): MentionSuggestion[] => {
-    // Create user suggestions with collision detection
-    const usersByDisplayName = new Map<string, ConversationParticipant[]>();
-    
-    // Group users by display name to detect collisions
-    participants.forEach(participant => {
-      const displayName = participant.user.name || participant.user.email;
-      if (!usersByDisplayName.has(displayName)) {
-        usersByDisplayName.set(displayName, []);
-      }
-      usersByDisplayName.get(displayName)!.push(participant);
-    });
-
-    const userSuggestions: MentionSuggestion[] = [];
-    usersByDisplayName.forEach((users, displayName) => {
-      users.forEach(participant => {
-        const needsDisambiguation = users.length > 1;
-        const mentionName = needsDisambiguation 
-          ? `${displayName} (${participant.user.email})`
-          : displayName;
-
-        userSuggestions.push({
-          id: participant.user.id,
-          name: mentionName,
-          displayName: displayName,
-          type: 'user' as const,
-          description: `${participant.user.role} • ${participant.user.email}`,
-        });
-      });
-    });
+    const userSuggestions: MentionSuggestion[] = participants.map(participant => ({
+      id: participant.user.id,
+      name: participant.user.username,
+      displayName: participant.user.name || participant.user.email,
+      type: 'user' as const,
+      description: `${participant.user.role} • ${participant.user.email}`,
+    }));
 
     const botSuggestions: MentionSuggestion[] = availableBots.map(bot => ({
       id: bot.id,
-      name: bot.id, // Use bot ID for the mention (e.g., @editorial-bot)
-      displayName: bot.name, // Use human-readable name for display (e.g., "Editorial Bot")
+      name: bot.id,
+      displayName: bot.name,
       type: 'bot' as const,
       description: bot.description,
       color: bot.color,
@@ -105,7 +84,7 @@ export function useMentionSuggestions({ conversationId, availableBots }: UseMent
     if (!query.trim()) return allSuggestions;
 
     const lowercaseQuery = query.toLowerCase();
-    return allSuggestions.filter(suggestion => 
+    return allSuggestions.filter(suggestion =>
       suggestion.name.toLowerCase().includes(lowercaseQuery) ||
       suggestion.displayName.toLowerCase().includes(lowercaseQuery) ||
       suggestion.id.toLowerCase().includes(lowercaseQuery) ||

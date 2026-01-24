@@ -107,10 +107,11 @@ describe('Auth Routes', () => {
 
       expect(response.body.message).toContain('Magic link sent');
       expect(prisma.users.create).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           email: 'newuser@example.com',
+          username: expect.any(String),
           role: expect.any(String)
-        }
+        })
       });
     });
 
@@ -149,7 +150,7 @@ describe('Auth Routes', () => {
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
         usedAt: null,
         redirectUrl: 'http://localhost:3000/dashboard',
-        user: mockUser
+        users: mockUser
       };
       
       prisma.magic_links.findUnique.mockResolvedValue(mockMagicLink);

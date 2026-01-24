@@ -3,9 +3,11 @@ import { prisma } from '@colloquium/database';
 
 // Test utilities
 const createTestUser = async (userData: any = {}) => {
+  const { randomUUID } = require('crypto');
   return await prisma.users.create({
     data: {
       email: userData.email || 'test@example.com',
+      username: userData.username || `test-user-${randomUUID().slice(0, 8)}`,
       name: userData.name || 'Test User',
       role: userData.role || 'USER',
       ...userData

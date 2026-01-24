@@ -162,10 +162,23 @@ router.post('/invite',
 
         // If user doesn't exist, create them as a potential reviewer
         if (!reviewer) {
+          const baseUsername = email.toLowerCase().split('@')[0]
+            .replace(/[^a-z0-9-]/g, '-')
+            .replace(/^[^a-z]/, 'u')
+            .slice(0, 27);
+          const paddedUsername = baseUsername.length < 3 ? baseUsername + 'x'.repeat(3 - baseUsername.length) : baseUsername;
+          let username = paddedUsername;
+          let suffix = 2;
+          while (await prisma.users.findUnique({ where: { username }, select: { id: true } })) {
+            username = `${paddedUsername}-${suffix}`;
+            suffix++;
+          }
+
           reviewer = await prisma.users.create({
             data: {
               id: require('crypto').randomUUID(),
               email: email.toLowerCase(),
+              username,
               role: 'USER',
               updatedAt: new Date()
             }

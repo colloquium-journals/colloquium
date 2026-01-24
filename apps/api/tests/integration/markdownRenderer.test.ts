@@ -18,6 +18,7 @@ describe('Markdown Renderer Bot Integration', () => {
     const user = await prisma.users.create({
       data: {
         email: 'test-markdown@example.com',
+        username: 'markdown-test-user',
         name: 'Markdown Test User',
         role: GlobalRole.USER
       }

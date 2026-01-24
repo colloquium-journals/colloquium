@@ -35,11 +35,13 @@ async function main() {
     where: { email: 'admin@colloquium.example.com' },
     update: {
       role: GlobalRole.ADMIN,
-      name: 'Admin User'
+      name: 'Admin User',
+      username: 'admin-user'
     },
     create: {
       id: randomUUID(),
       email: 'admin@colloquium.example.com',
+      username: 'admin-user',
       name: 'Admin User',
       role: GlobalRole.ADMIN,
       updatedAt: new Date()
@@ -51,11 +53,13 @@ async function main() {
     where: { email: 'editor@colloquium.example.com' },
     update: {
       role: GlobalRole.EDITOR_IN_CHIEF,
-      name: 'Editor User'
+      name: 'Editor User',
+      username: 'editor-user'
     },
     create: {
       id: randomUUID(),
       email: 'editor@colloquium.example.com',
+      username: 'editor-user',
       name: 'Editor User',
       role: GlobalRole.EDITOR_IN_CHIEF,
       updatedAt: new Date()
@@ -65,10 +69,11 @@ async function main() {
   // Create sample author
   const authorUser = await prisma.users.upsert({
     where: { email: 'author@colloquium.example.com' },
-    update: {},
+    update: { username: 'sample-author' },
     create: {
       id: randomUUID(),
       email: 'author@colloquium.example.com',
+      username: 'sample-author',
       name: 'Sample Author',
       role: GlobalRole.USER,
       updatedAt: new Date()
@@ -78,10 +83,11 @@ async function main() {
   // Create sample reviewer
   const reviewerUser = await prisma.users.upsert({
     where: { email: 'reviewer@colloquium.example.com' },
-    update: {},
+    update: { username: 'sample-reviewer' },
     create: {
       id: randomUUID(),
       email: 'reviewer@colloquium.example.com',
+      username: 'sample-reviewer',
       name: 'Sample Reviewer',
       role: GlobalRole.USER,
       updatedAt: new Date()
@@ -91,10 +97,11 @@ async function main() {
   // Create additional authors for more realistic submissions
   const author2 = await prisma.users.upsert({
     where: { email: 'alice.researcher@university.edu' },
-    update: {},
+    update: { username: 'alice-researcher' },
     create: {
       id: randomUUID(),
       email: 'alice.researcher@university.edu',
+      username: 'alice-researcher',
       name: 'Alice Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0002-1825-0097',
@@ -107,10 +114,11 @@ async function main() {
 
   const author3 = await prisma.users.upsert({
     where: { email: 'bob.scientist@research.org' },
-    update: {},
+    update: { username: 'bob-scientist' },
     create: {
       id: randomUUID(),
       email: 'bob.scientist@research.org',
+      username: 'bob-scientist',
       name: 'Bob Scientist',
       role: GlobalRole.USER,
       orcidId: '0000-0003-4567-8901',
@@ -123,10 +131,11 @@ async function main() {
 
   const author4 = await prisma.users.upsert({
     where: { email: 'charlie.academic@college.edu' },
-    update: {},
+    update: { username: 'charlie-academic' },
     create: {
       id: randomUUID(),
       email: 'charlie.academic@college.edu',
+      username: 'charlie-academic',
       name: 'Charlie Academic',
       role: GlobalRole.USER,
       affiliation: 'Liberal Arts College',
@@ -138,10 +147,11 @@ async function main() {
   // Create additional authors for testing multi-author manuscripts
   const author5 = await prisma.users.upsert({
     where: { email: 'diana.researcher@institute.org' },
-    update: {},
+    update: { username: 'diana-researcher' },
     create: {
       id: randomUUID(),
       email: 'diana.researcher@institute.org',
+      username: 'diana-researcher',
       name: 'Diana Researcher',
       role: GlobalRole.USER,
       orcidId: '0000-0004-5678-9012',
@@ -154,10 +164,11 @@ async function main() {
 
   const author6 = await prisma.users.upsert({
     where: { email: 'edward.professor@university.ac.uk' },
-    update: {},
+    update: { username: 'edward-mitchell' },
     create: {
       id: randomUUID(),
       email: 'edward.professor@university.ac.uk',
+      username: 'edward-mitchell',
       name: 'Edward Mitchell',
       role: GlobalRole.USER,
       orcidId: '0000-0005-6789-0123',
@@ -170,10 +181,11 @@ async function main() {
 
   const author7 = await prisma.users.upsert({
     where: { email: 'fiona.scientist@research.gov' },
-    update: {},
+    update: { username: 'fiona-chen' },
     create: {
       id: randomUUID(),
       email: 'fiona.scientist@research.gov',
+      username: 'fiona-chen',
       name: 'Fiona Chen',
       role: GlobalRole.USER,
       affiliation: 'National Science Foundation',
@@ -184,10 +196,11 @@ async function main() {
 
   const author8 = await prisma.users.upsert({
     where: { email: 'george.analyst@tech.com' },
-    update: {},
+    update: { username: 'george-williams' },
     create: {
       id: randomUUID(),
       email: 'george.analyst@tech.com',
+      username: 'george-williams',
       name: 'George Williams',
       role: GlobalRole.USER,
       affiliation: 'TechCorp Research Division',
@@ -198,10 +211,11 @@ async function main() {
 
   const author9 = await prisma.users.upsert({
     where: { email: 'helena.postdoc@university.de' },
-    update: {},
+    update: { username: 'helena-schmidt' },
     create: {
       id: randomUUID(),
       email: 'helena.postdoc@university.de',
+      username: 'helena-schmidt',
       name: 'Helena Schmidt',
       role: GlobalRole.USER,
       orcidId: '0000-0006-7890-1234',
@@ -214,10 +228,11 @@ async function main() {
 
   const author10 = await prisma.users.upsert({
     where: { email: 'ivan.graduate@student.edu' },
-    update: {},
+    update: { username: 'ivan-rodriguez' },
     create: {
       id: randomUUID(),
       email: 'ivan.graduate@student.edu',
+      username: 'ivan-rodriguez',
       name: 'Ivan Rodriguez',
       role: GlobalRole.USER,
       affiliation: 'Stanford University',

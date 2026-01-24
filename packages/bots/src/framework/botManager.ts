@@ -66,6 +66,7 @@ export class DatabaseBotManager implements BotManager {
           data: {
             id: `bot-${bot.id}`,
             email: botEmail,
+            username: bot.id,
             name: bot.name,
             role: "BOT",
             updatedAt: new Date(),
