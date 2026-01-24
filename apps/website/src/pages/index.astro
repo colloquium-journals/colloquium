@@ -1,0 +1,236 @@
+---
+import Marketing from '../layouts/Marketing.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Marketing title="Colloquium - Open Source Journal Publishing">
+  <!-- Hero -->
+  <section class="mx-auto max-w-6xl px-6 py-24 text-center">
+    <h1 class="text-5xl font-bold tracking-tight text-gray-900 md:text-6xl">
+      Your journal. Your rules.<br />Your community.
+    </h1>
+    <p class="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
+      Open-source publishing infrastructure that puts academics in control.
+      Conversational peer review, automated workflows, and complete data sovereignty.
+    </p>
+    <div class="mt-10 flex items-center justify-center gap-4">
+      <a
+        href={`${base}/getting-started/quick-start`}
+        class="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white hover:bg-accent-600/90"
+      >
+        Get Started
+      </a>
+      <a
+        href={`${base}/features`}
+        class="rounded-md border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+      >
+        See Features
+      </a>
+    </div>
+  </section>
+
+  <!-- Problem -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-center text-3xl font-bold text-gray-900">The problem with academic publishing</h2>
+      <div class="mt-12 grid gap-8 md:grid-cols-2">
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">Publishers control the platform</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Academics do the writing, reviewing, and editing — but traditional publishers own the infrastructure, the data, and the process.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">Journal creation is expensive</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Starting a new journal requires either costly vendor contracts or significant technical expertise that most academics don't have.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">Peer review is stuck in email</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Email chains fragment context, lose history, and force editors to manually relay information between authors and reviewers.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">No room for innovation</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Locked into rigid vendor workflows, journals can't experiment with open review, novel automation, or community-driven processes.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-center text-3xl font-bold text-gray-900">A better way to publish</h2>
+      <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-600/10 text-accent-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-gray-900">Conversational Review</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Replace email chains with structured conversations. Granular privacy controls let you run open, blind, or hybrid review models.
+          </p>
+          <a href={`${base}/features/conversations`} class="mt-3 inline-block text-sm text-accent-600 hover:underline">Learn more</a>
+        </div>
+        <div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-600/10 text-accent-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-gray-900">Bot Automation</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Automate formatting, reference checking, and editorial workflows. Install community bots or build your own with TypeScript.
+          </p>
+          <a href={`${base}/features/bots`} class="mt-3 inline-block text-sm text-accent-600 hover:underline">Learn more</a>
+        </div>
+        <div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-600/10 text-accent-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-gray-900">Self-Sovereign</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Deploy on your own infrastructure. Your data never touches our servers unless you choose managed hosting.
+          </p>
+          <a href={`${base}/features/deployment`} class="mt-3 inline-block text-sm text-accent-600 hover:underline">Learn more</a>
+        </div>
+        <div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-600/10 text-accent-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </div>
+          <h3 class="mt-4 font-semibold text-gray-900">Open Source</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            MIT licensed. Fork it, extend it, contribute back. No vendor lock-in, ever.
+          </p>
+          <a href="https://github.com/colloquium-press/colloquium" class="mt-3 inline-block text-sm text-accent-600 hover:underline" target="_blank" rel="noopener">View source</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-center text-3xl font-bold text-gray-900">How it works</h2>
+      <div class="mt-12 grid gap-4 md:grid-cols-5">
+        <div class="text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white">1</div>
+          <h3 class="mt-3 text-sm font-semibold text-gray-900">Submit</h3>
+          <p class="mt-1 text-xs text-gray-600">Author uploads manuscript in any format</p>
+        </div>
+        <div class="text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white">2</div>
+          <h3 class="mt-3 text-sm font-semibold text-gray-900">Assign</h3>
+          <p class="mt-1 text-xs text-gray-600">Editor assigns reviewers via conversation</p>
+        </div>
+        <div class="text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white">3</div>
+          <h3 class="mt-3 text-sm font-semibold text-gray-900">Review</h3>
+          <p class="mt-1 text-xs text-gray-600">Structured discussion with privacy controls</p>
+        </div>
+        <div class="text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white">4</div>
+          <h3 class="mt-3 text-sm font-semibold text-gray-900">Decide</h3>
+          <p class="mt-1 text-xs text-gray-600">Editor makes decision with full context</p>
+        </div>
+        <div class="text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-600 text-sm font-bold text-white">5</div>
+          <h3 class="mt-3 text-sm font-semibold text-gray-900">Publish</h3>
+          <p class="mt-1 text-xs text-gray-600">Bots format and publish automatically</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Audiences -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-center text-3xl font-bold text-gray-900">Built for everyone in the workflow</h2>
+      <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">For Editors</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Run your journal with modern tools. Assign reviewers, track deadlines, and make decisions — all in one place with bot assistance.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">For Reviewers</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            No more email attachments. Review in context, discuss with editors, and submit structured assessments with guided checklists.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">For Authors</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Submit once, track your manuscript's progress, and respond to reviews directly in threaded conversations.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">For Institutions</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Give your researchers publishing independence. Deploy behind your firewall with full SSO integration and data sovereignty.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">For Developers</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Build bots that automate scholarly workflows. TypeScript SDK, clear APIs, and a growing community of contributors.
+          </p>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">For the Community</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Reduce barriers to independent journal creation. Enable alternative peer review models. Reclaim academic publishing.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech stack -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20 text-center">
+      <h2 class="text-3xl font-bold text-gray-900">Built on proven technology</h2>
+      <p class="mx-auto mt-4 max-w-2xl text-gray-600">
+        TypeScript throughout. PostgreSQL for reliability. Redis for real-time. Next.js for the frontend. Express for the API. Prisma for type-safe database access.
+      </p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-8 text-sm font-medium text-gray-500">
+        <span>TypeScript</span>
+        <span>Next.js</span>
+        <span>Express</span>
+        <span>PostgreSQL</span>
+        <span>Redis</span>
+        <span>Prisma</span>
+        <span>Docker</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20 text-center">
+      <h2 class="text-3xl font-bold text-gray-900">Ready to start your journal?</h2>
+      <p class="mx-auto mt-4 max-w-xl text-gray-600">
+        Deploy your own instance in minutes, or read the documentation to learn more about what Colloquium can do.
+      </p>
+      <div class="mt-8 flex items-center justify-center gap-4">
+        <a
+          href={`${base}/getting-started/quick-start`}
+          class="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white hover:bg-accent-600/90"
+        >
+          Get Started
+        </a>
+        <a
+          href={`${base}/getting-started/introduction`}
+          class="rounded-md border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Read the Docs
+        </a>
+      </div>
+    </div>
+  </section>
+</Marketing>

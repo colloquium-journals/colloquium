@@ -1,0 +1,84 @@
+---
+title: Authentication
+description: Magic link authentication, ORCID integration, and user profiles.
+---
+
+Colloquium uses passwordless authentication via magic links — secure one-time-use URLs sent to the user's email address.
+
+## Magic link flow
+
+1. User enters their email address on the login page
+2. The system generates a secure token and sends an email containing a login link
+3. User clicks the link in their email
+4. The token is verified and a JWT session is created
+5. The user is redirected to the application
+
+### Security properties
+
+- Tokens are single-use and expire after a configurable period
+- JWT sessions support automatic renewal
+- No passwords to compromise, phish, or forget
+- Multi-device support through independent sessions
+
+## ORCID integration
+
+[ORCID](https://orcid.org) provides persistent digital identifiers for researchers. Colloquium integrates with ORCID for identity verification.
+
+### Current implementation
+
+Users can add their ORCID iD to their profile. The system validates the format and verifies it against the ORCID public API.
+
+### Planned: Full OAuth
+
+Full ORCID OAuth 2.0 integration is on the roadmap, providing cryptographic proof of identity ownership rather than self-reported verification.
+
+## User profiles
+
+### Required fields
+
+- **Email** — used for authentication and notifications
+- **Name** — displayed in conversations and assignments
+
+### Optional fields
+
+- **Username** — 3-30 characters, lowercase alphanumeric and hyphens. Used for @mentions.
+- **Bio** — brief professional biography
+- **Affiliation** — institutional affiliation
+- **Website** — personal or institutional URL
+- **ORCID** — researcher identifier
+
+### Profile completion
+
+First-time users are prompted to complete their profile after initial authentication. Only email and name are required; all other fields are optional.
+
+## Roles
+
+Users are assigned a global role that determines their platform-wide permissions:
+
+| Role | Description |
+|------|-------------|
+| ADMIN | Full system access |
+| EDITOR_IN_CHIEF | All editorial functions |
+| ACTION_EDITOR | Manage assigned manuscripts |
+| USER | Submit manuscripts, review when assigned |
+| BOT | Service account for bot authentication |
+
+Roles are assigned by administrators through the admin settings panel.
+
+## Bot authentication
+
+Bots authenticate using service tokens passed in the `X-Bot-Token` HTTP header. Bot tokens are generated during bot installation and provide scoped access to the API based on the bot's declared permissions.
+
+## Environment variables
+
+Configure authentication behavior with these environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `JWT_SECRET` | Secret for signing JWT tokens |
+| `MAGIC_LINK_SECRET` | Secret for magic link token generation |
+| `FRONTEND_URL` | URL for constructing magic link redirects |
+| `SMTP_HOST` | SMTP server for sending login emails |
+| `SMTP_PORT` | SMTP port |
+| `SMTP_USER` | SMTP username |
+| `SMTP_PASS` | SMTP password |

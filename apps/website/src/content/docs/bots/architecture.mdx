@@ -1,0 +1,108 @@
+---
+title: Bot Architecture
+description: How bot execution works under the hood — job queues, workers, and the execution pipeline.
+---
+
+## Execution pipeline
+
+When a user posts a message containing a bot @mention, the following happens:
+
+1. **Detection**: The message handler identifies @mentions matching installed bot names
+2. **Queuing**: A job is created in the Redis/Bull queue with the command context
+3. **Processing**: One of 3 concurrent workers picks up the job
+4. **Execution**: The bot's command handler runs with the full context
+5. **Response**: The bot's response is posted as a new message in the conversation
+6. **Broadcast**: SSE notifies connected participants of the new message
+
+## Job queue
+
+Bots execute via a Redis-backed Bull queue. This provides:
+
+- **Non-blocking UX** — users don't wait for bot processing
+- **Concurrency control** — 3 workers process jobs simultaneously
+- **Retry logic** — failed jobs can be retried
+- **Rate limiting** — prevents bot spam from overwhelming the system
+- **Persistence** — jobs survive server restarts
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `apps/api/src/jobs/index.ts` | Queue initialization with `getBotQueue()` |
+| `apps/api/src/jobs/worker.ts` | Worker setup with 3 concurrent processors |
+| `apps/api/src/jobs/botProcessor.ts` | Bot execution and response handling |
+
+## Bot context
+
+Every bot command receives a rich context object:
+
+```typescript
+interface BotContext {
+  // What was requested
+  command: string;              // The command name
+  args: string[];               // Arguments after the command
+  rawMessage: string;           // Full message text
+
+  // Where it happened
+  manuscriptId: string;         // Associated manuscript
+  conversationId: string;       // Conversation where mentioned
+  messageId: string;            // The triggering message
+
+  // Who triggered it
+  userId: string;               // User who posted the mention
+  userRole: string;             // Their global role
+
+  // Bot configuration
+  config: Record<string, unknown>;  // YAML config values
+
+  // API access
+  apiToken: string;             // Scoped service token
+}
+```
+
+## Audit trail
+
+Every bot execution is recorded in the `bot_executions` table:
+
+- **Status**: PENDING, RUNNING, COMPLETED, FAILED, CANCELLED
+- **Input**: The command and arguments
+- **Output**: The bot's response content
+- **Duration**: Processing time
+- **Error**: Error message if failed
+- **Timestamps**: Created, started, completed
+
+This provides complete visibility into bot behavior for debugging and accountability.
+
+## Error handling
+
+Bot errors are isolated from the platform:
+
+- If a bot throws an exception, the error is caught and logged
+- An error message is posted to the conversation informing the user
+- The platform continues operating normally
+- Failed executions are recorded in the audit trail
+- Bots cannot crash the API server or affect other bots
+
+## Permissions
+
+Bots declare permissions in their definition:
+
+```typescript
+permissions: [
+  'read:manuscripts',      // Read manuscript data
+  'read:conversations',    // Read conversation messages
+  'write:messages',        // Post messages (implicit)
+  'read:users',            // Look up user information
+  'write:manuscript-status' // Transition manuscript status
+]
+```
+
+Permissions are approved by the journal admin at install time. The bot's service token is scoped to only allow API calls matching its declared permissions.
+
+## Configuration lifecycle
+
+1. Bot ships with `bot.config.yaml` (defaults)
+2. Admin installs bot — defaults are copied to the installation record
+3. Admin customizes via the YAML editor in settings
+4. On execution, the merged config is passed to the handler
+5. Comments in the YAML file are preserved across edits

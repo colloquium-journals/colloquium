@@ -1,0 +1,162 @@
+---
+title: Cloud Platform Deployment
+description: Deploy to Railway, Fly.io, Render, or other managed cloud platforms.
+---
+
+Cloud platforms handle infrastructure management — databases, Redis, scaling, SSL — so you can focus on running your journal.
+
+## Railway
+
+[Railway](https://railway.app) provides zero-config deployments with managed PostgreSQL and Redis.
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment railway
+```
+
+Deploy:
+
+```bash
+cd my-journal
+railway deploy
+```
+
+Railway automatically:
+- Provisions a PostgreSQL database
+- Provisions a Redis instance
+- Builds and deploys the application
+- Configures environment variables
+- Sets up SSL certificates
+
+### Custom domain
+
+```bash
+railway domain add journal.example.com
+```
+
+Then point your DNS CNAME to the provided Railway URL.
+
+## Fly.io
+
+[Fly.io](https://fly.io) deploys to a global edge network, running your journal close to readers worldwide.
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment fly \
+  --region ord
+```
+
+Deploy:
+
+```bash
+cd my-journal
+fly deploy
+```
+
+### Regions
+
+Deploy to the region closest to your primary audience:
+
+| Code | Location |
+|------|----------|
+| `ord` | Chicago |
+| `iad` | Virginia |
+| `lhr` | London |
+| `fra` | Frankfurt |
+| `nrt` | Tokyo |
+| `syd` | Sydney |
+
+### Database and Redis
+
+```bash
+fly postgres create --name my-journal-db
+fly redis create --name my-journal-redis
+```
+
+## Render
+
+[Render](https://render.com) provides managed services with automatic deployments from Git.
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment render
+```
+
+The generated `render.yaml` defines all services. Push to a connected Git repository and Render deploys automatically.
+
+## AWS
+
+For enterprise deployments on AWS:
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment aws \
+  --region us-east-1
+```
+
+Generates Terraform configuration for:
+- **ECS** — container orchestration
+- **RDS** — managed PostgreSQL
+- **ElastiCache** — managed Redis
+- **S3** — file storage
+- **CloudFront** — CDN for published assets
+- **ALB** — load balancing with SSL
+
+Deploy with Terraform:
+
+```bash
+cd my-journal/terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+## GCP
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --deployment gcp \
+  --region us-central1
+```
+
+Uses Cloud Run, Cloud SQL, Memorystore, and Cloud Storage.
+
+## Azure
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --deployment azure \
+  --region eastus
+```
+
+Uses Container Instances, Azure Database for PostgreSQL, Azure Cache for Redis, and Azure Storage.
+
+## Choosing a platform
+
+| Factor | Railway/Render | Fly.io | AWS/GCP/Azure |
+|--------|---------------|--------|---------------|
+| Setup complexity | Lowest | Low | Medium-High |
+| Pricing model | Usage-based | Usage-based | Resource-based |
+| Global distribution | Single region | Multi-region | Multi-region |
+| Scaling | Automatic | Automatic | Configurable |
+| Data residency | US/EU | Choose region | Choose region |
+| Enterprise features | Limited | Some | Full |
+
+### Recommendations
+
+- **Starting out / evaluation**: Railway or Render
+- **Global audience**: Fly.io
+- **Institutional requirements**: AWS, GCP, or Azure
+- **Maximum control**: Docker Compose on your own server

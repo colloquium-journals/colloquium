@@ -1,0 +1,183 @@
+---
+title: Docker Compose Deployment
+description: Deploy Colloquium with Docker Compose on a single server.
+---
+
+Docker Compose is the simplest way to deploy Colloquium. It runs all components on a single server with minimal configuration.
+
+## Prerequisites
+
+- A server with Docker and Docker Compose installed
+- A domain name pointing to your server
+- SSH access to the server
+
+## Generate the instance
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment docker
+```
+
+## Configuration
+
+Edit the generated `.env` file:
+
+```bash
+# Database
+DATABASE_URL=postgresql://postgres:your-secure-password@postgres:5432/my-journal
+
+# Redis
+REDIS_URL=redis://redis:6379
+
+# Authentication
+JWT_SECRET=generate-a-random-string-here
+MAGIC_LINK_SECRET=another-random-string
+
+# URLs
+FRONTEND_URL=https://journal.example.com
+API_URL=https://journal.example.com/api
+
+# Email (SMTP)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your-email@example.com
+SMTP_PASS=your-email-password
+
+# Admin
+ADMIN_EMAIL=editor@example.com
+```
+
+Generate secure secrets:
+
+```bash
+openssl rand -hex 32  # For JWT_SECRET
+openssl rand -hex 32  # For MAGIC_LINK_SECRET
+```
+
+## Deploy
+
+```bash
+cd my-journal
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+The setup script:
+1. Validates configuration
+2. Pulls container images
+3. Starts all services
+4. Runs database migrations
+5. Seeds initial data
+6. Configures the admin account
+
+## SSL with Let's Encrypt
+
+The generated Nginx configuration supports Let's Encrypt. Install Certbot and obtain a certificate:
+
+```bash
+# Install certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Obtain certificate
+sudo certbot --nginx -d journal.example.com
+```
+
+Certbot automatically configures Nginx and sets up renewal.
+
+## Docker Compose structure
+
+The generated `docker-compose.yml` includes:
+
+```yaml
+services:
+  web:       # Next.js frontend
+  api:       # Express.js backend
+  postgres:  # PostgreSQL database
+  redis:     # Redis for queues and SSE
+  nginx:     # Reverse proxy with SSL
+```
+
+Volumes persist data across container restarts:
+- `postgres_data` — database files
+- `redis_data` — queue persistence
+- `./data/uploads` — manuscript files
+
+## Management commands
+
+```bash
+# View logs
+docker compose logs -f
+
+# Restart a service
+docker compose restart api
+
+# Stop everything
+docker compose down
+
+# Stop and remove data (destructive!)
+docker compose down -v
+```
+
+## Backups
+
+Use the generated backup script:
+
+```bash
+# Run a backup
+./scripts/backup.sh
+
+# Backups are stored in ./backups/
+# Includes: database dump + uploaded files
+```
+
+Schedule daily backups with cron:
+
+```bash
+0 3 * * * /path/to/my-journal/scripts/backup.sh
+```
+
+## Updates
+
+When a new Colloquium version is released:
+
+```bash
+./scripts/update.sh
+```
+
+This pulls new images, runs migrations, and restarts services with zero downtime.
+
+## Troubleshooting
+
+### Services won't start
+
+Check logs for specific services:
+
+```bash
+docker compose logs api
+docker compose logs postgres
+```
+
+Common issues:
+- Port conflicts (80/443 already in use)
+- Insufficient disk space
+- Invalid environment variables
+
+### Database connection issues
+
+Ensure PostgreSQL is fully started before the API:
+
+```bash
+docker compose up -d postgres
+# Wait for it to be ready
+docker compose up -d api web
+```
+
+### Email delivery
+
+Test SMTP configuration:
+- Verify credentials are correct
+- Check firewall allows outbound SMTP (port 587)
+- Try MailHog locally first to debug email content

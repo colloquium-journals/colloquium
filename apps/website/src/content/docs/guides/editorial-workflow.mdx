@@ -1,0 +1,115 @@
+---
+title: Editorial Workflow
+description: Managing manuscripts from submission through publication.
+---
+
+This guide covers the editor's perspective on managing manuscripts through the review process.
+
+## Submission intake
+
+When a manuscript is submitted, it appears in the submissions dashboard with status **SUBMITTED**. A conversation thread is automatically created.
+
+### Initial screening
+
+Editors can review the submission for:
+- Completeness (all required files present)
+- Scope (appropriate for the journal)
+- Format compliance (acceptable file types)
+
+The reference bot can be used for initial checks:
+
+```
+@reference-bot check
+```
+
+This extracts DOIs and validates them, giving a quick quality signal.
+
+## Editor assignment
+
+Assign an action editor to manage the review:
+
+```
+@editorial-bot assign-editor @username
+```
+
+The assigned editor becomes responsible for the manuscript and gains full editorial access to all conversation threads.
+
+## Reviewer management
+
+### Inviting reviewers
+
+```
+@editorial-bot invite-reviewer @username deadline:2025-04-01
+```
+
+Optional parameters:
+- `deadline` — response deadline (ISO date format)
+- A custom message can be included in the invitation
+
+### Tracking responses
+
+The reviewer management panel shows:
+- **PENDING** — invitation sent, awaiting response
+- **ACCEPTED** — reviewer agreed, review in progress
+- **DECLINED** — reviewer declined the invitation
+- **IN_PROGRESS** — reviewer is actively working
+- **COMPLETED** — review submitted
+
+### Reviewer search
+
+Search for potential reviewers by:
+- Name, email, or affiliation
+- Expertise tags (when configured)
+- Automatic exclusion of manuscript authors (conflict prevention)
+
+## Review collection
+
+Reviews include:
+- **Content** — detailed feedback (minimum 10 characters)
+- **Recommendation** — ACCEPT, MINOR_REVISION, MAJOR_REVISION, or REJECT
+- **Score** — numerical rating (1-10)
+- **Confidential comments** — visible only to editors
+- **Attachments** — annotated manuscripts or supplementary files
+
+## Making decisions
+
+### Status transitions
+
+| From | To | Meaning |
+|------|-----|---------|
+| SUBMITTED | UNDER_REVIEW | Review process started |
+| UNDER_REVIEW | REVISION_REQUESTED | Author needs to revise |
+| UNDER_REVIEW | ACCEPTED | Manuscript accepted |
+| UNDER_REVIEW | REJECTED | Manuscript rejected |
+| REVISION_REQUESTED | REVISED | Author submitted revision |
+| REVISED | UNDER_REVIEW | Re-review started |
+| ACCEPTED | PUBLISHED | Article published |
+
+### Using the editorial bot
+
+```
+@editorial-bot accept
+@editorial-bot reject
+@editorial-bot request-revision
+```
+
+Each command transitions the manuscript status and notifies relevant parties.
+
+## Revision cycles
+
+When revisions are requested:
+
+1. Author receives notification
+2. Author uploads revised manuscript
+3. Status changes to REVISED
+4. Editor decides whether to send for re-review or make a decision
+5. Process repeats as needed
+
+## Publication
+
+When a manuscript is accepted and ready for publication:
+
+1. Use the markdown renderer for final formatting
+2. Review the formatted output
+3. Transition to PUBLISHED
+4. Assets are automatically moved to static hosting

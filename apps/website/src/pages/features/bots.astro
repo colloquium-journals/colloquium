@@ -1,0 +1,159 @@
+---
+import Marketing from '../../layouts/Marketing.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Marketing title="Bot Ecosystem - Colloquium" description="Automate editorial workflows with community-built bots. Reference checking, manuscript formatting, reviewer checklists, and custom automation.">
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <h1 class="text-4xl font-bold text-gray-900">Bot Ecosystem</h1>
+    <p class="mt-4 max-w-2xl text-lg text-gray-600">
+      Trigger automated workflows by @mentioning bots in conversations. Check references, format manuscripts, manage reviews — bots handle the tedious work so editors can focus on scholarship.
+    </p>
+  </section>
+
+  <!-- Built-in bots -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Included bots</h2>
+      <p class="mt-2 text-gray-600">Four bots ship with every Colloquium instance, covering the core editorial workflow.</p>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-2">
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">@editorial-bot</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            The backbone of editorial workflow automation. Assign action editors, invite reviewers with deadlines, process responses, and manage manuscript status transitions — all via conversation commands.
+          </p>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold uppercase text-gray-400">Example commands</h4>
+            <pre class="mt-2 overflow-x-auto rounded bg-gray-100 p-3 text-xs text-gray-700">@editorial-bot assign-editor @jane.smith
+@editorial-bot invite-reviewer @john.doe deadline:2025-03-01
+@editorial-bot accept
+@editorial-bot request-revision</pre>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">@markdown-renderer-bot</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Convert manuscripts to publication-ready formats. Supports HTML, LaTeX, and Typst output engines with customizable journal templates. DOMPurify sanitization for security.
+          </p>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold uppercase text-gray-400">Template engines</h4>
+            <ul class="mt-2 space-y-1 text-xs text-gray-700">
+              <li><strong>Typst</strong> — modern, fast, recommended for new journals</li>
+              <li><strong>LaTeX</strong> — traditional, maximum compatibility</li>
+              <li><strong>HTML</strong> — fastest, good for web-first publishing</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">@reference-bot</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Extract DOIs from manuscripts, validate them against CrossRef, and report missing or malformed references. Resolves full citation metadata including title, authors, journal, and year.
+          </p>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold uppercase text-gray-400">Capabilities</h4>
+            <ul class="mt-2 space-y-1 text-xs text-gray-700">
+              <li>DOI extraction and format validation</li>
+              <li>CrossRef API metadata resolution</li>
+              <li>Missing reference identification</li>
+              <li>Citation completeness reporting</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">@reviewer-checklist-bot</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Generate structured evaluation checklists for systematic manuscript assessment. Guides reviewers through consistent evaluation criteria and produces recommendation summaries.
+          </p>
+          <div class="mt-4">
+            <h4 class="text-xs font-semibold uppercase text-gray-400">Features</h4>
+            <ul class="mt-2 space-y-1 text-xs text-gray-700">
+              <li>Interactive evaluation forms</li>
+              <li>Customizable criteria per journal</li>
+              <li>Structured recommendation output</li>
+              <li>Consistent review quality</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Build your own -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Build your own</h2>
+      <p class="mt-2 max-w-2xl text-gray-600">
+        Create custom bots with the Colloquium bot framework. TypeScript-first, with Zod validation, async execution, and clear API access patterns.
+      </p>
+
+      <div class="mt-8">
+        <pre class="overflow-x-auto rounded-lg bg-gray-900 p-6 text-sm text-gray-100"><code># Scaffold a new bot
+npx create-colloquium-bot my-custom-bot
+
+# Project structure
+my-custom-bot/
+├── src/
+│   ├── index.ts          # Bot definition and commands
+│   └── __tests__/        # Test suite
+├── bot.config.yaml       # Default configuration
+├── package.json
+└── tsconfig.json</code></pre>
+      </div>
+
+      <div class="mt-10 grid gap-8 md:grid-cols-2">
+        <div>
+          <h3 class="font-semibold text-gray-900">Framework features</h3>
+          <ul class="mt-2 space-y-2 text-sm text-gray-600">
+            <li><strong>Standard interface</strong> — consistent API for all bots</li>
+            <li><strong>Async execution</strong> — Redis/Bull job queue, non-blocking</li>
+            <li><strong>Rich context</strong> — manuscript, conversation, user info passed to every command</li>
+            <li><strong>Declarative permissions</strong> — bots request only what they need</li>
+            <li><strong>YAML config</strong> — journal admins configure bots without code</li>
+            <li><strong>Service tokens</strong> — authenticated API access for data retrieval</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Architecture</h3>
+          <ul class="mt-2 space-y-2 text-sm text-gray-600">
+            <li><strong>Event-driven</strong> — bots respond to @mentions in conversations</li>
+            <li><strong>Job queue</strong> — 3 concurrent workers process bot tasks</li>
+            <li><strong>Audit trail</strong> — every execution logged with status and output</li>
+            <li><strong>Error isolation</strong> — bot failures don't affect the platform</li>
+            <li><strong>API-first data access</strong> — bots use REST endpoints, not direct DB</li>
+            <li><strong>Zod validation</strong> — type-safe input/output handling</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="mt-8">
+        <a href={`${base}/bots/introduction`} class="text-sm font-medium text-accent-600 hover:underline">Read the bot development documentation →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Coming soon -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">On the roadmap</h2>
+      <div class="mt-8 grid gap-6 md:grid-cols-3">
+        <div>
+          <h3 class="font-semibold text-gray-900">Bot Marketplace</h3>
+          <p class="mt-1 text-sm text-gray-600">Discover, rate, and install community-built bots. Browse by category, read reviews, and deploy with one click.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Containerized Bots</h3>
+          <p class="mt-1 text-sm text-gray-600">Run bots in isolated containers for enhanced security and resource management. Support for service-enhanced bots with their own databases.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">More Built-In Bots</h3>
+          <p class="mt-1 text-sm text-gray-600">Statcheck (statistical analysis), link verification, plagiarism detection, and automated deadline reminders.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Marketing>

@@ -1,0 +1,86 @@
+---
+title: Conversations
+description: Understanding privacy levels, bot mentions, and real-time messaging.
+---
+
+Conversations are the core interaction model in Colloquium. Every manuscript has associated conversation threads where review discussion, editorial decisions, and bot automation happen.
+
+## Conversation types
+
+Each conversation has a type that determines its base privacy level:
+
+| Type | Participants | Use case |
+|------|-------------|----------|
+| EDITORIAL | Editors only | Internal editorial discussion |
+| REVIEW | Editors + assigned reviewers | Traditional blind review |
+| SEMI_PUBLIC | Editors, reviewers, authors | Open dialogue during review |
+| PUBLIC | Everyone | Post-publication commentary |
+| AUTHOR_ONLY | Authors only | Co-author coordination |
+
+## Message privacy
+
+Individual messages can override the conversation's default privacy:
+
+- **PUBLIC** — visible to all conversation participants
+- **AUTHOR_VISIBLE** — visible to authors and above
+- **REVIEWER_ONLY** — editors and reviewers only
+- **EDITOR_ONLY** — editorial team only
+- **ADMIN_ONLY** — system administrators only
+
+This allows an editor to post a public comment and a private editorial note in the same conversation.
+
+## Participant roles
+
+Each participant in a conversation has a role:
+
+- **OBSERVER** — can read but not post
+- **PARTICIPANT** — can read and post messages
+- **MODERATOR** — can manage participants and conversation settings
+
+## Markdown formatting
+
+Messages support full Markdown:
+
+- **Bold**, *italic*, ~~strikethrough~~
+- `inline code` and fenced code blocks
+- Tables, lists, blockquotes
+- LaTeX math expressions
+- Links and images
+
+## Bot mentions
+
+Trigger bot actions by @mentioning them:
+
+```
+@bot-name command [arguments]
+```
+
+Bot mentions are processed asynchronously — the bot's response appears as a new message in the conversation once processing completes. This keeps the UI responsive even for long-running operations.
+
+### How it works
+
+1. You post a message containing `@bot-name command`
+2. The system detects the bot mention
+3. A job is queued in the Redis/Bull job queue
+4. One of 3 concurrent workers picks up the job
+5. The bot processes the command with full context (manuscript, conversation, user info)
+6. The bot's response is posted as a new message
+7. SSE broadcasts the response to connected participants
+
+## Real-time updates
+
+Conversations use Server-Sent Events (SSE) for live message delivery. When someone posts a message or a bot responds, all connected participants see the update immediately — no page refresh needed.
+
+SSE broadcasts are permission-aware: a message with EDITOR_ONLY privacy won't be broadcast to non-editor participants, even if they're connected to the same conversation.
+
+## File attachments
+
+Messages can include file attachments for sharing:
+- Revised manuscript drafts
+- Annotated PDFs
+- Supplementary data
+- Bot-generated outputs
+
+## Message editing and deletion
+
+Messages can be edited for clarity or soft-deleted. Deleted messages are marked as removed but preserved in the database for audit purposes. The conversation shows the deletion timestamp.

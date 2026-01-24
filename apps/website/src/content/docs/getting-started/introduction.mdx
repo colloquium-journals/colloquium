@@ -1,0 +1,64 @@
+---
+title: Introduction
+description: What Colloquium is, who it's for, and how it works.
+---
+
+Colloquium is an open-source platform for running academic journals. It provides manuscript submission, conversational peer review, automated editorial workflows, and a publishing pipeline — all in a single self-hosted application.
+
+## Who is Colloquium for?
+
+- **Academic editors** who want to run a journal without vendor lock-in or expensive contracts
+- **Institutions** that want to give researchers publishing independence with data sovereignty
+- **Communities** exploring alternative peer review models (open review, collaborative review, post-publication review)
+- **Developers** interested in building automation for scholarly workflows
+
+## Key concepts
+
+### Conversational review
+
+Instead of emailing PDFs back and forth, all review communication happens in structured conversation threads. Each conversation has a privacy level that determines who can see it:
+
+- **Editorial** — editors only
+- **Review** — editors + assigned reviewers
+- **Semi-Public** — editors, reviewers, and authors
+- **Public** — open to everyone
+- **Author-Only** — co-authors discussing privately
+
+Individual messages can have their own privacy level too, so an editor can post a public comment and a private note in the same thread.
+
+### Bot automation
+
+Bots are triggered by @mentions in conversations. Type `@reference-bot check` and the reference bot will extract DOIs from the manuscript, validate them against CrossRef, and report back. Type `@editorial-bot invite-reviewer @jane.doe` to send a review invitation.
+
+Four bots are included:
+- **@editorial-bot** — reviewer management, status transitions, deadline tracking
+- **@markdown-renderer-bot** — manuscript formatting and PDF generation
+- **@reference-bot** — DOI validation and citation checking
+- **@reviewer-checklist-bot** — structured evaluation forms
+
+You can also [build your own bots](/bots/introduction) with the TypeScript SDK.
+
+### Self-hosted instances
+
+Each journal runs as its own isolated instance with its own database, file storage, and application containers. You deploy on your own infrastructure using Docker, a cloud platform, or Kubernetes. The `create-colloquium-journal` CLI tool generates everything you need.
+
+## Architecture overview
+
+```
+apps/
+├── web/       # Next.js 14 frontend
+├── api/       # Express.js backend
+packages/
+├── database/  # Prisma schema + PostgreSQL
+├── bots/      # Bot framework core
+├── types/     # Shared TypeScript types
+└── ...        # Bot packages, auth, UI components
+```
+
+The stack is TypeScript throughout, with PostgreSQL for the database, Redis for the job queue and real-time events, and Prisma for type-safe database access.
+
+## Next steps
+
+- [Quick Start](/getting-started/quick-start) — deploy a local instance for evaluation
+- [First Submission](/getting-started/first-submission) — walk through the submission-to-review workflow
+- [Bot Development](/bots/introduction) — learn how to build custom bots

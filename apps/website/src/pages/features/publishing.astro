@@ -1,0 +1,153 @@
+---
+import Marketing from '../../layouts/Marketing.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Marketing title="Publishing Pipeline - Colloquium" description="From manuscript submission to published article. Multi-format input, automated typesetting, and static hosting.">
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <h1 class="text-4xl font-bold text-gray-900">Publishing Pipeline</h1>
+    <p class="mt-4 max-w-2xl text-lg text-gray-600">
+      Accept manuscripts in any format, automate the production workflow, and publish with static hosting for performance and reliability.
+    </p>
+  </section>
+
+  <!-- Submission -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Multi-format submission</h2>
+      <div class="mt-8 grid gap-8 md:grid-cols-2">
+        <div>
+          <h3 class="font-semibold text-gray-900">Accepted formats</h3>
+          <ul class="mt-2 space-y-2 text-sm text-gray-600">
+            <li><strong>PDF</strong> — for camera-ready or pre-formatted manuscripts</li>
+            <li><strong>LaTeX</strong> — full source with bibliography files</li>
+            <li><strong>Word (.docx)</strong> — common in social sciences and humanities</li>
+            <li><strong>Markdown</strong> — lightweight markup for web-native workflows</li>
+          </ul>
+          <p class="mt-4 text-sm text-gray-600">
+            Configurable format registry lets journals restrict or expand accepted types. Dangerous file type detection prevents executable uploads.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">File management</h3>
+          <ul class="mt-2 space-y-2 text-sm text-gray-600">
+            <li><strong>Per-manuscript folders</strong> — organized storage with version tracking</li>
+            <li><strong>File types</strong> — SOURCE, ASSET, RENDERED, SUPPLEMENTARY, BIBLIOGRAPHY</li>
+            <li><strong>Conflict resolution</strong> — original filenames preserved, duplicates handled</li>
+            <li><strong>Co-author management</strong> — invitation system with corresponding author designation</li>
+            <li><strong>50MB per file</strong> — generous limits for data-heavy submissions</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Workflow -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Manuscript lifecycle</h2>
+      <div class="mt-8">
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="rounded-full bg-blue-100 px-3 py-1 font-medium text-blue-800">SUBMITTED</span>
+          <span class="text-gray-400">→</span>
+          <span class="rounded-full bg-yellow-100 px-3 py-1 font-medium text-yellow-800">UNDER_REVIEW</span>
+          <span class="text-gray-400">→</span>
+          <span class="rounded-full bg-orange-100 px-3 py-1 font-medium text-orange-800">REVISION_REQUESTED</span>
+          <span class="text-gray-400">→</span>
+          <span class="rounded-full bg-purple-100 px-3 py-1 font-medium text-purple-800">REVISED</span>
+          <span class="text-gray-400">→</span>
+          <span class="rounded-full bg-green-100 px-3 py-1 font-medium text-green-800">ACCEPTED</span>
+          <span class="text-gray-400">→</span>
+          <span class="rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-800">PUBLISHED</span>
+        </div>
+        <p class="mt-6 text-sm text-gray-600">
+          Each status transition can be triggered by the editorial bot or manually by editors. The system enforces valid transitions — you can't publish a manuscript that hasn't been accepted.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Typesetting -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Automated typesetting</h2>
+      <p class="mt-2 max-w-2xl text-gray-600">
+        The Markdown Renderer Bot converts manuscripts to publication-ready output using customizable templates and multiple typesetting engines.
+      </p>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-3">
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">Typst</h3>
+          <p class="mt-2 text-sm text-gray-600">Modern typesetting engine. Fast compilation, clean syntax, excellent for new journals that don't need LaTeX compatibility.</p>
+          <p class="mt-2 text-xs text-gray-400">Recommended for new journals</p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">LaTeX</h3>
+          <p class="mt-2 text-sm text-gray-600">Traditional academic typesetting. Maximum compatibility with existing templates and workflows. Best for STEM journals.</p>
+          <p class="mt-2 text-xs text-gray-400">Maximum compatibility</p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <h3 class="font-semibold text-gray-900">HTML</h3>
+          <p class="mt-2 text-sm text-gray-600">Direct HTML output for web-first publishing. Fastest compilation, supports responsive design and interactive content.</p>
+          <p class="mt-2 text-xs text-gray-400">Web-first publishing</p>
+        </div>
+      </div>
+
+      <div class="mt-10">
+        <h3 class="font-semibold text-gray-900">Template system</h3>
+        <p class="mt-2 text-sm text-gray-600">
+          Handlebars-based templates with journal-specific branding. Built-in templates (academic-standard, minimal, colloquium-journal) or upload your own. Templates declare their supported engines and metadata requirements.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hosting -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Dual-tier asset hosting</h2>
+      <div class="mt-8 grid gap-8 md:grid-cols-2">
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">During review</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Files served through authenticated API endpoints. Only authorized participants (editors, assigned reviewers, authors) can access manuscript files.
+          </p>
+          <code class="mt-3 block text-xs text-gray-500">/api/articles/{'{id}'}/files/{'{fileId}'}/download</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">After publication</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Assets copied to static hosting with long-term caching. Rendered HTML updated with static URLs. Ready for CDN distribution.
+          </p>
+          <code class="mt-3 block text-xs text-gray-500">/static/published/{'{id}'}/{'{filename}'}</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Planned -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Coming soon</h2>
+      <div class="mt-8 grid gap-6 md:grid-cols-2">
+        <div>
+          <h3 class="font-semibold text-gray-900">DOI Registration</h3>
+          <p class="mt-1 text-sm text-gray-600">Automatic DOI assignment and CrossRef metadata submission on publication.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Indexing Service Submission</h3>
+          <p class="mt-1 text-sm text-gray-600">Automatic metadata submission to PubMed, Google Scholar, and other indexing services.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Publication Preview</h3>
+          <p class="mt-1 text-sm text-gray-600">Authors and editors can preview the final formatted output before publication goes live.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">RSS Feeds</h3>
+          <p class="mt-1 text-sm text-gray-600">Journal-specific and topic-based feeds for new publications.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Marketing>

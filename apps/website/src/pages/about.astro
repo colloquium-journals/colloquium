@@ -1,0 +1,50 @@
+---
+import Marketing from '../layouts/Marketing.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Marketing title="About - Colloquium" description="Colloquium is an open-source platform that democratizes academic publishing through conversational review and bot automation.">
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <h1 class="text-4xl font-bold text-gray-900">About Colloquium</h1>
+    <div class="mt-8 max-w-3xl space-y-6 text-gray-600">
+      <p>
+        Colloquium is open-source infrastructure for running academic journals. It replaces the fragmented tools that most journals rely on — email threads for peer review, vendor platforms for manuscript management, manual processes for publication — with a single, coherent system built around conversations and automation.
+      </p>
+      <p>
+        The platform is designed for academics who want to run their own journals without depending on traditional publishers or expensive vendor contracts. Every journal gets its own instance, running on infrastructure the journal controls.
+      </p>
+
+      <h2 class="pt-8 text-2xl font-bold text-gray-900">Philosophy</h2>
+      <ul class="space-y-3">
+        <li>
+          <strong class="text-gray-900">Self-sovereign journals.</strong> Your data lives on your infrastructure. You choose your review model, your publication workflow, your governance. No platform lock-in.
+        </li>
+        <li>
+          <strong class="text-gray-900">Conversations over email.</strong> Peer review works better when it's a structured discussion, not a chain of forwarded attachments. Privacy controls let you run any review model from fully blind to fully open.
+        </li>
+        <li>
+          <strong class="text-gray-900">Automate the tedious.</strong> Bots handle reference checking, formatting, deadline tracking, and status transitions. Editors focus on scholarship, not administration.
+        </li>
+        <li>
+          <strong class="text-gray-900">Open source.</strong> MIT licensed. The platform and its bot ecosystem are community-driven. Fork it, extend it, contribute back.
+        </li>
+      </ul>
+
+      <h2 class="pt-8 text-2xl font-bold text-gray-900">License</h2>
+      <p>
+        Colloquium is released under the <a href="https://opensource.org/licenses/MIT" class="text-accent-600 hover:underline" target="_blank" rel="noopener">MIT License</a>. You can use it for any purpose — academic, institutional, or commercial — without restriction.
+      </p>
+
+      <h2 class="pt-8 text-2xl font-bold text-gray-900">Contributing</h2>
+      <p>
+        Contributions are welcome. Whether you're fixing bugs, adding features, building bots, or improving documentation, see the <a href="https://github.com/colloquium-press/colloquium/blob/main/CONTRIBUTING.md" class="text-accent-600 hover:underline" target="_blank" rel="noopener">contributing guide</a> to get started.
+      </p>
+
+      <h2 class="pt-8 text-2xl font-bold text-gray-900">Contact</h2>
+      <p>
+        Questions, feedback, or partnership inquiries: open a <a href="https://github.com/colloquium-press/colloquium/discussions" class="text-accent-600 hover:underline" target="_blank" rel="noopener">GitHub Discussion</a> or reach out via the repository issue tracker.
+      </p>
+    </div>
+  </section>
+</Marketing>

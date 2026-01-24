@@ -1,0 +1,110 @@
+---
+title: Deployment Overview
+description: Options for deploying your Colloquium journal instance to production.
+---
+
+Colloquium is designed for self-hosted deployment. Each journal runs as its own isolated instance with a separate database, file storage, and application containers.
+
+## Deployment options
+
+| Method | Best for | Complexity |
+|--------|----------|------------|
+| [Docker Compose](/deployment/docker-compose) | Small journals, evaluation | Low |
+| [Cloud platforms](/deployment/cloud-platforms) (Railway, Fly.io, Render) | Hands-off hosting | Low |
+| AWS / GCP / Azure | Enterprise, institutional | Medium |
+| Kubernetes | Large-scale, multi-journal | High |
+
+## Instance generator
+
+The `create-colloquium-journal` CLI generates a complete deployment package for your chosen target:
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment docker
+```
+
+This produces a directory with all configuration files, scripts, and documentation needed to deploy.
+
+## System requirements
+
+### Minimum (small journal, fewer than 100 manuscripts)
+
+- 2 CPU cores
+- 4 GB RAM
+- 20 GB storage
+- PostgreSQL 14+
+- Redis 7+
+- Node.js 18+
+
+### Recommended (active journal)
+
+- 4 CPU cores
+- 8 GB RAM
+- 100 GB storage
+- Managed PostgreSQL with backups
+- Managed Redis
+- CDN for published assets
+
+## Architecture components
+
+Every Colloquium instance consists of:
+
+| Component | Purpose | Port |
+|-----------|---------|------|
+| Web (Next.js) | Frontend application | 3000 |
+| API (Express) | Backend API server | 4000 |
+| PostgreSQL | Primary database | 5432 |
+| Redis | Job queue + real-time events | 6379 |
+| File storage | Manuscript files | - |
+
+For production, add:
+- **Reverse proxy** (Nginx, Caddy) for SSL termination and routing
+- **Backup system** for database and file storage
+- **Monitoring** for health checks and alerting
+
+## Environment variables
+
+Core configuration for any deployment:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `REDIS_URL` | Yes | Redis connection string |
+| `JWT_SECRET` | Yes | Secret for JWT token signing |
+| `MAGIC_LINK_SECRET` | Yes | Secret for magic link generation |
+| `FRONTEND_URL` | Yes | Public URL of the frontend |
+| `API_URL` | Yes | Public URL of the API |
+| `SMTP_HOST` | Yes | Email server hostname |
+| `SMTP_PORT` | Yes | Email server port |
+| `SMTP_USER` | - | Email server username |
+| `SMTP_PASS` | - | Email server password |
+
+## SSL / TLS
+
+All production deployments should use HTTPS. Options:
+- **Let's Encrypt** with Certbot (Docker deployments)
+- **Cloud provider certificates** (AWS ACM, GCP managed certs)
+- **Cloudflare** proxy with automatic SSL
+
+## DNS configuration
+
+Point your domain to your deployment:
+
+```
+journal.example.com     A     → your-server-ip
+```
+
+Or with a cloud provider:
+
+```
+journal.example.com     CNAME → your-app.fly.dev
+```
+
+## Next steps
+
+- [Docker Compose](/deployment/docker-compose) — simplest deployment path
+- [Cloud Platforms](/deployment/cloud-platforms) — zero-config cloud deployment
+- [Upgrading](/deployment/upgrading) — keeping your instance up to date

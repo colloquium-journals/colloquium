@@ -1,0 +1,128 @@
+---
+import Marketing from '../../layouts/Marketing.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Marketing title="Conversational Review - Colloquium" description="Structured conversation threads with granular privacy controls replace fragmented email-based peer review.">
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <h1 class="text-4xl font-bold text-gray-900">Conversational Review</h1>
+    <p class="mt-4 max-w-2xl text-lg text-gray-600">
+      Peer review happens in structured conversation threads — not scattered across inboxes. Every participant sees exactly what they should, nothing more.
+    </p>
+  </section>
+
+  <!-- Privacy Levels -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Five conversation types for every workflow</h2>
+      <p class="mt-2 text-gray-600">Configure the review model that works for your journal. Mix and match across manuscripts.</p>
+
+      <div class="mt-10 space-y-4">
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Editorial</span>
+            <h3 class="font-semibold text-gray-900">Editor-only discussions</h3>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">Private space for editors to discuss initial screening, conflicts of interest, and editorial decisions before involving reviewers or authors.</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">Review</span>
+            <h3 class="font-semibold text-gray-900">Editor + assigned reviewers</h3>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">Traditional blind review setup. Reviewers can discuss the manuscript with editors without author visibility. Supports anonymous participation.</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">Semi-Public</span>
+            <h3 class="font-semibold text-gray-900">Editor, reviewers, and authors</h3>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">Authors can see and respond to reviewer feedback in real-time. Enables dialogue between all parties during the review process.</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Public</span>
+            <h3 class="font-semibold text-gray-900">Open community participation</h3>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">Full open peer review. Anyone can read and contribute to the discussion. Ideal for community-driven review models and post-publication commentary.</p>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 bg-white p-6">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">Author-Only</span>
+            <h3 class="font-semibold text-gray-900">Authors discussing among themselves</h3>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">Private space for co-authors to coordinate revisions, discuss reviewer feedback, and plan responses — invisible to editors and reviewers.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Message-level privacy -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Message-level privacy</h2>
+      <p class="mt-2 max-w-2xl text-gray-600">
+        Beyond conversation types, individual messages can have their own visibility level. An editor can post a public comment and a private note to other editors in the same thread.
+      </p>
+      <div class="mt-8 grid gap-6 md:grid-cols-2">
+        <div>
+          <h3 class="font-semibold text-gray-900">Privacy levels per message</h3>
+          <ul class="mt-2 space-y-1 text-sm text-gray-600">
+            <li><strong>PUBLIC</strong> — visible to all conversation participants</li>
+            <li><strong>AUTHOR_VISIBLE</strong> — hidden from non-author observers</li>
+            <li><strong>REVIEWER_ONLY</strong> — editors and reviewers only</li>
+            <li><strong>EDITOR_ONLY</strong> — editorial team only</li>
+            <li><strong>ADMIN_ONLY</strong> — system administrators only</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Dynamic access control</h3>
+          <ul class="mt-2 space-y-1 text-sm text-gray-600">
+            <li>Permissions derived from manuscript relationships</li>
+            <li>Participant roles: Observer, Participant, Moderator</li>
+            <li>Add or remove participants as the review progresses</li>
+            <li>Full audit trail of who saw what, when</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Messaging features</h2>
+      <div class="mt-8 grid gap-6 md:grid-cols-3">
+        <div>
+          <h3 class="font-semibold text-gray-900">Real-Time</h3>
+          <p class="mt-1 text-sm text-gray-600">Server-Sent Events deliver messages instantly. No page refreshing, no polling. Permission-aware broadcasting ensures privacy.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Markdown</h3>
+          <p class="mt-1 text-sm text-gray-600">Full Markdown support for equations, code blocks, tables, and formatted text. Write scientific content naturally.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Threaded Replies</h3>
+          <p class="mt-1 text-sm text-gray-600">Branch off into focused discussions without cluttering the main thread. Keep complex reviews organized.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Bot Mentions</h3>
+          <p class="mt-1 text-sm text-gray-600">@mention bots to trigger automated actions — check references, format documents, or run checklists — right in the conversation.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">File Attachments</h3>
+          <p class="mt-1 text-sm text-gray-600">Share revised drafts, annotated PDFs, or supplementary materials directly in the conversation context.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Edit & Delete</h3>
+          <p class="mt-1 text-sm text-gray-600">Edit messages for clarity or soft-delete them. Full history preserved for audit purposes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Marketing>

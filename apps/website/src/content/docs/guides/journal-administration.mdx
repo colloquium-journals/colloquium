@@ -1,0 +1,99 @@
+---
+title: Journal Administration
+description: Configure journal settings, manage bots, and set up your editorial team.
+---
+
+The admin settings panel lets you configure every aspect of your journal — from basic metadata to bot installations and user roles.
+
+## Accessing admin settings
+
+Navigate to `/admin/settings` in your journal instance. You need the **ADMIN** or **EDITOR_IN_CHIEF** role.
+
+## Journal metadata
+
+Configure the basic identity of your journal:
+
+- **Name** — displayed in the header, emails, and metadata
+- **Description** — brief description for SEO and about pages
+- **Logo** — upload a logo image for branding
+
+## Bot management
+
+### Installing bots
+
+1. Open the Bots section in admin settings
+2. Browse available bots
+3. Click "Install" to add a bot to your journal
+4. Configure bot-specific settings via the YAML editor
+
+### Bot configuration
+
+Each bot has a YAML configuration file that controls its behavior. The admin panel provides a syntax-highlighted editor with the bot's default configuration as a starting point.
+
+Example editorial bot configuration:
+
+```yaml
+# Default review deadline (days from invitation)
+defaultDeadline: 21
+
+# Reminder intervals (days before deadline)
+reminders:
+  - 7
+  - 3
+  - 1
+```
+
+### Bot file uploads
+
+Some bots accept file uploads for templates or reference data. Use the file upload section in each bot's settings panel.
+
+## User role management
+
+### Available roles
+
+| Role | Capabilities |
+|------|-------------|
+| **ADMIN** | Full system access, user management, settings |
+| **EDITOR_IN_CHIEF** | All editorial functions, bot management |
+| **ACTION_EDITOR** | Assigned manuscript management, reviewer invitations |
+| **USER** | Submission, reviewing (when assigned) |
+
+### Assigning roles
+
+1. Navigate to user management in admin settings
+2. Search for the user by name or email
+3. Select the appropriate role
+4. Save changes
+
+Role changes take effect immediately for new actions. Existing assignments are preserved.
+
+## Content management
+
+### About pages
+
+Colloquium supports Markdown-based about pages with YAML frontmatter:
+
+```markdown
+---
+title: About This Journal
+icon: info-circle
+order: 1
+visible: true
+---
+
+Your journal's about content here...
+```
+
+Pages are ordered by the `order` field and can be hidden with `visible: false`.
+
+### Editorial board
+
+The about section can automatically generate an editorial board page from user data, showing editors with their affiliations and roles.
+
+## Submission guidelines
+
+Configure the submission guidelines that authors see when submitting manuscripts. Supports Markdown formatting.
+
+## Supported formats
+
+The format registry controls which file types your journal accepts for submission. By default, PDF, LaTeX, Word, and Markdown are enabled. You can restrict or expand this list.

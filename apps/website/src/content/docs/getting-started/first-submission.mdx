@@ -1,0 +1,109 @@
+---
+title: First Submission
+description: Walk through submitting and reviewing a manuscript end-to-end.
+---
+
+This guide walks through the complete manuscript lifecycle — from submission to editorial decision — using a running Colloquium instance.
+
+## Submit a manuscript
+
+1. Log in as an author (or any user with submission privileges)
+2. Navigate to the submission page
+3. Fill in the manuscript metadata:
+   - **Title** — the manuscript title
+   - **Abstract** — a brief summary
+   - **Keywords** — for categorization and discovery
+4. Upload the manuscript file (PDF, LaTeX, Word, or Markdown)
+5. Optionally add co-authors by email
+6. Submit
+
+The manuscript status is now **SUBMITTED** and a conversation thread is automatically created.
+
+## Editor screening
+
+1. Log in as an editor (EDITOR_IN_CHIEF or ACTION_EDITOR role)
+2. Open the submissions dashboard
+3. View the new manuscript and its associated conversation
+4. In the editorial conversation, you can use the editorial bot:
+
+```
+@editorial-bot assign-editor @action-editor-username
+```
+
+The action editor is now assigned and can manage the review process.
+
+## Invite reviewers
+
+In the review conversation thread:
+
+```
+@editorial-bot invite-reviewer @reviewer-username deadline:2025-04-01
+```
+
+The reviewer receives an invitation email with a response link. They can accept or decline.
+
+## Review process
+
+Once a reviewer accepts:
+
+1. They gain access to the manuscript files and the review conversation
+2. They can post messages in the conversation with their feedback
+3. They can use the reviewer checklist bot for structured evaluation:
+
+```
+@reviewer-checklist-bot start
+```
+
+4. When ready, they submit their formal review with:
+   - Review content (detailed feedback)
+   - Recommendation (Accept, Minor Revision, Major Revision, Reject)
+   - Numerical score (1-10)
+   - Optional confidential comments for editors only
+
+## Editorial decision
+
+After reviews are collected, the editor makes a decision. In the conversation:
+
+```
+@editorial-bot request-revision
+```
+
+Or:
+
+```
+@editorial-bot accept
+```
+
+The manuscript status transitions accordingly, and the author is notified.
+
+## Revision cycle
+
+If revisions are requested:
+
+1. The author uploads a revised manuscript
+2. The status changes to **REVISED**
+3. The editor can invite the same or new reviewers for re-review
+4. The process repeats until a final decision is reached
+
+## Publication
+
+When a manuscript is accepted:
+
+1. The editor (or editorial bot) transitions the status to **ACCEPTED**
+2. The markdown renderer bot can format the manuscript:
+
+```
+@markdown-renderer-bot render --engine typst --template academic-standard
+```
+
+3. The formatted output is stored as a RENDERED file
+4. When ready, the status transitions to **PUBLISHED**
+5. Assets are copied to static hosting for public access
+
+## What's happening behind the scenes
+
+- **Bot mentions** trigger asynchronous jobs via the Redis/Bull queue
+- **SSE** broadcasts new messages to connected participants in real-time
+- **Privacy controls** ensure each participant only sees messages appropriate to their role
+- **File storage** organizes everything per-manuscript with type categorization
+- **Audit trail** records all status transitions and bot executions

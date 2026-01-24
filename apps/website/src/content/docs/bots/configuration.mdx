@@ -1,0 +1,110 @@
+---
+title: Bot Configuration
+description: YAML-based configuration system for customizing bot behavior per journal.
+---
+
+Each bot ships with a default YAML configuration file. Journal admins can customize these values through the admin panel without modifying code.
+
+## Default configuration
+
+Create a `bot.config.yaml` in your bot project root:
+
+```yaml
+# Review deadline defaults (days)
+defaultDeadline: 21
+
+# Template settings
+template:
+  engine: typst
+  name: academic-standard
+
+# Feature flags
+features:
+  autoReminders: true
+  scoreRequired: false
+```
+
+## Accessing configuration
+
+Configuration values are passed to your command handler via `context.config`:
+
+```typescript
+handler: async (context) => {
+  const deadline = context.config.defaultDeadline as number;
+  const engine = (context.config.template as any).engine;
+
+  // Use configuration values
+  const dueDate = addDays(new Date(), deadline);
+  // ...
+}
+```
+
+## Admin customization
+
+Journal admins edit bot configuration through the admin settings panel:
+
+1. Navigate to Admin → Settings → Bots
+2. Select the installed bot
+3. Edit the YAML configuration in the syntax-highlighted editor
+4. Save changes
+
+The editor preserves YAML comments, so you can include documentation inline:
+
+```yaml
+# How many days reviewers have to respond to invitations
+# Set to 0 for no deadline
+defaultDeadline: 21
+
+# Reminder schedule (days before deadline)
+# Each value triggers an email reminder
+reminders:
+  - 7   # One week before
+  - 3   # Three days before
+  - 1   # Day before
+```
+
+## Configuration merging
+
+When a bot executes:
+
+1. The bot's `bot.config.yaml` provides defaults
+2. The journal's saved configuration overrides those defaults
+3. The merged result is passed to the handler
+
+New configuration keys added in bot updates are automatically available with their default values, without requiring admin reconfiguration.
+
+## Validation
+
+Use Zod schemas to validate configuration at runtime:
+
+```typescript
+import { z } from 'zod';
+
+const ConfigSchema = z.object({
+  defaultDeadline: z.number().min(0).default(21),
+  template: z.object({
+    engine: z.enum(['typst', 'latex', 'html']).default('typst'),
+    name: z.string().default('academic-standard'),
+  }),
+  features: z.object({
+    autoReminders: z.boolean().default(true),
+    scoreRequired: z.boolean().default(false),
+  }),
+});
+
+handler: async (context) => {
+  const config = ConfigSchema.parse(context.config);
+  // config is now fully typed and validated
+}
+```
+
+## File uploads
+
+Some bots accept file uploads for templates, reference data, or other assets. These are managed through the bot settings panel:
+
+1. Admin navigates to the bot's settings
+2. Uploads files via the file upload interface
+3. Files are stored in the bot's installation directory
+4. The bot accesses them via the file system or API
+
+Example: the markdown renderer bot accepts custom Handlebars templates as file uploads.

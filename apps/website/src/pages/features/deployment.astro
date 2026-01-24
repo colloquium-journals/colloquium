@@ -1,0 +1,130 @@
+---
+import Marketing from '../../layouts/Marketing.astro';
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Marketing title="Self-Hosted Deployment - Colloquium" description="Deploy your journal on your own infrastructure with a single command. Docker, cloud platforms, or Kubernetes.">
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <h1 class="text-4xl font-bold text-gray-900">Self-Hosted Deployment</h1>
+    <p class="mt-4 max-w-2xl text-lg text-gray-600">
+      Your journal runs on your infrastructure. One command generates a complete, ready-to-deploy instance with everything configured. No vendor lock-in, complete data ownership.
+    </p>
+  </section>
+
+  <!-- Quick start -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">One command to start</h2>
+      <pre class="mt-6 overflow-x-auto rounded-lg bg-gray-900 p-6 text-sm text-gray-100"><code>npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.university.edu" \
+  --admin-email "editor@university.edu" \
+  --deployment docker \
+  --bots "editorial-bot,reference-bot,markdown-renderer-bot"</code></pre>
+      <p class="mt-4 text-sm text-gray-600">
+        This generates a complete deployment package: Docker Compose configuration, environment variables, bot installations, database initialization, backup scripts, and SSL setup.
+      </p>
+    </div>
+  </section>
+
+  <!-- Deployment options -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Choose your deployment target</h2>
+      <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">Docker Compose</h3>
+          <p class="mt-2 text-sm text-gray-600">Simplest option. Run everything on a single server with Docker. Ideal for small journals and evaluation.</p>
+          <code class="mt-3 block text-xs text-gray-500">--deployment docker</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">Railway</h3>
+          <p class="mt-2 text-sm text-gray-600">Zero-config cloud deployment. Managed PostgreSQL, Redis, and automatic scaling. Deploy and forget.</p>
+          <code class="mt-3 block text-xs text-gray-500">--deployment railway</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">Fly.io</h3>
+          <p class="mt-2 text-sm text-gray-600">Global edge deployment. Run your journal close to your readers with automatic multi-region replication.</p>
+          <code class="mt-3 block text-xs text-gray-500">--deployment fly</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">AWS</h3>
+          <p class="mt-2 text-sm text-gray-600">ECS + RDS + ElastiCache + S3 + CloudFront. Enterprise-grade with managed services and auto-scaling.</p>
+          <code class="mt-3 block text-xs text-gray-500">--deployment aws</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">GCP</h3>
+          <p class="mt-2 text-sm text-gray-600">Cloud Run + Cloud SQL + Memorystore. Google's managed container platform with pay-per-use pricing.</p>
+          <code class="mt-3 block text-xs text-gray-500">--deployment gcp</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6">
+          <h3 class="font-semibold text-gray-900">Kubernetes</h3>
+          <p class="mt-2 text-sm text-gray-600">Helm charts for large-scale deployments. Multi-node, auto-scaling, suitable for institutional hosting.</p>
+          <code class="mt-3 block text-xs text-gray-500">--deployment kubernetes</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Instance architecture</h2>
+      <p class="mt-2 max-w-2xl text-gray-600">
+        Each journal gets its own isolated instance — separate database, file storage, and application containers. No multi-tenant complexity, no data leakage risk.
+      </p>
+
+      <div class="mt-10 grid gap-6 md:grid-cols-2">
+        <div>
+          <h3 class="font-semibold text-gray-900">Components</h3>
+          <ul class="mt-2 space-y-2 text-sm text-gray-600">
+            <li><strong>Web app</strong> — Next.js frontend (port 3000)</li>
+            <li><strong>API server</strong> — Express.js backend (port 4000)</li>
+            <li><strong>PostgreSQL</strong> — primary database</li>
+            <li><strong>Redis</strong> — job queue and real-time events</li>
+            <li><strong>File storage</strong> — local volume or cloud storage (S3/GCS/Azure)</li>
+            <li><strong>Reverse proxy</strong> — Nginx with SSL termination</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Generated output</h3>
+          <pre class="mt-2 overflow-x-auto rounded bg-gray-100 p-4 text-xs text-gray-700">my-journal/
+├── docker-compose.yml
+├── .env
+├── config/
+│   ├── journal.json
+│   └── bots.json
+├── scripts/
+│   ├── setup.sh
+│   ├── backup.sh
+│   └── update.sh
+├── nginx/
+│   └── nginx.conf
+└── README.md</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Operations -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Day-2 operations</h2>
+      <div class="mt-8 grid gap-6 md:grid-cols-3">
+        <div>
+          <h3 class="font-semibold text-gray-900">Automated Backups</h3>
+          <p class="mt-1 text-sm text-gray-600">Generated backup scripts for database dumps and file storage snapshots. Schedule with cron or your orchestrator.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Zero-Downtime Updates</h3>
+          <p class="mt-1 text-sm text-gray-600">Update scripts pull new container images, run migrations, and restart services with no interruption to users.</p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">Migration Support</h3>
+          <p class="mt-1 text-sm text-gray-600">Convert existing deployments to the instance format. Preserve all data and configuration during the transition.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Marketing>

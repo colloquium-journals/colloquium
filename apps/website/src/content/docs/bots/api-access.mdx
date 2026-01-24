@@ -1,0 +1,133 @@
+---
+title: API Access
+description: How bots access manuscript data and platform resources via authenticated API calls.
+---
+
+Bots access Colloquium data through the REST API using service tokens. This ensures consistent authorization, audit logging, and data access patterns.
+
+## Authentication
+
+Bots authenticate with the `X-Bot-Token` header:
+
+```typescript
+const response = await fetch(`${API_URL}/api/articles/${manuscriptId}`, {
+  headers: {
+    'X-Bot-Token': context.apiToken,
+  },
+});
+```
+
+The token is provided in the bot's execution context and is scoped to the permissions declared in the bot definition.
+
+## Available endpoints
+
+### Manuscripts
+
+```
+GET  /api/articles/:id              # Manuscript details
+GET  /api/articles/:id/files        # List manuscript files
+GET  /api/articles/:id/files/:fileId/download  # Download a file
+```
+
+### Conversations
+
+```
+GET  /api/conversations/:id         # Conversation with messages
+```
+
+### Users
+
+```
+GET  /api/users/:id                 # User profile
+GET  /api/users/lookup?email=...    # Look up by email
+```
+
+### Reviewers
+
+```
+GET  /api/articles/:id/reviewers    # Manuscript reviewers
+```
+
+## Accessing manuscript files
+
+To download and process manuscript files:
+
+```typescript
+async function getManuscriptSource(context: BotContext): Promise<Buffer> {
+  // List files
+  const filesRes = await fetch(
+    `${API_URL}/api/articles/${context.manuscriptId}/files`,
+    { headers: { 'X-Bot-Token': context.apiToken } }
+  );
+  const files = await filesRes.json();
+
+  // Find the source file
+  const source = files.find((f: any) => f.fileType === 'SOURCE');
+  if (!source) throw new Error('No source file found');
+
+  // Download it
+  const downloadRes = await fetch(
+    `${API_URL}/api/articles/${context.manuscriptId}/files/${source.id}/download`,
+    { headers: { 'X-Bot-Token': context.apiToken } }
+  );
+
+  return Buffer.from(await downloadRes.arrayBuffer());
+}
+```
+
+## Anti-patterns
+
+**Do not** access the database directly from bots:
+
+```typescript
+// BAD - direct database access
+const manuscript = await prisma.manuscripts.findUnique({
+  where: { id: manuscriptId }
+});
+
+// GOOD - API access
+const manuscript = await fetch(`${API_URL}/api/articles/${manuscriptId}`, {
+  headers: { 'X-Bot-Token': context.apiToken }
+}).then(r => r.json());
+```
+
+Direct database access:
+- Bypasses authorization checks
+- Breaks audit logging
+- Creates tight coupling to schema changes
+- May access data the bot isn't permitted to see
+
+## Error handling
+
+Always handle API errors gracefully:
+
+```typescript
+const response = await fetch(url, { headers });
+
+if (!response.ok) {
+  if (response.status === 403) {
+    return { content: 'I don\'t have permission to access that resource.' };
+  }
+  if (response.status === 404) {
+    return { content: 'The requested resource was not found.' };
+  }
+  throw new Error(`API error: ${response.status}`);
+}
+```
+
+## Rate limiting
+
+Be mindful of API call volume, especially when processing multiple items:
+
+```typescript
+// Process DOIs sequentially with timeout
+for (const doi of dois) {
+  const result = await fetchWithTimeout(
+    `https://api.crossref.org/works/${doi}`,
+    { timeout: 10000 }
+  );
+  results.push(result);
+}
+```
+
+The reference bot, for example, uses a 10-second timeout per DOI to avoid hanging on unresponsive external APIs.

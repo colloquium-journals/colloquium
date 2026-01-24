@@ -1,0 +1,51 @@
+---
+title: "Why We Built Colloquium"
+description: "The problems with academic publishing that led us to build an open-source alternative with conversational review and bot automation."
+date: "2025-01-01"
+---
+
+Academic publishing has a structural problem. Researchers do the intellectual work — writing, reviewing, editing — but the infrastructure belongs to commercial publishers who charge the same institutions for access to the knowledge their employees produced.
+
+This isn't news. The open access movement has been making this argument for decades. But the proposed solutions often reproduce the same dynamics: centralized platforms, vendor lock-in, subscription fees rebranded as "article processing charges."
+
+## What we wanted instead
+
+We wanted infrastructure that journals own completely. Not a service that hosts your journal — a system you deploy yourself, on your own servers, with your own data.
+
+We wanted peer review that isn't stuck in email. The back-and-forth of review communication should happen in a structured environment where context is preserved, privacy is granular, and automation handles the administrative overhead.
+
+We wanted extensibility. Every journal has unique needs. Rather than building a monolithic system that tries to be everything, we wanted a plugin architecture where the community builds the tools it needs.
+
+## Conversational review
+
+The core insight behind Colloquium is that peer review is a conversation — but we've been conducting it through a medium (email) that actively fragments context and makes coordination harder.
+
+In Colloquium, all review communication happens in threaded conversations with configurable privacy levels. An editor can run fully blind review, fully open review, or anything in between. Individual messages can have different visibility than the conversation itself. Bots participate in the same threads, triggered by @mentions.
+
+This isn't just a UX improvement. It enables review models that are impractical with email: collaborative open review where community members contribute alongside invited reviewers, structured author responses to specific reviewer points, real-time editorial discussion that doesn't require forwarding chains.
+
+## Bot automation
+
+The second insight is that much of editorial work is mechanical. Checking reference formatting, verifying DOIs exist, generating PDFs, tracking deadlines, sending reminders — these are tasks that should be automated.
+
+Colloquium's bot framework lets you trigger automated actions directly in conversations. Type `@reference-bot check` and the bot extracts every DOI from the manuscript, validates them against CrossRef, and reports which ones are missing or malformed. Type `@editorial-bot invite-reviewer @jane.doe` and the invitation is sent with deadline tracking.
+
+The bot ecosystem is designed for community contribution. Anyone can build a bot with the TypeScript SDK and share it. We ship four essential bots — editorial workflow, manuscript formatting, reference checking, and reviewer checklists — but the real potential is in what the community builds.
+
+## Self-sovereignty
+
+Colloquium is not a hosted service (though managed hosting is available for convenience). Each journal runs as its own isolated instance: its own database, its own file storage, its own application containers. You deploy with Docker, or on a cloud platform, or on bare metal. Your data never leaves infrastructure you control.
+
+This matters for institutional compliance, for data sovereignty requirements, and for the philosophical principle that academic journals should not depend on any single company's continued goodwill.
+
+## Open source
+
+The entire platform is MIT licensed. There is no "community edition" with features gated behind a paywall. Fork it, modify it, deploy it commercially — the license imposes no restrictions.
+
+We believe the sustainability model for academic infrastructure should be community contribution and optional managed services, not artificial feature restrictions.
+
+## What's next
+
+Colloquium is functional today — you can submit manuscripts, manage review conversations, automate editorial workflows, and publish articles. The roadmap includes DOI registration, indexing service submission, a bot marketplace, and institutional SSO support.
+
+If you're interested in running your own journal, [get started with the documentation](/getting-started/introduction). If you want to contribute, the [GitHub repository](https://github.com/colloquium-press/colloquium) is where development happens.

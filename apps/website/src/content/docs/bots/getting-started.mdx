@@ -1,0 +1,148 @@
+---
+title: Getting Started with Bot Development
+description: Scaffold, build, and test your first Colloquium bot.
+---
+
+## Scaffold a new bot
+
+Use the `create-colloquium-bot` CLI to generate a bot project:
+
+```bash
+npx create-colloquium-bot my-bot
+cd my-bot
+npm install
+```
+
+This creates:
+
+```
+my-bot/
+├── src/
+│   ├── index.ts          # Bot definition and commands
+│   └── __tests__/
+│       └── index.test.ts # Test suite
+├── bot.config.yaml       # Default configuration
+├── package.json
+└── tsconfig.json
+```
+
+## Define your bot
+
+Edit `src/index.ts` to define your bot's identity and commands:
+
+```typescript
+import { defineBotCommand } from '@colloquium/bots';
+
+export const botDefinition = {
+  id: 'my-bot',
+  name: 'My Bot',
+  description: 'A custom bot for my journal',
+  version: '1.0.0',
+  commands: [
+    defineBotCommand({
+      name: 'hello',
+      description: 'Responds with a greeting',
+      handler: async (context) => {
+        return {
+          content: `Hello from My Bot! You said: ${context.args.join(' ')}`,
+          metadata: { processedAt: new Date().toISOString() }
+        };
+      }
+    }),
+  ],
+  permissions: ['read:manuscripts', 'read:conversations'],
+  defaultConfig: {
+    greeting: 'Hello',
+  },
+};
+```
+
+## Bot commands
+
+Each command has:
+
+- **name** — the command triggered after the @mention (e.g., `@my-bot hello`)
+- **description** — shown in help output
+- **handler** — async function that processes the command and returns a response
+
+The handler receives a `BotContext` with:
+- `command` — the command name
+- `args` — arguments after the command name
+- `manuscriptId` — the associated manuscript
+- `conversationId` — where the mention happened
+- `config` — the bot's YAML configuration values
+- `apiToken` — for making authenticated API calls
+
+## Return a response
+
+The handler returns a `BotResponse`:
+
+```typescript
+interface BotResponse {
+  content: string;        // Markdown message to post
+  metadata?: object;      // Optional structured data
+  files?: BotFile[];      // Optional file attachments
+}
+```
+
+The `content` is posted as a message in the conversation. Markdown formatting is supported.
+
+## Configuration
+
+Define default configuration in `bot.config.yaml`:
+
+```yaml
+# my-bot default configuration
+greeting: Hello
+maxItems: 10
+```
+
+Journal admins can override these values in the bot management panel. Your handler accesses them via `context.config`.
+
+## Testing
+
+Run the generated test suite:
+
+```bash
+npm test
+```
+
+The scaffold includes a basic test. Expand it to cover your command logic:
+
+```typescript
+import { botDefinition } from '../index';
+
+describe('my-bot', () => {
+  it('responds to hello command', async () => {
+    const handler = botDefinition.commands[0].handler;
+    const result = await handler({
+      command: 'hello',
+      args: ['world'],
+      manuscriptId: 'test-id',
+      conversationId: 'conv-id',
+      messageId: 'msg-id',
+      userId: 'user-id',
+      userRole: 'USER',
+      config: { greeting: 'Hello' },
+      apiToken: 'test-token',
+    });
+
+    expect(result.content).toContain('world');
+  });
+});
+```
+
+## Install in a journal
+
+To use your bot in a Colloquium instance:
+
+1. Build the bot: `npm run build`
+2. Install it as a dependency in the journal's API package
+3. Register it in the bot management admin panel
+4. Configure via the YAML editor
+
+## Next steps
+
+- [Architecture](/bots/architecture) — understand the job queue and execution model
+- [API Access](/bots/api-access) — fetch manuscript data from your bot
+- [Configuration](/bots/configuration) — advanced configuration patterns

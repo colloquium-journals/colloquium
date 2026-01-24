@@ -1,0 +1,34 @@
+---
+import Marketing from '../../layouts/Marketing.astro';
+import { getCollection } from 'astro:content';
+
+const base = import.meta.env.BASE_URL;
+
+const posts = (await getCollection('blog')).sort(
+  (a, b) => new Date(b.data.date).valueOf() - new Date(a.data.date).valueOf()
+);
+---
+
+<Marketing title="Blog - Colloquium" description="News, updates, and technical writing from the Colloquium project.">
+  <section class="mx-auto max-w-6xl px-6 py-20">
+    <h1 class="text-4xl font-bold text-gray-900">Blog</h1>
+    <p class="mt-4 text-lg text-gray-600">News, updates, and technical writing from the Colloquium project.</p>
+
+    <div class="mt-12 space-y-8">
+      {posts.length === 0 && (
+        <p class="text-gray-500">No posts yet. Check back soon.</p>
+      )}
+      {posts.map((post) => (
+        <article class="border-b border-gray-200 pb-8">
+          <time class="text-sm text-gray-500" datetime={post.data.date}>
+            {new Date(post.data.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </time>
+          <h2 class="mt-1 text-xl font-bold text-gray-900">
+            <a href={`${base}/blog/${post.slug}`} class="hover:text-accent-600">{post.data.title}</a>
+          </h2>
+          <p class="mt-2 text-gray-600">{post.data.description}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+</Marketing>

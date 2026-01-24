@@ -1,0 +1,90 @@
+---
+title: Bot Development
+description: Overview of the Colloquium bot framework and what bots can do.
+---
+
+Bots are plugins that automate editorial workflows in Colloquium. They respond to @mentions in conversations, processing commands asynchronously and posting results back to the thread.
+
+## What bots can do
+
+- **Check references** — validate DOIs and citations against external APIs
+- **Format manuscripts** — convert source files to publication-ready output
+- **Manage workflow** — assign editors, invite reviewers, transition manuscript status
+- **Generate checklists** — produce structured evaluation forms for reviewers
+- **Anything else** — the framework is extensible for any automation need
+
+## How bots work
+
+```
+User posts: "@reference-bot check"
+      ↓
+System detects @mention
+      ↓
+Job queued in Redis/Bull
+      ↓
+Worker picks up job (3 concurrent workers)
+      ↓
+Bot processes command with full context
+      ↓
+Bot posts response as new message
+      ↓
+SSE broadcasts to participants
+```
+
+Bots are never blocking — the user posts their message and continues working. The bot's response appears asynchronously.
+
+## Bot interface
+
+Every bot implements a standard interface:
+
+```typescript
+interface BotDefinition {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  commands: BotCommand[];
+  permissions: BotPermission[];
+  defaultConfig: Record<string, unknown>;
+}
+
+interface BotCommand {
+  name: string;
+  description: string;
+  handler: (context: BotContext) => Promise<BotResponse>;
+}
+```
+
+## Execution context
+
+When a bot command runs, it receives rich context:
+
+```typescript
+interface BotContext {
+  command: string;
+  args: string[];
+  manuscriptId: string;
+  conversationId: string;
+  messageId: string;
+  userId: string;
+  userRole: string;
+  config: Record<string, unknown>;
+  apiToken: string; // For authenticated API calls
+}
+```
+
+## Security model
+
+- Bots authenticate with scoped service tokens (`X-Bot-Token` header)
+- Permissions are declared in the bot definition and approved at install time
+- Bots access data through API endpoints, not direct database queries
+- Bot failures are isolated — they don't crash the platform
+- Every execution is logged with status, duration, and output
+
+## Next steps
+
+- [Getting Started](/bots/getting-started) — scaffold your first bot
+- [Architecture](/bots/architecture) — deep dive into the execution model
+- [API Access](/bots/api-access) — using service tokens for data retrieval
+- [Configuration](/bots/configuration) — YAML-based bot settings
+- [Testing](/bots/testing) — testing bots locally

@@ -1,0 +1,157 @@
+---
+title: Testing Bots
+description: Test your bot commands locally before deploying.
+---
+
+## Unit testing
+
+The `create-colloquium-bot` scaffold includes a Jest test setup. Test your command handlers directly:
+
+```typescript
+import { botDefinition } from '../index';
+
+describe('my-bot', () => {
+  const findCommand = (name: string) =>
+    botDefinition.commands.find(c => c.name === name);
+
+  it('handles the check command', async () => {
+    const command = findCommand('check');
+    const result = await command!.handler({
+      command: 'check',
+      args: [],
+      manuscriptId: 'manuscript-123',
+      conversationId: 'conv-456',
+      messageId: 'msg-789',
+      userId: 'user-1',
+      userRole: 'ACTION_EDITOR',
+      config: { defaultDeadline: 21 },
+      apiToken: 'test-token',
+    });
+
+    expect(result.content).toBeDefined();
+    expect(result.content).toContain('check');
+  });
+
+  it('handles missing manuscript gracefully', async () => {
+    const command = findCommand('check');
+    const result = await command!.handler({
+      command: 'check',
+      args: [],
+      manuscriptId: '', // No manuscript
+      conversationId: 'conv-456',
+      messageId: 'msg-789',
+      userId: 'user-1',
+      userRole: 'USER',
+      config: {},
+      apiToken: 'test-token',
+    });
+
+    expect(result.content).toContain('error');
+  });
+});
+```
+
+## Mocking API calls
+
+When your bot makes API calls, mock the fetch responses:
+
+```typescript
+import { jest } from '@jest/globals';
+
+// Mock fetch globally
+global.fetch = jest.fn();
+
+beforeEach(() => {
+  (fetch as jest.Mock).mockReset();
+});
+
+it('fetches manuscript files', async () => {
+  (fetch as jest.Mock)
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ([
+        { id: 'file-1', fileType: 'SOURCE', filename: 'paper.md' }
+      ]),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      arrayBuffer: async () => new TextEncoder().encode('# Title\n\nContent'),
+    });
+
+  const command = findCommand('process');
+  const result = await command!.handler(mockContext);
+
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(result.content).toContain('processed');
+});
+```
+
+## Integration testing
+
+For integration tests against a running Colloquium instance:
+
+1. Start the dev environment: `npm run dev`
+2. Install your bot in the admin panel
+3. Post a message with your bot's @mention
+4. Verify the response appears in the conversation
+
+## Testing configuration
+
+Test that your bot handles different configuration values correctly:
+
+```typescript
+it('respects custom deadline', async () => {
+  const command = findCommand('invite');
+  const result = await command!.handler({
+    ...mockContext,
+    config: { defaultDeadline: 14 }, // Override default
+  });
+
+  expect(result.content).toContain('14 days');
+});
+
+it('uses default when config is missing', async () => {
+  const command = findCommand('invite');
+  const result = await command!.handler({
+    ...mockContext,
+    config: {}, // Empty config
+  });
+
+  // Should fall back to hardcoded default
+  expect(result.content).toContain('21 days');
+});
+```
+
+## Running tests
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# Coverage report
+npm run test -- --coverage
+```
+
+## Debugging
+
+When developing locally, you can log bot execution details:
+
+```typescript
+handler: async (context) => {
+  console.log('Bot context:', {
+    command: context.command,
+    args: context.args,
+    manuscriptId: context.manuscriptId,
+  });
+
+  // ... process command
+
+  console.log('Bot response:', result);
+  return result;
+}
+```
+
+Logs appear in the API server output during development. In production, bot execution details are recorded in the `bot_executions` audit table.

@@ -1,0 +1,78 @@
+---
+title: Quick Start
+description: Get a local Colloquium instance running for evaluation.
+---
+
+This guide gets a Colloquium instance running on your local machine using Docker Compose. You'll have a fully functional journal platform in a few commands.
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- [Node.js](https://nodejs.org/) 18 or later
+- [Git](https://git-scm.com/)
+
+## Clone and install
+
+```bash
+git clone https://github.com/colloquium-press/colloquium.git
+cd colloquium
+npm install
+```
+
+## Start services
+
+```bash
+# Start PostgreSQL, Redis, and MailHog
+npm run docker:up
+
+# Run database migrations and seed with sample data
+npm run db:migrate
+npm run db:seed
+
+# Start the development servers
+npm run dev
+```
+
+This starts:
+- **Frontend**: http://localhost:3000
+- **API**: http://localhost:4000
+- **MailHog** (email testing): http://localhost:8025
+- **Prisma Studio** (database UI): http://localhost:5555
+
+## Log in
+
+1. Open http://localhost:3000
+2. Click "Sign In"
+3. Enter any of the seeded user emails (check the seed data or Prisma Studio)
+4. Open MailHog at http://localhost:8025 to find the magic link email
+5. Click the magic link to complete authentication
+
+## Explore
+
+With the dev instance running, you can:
+
+- **Submit a manuscript** — upload a PDF or Markdown file as an author
+- **View conversations** — see the conversational review interface
+- **Try bot commands** — @mention bots in a conversation thread
+- **Admin settings** — configure journal settings, install bots
+- **Prisma Studio** — browse the database at http://localhost:5555
+
+## Next steps
+
+- [First Submission](/getting-started/first-submission) — detailed walkthrough of the submission workflow
+- [Journal Administration](/guides/journal-administration) — configure your journal settings
+- [Deployment](/deployment/overview) — deploy to production infrastructure
+
+## Production deployment
+
+For a production instance, use the CLI tool instead:
+
+```bash
+npx create-colloquium-journal init "My Journal" \
+  --slug "my-journal" \
+  --domain "journal.example.com" \
+  --admin-email "editor@example.com" \
+  --deployment docker
+```
+
+See the [deployment guide](/deployment/overview) for full instructions.

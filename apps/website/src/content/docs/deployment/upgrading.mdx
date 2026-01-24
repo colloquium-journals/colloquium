@@ -1,0 +1,148 @@
+---
+title: Upgrading
+description: How to update your Colloquium instance to new versions.
+---
+
+## Version strategy
+
+Colloquium follows semantic versioning:
+- **Patch** (x.x.1) — bug fixes, safe to apply immediately
+- **Minor** (x.1.0) — new features, backward compatible
+- **Major** (1.0.0) — breaking changes, requires migration steps
+
+## Docker Compose upgrades
+
+Use the generated update script:
+
+```bash
+./scripts/update.sh
+```
+
+This script:
+1. Pulls the latest container images
+2. Stops the current services gracefully
+3. Runs any pending database migrations
+4. Starts services with new images
+5. Verifies health checks pass
+
+### Manual upgrade
+
+If you prefer manual control:
+
+```bash
+# Pull new images
+docker compose pull
+
+# Stop services
+docker compose down
+
+# Run migrations
+docker compose run --rm api npx prisma migrate deploy
+
+# Start with new images
+docker compose up -d
+
+# Verify
+docker compose ps
+docker compose logs -f --tail=50
+```
+
+## Cloud platform upgrades
+
+### Railway / Render
+
+These platforms deploy automatically from your Git repository. To upgrade:
+
+1. Update the Colloquium version in your configuration
+2. Push to your connected repository
+3. The platform rebuilds and deploys automatically
+
+### Fly.io
+
+```bash
+fly deploy
+```
+
+Fly.io performs rolling deployments with health checks.
+
+### AWS / GCP / Azure
+
+Update the container image tag in your infrastructure configuration and re-apply:
+
+```bash
+# Terraform
+terraform apply
+
+# Or update ECS task definition directly
+aws ecs update-service --force-new-deployment
+```
+
+## Database migrations
+
+Migrations run automatically during the upgrade process. For manual execution:
+
+```bash
+# Docker Compose
+docker compose run --rm api npx prisma migrate deploy
+
+# Direct
+DATABASE_URL=your-connection-string npx prisma migrate deploy
+```
+
+### Migration safety
+
+- Migrations are idempotent — running them multiple times is safe
+- Failed migrations can be rolled back with `prisma migrate resolve`
+- Always backup your database before major version upgrades
+
+## Rollback
+
+If an upgrade causes issues:
+
+### Docker Compose
+
+```bash
+# Stop current version
+docker compose down
+
+# Pin to previous version in docker-compose.yml
+# image: colloquium/api:previous-tag
+
+# Start previous version
+docker compose up -d
+```
+
+### Database rollback
+
+If a migration causes data issues, restore from backup:
+
+```bash
+# Stop services
+docker compose down
+
+# Restore database
+./scripts/restore.sh backups/latest.sql
+
+# Start with previous version
+docker compose up -d
+```
+
+## Checking your version
+
+```bash
+# API version
+curl https://your-journal.com/api/health
+
+# Or check the running container
+docker compose exec api node -e "console.log(require('./package.json').version)"
+```
+
+## Backup before upgrading
+
+Always backup before major upgrades:
+
+```bash
+./scripts/backup.sh
+```
+
+This creates a timestamped backup of the database and uploaded files.
