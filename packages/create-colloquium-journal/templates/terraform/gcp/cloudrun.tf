@@ -37,7 +37,7 @@ resource "google_cloud_run_v2_service" "web" {
 
       env {
         name  = "NEXT_PUBLIC_API_URL"
-        value = var.domain_name != "" ? "https://${var.domain_name}/api" : google_cloud_run_v2_service.api.uri
+        value = var.domain_name != "" ? "https://${var.domain_name}/api" : ""
       }
 
       env {
@@ -130,12 +130,12 @@ resource "google_cloud_run_v2_service" "api" {
 
       env {
         name  = "FRONTEND_URL"
-        value = var.domain_name != "" ? "https://${var.domain_name}" : google_cloud_run_v2_service.web.uri
+        value = var.domain_name != "" ? "https://${var.domain_name}" : ""
       }
 
       env {
         name  = "API_URL"
-        value = var.domain_name != "" ? "https://${var.domain_name}/api" : google_cloud_run_v2_service.api.uri
+        value = var.domain_name != "" ? "https://${var.domain_name}/api" : ""
       }
 
       env {

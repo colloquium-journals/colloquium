@@ -1,6 +1,6 @@
 output "web_url" {
-  description = "URL to access the web application"
-  value       = var.domain_name != "" ? "https://${var.domain_name}" : google_cloud_run_v2_service.web.uri
+  description = "URL to access the web application (use cloud_run_web_url if domain not configured)"
+  value       = var.domain_name != "" ? "https://${var.domain_name}" : "See cloud_run_web_url output"
 }
 
 output "api_url" {
@@ -56,18 +56,26 @@ output "next_steps" {
 
     Deployment complete! Next steps:
 
-    1. Access your journal at: ${var.domain_name != "" ? "https://${var.domain_name}" : google_cloud_run_v2_service.web.uri}
+    1. Access your journal at the web_url output above
 
-    2. If using a custom domain, add these DNS records:
+    2. If NOT using a custom domain, update Cloud Run environment variables:
+       - Web service: Set NEXT_PUBLIC_API_URL to the cloud_run_api_url output
+       - API service: Set FRONTEND_URL to the cloud_run_web_url output
+       - API service: Set API_URL to the cloud_run_api_url output
+
+       Run: gcloud run services update ${local.name_prefix}-web --region ${var.region} --update-env-vars "NEXT_PUBLIC_API_URL=<api-url>"
+       Run: gcloud run services update ${local.name_prefix}-api --region ${var.region} --update-env-vars "FRONTEND_URL=<web-url>,API_URL=<api-url>"
+
+    3. If using a custom domain, add these DNS records:
        - CNAME: ${var.domain_name} -> ghs.googlehosted.com
 
-    3. View Cloud Run services:
+    4. View Cloud Run services:
        gcloud run services list --project ${var.project_id}
 
-    4. View logs:
+    5. View logs:
        gcloud logging read "resource.type=cloud_run_revision" --project ${var.project_id} --limit 50
 
-    5. The first user to sign up with ${var.admin_email} will be granted admin privileges.
+    6. The first user to sign up with ${var.admin_email} will be granted admin privileges.
 
   EOT
 }
