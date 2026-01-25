@@ -4,9 +4,9 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Publishing Pipeline
 
-- [ ] PDF generation via Pandoc (see [markdown-renderer-pandoc-implementation-plan.md](markdown-renderer-pandoc-implementation-plan.md))
-- [ ] Multi-engine template system: HTML, LaTeX, Typst (see [document-rendering-templating-plan.md](document-rendering-templating-plan.md))
-- [ ] Journal-configurable typesetting engine selection (see [robust-typesetting-publishing-plan.md](robust-typesetting-publishing-plan.md))
+- [x] PDF generation via Pandoc (see [markdown-renderer-pandoc-implementation-plan.md](markdown-renderer-pandoc-implementation-plan.md))
+- [x] Multi-engine template system: HTML, LaTeX, Typst (see [document-rendering-templating-plan.md](document-rendering-templating-plan.md))
+- [x] Journal-configurable typesetting engine selection (see [robust-typesetting-publishing-plan.md](robust-typesetting-publishing-plan.md))
 - [ ] DOI assignment / CrossRef integration
 - [ ] Metadata submission to indexing services (PubMed, etc.)
 - [ ] Publication preview system for authors/editors
@@ -34,7 +34,7 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Authentication & Identity
 
-- [ ] ORCID OAuth verification (see [orcid-oauth-plan.md](orcid-oauth-plan.md))
+- [x] ORCID OAuth verification (see [orcid-oauth-plan.md](orcid-oauth-plan.md))
 - [ ] Institutional SSO support
 - [ ] Expertise tags for reviewer matching
 

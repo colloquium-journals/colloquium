@@ -1,5 +1,9 @@
 # Document Rendering and Templating System Plan
 
+**Status: 🟡 Partially Implemented**
+
+Core Markdown rendering with multi-engine templates (HTML, LaTeX, Typst) is complete via the `markdown-renderer-bot` and Pandoc microservice. Extended format support (Quarto, R Markdown, Jupyter) remains future work.
+
 ## Overview
 
 This plan outlines a comprehensive document rendering and templating system for Colloquium that supports multiple input formats (Markdown, Quarto, R Markdown, LaTeX, etc.) and provides flexible, editor-friendly templating with progressive enhancement through bot-powered rendering.

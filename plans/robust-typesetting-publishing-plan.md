@@ -1,5 +1,9 @@
 # Robust Typesetting and Publishing System Plan
 
+**Status: ✅ Implemented**
+
+The `markdown-renderer-bot` with Pandoc microservice provides journal-configurable engine selection (HTML/LaTeX/Typst), template management, bibliography support, and dual HTML/PDF output.
+
 ## Overview
 
 This plan outlines a robust, flexible typesetting and publishing system for Colloquium that enables journal administrators to choose from various bot-based rendering engines while maintaining consistent manuscript processing workflows and reliable output generation.

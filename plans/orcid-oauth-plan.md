@@ -1,5 +1,7 @@
 # ORCID OAuth Verification Plan
 
+**Status: ✅ Implemented** (January 2026)
+
 ## Overview
 
 Replace the current "manual entry + public API existence check" with a proper OAuth 2.0 flow that cryptographically proves a user owns the ORCID they claim. The current system (`apps/api/src/routes/users.ts:26-52`) only confirms an ORCID exists via the public API, but anyone could enter anyone else's ORCID.

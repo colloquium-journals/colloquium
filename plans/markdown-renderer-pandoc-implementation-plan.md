@@ -1,5 +1,7 @@
 # Multi-Engine PDF Rendering Implementation Plan
 
+**Status: ✅ Implemented**
+
 ## Overview
 Replace Puppeteer with Pandoc supporting HTML, LaTeX, and Typst engines. All configuration is handled at the journal level through bot admin settings, not command arguments.
 
