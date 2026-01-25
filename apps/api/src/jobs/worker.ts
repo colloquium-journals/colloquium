@@ -1,6 +1,8 @@
-import { run, Runner, TaskList } from 'graphile-worker';
+import { run, Runner, TaskList, parseCronItems } from 'graphile-worker';
 import { processBotJob } from './botProcessor';
-import { BotProcessingJob } from './index';
+import { BotProcessingJob, DeadlineReminderJob } from './index';
+import { processDeadlineReminder } from '../services/deadlineReminderProcessor';
+import { scanAndScheduleReminders } from '../services/deadlineScanner';
 
 let runner: Runner | null = null;
 
@@ -18,7 +20,37 @@ const taskList: TaskList = {
       throw error;
     }
   },
+
+  'deadline-reminder': async (payload, helpers) => {
+    const jobPayload = payload as DeadlineReminderJob;
+    console.log(`🔔 Processing deadline reminder for assignment ${jobPayload.assignmentId} (${jobPayload.daysBefore} days before)`);
+
+    try {
+      await processDeadlineReminder(jobPayload);
+      console.log(`✅ Deadline reminder processed successfully for assignment ${jobPayload.assignmentId}`);
+    } catch (error) {
+      console.error(`❌ Deadline reminder failed for assignment ${jobPayload.assignmentId}:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  },
+
+  'deadline-scanner': async (payload, helpers) => {
+    console.log(`🔍 Running deadline scanner at ${new Date().toISOString()}`);
+
+    try {
+      await scanAndScheduleReminders();
+      console.log(`✅ Deadline scanner completed successfully`);
+    } catch (error) {
+      console.error(`❌ Deadline scanner failed:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  },
 };
+
+// Cron schedule for deadline scanner - runs daily at 8 AM
+const cronItems = parseCronItems([
+  { task: 'deadline-scanner', match: '0 8 * * *', options: { backfillPeriod: 0 } },
+]);
 
 // Start the bot processing worker
 export const startBotWorker = async () => {
@@ -36,6 +68,7 @@ export const startBotWorker = async () => {
       noHandleSignals: false,
       pollInterval: 1000,
       taskList,
+      parsedCronItems: cronItems,
     });
 
     console.log('🎉 graphile-worker bot processing is ready! (concurrency: 3)');

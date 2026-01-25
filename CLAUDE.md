@@ -152,6 +152,28 @@ Configurable review workflows support different peer review models. See [docs/de
 - `@bot-editorial release decision="revise"` - Release reviews to authors
 - `@bot-editorial begin-deliberation` - Start reviewer deliberation phase
 - `@bot-editorial request-revision deadline="2024-03-15"` - Request author revisions
+- `@bot-editorial send-reminder @reviewer` - Send manual deadline reminder to reviewer
+
+### Deadline Reminders
+Automated reminder system for review deadlines.
+
+**Architecture**: Daily scanner (cron at 8 AM) + scheduled jobs via graphile-worker
+
+**Key Components**:
+- **Database**: `deadline_reminders` table tracks `assignmentId`, `daysBefore`, `status`, `scheduledFor`
+- **Scanner**: `apps/api/src/services/deadlineScanner.ts` - finds deadlines, schedules reminder jobs
+- **Processor**: `apps/api/src/services/deadlineReminderProcessor.ts` - sends emails, posts to conversations
+- **Email Templates**: `apps/api/src/templates/reminderEmails.ts` - automated and manual reminder templates
+
+**Configuration** (via Admin UI → Settings → Reminders):
+- Master enable/disable toggle
+- Configurable reminder intervals (e.g., 7, 3, 1 days before)
+- Per-interval email/conversation toggle
+- Overdue reminder settings (interval days, max count)
+
+**Manual Reminders**:
+- `@bot-editorial send-reminder @reviewer` - Send immediate reminder
+- `@bot-editorial send-reminder @reviewer message="Please prioritize"` - With custom message
 
 ### Bot Naming Convention
 - **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference`, `bot-reviewer-checklist`)

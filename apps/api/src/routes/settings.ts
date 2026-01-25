@@ -8,6 +8,37 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+// Exported types for reminder settings
+export interface ReminderInterval {
+  daysBefore: number;
+  enabled: boolean;
+  emailEnabled: boolean;
+  conversationEnabled: boolean;
+}
+
+export interface OverdueReminderSettings {
+  enabled: boolean;
+  intervalDays: number;
+  maxReminders: number;
+}
+
+export interface ReviewReminderSettings {
+  enabled: boolean;
+  intervals: ReminderInterval[];
+  overdueReminders: OverdueReminderSettings;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  reviewReminders: ReviewReminderSettings;
+}
+
+// Type for the settings object returned by getJournalSettings
+export interface JournalSettingsData {
+  reminderSettings?: ReminderSettings;
+  [key: string]: unknown;
+}
+
 // Configure multer for logo uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -94,7 +125,30 @@ const JournalSettingsSchema = z.object({
   
   // Theme Settings
   enableDarkMode: z.boolean().default(false),
-  defaultTheme: z.enum(['light', 'dark', 'auto']).default('light')
+  defaultTheme: z.enum(['light', 'dark', 'auto']).default('light'),
+
+  // Reminder Settings
+  reminderSettings: z.object({
+    enabled: z.boolean().default(true),
+    reviewReminders: z.object({
+      enabled: z.boolean().default(true),
+      intervals: z.array(z.object({
+        daysBefore: z.number().min(0).max(60),
+        enabled: z.boolean().default(true),
+        emailEnabled: z.boolean().default(true),
+        conversationEnabled: z.boolean().default(true),
+      })).default([
+        { daysBefore: 7, enabled: true, emailEnabled: true, conversationEnabled: true },
+        { daysBefore: 3, enabled: true, emailEnabled: true, conversationEnabled: true },
+        { daysBefore: 1, enabled: true, emailEnabled: true, conversationEnabled: true },
+      ]),
+      overdueReminders: z.object({
+        enabled: z.boolean().default(true),
+        intervalDays: z.number().min(1).max(14).default(3),
+        maxReminders: z.number().min(1).max(10).default(3),
+      }).default({}),
+    }).default({}),
+  }).default({})
 });
 
 // Default settings
@@ -135,11 +189,23 @@ const defaultSettings = {
   customFooter: undefined as string | undefined,
   maintenanceMode: false,
   enableDarkMode: false,
-  defaultTheme: 'light' as 'light' | 'dark' | 'auto'
+  defaultTheme: 'light' as 'light' | 'dark' | 'auto',
+  reminderSettings: {
+    enabled: true,
+    reviewReminders: {
+      enabled: true,
+      intervals: [
+        { daysBefore: 7, enabled: true, emailEnabled: true, conversationEnabled: true },
+        { daysBefore: 3, enabled: true, emailEnabled: true, conversationEnabled: true },
+        { daysBefore: 1, enabled: true, emailEnabled: true, conversationEnabled: true },
+      ],
+      overdueReminders: { enabled: true, intervalDays: 3, maxReminders: 3 },
+    },
+  }
 };
 
-// Helper function to get or create journal settings
-async function getJournalSettings() {
+// Helper function to get or create journal settings (exported for use by other modules)
+export async function getJournalSettings() {
   try {
     let settings = await prisma.journal_settings.findFirst({
       where: { id: 'singleton' }

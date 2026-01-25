@@ -55,7 +55,9 @@ import {
   IconFileText,
   IconX,
   IconEdit,
-  IconGitBranch
+  IconGitBranch,
+  IconBell,
+  IconClock
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
@@ -193,6 +195,25 @@ interface JournalSettings {
   // Theme Settings
   enableDarkMode: boolean;
   defaultTheme: 'light' | 'dark' | 'auto';
+
+  // Reminder Settings
+  reminderSettings?: {
+    enabled?: boolean;
+    reviewReminders?: {
+      enabled?: boolean;
+      intervals?: Array<{
+        daysBefore: number;
+        enabled: boolean;
+        emailEnabled: boolean;
+        conversationEnabled: boolean;
+      }>;
+      overdueReminders?: {
+        enabled?: boolean;
+        intervalDays?: number;
+        maxReminders?: number;
+      };
+    };
+  };
 }
 
 export default function JournalSettingsPage() {
@@ -1089,6 +1110,11 @@ export default function JournalSettingsPage() {
               </Tabs.Tab>
             )}
             {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="reminders" leftSection={<IconBell size={16} />}>
+                Reminders
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
               <Tabs.Tab value="advanced" leftSection={<IconShield size={16} />}>
                 Advanced
               </Tabs.Tab>
@@ -1380,6 +1406,313 @@ export default function JournalSettingsPage() {
                   }
                 }}
               />
+            </Card>
+          </Tabs.Panel>
+
+          {/* Reminders Tab */}
+          <Tabs.Panel value="reminders">
+            <Card shadow="sm" padding="lg" radius="md" mt="md">
+              <Stack gap="md">
+                <Title order={3}>Deadline Reminders</Title>
+                <Text size="sm" c="dimmed">
+                  Configure automated reminders for reviewers approaching or past their review deadlines.
+                </Text>
+
+                <Switch
+                  label="Enable Reminder System"
+                  description="Master toggle for all automated deadline reminders"
+                  checked={settings.reminderSettings?.enabled ?? true}
+                  onChange={(e) => setSettings({
+                    ...settings,
+                    reminderSettings: {
+                      ...settings.reminderSettings,
+                      enabled: e.currentTarget.checked
+                    }
+                  })}
+                />
+
+                {settings.reminderSettings?.enabled && (
+                  <>
+                    <Divider label="Review Reminders" />
+
+                    <Switch
+                      label="Enable Review Deadline Reminders"
+                      description="Send reminders to reviewers as their deadlines approach"
+                      checked={settings.reminderSettings?.reviewReminders?.enabled ?? true}
+                      onChange={(e) => setSettings({
+                        ...settings,
+                        reminderSettings: {
+                          ...settings.reminderSettings,
+                          reviewReminders: {
+                            ...settings.reminderSettings?.reviewReminders,
+                            enabled: e.currentTarget.checked
+                          }
+                        }
+                      })}
+                    />
+
+                    {settings.reminderSettings?.reviewReminders?.enabled && (
+                      <>
+                        <Card withBorder p="md">
+                          <Stack gap="sm">
+                            <Group justify="space-between">
+                              <Text fw={500}>Reminder Intervals</Text>
+                              <Button
+                                size="xs"
+                                variant="light"
+                                leftSection={<IconPlus size={14} />}
+                                onClick={() => {
+                                  const currentIntervals = settings.reminderSettings?.reviewReminders?.intervals || [];
+                                  const existingDays = new Set(currentIntervals.map((i: { daysBefore: number }) => i.daysBefore));
+                                  // Find next available day value using common reminder intervals
+                                  const preferredDays = [7, 3, 1, 14, 5, 2, 10, 21, 28];
+                                  let newDaysBefore = preferredDays.find(d => !existingDays.has(d)) ?? 0;
+                                  // If all preferred days are taken, find first available from 0-60
+                                  if (existingDays.has(newDaysBefore)) {
+                                    for (let i = 0; i <= 60; i++) {
+                                      if (!existingDays.has(i)) {
+                                        newDaysBefore = i;
+                                        break;
+                                      }
+                                    }
+                                  }
+                                  setSettings({
+                                    ...settings,
+                                    reminderSettings: {
+                                      ...settings.reminderSettings,
+                                      reviewReminders: {
+                                        ...settings.reminderSettings?.reviewReminders,
+                                        intervals: [
+                                          ...currentIntervals,
+                                          { daysBefore: newDaysBefore, enabled: true, emailEnabled: true, conversationEnabled: true }
+                                        ]
+                                      }
+                                    }
+                                  });
+                                }}
+                              >
+                                Add Interval
+                              </Button>
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              Configure when to send reminders before the review deadline.
+                            </Text>
+
+                            {(settings.reminderSettings?.reviewReminders?.intervals || []).map((interval: any, index: number) => (
+                              <Card key={index} withBorder p="sm" bg="gray.0">
+                                <Group justify="space-between" wrap="nowrap">
+                                  <Group gap="md" wrap="nowrap">
+                                    <Switch
+                                      size="sm"
+                                      checked={interval.enabled}
+                                      onChange={(e) => {
+                                        const intervals = [...(settings.reminderSettings?.reviewReminders?.intervals || [])];
+                                        intervals[index] = { ...intervals[index], enabled: e.currentTarget.checked };
+                                        setSettings({
+                                          ...settings,
+                                          reminderSettings: {
+                                            ...settings.reminderSettings,
+                                            reviewReminders: {
+                                              ...settings.reminderSettings?.reviewReminders,
+                                              intervals
+                                            }
+                                          }
+                                        });
+                                      }}
+                                    />
+                                    <NumberInput
+                                      size="xs"
+                                      w={80}
+                                      min={0}
+                                      max={60}
+                                      value={interval.daysBefore}
+                                      onChange={(value) => {
+                                        const newValue = typeof value === 'number' ? value : 0;
+                                        const intervals = [...(settings.reminderSettings?.reviewReminders?.intervals || [])];
+                                        // Check for duplicates (excluding current interval)
+                                        const hasDuplicate = intervals.some((i: { daysBefore: number }, idx: number) =>
+                                          idx !== index && i.daysBefore === newValue
+                                        );
+                                        if (hasDuplicate) {
+                                          notifications.show({
+                                            title: 'Duplicate Interval',
+                                            message: `A reminder for ${newValue} days before already exists`,
+                                            color: 'orange',
+                                          });
+                                          return;
+                                        }
+                                        intervals[index] = { ...intervals[index], daysBefore: newValue };
+                                        setSettings({
+                                          ...settings,
+                                          reminderSettings: {
+                                            ...settings.reminderSettings,
+                                            reviewReminders: {
+                                              ...settings.reminderSettings?.reviewReminders,
+                                              intervals
+                                            }
+                                          }
+                                        });
+                                      }}
+                                      suffix=" days"
+                                      disabled={!interval.enabled}
+                                    />
+                                    <Text size="sm" c={interval.enabled ? undefined : 'dimmed'}>
+                                      {interval.daysBefore === 0 ? 'on due date' : 'before deadline'}
+                                    </Text>
+                                  </Group>
+                                  <Group gap="xs" wrap="nowrap">
+                                    <Switch
+                                      size="xs"
+                                      label="Email"
+                                      checked={interval.emailEnabled}
+                                      disabled={!interval.enabled}
+                                      onChange={(e) => {
+                                        const intervals = [...(settings.reminderSettings?.reviewReminders?.intervals || [])];
+                                        intervals[index] = { ...intervals[index], emailEnabled: e.currentTarget.checked };
+                                        setSettings({
+                                          ...settings,
+                                          reminderSettings: {
+                                            ...settings.reminderSettings,
+                                            reviewReminders: {
+                                              ...settings.reminderSettings?.reviewReminders,
+                                              intervals
+                                            }
+                                          }
+                                        });
+                                      }}
+                                    />
+                                    <Switch
+                                      size="xs"
+                                      label="Chat"
+                                      checked={interval.conversationEnabled}
+                                      disabled={!interval.enabled}
+                                      onChange={(e) => {
+                                        const intervals = [...(settings.reminderSettings?.reviewReminders?.intervals || [])];
+                                        intervals[index] = { ...intervals[index], conversationEnabled: e.currentTarget.checked };
+                                        setSettings({
+                                          ...settings,
+                                          reminderSettings: {
+                                            ...settings.reminderSettings,
+                                            reviewReminders: {
+                                              ...settings.reminderSettings?.reviewReminders,
+                                              intervals
+                                            }
+                                          }
+                                        });
+                                      }}
+                                    />
+                                    <ActionIcon
+                                      size="sm"
+                                      variant="subtle"
+                                      color="red"
+                                      onClick={() => {
+                                        const intervals = (settings.reminderSettings?.reviewReminders?.intervals || []).filter((_: any, i: number) => i !== index);
+                                        setSettings({
+                                          ...settings,
+                                          reminderSettings: {
+                                            ...settings.reminderSettings,
+                                            reviewReminders: {
+                                              ...settings.reminderSettings?.reviewReminders,
+                                              intervals
+                                            }
+                                          }
+                                        });
+                                      }}
+                                    >
+                                      <IconTrash size={14} />
+                                    </ActionIcon>
+                                  </Group>
+                                </Group>
+                              </Card>
+                            ))}
+
+                            {(settings.reminderSettings?.reviewReminders?.intervals || []).length === 0 && (
+                              <Text size="sm" c="dimmed" ta="center" py="md">
+                                No reminder intervals configured. Click "Add Interval" to create one.
+                              </Text>
+                            )}
+                          </Stack>
+                        </Card>
+
+                        <Card withBorder p="md">
+                          <Stack gap="sm">
+                            <Switch
+                              label="Enable Overdue Reminders"
+                              description="Send periodic reminders after the deadline has passed"
+                              checked={settings.reminderSettings?.reviewReminders?.overdueReminders?.enabled ?? true}
+                              onChange={(e) => setSettings({
+                                ...settings,
+                                reminderSettings: {
+                                  ...settings.reminderSettings,
+                                  reviewReminders: {
+                                    ...settings.reminderSettings?.reviewReminders,
+                                    overdueReminders: {
+                                      ...settings.reminderSettings?.reviewReminders?.overdueReminders,
+                                      enabled: e.currentTarget.checked
+                                    }
+                                  }
+                                }
+                              })}
+                            />
+
+                            {settings.reminderSettings?.reviewReminders?.overdueReminders?.enabled && (
+                              <Group grow>
+                                <NumberInput
+                                  label="Reminder Interval"
+                                  description="Days between overdue reminders"
+                                  min={1}
+                                  max={14}
+                                  value={settings.reminderSettings?.reviewReminders?.overdueReminders?.intervalDays ?? 3}
+                                  onChange={(value) => setSettings({
+                                    ...settings,
+                                    reminderSettings: {
+                                      ...settings.reminderSettings,
+                                      reviewReminders: {
+                                        ...settings.reminderSettings?.reviewReminders,
+                                        overdueReminders: {
+                                          ...settings.reminderSettings?.reviewReminders?.overdueReminders,
+                                          intervalDays: typeof value === 'number' ? value : 3
+                                        }
+                                      }
+                                    }
+                                  })}
+                                />
+                                <NumberInput
+                                  label="Maximum Reminders"
+                                  description="Stop after this many overdue reminders"
+                                  min={1}
+                                  max={10}
+                                  value={settings.reminderSettings?.reviewReminders?.overdueReminders?.maxReminders ?? 3}
+                                  onChange={(value) => setSettings({
+                                    ...settings,
+                                    reminderSettings: {
+                                      ...settings.reminderSettings,
+                                      reviewReminders: {
+                                        ...settings.reminderSettings?.reviewReminders,
+                                        overdueReminders: {
+                                          ...settings.reminderSettings?.reviewReminders?.overdueReminders,
+                                          maxReminders: typeof value === 'number' ? value : 3
+                                        }
+                                      }
+                                    }
+                                  })}
+                                />
+                              </Group>
+                            )}
+                          </Stack>
+                        </Card>
+                      </>
+                    )}
+                  </>
+                )}
+
+                <Alert icon={<IconClock size={16} />} color="blue" variant="light">
+                  <Text size="sm">
+                    Reminders are processed daily at 8 AM server time. Editors can also send manual reminders
+                    using <code>@bot-editorial send-reminder @reviewer</code> in editorial conversations.
+                  </Text>
+                </Alert>
+              </Stack>
             </Card>
           </Tabs.Panel>
 

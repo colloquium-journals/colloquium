@@ -74,6 +74,13 @@ export class BotActionProcessor {
         await this.handleUpdateWorkflowPhase(action.data, context);
         break;
 
+      case 'SEND_MANUAL_REMINDER':
+        await this.handleSendManualReminder(
+          action.data as { reviewer: string; customMessage?: string; triggeredBy?: string },
+          context
+        );
+        break;
+
       default:
         console.warn(`Unknown bot action type: ${action.type}`);
     }
@@ -1383,6 +1390,143 @@ This publication was processed via Editorial Bot automation.
       html: htmlContent,
       text: `Deliberation Phase: ${manuscript.title}\n\nView conversation: ${process.env.FRONTEND_URL}/conversations/${conversationId}`
     });
+  }
+
+  private async handleSendManualReminder(
+    data: { reviewer: string; customMessage?: string; triggeredBy?: string },
+    context: ActionContext
+  ): Promise<void> {
+    const { reviewer, customMessage, triggeredBy } = data;
+    const { manuscriptId, conversationId } = context;
+
+    // Remove @ symbol to get username for lookup
+    const username = reviewer.replace('@', '');
+
+    // Find reviewer user by name or username
+    const reviewerUser = await prisma.users.findFirst({
+      where: {
+        OR: [
+          { name: username },
+          { username: username }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+      }
+    });
+
+    if (!reviewerUser) {
+      console.error(`Reviewer ${reviewer} not found`);
+      // Post error message to conversation
+      await prisma.messages.create({
+        data: {
+          id: randomUUID(),
+          content: `❌ **Reminder Failed**\n\nCould not find reviewer ${reviewer}. Please check the username and try again.`,
+          conversationId,
+          authorId: triggeredBy || context.userId,
+          privacy: 'EDITOR_ONLY',
+          isBot: true,
+          updatedAt: new Date(),
+          metadata: {
+            type: 'reminder_error',
+            reviewer,
+            error: 'User not found'
+          }
+        }
+      });
+      return;
+    }
+
+    // Find their active assignment for this manuscript
+    const assignment = await prisma.review_assignments.findFirst({
+      where: {
+        manuscriptId,
+        reviewerId: reviewerUser.id,
+        status: { in: ['ACCEPTED', 'IN_PROGRESS'] }
+      },
+      include: {
+        manuscripts: {
+          select: { title: true }
+        }
+      }
+    });
+
+    if (!assignment) {
+      console.error(`No active assignment found for reviewer ${reviewer} on manuscript ${manuscriptId}`);
+      await prisma.messages.create({
+        data: {
+          id: randomUUID(),
+          content: `❌ **Reminder Failed**\n\nNo active review assignment found for ${reviewer} on this manuscript. The reviewer may have declined, completed their review, or not yet accepted the invitation.`,
+          conversationId,
+          authorId: triggeredBy || context.userId,
+          privacy: 'EDITOR_ONLY',
+          isBot: true,
+          updatedAt: new Date(),
+          metadata: {
+            type: 'reminder_error',
+            reviewer,
+            error: 'No active assignment'
+          }
+        }
+      });
+      return;
+    }
+
+    if (!assignment.dueDate) {
+      console.error(`No due date set for assignment ${assignment.id}`);
+      await prisma.messages.create({
+        data: {
+          id: randomUUID(),
+          content: `❌ **Reminder Failed**\n\nNo due date set for ${reviewer}'s review assignment. Please set a due date first.`,
+          conversationId,
+          authorId: triggeredBy || context.userId,
+          privacy: 'EDITOR_ONLY',
+          isBot: true,
+          updatedAt: new Date(),
+          metadata: {
+            type: 'reminder_error',
+            reviewer,
+            error: 'No due date'
+          }
+        }
+      });
+      return;
+    }
+
+    // Import and use the sendManualReminder function
+    const { sendManualReminder } = await import('./deadlineReminderProcessor');
+
+    const result = await sendManualReminder(
+      assignment.id,
+      triggeredBy || context.userId,
+      customMessage
+    );
+
+    if (!result.success) {
+      console.error(`Manual reminder failed: ${result.error}`);
+      await prisma.messages.create({
+        data: {
+          id: randomUUID(),
+          content: `❌ **Reminder Failed**\n\nCould not send reminder to ${reviewer}: ${result.error}`,
+          conversationId,
+          authorId: triggeredBy || context.userId,
+          privacy: 'EDITOR_ONLY',
+          isBot: true,
+          updatedAt: new Date(),
+          metadata: {
+            type: 'reminder_error',
+            reviewer,
+            error: result.error
+          }
+        }
+      });
+      return;
+    }
+
+    console.log(`Manual reminder sent successfully to ${reviewer} for manuscript ${manuscriptId}`);
   }
 
 }

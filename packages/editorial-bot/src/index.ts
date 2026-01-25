@@ -1040,6 +1040,87 @@ const deliberateCommand: BotCommand = {
   }
 };
 
+const sendReminderCommand: BotCommand = {
+  name: 'send-reminder',
+  description: 'Send a manual reminder to a reviewer about their pending review',
+  usage: '@bot-editorial send-reminder <reviewer> [message="custom message"]',
+  help: `Sends a manual reminder email and posts a message to the editorial conversation for a specific reviewer.
+
+**Usage:**
+\`@bot-editorial send-reminder <reviewer> [message="custom message"]\`
+
+**Parameters:**
+- **reviewer**: @mention of the reviewer to remind (required)
+- **message**: Custom message to include with the reminder (optional)
+
+**Requirements:**
+- Only editors can send manual reminders
+- The reviewer must have an active (accepted/in-progress) review assignment for this manuscript
+
+**What happens:**
+1. Email is sent to the reviewer with deadline information
+2. A message is posted in the editorial conversation
+3. If a custom message is provided, it's included in both
+
+**Examples:**
+- \`@bot-editorial send-reminder @DrSmith\`
+- \`@bot-editorial send-reminder @DrSmith message="Please prioritize this review"\`
+- \`@bot-editorial send-reminder @ProfJohnson message="We need your review before the editor meeting next week"\``,
+  parameters: [
+    {
+      name: 'reviewer',
+      description: '@mention of the reviewer to send reminder to',
+      type: 'string',
+      required: true,
+      examples: ['@DrSmith', '@ProfJohnson']
+    },
+    {
+      name: 'message',
+      description: 'Optional custom message to include with the reminder',
+      type: 'string',
+      required: false,
+      examples: ['Please prioritize this review', 'We need your review before the editor meeting']
+    }
+  ],
+  examples: [
+    '@bot-editorial send-reminder @DrSmith',
+    '@bot-editorial send-reminder @DrSmith message="Please prioritize this review"',
+    '@bot-editorial send-reminder @ProfJohnson message="We need your review before the editor meeting"'
+  ],
+  permissions: ['assign_reviewers'],
+  async execute(params, context) {
+    const { reviewer, message } = params;
+    const { manuscriptId } = context;
+
+    // Process @mention to ensure proper formatting
+    const processedReviewer = processMentions([reviewer])[0];
+    const username = processedReviewer.replace('@', '');
+
+    let responseMessage = `📧 **Manual Reminder**\n\n`;
+    responseMessage += `**Manuscript ID:** ${manuscriptId}\n`;
+    responseMessage += `**Reviewer:** ${processedReviewer}\n`;
+
+    if (message) {
+      responseMessage += `**Message:** ${message}\n`;
+    }
+
+    responseMessage += `\n✅ Reminder will be sent to the reviewer via email and posted to this conversation.`;
+
+    return {
+      messages: [{ content: responseMessage }],
+      actions: [{
+        type: 'SEND_MANUAL_REMINDER',
+        data: {
+          reviewer: processedReviewer,
+          customMessage: message,
+          manuscriptId,
+          triggeredBy: context.triggeredBy?.userId
+        }
+      }]
+    };
+  }
+};
+
 const helpCommand: BotCommand = {
   name: 'help',
   description: 'Show available commands and usage information',
@@ -1066,7 +1147,7 @@ const helpCommand: BotCommand = {
     
     if (command) {
       // Return help for specific command
-      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand];
+      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand, sendReminderCommand];
       const targetCommand = commands.find(cmd => cmd.name === command);
       
       if (!targetCommand) {
@@ -1144,6 +1225,9 @@ Usage: \`@bot-editorial request-revision [deadline="YYYY-MM-DD"] [notes="revisio
 **begin-deliberation** - Move to deliberation phase where reviewers can see each other's reviews
 Usage: \`@bot-editorial begin-deliberation [notes="optional notes"]\`
 
+**send-reminder** - Send a manual reminder to a reviewer
+Usage: \`@bot-editorial send-reminder <reviewer> [message="custom message"]\`
+
 ## Keywords
 
 This bot also responds to these keywords: \`editorial decision\`, \`review status\`, \`invite reviewer\`, \`assign editor\`, \`manuscript status\`, \`make decision\`
@@ -1178,8 +1262,8 @@ export const editorialBot: CommandBot = {
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, action editor management, and workflow phase transitions',
   version: '3.0.0',
-  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand, helpCommand],
-  keywords: ['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision', 'release reviews', 'request revision', 'deliberation'],
+  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand, sendReminderCommand, helpCommand],
+  keywords: ['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision', 'release reviews', 'request revision', 'deliberation', 'send reminder'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {

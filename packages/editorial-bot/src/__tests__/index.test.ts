@@ -4,23 +4,31 @@ describe('Editorial Bot', () => {
   it('should have correct bot metadata', () => {
     expect(editorialBot.id).toBe('bot-editorial');
     expect(editorialBot.name).toBe('Editorial Bot');
-    expect(editorialBot.description).toBe('Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management');
-    expect(editorialBot.version).toBe('2.3.0');
+    expect(editorialBot.description).toBe('Assists with manuscript editorial workflows, status updates, reviewer assignments, action editor management, and workflow phase transitions');
+    expect(editorialBot.version).toBe('3.0.0');
   });
 
   it('should have the expected commands', () => {
-    expect(editorialBot.commands).toHaveLength(5);
+    expect(editorialBot.commands).toHaveLength(9);
 
     const commandNames = editorialBot.commands.map(cmd => cmd.name);
     expect(commandNames).toContain('accept');
     expect(commandNames).toContain('reject');
     expect(commandNames).toContain('assign-editor');
     expect(commandNames).toContain('invite-reviewer');
+    expect(commandNames).toContain('release');
+    expect(commandNames).toContain('request-revision');
+    expect(commandNames).toContain('begin-deliberation');
+    expect(commandNames).toContain('send-reminder');
     expect(commandNames).toContain('help');
   });
 
   it('should have the expected keywords', () => {
-    expect(editorialBot.keywords).toEqual(['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision']);
+    expect(editorialBot.keywords).toContain('editorial decision');
+    expect(editorialBot.keywords).toContain('review status');
+    expect(editorialBot.keywords).toContain('invite reviewer');
+    expect(editorialBot.keywords).toContain('assign editor');
+    expect(editorialBot.keywords).toContain('send reminder');
   });
 
   it('should have the expected permissions', () => {

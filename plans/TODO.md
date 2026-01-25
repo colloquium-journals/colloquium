@@ -28,7 +28,7 @@ High-level roadmap of unimplemented features and planned work.
   - [x] Editorial release controls and round tracking
   - [x] Admin UI for workflow configuration (WorkflowConfigPanel)
   - [x] Frontend conversation UI adaptations (AuthorLockedState, EditorPhaseControls, RoundDivider, masked identities)
-- [ ] Deadline management with automated reminders
+- [x] Deadline management with automated reminders (see [deadline-reminders-plan.md](deadline-reminders-plan.md))
 - [ ] Revision diff visualization
 - [ ] Appeal handling process
 

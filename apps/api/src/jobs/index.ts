@@ -1,11 +1,21 @@
 import { makeWorkerUtils, WorkerUtils } from 'graphile-worker';
 
-// Job payload type
+// Job payload types
 export interface BotProcessingJob {
   messageId: string;
   conversationId: string;
   userId: string;
   manuscriptId?: string;
+}
+
+export interface DeadlineReminderJob {
+  reminderId: string;
+  assignmentId: string;
+  daysBefore: number;
+}
+
+export interface DeadlineScannerJob {
+  triggeredAt: string;
 }
 
 // Lazy initialization of worker utils
@@ -36,6 +46,33 @@ export async function addBotJob(payload: BotProcessingJob): Promise<void> {
   });
   console.log(`Bot job queued for message ${payload.messageId}`);
 }
+
+// Schedule a deadline reminder job
+export async function scheduleReminderJob(
+  payload: DeadlineReminderJob,
+  runAt: Date,
+  jobKey: string
+): Promise<void> {
+  const utils = await getWorkerUtils();
+  await utils.addJob('deadline-reminder', payload, {
+    runAt,
+    jobKey,
+    maxAttempts: 3,
+  });
+  console.log(`Deadline reminder job scheduled for ${runAt.toISOString()} (key: ${jobKey})`);
+}
+
+// Trigger the deadline scanner manually (for testing or manual runs)
+export async function triggerDeadlineScanner(): Promise<void> {
+  const utils = await getWorkerUtils();
+  await utils.addJob('deadline-scanner', { triggeredAt: new Date().toISOString() }, {
+    maxAttempts: 1,
+  });
+  console.log('Deadline scanner job triggered manually');
+}
+
+// Export getWorkerUtils for external use
+export { getWorkerUtils };
 
 // Queue health check
 export async function getQueueHealth() {
