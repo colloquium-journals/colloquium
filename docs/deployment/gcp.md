@@ -1,6 +1,6 @@
 # GCP Deployment Guide
 
-Deploy Colloquium to Google Cloud Platform using Cloud Run, Cloud SQL, and Memorystore.
+Deploy Colloquium to Google Cloud Platform using Cloud Run and Cloud SQL.
 
 ## Prerequisites
 
@@ -73,10 +73,10 @@ The GCP deployment creates the following infrastructure:
 │  │                          │                                 │  │
 │  │  ┌───────────────────────┴───────────────────────────────┐│  │
 │  │  │                    Private Network                     ││  │
-│  │  │  ┌─────────────────┐    ┌─────────────────────────┐  ││  │
-│  │  │  │  Cloud SQL      │    │   Memorystore Redis     │  ││  │
-│  │  │  │  PostgreSQL 15  │    │       (Redis 7)         │  ││  │
-│  │  │  └─────────────────┘    └─────────────────────────┘  ││  │
+│  │  │  ┌─────────────────────────────────────────────────┐  ││  │
+│  │  │  │              Cloud SQL PostgreSQL 15            │  ││  │
+│  │  │  │           (Database + Job Queues)               │  ││  │
+│  │  │  └─────────────────────────────────────────────────┘  ││  │
 │  │  └───────────────────────────────────────────────────────┘│  │
 │  └───────────────────────────────────────────────────────────┘  │
 │                                                                   │

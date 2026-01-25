@@ -81,15 +81,6 @@ aws ecs describe-tasks \
 2. Database is in the same VPC as ECS
 3. DATABASE_URL secret is correctly formatted
 
-### ElastiCache Connection Issues
-
-**Symptom**: Redis connection timeouts
-
-**Solutions**:
-1. Verify security group allows port 6379 from ECS
-2. Check Redis endpoint in environment variables
-3. Ensure VPC has proper routing
-
 ### NAT Gateway Costs
 
 **Issue**: NAT Gateway is expensive (~$32/month)
@@ -122,7 +113,6 @@ aws ecs describe-tasks \
 gcloud services enable \
   run.googleapis.com \
   sqladmin.googleapis.com \
-  redis.googleapis.com \
   secretmanager.googleapis.com \
   vpcaccess.googleapis.com \
   compute.googleapis.com \
@@ -156,15 +146,6 @@ gcloud run services describe my-journal-production-api \
 3. Ensure service account has `cloudsql.client` role
 4. Verify Cloud SQL and Cloud Run are in the same region
 
-### Memorystore Connection Timeout
-
-**Symptom**: Redis connection fails
-
-**Solutions**:
-1. Verify VPC connector egress is set to `ALL_TRAFFIC`
-2. Check Memorystore is in the same region as Cloud Run
-3. Ensure private service access is configured
-
 ### Cold Start Latency
 
 **Issue**: First request after idle period is slow
@@ -173,15 +154,6 @@ gcloud run services describe my-journal-production-api \
 1. Set `min_instances = 1` to keep one container warm
 2. Optimize container startup time
 3. Use Cloud Run's CPU allocation setting for "always allocated"
-
-### Billing Alert: Memorystore Expensive
-
-**Issue**: Memorystore costs ~$35/month minimum
-
-**Alternatives**:
-1. Use Redis Cloud free tier (external)
-2. Consider Upstash Redis (serverless)
-3. For development, use in-memory queue (not persistent)
 
 ---
 

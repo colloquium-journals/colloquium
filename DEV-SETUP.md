@@ -35,7 +35,7 @@ cd colloquium
 The setup script will:
 - Install all dependencies
 - Create environment configuration
-- Start required services (PostgreSQL, Redis, MailHog)
+- Start required services (PostgreSQL, MailHog)
 - Run database migrations and seeding
 - Build all shared packages
 
@@ -88,7 +88,7 @@ The default development settings should work out of the box, but you can customi
 ```bash
 # Start required services with Docker
 cd docker
-docker-compose up -d postgres redis mailhog
+docker-compose up -d postgres mailhog
 cd ..
 
 # Wait a moment for PostgreSQL to start up
@@ -278,7 +278,7 @@ docker-compose logs -f
 
 # Specific service
 docker-compose logs -f postgres
-docker-compose logs -f redis
+docker-compose logs -f mailhog
 ```
 
 **Application Logs:**

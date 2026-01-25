@@ -62,7 +62,7 @@ If you prefer manual setup:
 3. **Start services with Docker**
    ```bash
    cd docker
-   docker-compose up -d postgres redis mailhog
+   docker-compose up -d postgres mailhog
    ```
 
 4. **Run database migrations**

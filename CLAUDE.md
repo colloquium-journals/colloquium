@@ -78,7 +78,7 @@ npm run db:reset-quick      # Reset database (no confirmation)
 npm run db:clear            # Clear database without seeding
 
 # Docker services
-npm run docker:up           # Start postgres, redis, mailhog
+npm run docker:up           # Start postgres, mailhog
 
 # Build
 npm run build               # Build all packages and apps
@@ -99,23 +99,17 @@ npm run build               # Build all packages and apps
 - **Bot Integration**: Bots download files via authenticated API calls using `x-bot-token` header
 
 ### Bot Processing System
-**Architecture**: Asynchronous job queues with Redis/Bull for non-blocking UX
+**Architecture**: Asynchronous job queues with graphile-worker (PostgreSQL-based) for non-blocking UX
 
 **Key Files**:
-- `/apps/api/src/jobs/index.ts` - Queue initialization with `getBotQueue()`
-- `/apps/api/src/jobs/worker.ts` - 3 concurrent job processors
+- `/apps/api/src/jobs/index.ts` - Queue initialization with `addBotJob()`
+- `/apps/api/src/jobs/worker.ts` - 3 concurrent job processors using graphile-worker
 - `/apps/api/src/jobs/botProcessor.ts` - Bot execution and response handling
 - `/apps/api/src/routes/conversations.ts` - Message creation with async bot queuing
 
 **Workflow**: User posts → Bot detection → Queue job → Worker processes → SSE broadcast responses
 
-**Config**:
-```bash
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
-**Dependencies**: `bull`, `ioredis`
+**Dependencies**: `graphile-worker` (uses PostgreSQL LISTEN/NOTIFY for efficient job coordination)
 
 **⚠️ Bot Data Access**: All bots MUST use API endpoints (not direct database queries) for consistency and security. See [Bot Framework Documentation](docs/development/bots.md#data-access-patterns) for required patterns.
 
@@ -168,7 +162,6 @@ Configurable review workflows support different peer review models. See [docs/de
 
 Required environment variables (see `.env.example`):
 - `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection for job queues
 - `JWT_SECRET` / `MAGIC_LINK_SECRET` - Auth secrets
 - `FRONTEND_URL` / `API_URL` - App URLs (localhost:3000 / localhost:4000)
 

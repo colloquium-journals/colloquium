@@ -37,7 +37,6 @@ function createAWSContext(config: JournalConfig): CloudTemplateContext {
     CREATED_AT: config.createdAt,
     AWS_REGION: config.aws?.region || 'us-east-1',
     AWS_DB_INSTANCE_CLASS: config.aws?.dbInstanceClass || 'db.t3.micro',
-    AWS_REDIS_NODE_TYPE: config.aws?.redisNodeType || 'cache.t3.micro',
     AWS_CERTIFICATE_ARN: config.aws?.certificateArn || '',
     SMTP_HOST: config.aws?.smtpHost || '',
     SMTP_PORT: config.aws?.smtpPort?.toString() || '587',
@@ -73,7 +72,6 @@ ${config.aws?.certificateArn ? `certificate_arn = "${config.aws.certificateArn}"
 
 # Infrastructure Sizing
 db_instance_class = "${config.aws?.dbInstanceClass || 'db.t3.micro'}"
-redis_node_type   = "${config.aws?.redisNodeType || 'cache.t3.micro'}"
 
 # Container Resources
 web_cpu    = 256
@@ -294,7 +292,7 @@ A Colloquium journal instance deployed on AWS.
 
 Edit \`terraform/terraform.tfvars\` to customize:
 
-- **Instance sizes**: \`db_instance_class\`, \`redis_node_type\`
+- **Instance sizes**: \`db_instance_class\`
 - **Container resources**: \`web_cpu\`, \`web_memory\`, \`api_cpu\`, \`api_memory\`
 - **Custom domain**: \`domain_name\`, \`certificate_arn\`
 - **Email**: \`smtp_host\`, \`smtp_port\`, \`smtp_user\`, \`smtp_from\`
@@ -304,8 +302,7 @@ Edit \`terraform/terraform.tfvars\` to customize:
 | Resource | Service | Purpose |
 |----------|---------|---------|
 | VPC | Amazon VPC | Network isolation |
-| RDS | PostgreSQL 15 | Database |
-| ElastiCache | Redis 7 | Job queues |
+| RDS | PostgreSQL 15 | Database + Job queues |
 | ECS Fargate | Containers | Web & API services |
 | ALB | Load Balancer | Traffic routing |
 | S3 | Object Storage | File uploads |
@@ -314,8 +311,9 @@ Edit \`terraform/terraform.tfvars\` to customize:
 
 ## Estimated Costs
 
-- **Minimum config**: ~$60-80/month
-- Main costs: RDS (~$15), ElastiCache (~$12), NAT Gateway (~$32), ALB (~$16)
+- **Minimum config**: ~$50-65/month
+- Main costs: RDS (~$15), NAT Gateway (~$32), ALB (~$16)
+- Job queues use PostgreSQL (graphile-worker), no Redis needed
 
 ## Custom Domain Setup
 
@@ -356,7 +354,6 @@ ${config.slug}-instance/
 │   ├── outputs.tf        # Output values
 │   ├── vpc.tf            # Network resources
 │   ├── rds.tf            # Database
-│   ├── elasticache.tf    # Redis
 │   ├── ecs.tf            # Container services
 │   ├── alb.tf            # Load balancer
 │   ├── s3.tf             # Storage buckets

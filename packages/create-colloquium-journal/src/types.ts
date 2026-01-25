@@ -29,7 +29,6 @@ export interface JournalConfig {
 export interface AWSConfig {
   region: string;
   dbInstanceClass: string;
-  redisNodeType: string;
   certificateArn?: string;
   smtpHost?: string;
   smtpPort?: number;
@@ -41,7 +40,6 @@ export interface GCPConfig {
   projectId: string;
   region: string;
   dbTier: string;
-  redisMemoryGb: number;
   smtpHost?: string;
   smtpPort?: number;
   smtpUser?: string;
@@ -106,13 +104,11 @@ export interface AvailableBot {
 export interface CloudTemplateContext extends TemplateContext {
   AWS_REGION?: string;
   AWS_DB_INSTANCE_CLASS?: string;
-  AWS_REDIS_NODE_TYPE?: string;
   AWS_CERTIFICATE_ARN?: string;
 
   GCP_PROJECT_ID?: string;
   GCP_REGION?: string;
   GCP_DB_TIER?: string;
-  GCP_REDIS_MEMORY_GB?: string;
 
   SMTP_HOST?: string;
   SMTP_PORT?: string;

@@ -38,7 +38,6 @@ function createGCPContext(config: JournalConfig): CloudTemplateContext {
     GCP_PROJECT_ID: config.gcp?.projectId || '',
     GCP_REGION: config.gcp?.region || 'us-central1',
     GCP_DB_TIER: config.gcp?.dbTier || 'db-f1-micro',
-    GCP_REDIS_MEMORY_GB: config.gcp?.redisMemoryGb?.toString() || '1',
     SMTP_HOST: config.gcp?.smtpHost || '',
     SMTP_PORT: config.gcp?.smtpPort?.toString() || '587',
     SMTP_USER: config.gcp?.smtpUser || '',
@@ -72,8 +71,7 @@ admin_email  = "${config.adminEmail}"
 ${config.domain ? `domain_name  = "${config.domain}"` : '# domain_name = ""  # Uncomment and set for custom domain'}
 
 # Infrastructure Sizing
-db_tier              = "${config.gcp?.dbTier || 'db-f1-micro'}"
-redis_memory_size_gb = ${config.gcp?.redisMemoryGb || 1}
+db_tier = "${config.gcp?.dbTier || 'db-f1-micro'}"
 
 # Container Resources
 web_cpu    = "1"
@@ -293,7 +291,7 @@ A Colloquium journal instance deployed on Google Cloud Platform.
 
 Edit \`terraform/terraform.tfvars\` to customize:
 
-- **Instance sizes**: \`db_tier\`, \`redis_memory_size_gb\`
+- **Instance sizes**: \`db_tier\`
 - **Container resources**: \`web_cpu\`, \`web_memory\`, \`api_cpu\`, \`api_memory\`
 - **Scaling**: \`min_instances\` (0 for scale-to-zero), \`max_instances\`
 - **Custom domain**: \`domain_name\`
@@ -304,8 +302,7 @@ Edit \`terraform/terraform.tfvars\` to customize:
 | Resource | Service | Purpose |
 |----------|---------|---------|
 | VPC | Compute Engine | Network isolation |
-| Cloud SQL | PostgreSQL 15 | Database |
-| Memorystore | Redis 7 | Job queues |
+| Cloud SQL | PostgreSQL 15 | Database + Job queues |
 | Cloud Run | Containers | Web & API services |
 | Cloud Storage | Object Storage | File uploads |
 | Secret Manager | Secrets | Credentials |
@@ -313,9 +310,10 @@ Edit \`terraform/terraform.tfvars\` to customize:
 
 ## Estimated Costs
 
-- **Minimum config**: ~$40-70/month (scale-to-zero helps reduce costs)
-- Main costs: Cloud SQL (~$7), Memorystore (~$35), VPC Connector (~$6)
+- **Minimum config**: ~$15-20/month (scale-to-zero helps reduce costs)
+- Main costs: Cloud SQL (~$7), VPC Connector (~$6)
 - Cloud Run charges only for actual usage
+- Job queues use PostgreSQL (graphile-worker), no Redis needed
 
 ## Custom Domain Setup
 
@@ -358,7 +356,6 @@ ${config.slug}-instance/
 │   ├── outputs.tf        # Output values
 │   ├── vpc.tf            # Network resources
 │   ├── cloudsql.tf       # Database
-│   ├── memorystore.tf    # Redis
 │   ├── cloudrun.tf       # Container services
 │   ├── storage.tf        # Storage buckets
 │   ├── secrets.tf        # Secret Manager

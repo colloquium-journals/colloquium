@@ -207,14 +207,12 @@ async function promptForConfig(
     config.aws = {
       region: cloudAnswers.awsRegion,
       dbInstanceClass: cloudAnswers.awsDbSize,
-      redisNodeType: 'cache.t3.micro',
     };
   } else if (deploymentType === 'gcp') {
     config.gcp = {
       projectId: cloudAnswers.gcpProjectId,
       region: cloudAnswers.gcpRegion,
       dbTier: cloudAnswers.gcpDbTier,
-      redisMemoryGb: 1,
     };
   }
 
@@ -287,14 +285,12 @@ async function parseCliConfig(journalName?: string, options?: any): Promise<Jour
     config.aws = {
       region: options.region || 'us-east-1',
       dbInstanceClass: options.dbSize || 'db.t3.micro',
-      redisNodeType: 'cache.t3.micro',
     };
   } else if (deploymentType === 'gcp') {
     config.gcp = {
       projectId: options.projectId,
       region: options.region || 'us-central1',
       dbTier: options.dbTier || 'db-f1-micro',
-      redisMemoryGb: 1,
     };
   }
 
