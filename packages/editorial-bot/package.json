@@ -44,7 +44,7 @@
     "access": "public"
   },
   "colloquium": {
-    "botId": "editorial-bot",
+    "botId": "bot-editorial",
     "apiVersion": "1.0.0",
     "permissions": [
       "update_manuscript",

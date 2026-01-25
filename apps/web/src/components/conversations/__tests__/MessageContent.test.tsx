@@ -146,12 +146,12 @@ describe('MessageContent', () => {
     it('should render bot mentions with proper styling', () => {
       renderWithProvider(
         <MessageContent 
-          content="@editorial-bot please help" 
+          content="@bot-editorial please help" 
           {...defaultProps}
         />
       );
       
-      const mentionElement = screen.getByText('@editorial-bot');
+      const mentionElement = screen.getByText('@bot-editorial');
       expect(mentionElement).toBeInTheDocument();
       expect(mentionElement).toHaveStyle({
         fontWeight: '600',
@@ -178,12 +178,12 @@ describe('MessageContent', () => {
     it('should handle multiple mentions', () => {
       renderWithProvider(
         <MessageContent
-          content="@editorial-bot and @john-smith please review"
+          content="@bot-editorial and @john-smith please review"
           {...defaultProps}
         />
       );
 
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('@john-smith')).toBeInTheDocument();
       expect(screen.getByText('and')).toBeInTheDocument();
       expect(screen.getByText('please review')).toBeInTheDocument();
@@ -194,13 +194,13 @@ describe('MessageContent', () => {
     it('should render markdown and mentions together correctly', () => {
       renderWithProvider(
         <MessageContent 
-          content="**Bold** @editorial-bot *italic* text" 
+          content="**Bold** @bot-editorial *italic* text" 
           {...defaultProps}
         />
       );
       
       expect(screen.getByText('Bold').tagName).toBe('STRONG');
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('italic').tagName).toBe('EM');
       expect(screen.getByText('text')).toBeInTheDocument();
     });
@@ -208,7 +208,7 @@ describe('MessageContent', () => {
     it('should handle complex content with headers, mentions, and formatting', () => {
       const complexContent = `# Review Request
 
-@editorial-bot please review this article with the following criteria:
+@bot-editorial please review this article with the following criteria:
 
 - **Statistical analysis** accuracy
 - *Methodology* completeness
@@ -224,7 +224,7 @@ Please also coordinate with @john-smith for peer review.`;
       );
 
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Review Request');
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('@john-smith')).toBeInTheDocument();
       expect(screen.getByText('Statistical analysis').tagName).toBe('STRONG');
       expect(screen.getByText('Methodology').tagName).toBe('EM');
@@ -233,13 +233,13 @@ Please also coordinate with @john-smith for peer review.`;
     it('should handle mentions at different positions with markdown', () => {
       renderWithProvider(
         <MessageContent
-          content="@editorial-bot **start**, middle *content* @john-smith **end**"
+          content="@bot-editorial **start**, middle *content* @john-smith **end**"
           {...defaultProps}
         />
       );
 
       // Check that all elements are rendered
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('start').tagName).toBe('STRONG');
       expect(screen.getByText('content').tagName).toBe('EM');
       expect(screen.getByText('@john-smith')).toBeInTheDocument();
@@ -249,12 +249,12 @@ Please also coordinate with @john-smith for peer review.`;
     it('should preserve whitespace appropriately', () => {
       renderWithProvider(
         <MessageContent 
-          content="@editorial-bot summary" 
+          content="@bot-editorial summary" 
           {...defaultProps}
         />
       );
       
-      const container = screen.getByText('@editorial-bot').parentElement;
+      const container = screen.getByText('@bot-editorial').parentElement;
       const summaryText = screen.getByText('summary');
       
       // Both should be in the same container and the mention should not have extra line breaks
@@ -291,24 +291,24 @@ Please also coordinate with @john-smith for peer review.`;
     it('should handle malformed markdown gracefully', () => {
       renderWithProvider(
         <MessageContent 
-          content="**unclosed bold and @editorial-bot *unclosed italic" 
+          content="**unclosed bold and @bot-editorial *unclosed italic" 
           {...defaultProps}
         />
       );
       
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       // Should render without throwing even with malformed markdown
     });
 
     it('should handle special characters', () => {
       renderWithProvider(
         <MessageContent 
-          content="Special chars: & < > ' @editorial-bot test" 
+          content="Special chars: & < > ' @bot-editorial test" 
           {...defaultProps}
         />
       );
       
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText(/Special chars/)).toBeInTheDocument();
     });
 
@@ -332,12 +332,12 @@ Please also coordinate with @john-smith for peer review.`;
     it('should not introduce unwanted line breaks after bot mentions', () => {
       renderWithProvider(
         <MessageContent 
-          content="@editorial-bot summary" 
+          content="@bot-editorial summary" 
           {...defaultProps}
         />
       );
       
-      const mentionElement = screen.getByText('@editorial-bot');
+      const mentionElement = screen.getByText('@bot-editorial');
       const summaryElement = screen.getByText('summary');
       
       // Both elements should be present
@@ -352,12 +352,12 @@ Please also coordinate with @john-smith for peer review.`;
     it('should handle mentions followed by commands without line breaks', () => {
       renderWithProvider(
         <MessageContent 
-          content="@editorial-bot summary please" 
+          content="@bot-editorial summary please" 
           {...defaultProps}
         />
       );
       
-      const mentionElement = screen.getByText('@editorial-bot');
+      const mentionElement = screen.getByText('@bot-editorial');
       const summaryElement = screen.getByText('summary please');
       
       expect(mentionElement).toBeInTheDocument();

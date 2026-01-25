@@ -210,7 +210,7 @@ async function analyzeReferences(content: string): Promise<ReferenceAnalysis> {
 const checkDoiCommand: BotCommand = {
   name: 'check-doi',
   description: 'Check all references in the manuscript for DOI presence and validity',
-  usage: '@reference-bot check-doi [detailed=false] [timeout=30]',
+  usage: '@bot-reference check-doi [detailed=false] [timeout=30]',
   help: `Performs comprehensive analysis of all references in your manuscript to ensure proper DOI formatting and availability.
 
 **What this command does:**
@@ -233,9 +233,9 @@ const checkDoiCommand: BotCommand = {
 - JSON report attachment for detailed analysis
 
 **Examples:**
-- \`@reference-bot check-doi\` - Basic analysis
-- \`@reference-bot check-doi detailed=true\` - Include paper titles and authors
-- \`@reference-bot check-doi timeout=60 detailed=true\` - Extended timeout with full details`,
+- \`@bot-reference check-doi\` - Basic analysis
+- \`@bot-reference check-doi detailed=true\` - Include paper titles and authors
+- \`@bot-reference check-doi timeout=60 detailed=true\` - Extended timeout with full details`,
   parameters: [
     {
       name: 'detailed',
@@ -256,9 +256,9 @@ const checkDoiCommand: BotCommand = {
     }
   ],
   examples: [
-    '@reference-bot check-doi',
-    '@reference-bot check-doi detailed=true',
-    '@reference-bot check-doi timeout=45 detailed=true'
+    '@bot-reference check-doi',
+    '@bot-reference check-doi detailed=true',
+    '@bot-reference check-doi timeout=45 detailed=true'
   ],
   permissions: ['read_manuscript'],
   async execute(params, context) {
@@ -428,7 +428,7 @@ Our findings are consistent with previous work.
 // Remove the manual help command - it will be auto-injected by the framework
 
 export const referenceBot: CommandBot = {
-  id: 'reference-bot',
+  id: 'bot-reference',
   name: 'Reference Bot',
   description: 'Validates references and checks DOI availability and correctness',
   version: '1.0.0',
@@ -438,10 +438,10 @@ export const referenceBot: CommandBot = {
   permissions: ['read_manuscript'],
   help: {
     overview: 'Analyzes manuscript references to ensure all citations have valid, resolving DOIs.',
-    quickStart: 'Use @reference-bot check-doi to analyze all references in your manuscript.',
+    quickStart: 'Use @bot-reference check-doi to analyze all references in your manuscript.',
     examples: [
-      '@reference-bot check-doi',
-      '@reference-bot check-doi detailed=true timeout=60'
+      '@bot-reference check-doi',
+      '@bot-reference check-doi detailed=true timeout=60'
     ]
   },
   customHelpSections: [

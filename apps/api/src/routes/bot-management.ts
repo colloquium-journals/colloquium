@@ -9,7 +9,7 @@ const router = express.Router();
 
 // Helper function to check if a bot is required
 const isRequiredBot = (botId: string): boolean => {
-  const requiredBots = ['editorial-bot'];
+  const requiredBots = ['bot-editorial'];
   return requiredBots.includes(botId);
 };
 

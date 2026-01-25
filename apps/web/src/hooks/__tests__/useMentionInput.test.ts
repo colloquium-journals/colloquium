@@ -48,7 +48,7 @@ describe('useMentionInput', () => {
       description: 'AUTHOR • john@example.com'
     },
     {
-      id: 'editorial-bot',
+      id: 'bot-editorial',
       name: 'Editorial Bot',
       displayName: 'Editorial Bot',
       type: 'bot',

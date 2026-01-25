@@ -45,7 +45,7 @@
     "access": "public"
   },
   "colloquium": {
-    "botId": "reviewer-checklist",
+    "botId": "bot-reviewer-checklist",
     "apiVersion": "1.0.0",
     "permissions": [
       "read_manuscript",

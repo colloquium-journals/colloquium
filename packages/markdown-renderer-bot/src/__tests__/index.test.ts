@@ -89,7 +89,7 @@ describe('Markdown Renderer Bot', () => {
   });
 
   it('should have correct bot metadata', () => {
-    expect(markdownRendererBot.id).toBe('markdown-renderer');
+    expect(markdownRendererBot.id).toBe('bot-markdown-renderer');
     expect(markdownRendererBot.name).toBe('Markdown Renderer');
     expect(markdownRendererBot.description).toBe('Renders Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines');
     expect(markdownRendererBot.version).toBe('1.0.0');

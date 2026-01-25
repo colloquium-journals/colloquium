@@ -57,7 +57,7 @@
     "access": "public"
   },
   "colloquium": {
-    "botId": "markdown-renderer",
+    "botId": "bot-markdown-renderer",
     "apiVersion": "1.0.0",
     "permissions": [
       "read_manuscript_files",

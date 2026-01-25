@@ -13,13 +13,13 @@ describe('useMentionSuggestions', () => {
 
   const mockBots = [
     {
-      id: 'editorial-bot',
+      id: 'bot-editorial',
       name: 'Editorial Bot',
       description: 'Assists with editorial workflows',
       color: 'blue'
     },
     {
-      id: 'plagiarism-checker',
+      id: 'bot-plagiarism-checker',
       name: 'Plagiarism Checker',
       description: 'Checks for plagiarism',
       color: 'red'
@@ -107,16 +107,16 @@ describe('useMentionSuggestions', () => {
     // Check bot suggestions
     expect(suggestions.filter(s => s.type === 'bot')).toEqual([
       {
-        id: 'editorial-bot',
-        name: 'editorial-bot',
+        id: 'bot-editorial',
+        name: 'bot-editorial',
         displayName: 'Editorial Bot',
         type: 'bot',
         description: 'Assists with editorial workflows',
         color: 'blue'
       },
       {
-        id: 'plagiarism-checker',
-        name: 'plagiarism-checker',
+        id: 'bot-plagiarism-checker',
+        name: 'bot-plagiarism-checker',
         displayName: 'Plagiarism Checker',
         type: 'bot',
         description: 'Checks for plagiarism',
@@ -181,7 +181,7 @@ describe('useMentionSuggestions', () => {
     // Test filtering by bot name
     const editorialSuggestions = result.current.getFilteredSuggestions('editorial');
     expect(editorialSuggestions).toHaveLength(1);
-    expect(editorialSuggestions[0].name).toBe('editorial-bot');
+    expect(editorialSuggestions[0].name).toBe('bot-editorial');
 
     // Test no matches
     const noMatches = result.current.getFilteredSuggestions('xyz');

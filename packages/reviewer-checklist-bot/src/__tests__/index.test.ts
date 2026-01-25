@@ -2,7 +2,7 @@ import { reviewerChecklistBot } from '../index';
 
 describe('Reviewer Checklist Bot', () => {
   it('should have correct bot metadata', () => {
-    expect(reviewerChecklistBot.id).toBe('reviewer-checklist');
+    expect(reviewerChecklistBot.id).toBe('bot-reviewer-checklist');
     expect(reviewerChecklistBot.name).toBe('Reviewer Checklist');
     expect(reviewerChecklistBot.description).toBe('Generates customizable review checklists for assigned reviewers using configurable templates');
     expect(reviewerChecklistBot.version).toBe('1.0.0');

@@ -79,7 +79,7 @@ describe('Markdown Parsing', () => {
     });
 
     it('should preserve bot mentions while parsing surrounding markdown', () => {
-      const input = '**Bold** @editorial-bot please *help*';
+      const input = '**Bold** @bot-editorial please *help*';
       const chunks = parseMarkdownWithMentions(input);
       
       expect(chunks).toHaveLength(3);
@@ -90,7 +90,7 @@ describe('Markdown Parsing', () => {
       
       // Second chunk: bot mention
       expect(chunks[1].type).toBe('mention');
-      expect(chunks[1].content).toBe('@editorial-bot');
+      expect(chunks[1].content).toBe('@bot-editorial');
       
       // Third chunk: italic markdown
       expect(chunks[2].type).toBe('markdown');
@@ -98,7 +98,7 @@ describe('Markdown Parsing', () => {
     });
 
     it('should handle multiple mentions with markdown', () => {
-      const input = '@editorial-bot **summary** and @john-smith review';
+      const input = '@bot-editorial **summary** and @john-smith review';
       const chunks = parseMarkdownWithMentions(input);
 
       expect(chunks).toHaveLength(4);
@@ -110,41 +110,41 @@ describe('Markdown Parsing', () => {
     });
 
     it('should handle mentions at the beginning', () => {
-      const input = '@editorial-bot please review';
+      const input = '@bot-editorial please review';
       const chunks = parseMarkdownWithMentions(input);
       
       expect(chunks).toHaveLength(2);
       expect(chunks[0].type).toBe('mention');
-      expect(chunks[0].content).toBe('@editorial-bot');
+      expect(chunks[0].content).toBe('@bot-editorial');
       expect(chunks[1].type).toBe('markdown');
       expect(chunks[1].content).toBe(' please review');
     });
 
     it('should handle mentions at the end', () => {
-      const input = 'Please check with @editorial-bot';
+      const input = 'Please check with @bot-editorial';
       const chunks = parseMarkdownWithMentions(input);
       
       expect(chunks).toHaveLength(2);
       expect(chunks[0].type).toBe('markdown');
       expect(chunks[0].content).toBe('Please check with ');
       expect(chunks[1].type).toBe('mention');
-      expect(chunks[1].content).toBe('@editorial-bot');
+      expect(chunks[1].content).toBe('@bot-editorial');
     });
 
     it('should handle adjacent mentions', () => {
-      const input = '@editorial-bot @john-smith';
+      const input = '@bot-editorial @john-smith';
       const chunks = parseMarkdownWithMentions(input);
 
       // Since a single space gets trimmed out, we only get the 2 mentions
       expect(chunks).toHaveLength(2);
       expect(chunks[0].type).toBe('mention');
-      expect(chunks[0].content).toBe('@editorial-bot');
+      expect(chunks[0].content).toBe('@bot-editorial');
       expect(chunks[1].type).toBe('mention');
       expect(chunks[1].content).toBe('@john-smith');
     });
 
     it('should not break with complex markdown and mentions', () => {
-      const input = '# Review Request\n\n@editorial-bot please:\n\n- **Check** formatting\n- *Verify* citations\n- Review with @john-smith\n\n```\ncode example\n```';
+      const input = '# Review Request\n\n@bot-editorial please:\n\n- **Check** formatting\n- *Verify* citations\n- Review with @john-smith\n\n```\ncode example\n```';
       const chunks = parseMarkdownWithMentions(input);
 
       const mentionChunks = chunks.filter(c => c.type === 'mention');
@@ -262,7 +262,7 @@ describe('Markdown Parsing', () => {
     });
 
     it('should handle special characters in mentions and markdown', () => {
-      const input = '**Special chars: & < > "** @editorial-bot';
+      const input = '**Special chars: & < > "** @bot-editorial';
       const chunks = parseMarkdownWithMentions(input);
       
       expect(chunks).toHaveLength(2);

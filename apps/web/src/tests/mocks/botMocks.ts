@@ -23,7 +23,7 @@ export const createMockBot = (overrides: Partial<MockBot> = {}): MockBot => ({
 
 export const mockBots: MockBot[] = [
   {
-    id: 'editorial-bot',
+    id: 'bot-editorial',
     name: 'Editorial Bot',
     description: 'Assists with manuscript editorial workflows',
     isInstalled: true,
@@ -31,7 +31,7 @@ export const mockBots: MockBot[] = [
     color: 'blue'
   },
   {
-    id: 'plagiarism-checker',
+    id: 'bot-plagiarism-checker',
     name: 'Plagiarism Checker',
     description: 'Detects plagiarism in manuscripts',
     isInstalled: true,
@@ -39,7 +39,7 @@ export const mockBots: MockBot[] = [
     color: 'green'
   },
   {
-    id: 'reference-bot',
+    id: 'bot-reference',
     name: 'Reference Bot',
     description: 'Validates references and citations',
     isInstalled: true,

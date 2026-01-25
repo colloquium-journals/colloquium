@@ -25,17 +25,17 @@ describe('Line Break Fix for Bot Mentions', () => {
   it('should render bot mention followed by command without line breaks', () => {
     const { container } = renderWithProvider(
       <MessageContent 
-        content="@editorial-bot summary" 
+        content="@bot-editorial summary" 
         {...defaultProps}
       />
     );
     
     // Check that both the mention and text are present
-    expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+    expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
     expect(screen.getByText('summary')).toBeInTheDocument();
     
     // Check that the content flows inline by verifying markup structure
-    const mentionElement = screen.getByText('@editorial-bot');
+    const mentionElement = screen.getByText('@bot-editorial');
     const summaryElement = screen.getByText('summary');
     
     // The mention should be in a span (inline)
@@ -53,12 +53,12 @@ describe('Line Break Fix for Bot Mentions', () => {
   it('should handle bot mention with space and command', () => {
     const { container } = renderWithProvider(
       <MessageContent 
-        content="@editorial-bot please provide a summary" 
+        content="@bot-editorial please provide a summary" 
         {...defaultProps}
       />
     );
     
-    const mentionElement = screen.getByText('@editorial-bot');
+    const mentionElement = screen.getByText('@bot-editorial');
     const commandElement = screen.getByText('please provide a summary');
     
     // Both should be inline elements
@@ -74,12 +74,12 @@ describe('Line Break Fix for Bot Mentions', () => {
   it('should handle mixed markdown and mentions inline', () => {
     const { container } = renderWithProvider(
       <MessageContent 
-        content="Please **check** @editorial-bot summary *now*" 
+        content="Please **check** @bot-editorial summary *now*" 
         {...defaultProps}
       />
     );
     
-    const mentionElement = screen.getByText('@editorial-bot');
+    const mentionElement = screen.getByText('@bot-editorial');
     const boldElement = screen.getByText('check');
     const italicElement = screen.getByText('now');
     const summaryElement = screen.getByText('summary');
@@ -101,13 +101,13 @@ describe('Line Break Fix for Bot Mentions', () => {
   it('should still render block content properly', () => {
     const { container } = renderWithProvider(
       <MessageContent 
-        content={"# Header\n\n@editorial-bot please review:\n\n- Item 1\n- Item 2"}
+        content={"# Header\n\n@bot-editorial please review:\n\n- Item 1\n- Item 2"}
         {...defaultProps}
       />
     );
     
     const headerElement = screen.getByRole('heading', { level: 1 });
-    const mentionElement = screen.getByText('@editorial-bot');
+    const mentionElement = screen.getByText('@bot-editorial');
     
     // Header should be in block content (div)
     expect(headerElement.closest('div')).toHaveClass('markdownContentBlock');
@@ -119,7 +119,7 @@ describe('Line Break Fix for Bot Mentions', () => {
   it('should verify no line breaks in HTML output', () => {
     const { container } = renderWithProvider(
       <MessageContent 
-        content="@editorial-bot summary" 
+        content="@bot-editorial summary" 
         {...defaultProps}
       />
     );

@@ -9,8 +9,8 @@ describe('Help Command Integration', () => {
   it('should have proper help metadata structure', () => {
     expect(referenceBot.help).toBeDefined();
     expect(referenceBot.help!.overview).toContain('references');
-    expect(referenceBot.help!.quickStart).toContain('@reference-bot');
-    expect(referenceBot.help!.examples).toContain('@reference-bot check-doi');
+    expect(referenceBot.help!.quickStart).toContain('@bot-reference');
+    expect(referenceBot.help!.examples).toContain('@bot-reference check-doi');
     expect(referenceBot.customHelpSections).toBeDefined();
     expect(referenceBot.customHelpSections!.length).toBe(3);
   });
@@ -32,7 +32,7 @@ describe('Help Command Integration', () => {
     
     expect(checkDoiCommand!.help).toBeDefined();
     expect(checkDoiCommand!.help!.length).toBeGreaterThan(100); // Rich help content
-    expect(checkDoiCommand!.usage).toContain('@reference-bot check-doi');
+    expect(checkDoiCommand!.usage).toContain('@bot-reference check-doi');
     expect(checkDoiCommand!.examples).toHaveLength(3);
     expect(checkDoiCommand!.parameters).toHaveLength(2);
   });

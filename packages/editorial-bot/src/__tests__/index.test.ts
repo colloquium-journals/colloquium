@@ -2,7 +2,7 @@ import { editorialBot } from '../index';
 
 describe('Editorial Bot', () => {
   it('should have correct bot metadata', () => {
-    expect(editorialBot.id).toBe('editorial-bot');
+    expect(editorialBot.id).toBe('bot-editorial');
     expect(editorialBot.name).toBe('Editorial Bot');
     expect(editorialBot.description).toBe('Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management');
     expect(editorialBot.version).toBe('2.3.0');

@@ -90,12 +90,12 @@ describe('Text Formatting Integration', () => {
     it('should handle formatting around bot mentions', () => {
       renderWithProvider(
         <MessageContent 
-          content="@editorial-bot please **check** this *formatting*" 
+          content="@bot-editorial please **check** this *formatting*" 
           {...defaultProps}
         />
       );
       
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('check').tagName).toBe('STRONG');
       expect(screen.getByText('formatting').tagName).toBe('EM');
     });
@@ -103,13 +103,13 @@ describe('Text Formatting Integration', () => {
     it('should handle formatting within the same chunk as mentions', () => {
       renderWithProvider(
         <MessageContent 
-          content="Please **review** @editorial-bot and `execute` the checks" 
+          content="Please **review** @bot-editorial and `execute` the checks" 
           {...defaultProps}
         />
       );
       
       expect(screen.getByText('review').tagName).toBe('STRONG');
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('execute').tagName).toBe('CODE');
     });
   });
@@ -172,13 +172,13 @@ describe('Text Formatting Integration', () => {
     it('should handle formatting with mentions in same sentence', () => {
       renderWithProvider(
         <MessageContent 
-          content="**Bold text** @editorial-bot *italic text*" 
+          content="**Bold text** @bot-editorial *italic text*" 
           {...defaultProps}
         />
       );
       
       // The formatting should work alongside mentions
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
       expect(screen.getByText('Bold text').tagName).toBe('STRONG');
       expect(screen.getByText('italic text').tagName).toBe('EM');
     });
@@ -201,7 +201,7 @@ describe('Text Formatting Integration', () => {
       // Test the core text formatting that is working correctly
       renderWithProvider(
         <MessageContent 
-          content="**Bold**, *italic*, ~~strikethrough~~, `code`, and @editorial-bot mentions work perfectly!" 
+          content="**Bold**, *italic*, ~~strikethrough~~, `code`, and @bot-editorial mentions work perfectly!" 
           {...defaultProps}
         />
       );
@@ -211,7 +211,7 @@ describe('Text Formatting Integration', () => {
       expect(screen.getByText('italic').tagName).toBe('EM');
       expect(screen.getByText('strikethrough').tagName).toBe('DEL');
       expect(screen.getByText('code').tagName).toBe('CODE');
-      expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
     });
   });
 });

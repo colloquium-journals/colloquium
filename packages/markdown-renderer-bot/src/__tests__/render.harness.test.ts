@@ -78,7 +78,7 @@ describe('Markdown Renderer Bot - Test Harness', () => {
 
   describe('Bot Metadata', () => {
     it('should have correct bot metadata', () => {
-      expect(markdownRendererBot.id).toBe('markdown-renderer');
+      expect(markdownRendererBot.id).toBe('bot-markdown-renderer');
       expect(markdownRendererBot.name).toBe('Markdown Renderer');
       expect(markdownRendererBot.version).toBe('1.0.0');
     });

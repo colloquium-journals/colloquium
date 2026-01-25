@@ -162,7 +162,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
       // Try to get system bot user ID, fallback to first available bot user
       let systemBotUserId: string | undefined;
       try {
-        systemBotUserId = botExecutor.getBotUserId('system') || botExecutor.getBotUserId('editorial-bot');
+        systemBotUserId = botExecutor.getBotUserId('system') || botExecutor.getBotUserId('bot-editorial');
       } catch (err) {
         console.warn('Could not find system bot user ID');
       }

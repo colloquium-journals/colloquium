@@ -459,7 +459,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: adminUser.id
         },
         {
-          content: '@editorial-bot status UNDER_REVIEW reason="Initial editorial review complete, proceeding to peer review"',
+          content: '@bot-editorial status UNDER_REVIEW reason="Initial editorial review complete, proceeding to peer review"',
           authorId: editorUser.id
         }
       ]
@@ -489,7 +489,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: author3.id
         },
         {
-          content: '@editorial-bot decision minor_revision reason="Needs additional technical details and comparisons"',
+          content: '@bot-editorial decision minor_revision reason="Needs additional technical details and comparisons"',
           authorId: editorUser.id
         }
       ]
@@ -512,7 +512,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: author4.id
         },
         {
-          content: '@editorial-bot decision accept reason="Strong reviews, innovative methodology, and comprehensive analysis of open science platforms"',
+          content: '@bot-editorial decision accept reason="Strong reviews, innovative methodology, and comprehensive analysis of open science platforms"',
           authorId: editorUser.id
         }
       ]
@@ -527,7 +527,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot assign reviewer1@library.edu,reviewer2@university.org deadline="2024-01-10" message="Please review this case study on library digital transformation"',
+          content: '@bot-editorial assign reviewer1@library.edu,reviewer2@university.org deadline="2024-01-10" message="Please review this case study on library digital transformation"',
           authorId: editorUser.id
         },
         {
@@ -543,7 +543,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: author4.id
         },
         {
-          content: '@editorial-bot decision accept reason="Excellent case study with valuable insights for academic library professionals"',
+          content: '@bot-editorial decision accept reason="Excellent case study with valuable insights for academic library professionals"',
           authorId: editorUser.id
         },
         {
@@ -551,7 +551,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot status PUBLISHED reason="Final review complete, ready for publication"',
+          content: '@bot-editorial status PUBLISHED reason="Final review complete, ready for publication"',
           authorId: editorUser.id
         }
       ]
@@ -566,7 +566,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot assign expert1@genomics.org,expert2@biocomputing.edu,expert3@institute.gov deadline="2024-02-15" message="Please review this major collaborative study in computational biology"',
+          content: '@bot-editorial assign expert1@genomics.org,expert2@biocomputing.edu,expert3@institute.gov deadline="2024-02-15" message="Please review this major collaborative study in computational biology"',
           authorId: editorUser.id
         },
         {
@@ -582,7 +582,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: author2.id
         },
         {
-          content: '@editorial-bot decision accept reason="Outstanding collaborative research with significant scientific impact and innovative methodology"',
+          content: '@bot-editorial decision accept reason="Outstanding collaborative research with significant scientific impact and innovative methodology"',
           authorId: editorUser.id
         },
         {
@@ -590,7 +590,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot status PUBLISHED reason="Major contribution ready for publication with DOI assignment"',
+          content: '@bot-editorial status PUBLISHED reason="Major contribution ready for publication with DOI assignment"',
           authorId: editorUser.id
         }
       ]
@@ -605,7 +605,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot assign climate1@atmospheric.edu,stats1@math.university.edu,comp1@modeling.org deadline="2024-03-05" message="Please review this interdisciplinary climate modeling study"',
+          content: '@bot-editorial assign climate1@atmospheric.edu,stats1@math.university.edu,comp1@modeling.org deadline="2024-03-05" message="Please review this interdisciplinary climate modeling study"',
           authorId: editorUser.id
         },
         {
@@ -621,11 +621,11 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: author8.id
         },
         {
-          content: '@editorial-bot decision accept reason="Excellent interdisciplinary methodology with strong validation across multiple fields"',
+          content: '@bot-editorial decision accept reason="Excellent interdisciplinary methodology with strong validation across multiple fields"',
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot status PUBLISHED reason="Interdisciplinary climate research approved for publication"',
+          content: '@bot-editorial status PUBLISHED reason="Interdisciplinary climate research approved for publication"',
           authorId: editorUser.id
         }
       ]
@@ -640,7 +640,7 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot assign publisher1@society.org,economist1@research.edu,tech1@innovation.com deadline="2024-01-20" message="Please review this analysis of open access publishing trends"',
+          content: '@bot-editorial assign publisher1@society.org,economist1@research.edu,tech1@innovation.com deadline="2024-01-20" message="Please review this analysis of open access publishing trends"',
           authorId: editorUser.id
         },
         {
@@ -660,11 +660,11 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot decision accept reason="Comprehensive analysis with strong multi-disciplinary perspective on open access publishing"',
+          content: '@bot-editorial decision accept reason="Comprehensive analysis with strong multi-disciplinary perspective on open access publishing"',
           authorId: editorUser.id
         },
         {
-          content: '@editorial-bot status PUBLISHED reason="Excellent contribution to scholarly communication literature"',
+          content: '@bot-editorial status PUBLISHED reason="Excellent contribution to scholarly communication literature"',
           authorId: editorUser.id
         }
       ]
@@ -749,7 +749,7 @@ This work demonstrates the potential for innovative approaches to academic publi
             content: message.content,
             authorId: message.authorId,
             conversationId: conversation.id,
-            isBot: message.content.includes('@editorial-bot'),
+            isBot: message.content.includes('@bot-editorial'),
             privacy: convData.type === ConversationType.EDITORIAL ? MessagePrivacy.EDITOR_ONLY : MessagePrivacy.AUTHOR_VISIBLE,
             createdAt: messageDate,
             updatedAt: messageDate

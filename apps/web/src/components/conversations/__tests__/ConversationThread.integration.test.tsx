@@ -251,13 +251,13 @@ describe('ConversationThread Real-time Message Flow', () => {
       privacy: 'AUTHOR_VISIBLE',
       createdAt: '2024-01-01T00:02:00.000Z',
       author: {
-        id: 'editorial-bot',
+        id: 'bot-editorial',
         name: 'Editorial Bot',
         type: 'bot'
       },
       parentId: null,
       botMetadata: {
-        botId: 'editorial-bot',
+        botId: 'bot-editorial',
         command: 'help'
       },
       editHistory: [],
@@ -365,7 +365,7 @@ describe('ConversationThread Real-time Message Flow', () => {
           json: async () => ({
             bots: [
               {
-                id: 'editorial-bot',
+                id: 'bot-editorial',
                 name: 'Editorial Bot',
                 description: 'Assists with editorial workflows',
                 isInstalled: true,
@@ -383,7 +383,7 @@ describe('ConversationThread Real-time Message Flow', () => {
             message: 'Message posted successfully',
             data: {
               id: 'msg-bot-mention',
-              content: '@editorial-bot help',
+              content: '@bot-editorial help',
               privacy: 'AUTHOR_VISIBLE',
               createdAt: '2024-01-01T00:04:00.000Z',
               author: {
@@ -419,12 +419,12 @@ describe('ConversationThread Real-time Message Flow', () => {
     const textarea = screen.getByPlaceholderText(/write your message/i);
     const submitButton = screen.getByRole('button', { name: /send/i });
 
-    fireEvent.change(textarea, { target: { value: '@editorial-bot help' } });
+    fireEvent.change(textarea, { target: { value: '@bot-editorial help' } });
     fireEvent.click(submitButton);
 
     // Message should be posted
     await waitFor(() => {
-      expect(screen.getByText('@editorial-bot help')).toBeInTheDocument();
+      expect(screen.getByText('@bot-editorial help')).toBeInTheDocument();
     });
 
     // Verify the correct API call was made
@@ -433,7 +433,7 @@ describe('ConversationThread Real-time Message Flow', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          content: '@editorial-bot help',
+          content: '@bot-editorial help',
           parentId: undefined,
           privacy: 'AUTHOR_VISIBLE'
         })

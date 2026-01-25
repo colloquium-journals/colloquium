@@ -684,7 +684,7 @@ Colloquium includes an extensible bot framework that automates common tasks:
 \`\`\`typescript
 // Example bot definition
 const EditorialBot: BotDefinition = {
-  id: 'editorial-bot',
+  id: 'bot-editorial',
   name: 'Editorial Bot',
   description: 'Assists with manuscript workflows',
   commands: [

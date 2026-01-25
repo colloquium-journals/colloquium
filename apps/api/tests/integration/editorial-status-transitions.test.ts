@@ -92,7 +92,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot decision accept reason="Excellent research quality and methodology"',
+          content: '@bot-editorial decision accept reason="Excellent research quality and methodology"',
           metadata: {
             type: 'bot_command',
             command: 'decision'
@@ -132,7 +132,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot decision reject reason="Insufficient methodology"'
+          content: '@bot-editorial decision reject reason="Insufficient methodology"'
         });
 
       expect(decisionResponse.status).toBe(201);
@@ -171,7 +171,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED reason="All editorial requirements met"'
+          content: '@bot-editorial status PUBLISHED reason="All editorial requirements met"'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -205,7 +205,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED reason="Fast-track publication approved"'
+          content: '@bot-editorial status PUBLISHED reason="Fast-track publication approved"'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -241,7 +241,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED reason="Revisions completed satisfactorily"'
+          content: '@bot-editorial status PUBLISHED reason="Revisions completed satisfactorily"'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -260,7 +260,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status REJECTED reason="Insufficient methodology"'
+          content: '@bot-editorial status REJECTED reason="Insufficient methodology"'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -295,7 +295,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status RETRACTED reason="Data integrity issues discovered"'
+          content: '@bot-editorial status RETRACTED reason="Data integrity issues discovered"'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -331,7 +331,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status RETRACTED reason="Attempting to retract non-published paper"'
+          content: '@bot-editorial status RETRACTED reason="Attempting to retract non-published paper"'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -370,7 +370,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status RETRACTED reason="Data integrity concerns"'
+          content: '@bot-editorial status RETRACTED reason="Data integrity concerns"'
         });
 
       expect(retractResponse.status).toBe(201);
@@ -472,7 +472,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot decision accept reason="Comprehensive research with strong methodology"'
+          content: '@bot-editorial decision accept reason="Comprehensive research with strong methodology"'
         });
 
       expect(decisionResponse.status).toBe(201);
@@ -489,7 +489,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED reason="Ready for public distribution"'
+          content: '@bot-editorial status PUBLISHED reason="Ready for public distribution"'
         });
 
       expect(publishResponse.status).toBe(201);
@@ -521,7 +521,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot decision minor_revision reason="Minor methodology clarifications needed"'
+          content: '@bot-editorial decision minor_revision reason="Minor methodology clarifications needed"'
         });
 
       expect(revisionResponse.status).toBe(201);
@@ -537,7 +537,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED reason="Revisions completed and approved"'
+          content: '@bot-editorial status PUBLISHED reason="Revisions completed and approved"'
         });
 
       expect(publishResponse.status).toBe(201);
@@ -556,7 +556,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status INVALID_STATUS'
+          content: '@bot-editorial status INVALID_STATUS'
         });
 
       expect(invalidResponse.status).toBe(201);
@@ -588,7 +588,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
           .post(`/api/conversations/${conversationId}/messages`)
           .set('Authorization', `Bearer ${editorToken}`)
           .send({
-            content: `@editorial-bot status ${status} reason="Testing ${status} transition"`
+            content: `@bot-editorial status ${status} reason="Testing ${status} transition"`
           });
 
         expect(response.status).toBe(201);
@@ -610,7 +610,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: `@editorial-bot status PUBLISHED reason="Testing PUBLISHED transition"`
+          content: `@bot-editorial status PUBLISHED reason="Testing PUBLISHED transition"`
         });
 
       expect(publishResponse.status).toBe(201);
@@ -626,7 +626,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: `@editorial-bot status RETRACTED reason="Testing RETRACTED transition"`
+          content: `@bot-editorial status RETRACTED reason="Testing RETRACTED transition"`
         });
 
       expect(retractResponse.status).toBe(201);
@@ -645,7 +645,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED'
+          content: '@bot-editorial status PUBLISHED'
         });
 
       expect(statusResponse.status).toBe(201);
@@ -666,7 +666,7 @@ describe('Editorial Bot - Status Transition Integration Tests', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${editorToken}`)
         .send({
-          content: '@editorial-bot status PUBLISHED reason="Final publication ready"'
+          content: '@bot-editorial status PUBLISHED reason="Final publication ready"'
         });
 
       expect(statusResponse.status).toBe(201);

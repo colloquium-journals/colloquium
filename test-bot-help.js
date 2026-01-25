@@ -9,23 +9,23 @@ console.log('=== EDITORIAL BOT ===');
 console.log('Original bot commands:', editorialBot.commands.map(c => c.name));
 
 parser.registerBot(editorialBot);
-const registeredEditorialBot = parser.getAllBots().find(b => b.id === 'editorial-bot');
+const registeredEditorialBot = parser.getAllBots().find(b => b.id === 'bot-editorial');
 console.log('After registration commands:', registeredEditorialBot?.commands.map(c => c.name));
 
 console.log('\n=== REVIEWER CHECKLIST BOT ===');
 console.log('Original bot commands:', reviewerChecklistBot.commands.map(c => c.name));
 
 parser.registerBot(reviewerChecklistBot);
-const registeredReviewerBot = parser.getAllBots().find(b => b.id === 'reviewer-checklist');
+const registeredReviewerBot = parser.getAllBots().find(b => b.id === 'bot-reviewer-checklist');
 console.log('After registration commands:', registeredReviewerBot?.commands.map(c => c.name));
 
 console.log('\n=== TESTING MESSAGE PARSING ===');
-const editorialHelpCommands = parser.parseMessage('@editorial-bot help');
+const editorialHelpCommands = parser.parseMessage('@bot-editorial help');
 console.log('Editorial bot help commands:', editorialHelpCommands);
 
-const reviewerHelpCommands = parser.parseMessage('@reviewer-checklist help');
+const reviewerHelpCommands = parser.parseMessage('@bot-reviewer-checklist help');
 console.log('Reviewer checklist help commands:', reviewerHelpCommands);
 
 console.log('\n=== DEBUGGING BOT FINDING ===');
-console.log('Debug editorial-bot:', parser.debugFindBot('editorial-bot'));
-console.log('Debug reviewer-checklist:', parser.debugFindBot('reviewer-checklist'));
+console.log('Debug bot-editorial:', parser.debugFindBot('bot-editorial'));
+console.log('Debug bot-reviewer-checklist:', parser.debugFindBot('bot-reviewer-checklist'));

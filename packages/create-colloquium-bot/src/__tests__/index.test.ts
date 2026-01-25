@@ -30,27 +30,31 @@ describe('Create Colloquium Bot', () => {
       if (!name || name.trim().length === 0) {
         return 'Bot name is required';
       }
-      
+
       if (!/^[a-z0-9\-]+$/.test(name)) {
         return 'Bot name must be lowercase alphanumeric with hyphens only';
       }
-      
-      if (name.length < 3) {
-        return 'Bot name must be at least 3 characters long';
+
+      if (!name.startsWith('bot-')) {
+        return 'Bot name must start with "bot-" prefix (e.g., bot-my-feature)';
       }
-      
+
+      if (name.length < 5) {
+        return 'Bot name must be at least 5 characters long (bot- plus at least 1 character)';
+      }
+
       if (name.length > 50) {
         return 'Bot name must be less than 50 characters';
       }
-      
+
       return true;
     };
 
     test('should accept valid bot names', () => {
-      expect(testValidation('my-bot')).toBe(true);
-      expect(testValidation('analysis-bot')).toBe(true);
-      expect(testValidation('quality-checker')).toBe(true);
-      expect(testValidation('bot123')).toBe(true);
+      expect(testValidation('bot-analysis')).toBe(true);
+      expect(testValidation('bot-quality-checker')).toBe(true);
+      expect(testValidation('bot-my-feature')).toBe(true);
+      expect(testValidation('bot-123')).toBe(true);
     });
 
     test('should reject empty names', () => {
@@ -59,19 +63,24 @@ describe('Create Colloquium Bot', () => {
     });
 
     test('should reject names with invalid characters', () => {
-      expect(testValidation('My Bot')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
-      expect(testValidation('my_bot')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
-      expect(testValidation('my.bot')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
-      expect(testValidation('MY-BOT')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
+      expect(testValidation('Bot-Test')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
+      expect(testValidation('bot_test')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
+      expect(testValidation('bot.test')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
+      expect(testValidation('BOT-TEST')).toBe('Bot name must be lowercase alphanumeric with hyphens only');
+    });
+
+    test('should reject names without bot- prefix', () => {
+      expect(testValidation('my-bot')).toBe('Bot name must start with "bot-" prefix (e.g., bot-my-feature)');
+      expect(testValidation('analysis-bot')).toBe('Bot name must start with "bot-" prefix (e.g., bot-my-feature)');
+      expect(testValidation('checker')).toBe('Bot name must start with "bot-" prefix (e.g., bot-my-feature)');
     });
 
     test('should reject names that are too short', () => {
-      expect(testValidation('ab')).toBe('Bot name must be at least 3 characters long');
-      expect(testValidation('a')).toBe('Bot name must be at least 3 characters long');
+      expect(testValidation('bot-')).toBe('Bot name must be at least 5 characters long (bot- plus at least 1 character)');
     });
 
     test('should reject names that are too long', () => {
-      const longName = 'a'.repeat(51);
+      const longName = 'bot-' + 'a'.repeat(47);
       expect(testValidation(longName)).toBe('Bot name must be less than 50 characters');
     });
   });
@@ -187,9 +196,9 @@ describe('Create Colloquium Bot', () => {
 
     test('should replace template variables', () => {
       const template = 'Hello {{NAME}}, your bot is {{BOT_NAME}}';
-      const vars = { NAME: 'John', BOT_NAME: 'my-bot' };
+      const vars = { NAME: 'John', BOT_NAME: 'bot-analysis' };
       const result = processTemplate(template, vars);
-      expect(result).toBe('Hello John, your bot is my-bot');
+      expect(result).toBe('Hello John, your bot is bot-analysis');
     });
 
     test('should handle conditional blocks', () => {

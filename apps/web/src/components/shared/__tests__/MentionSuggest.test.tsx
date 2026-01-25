@@ -12,8 +12,8 @@ const mockSuggestions: MentionSuggestion[] = [
     description: 'AUTHOR • john@example.com'
   },
   {
-    id: 'editorial-bot',
-    name: 'editorial-bot',
+    id: 'bot-editorial',
+    name: 'bot-editorial',
     displayName: 'Editorial Bot',
     type: 'bot',
     description: 'Assists with editorial workflows',
@@ -90,7 +90,7 @@ describe('MentionSuggest', () => {
     renderWithMantine();
     
     expect(screen.getByText('@user1')).toBeInTheDocument();
-    expect(screen.getByText('@editorial-bot')).toBeInTheDocument();
+    expect(screen.getByText('@bot-editorial')).toBeInTheDocument();
     expect(screen.getByText('@user2')).toBeInTheDocument();
   });
 

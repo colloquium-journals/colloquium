@@ -52,7 +52,7 @@ export class CommandParser {
       }
     }
 
-    // Also look for simple bot mentions without commands (e.g., just "@editorial-bot")
+    // Also look for simple bot mentions without commands (e.g., just "@bot-editorial")
     const simpleMentionPattern = /@([a-zA-Z0-9-]+)(?![\s\w])/g;
     let simpleMentionMatch;
     
@@ -216,18 +216,18 @@ export class CommandParser {
       const botNameNormalized = bot.name.toLowerCase().replace(/\s+/g, '-');
       const botFirstWord = bot.name.toLowerCase().split(/\s+/)[0];
       
-      // Exact match with normalized name (e.g., "editorial-bot")
+      // Exact match with normalized name (e.g., "bot-editorial")
       if (botNameNormalized === lowerName) {
         return bot;
       }
-      
+
       // Match first word of bot name (e.g., "editorial" matches "Editorial Bot")
       if (botFirstWord === lowerName) {
         return bot;
       }
-      
-      // Match bot ID without suffix (e.g., "editorial" matches "editorial-bot")
-      if (bot.id.toLowerCase().startsWith(lowerName + '-')) {
+
+      // Match bot ID without prefix (e.g., "editorial" matches "bot-editorial")
+      if (bot.id.startsWith('bot-') && bot.id.slice(4).toLowerCase() === lowerName) {
         return bot;
       }
     }

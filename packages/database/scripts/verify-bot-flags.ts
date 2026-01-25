@@ -29,7 +29,7 @@ async function verifyBotFlags() {
       
       console.log(`${emoji} ${bot.name} (${bot.id}): ${status}`);
       
-      if (bot.id === 'markdown-renderer' && bot.supportsFileUploads) {
+      if (bot.id === 'bot-markdown-renderer' && bot.supportsFileUploads) {
         markdownRendererFound = true;
       }
     });
@@ -43,7 +43,7 @@ async function verifyBotFlags() {
       console.log('❌ ISSUE: Markdown Renderer bot should support file uploads');
     }
 
-    const otherBots = bots.filter(bot => bot.id !== 'markdown-renderer');
+    const otherBots = bots.filter(bot => bot.id !== 'bot-markdown-renderer');
     const incorrectBots = otherBots.filter(bot => bot.supportsFileUploads);
     
     if (incorrectBots.length === 0) {

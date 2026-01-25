@@ -64,7 +64,7 @@ export async function initializeBots() {
 
   // Ensure required system bots are installed in the database
   const installedBots = await botManager.list();
-  const requiredBots = ['editorial-bot', 'reference-bot', 'reviewer-checklist'];
+  const requiredBots = ['bot-editorial', 'bot-reference', 'bot-reviewer-checklist'];
   
   // Check if any required bots are missing
   const missingRequiredBots = requiredBots.filter(

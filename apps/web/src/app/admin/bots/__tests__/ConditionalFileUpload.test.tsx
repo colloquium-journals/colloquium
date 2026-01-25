@@ -31,7 +31,7 @@ const mockAuthUser = {
 
 const mockRendererBot = {
   id: 'renderer-bot-1',
-  botId: 'markdown-renderer',
+  botId: 'bot-markdown-renderer',
   name: 'Markdown Renderer',
   version: '1.0.0',
   description: 'Renders markdown with file uploads',
@@ -47,7 +47,7 @@ const mockRendererBot = {
 
 const mockRegularBot = {
   id: 'regular-bot-1',
-  botId: 'editorial-bot',
+  botId: 'bot-editorial',
   name: 'Editorial Bot',
   version: '1.0.0',
   description: 'Editorial workflow bot without file uploads',

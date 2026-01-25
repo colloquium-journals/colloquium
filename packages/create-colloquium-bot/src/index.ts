@@ -46,19 +46,23 @@ function validateBotName(name: string): boolean | string {
   if (!name || name.trim().length === 0) {
     return 'Bot name is required';
   }
-  
+
   if (!/^[a-z0-9\-]+$/.test(name)) {
     return 'Bot name must be lowercase alphanumeric with hyphens only';
   }
-  
-  if (name.length < 3) {
-    return 'Bot name must be at least 3 characters long';
+
+  if (!name.startsWith('bot-')) {
+    return 'Bot name must start with "bot-" prefix (e.g., bot-my-feature)';
   }
-  
+
+  if (name.length < 5) {
+    return 'Bot name must be at least 5 characters long (bot- plus at least 1 character)';
+  }
+
   if (name.length > 50) {
     return 'Bot name must be less than 50 characters';
   }
-  
+
   return true;
 }
 
@@ -223,7 +227,7 @@ async function promptForConfig(): Promise<BotConfig> {
     {
       type: 'input',
       name: 'name',
-      message: 'Bot name (lowercase, hyphens allowed):',
+      message: 'Bot name (must start with bot-, e.g., bot-my-feature):',
       validate: validateBotName,
       transformer: (input: string) => input.toLowerCase().replace(/[^a-z0-9\-]/g, '-')
     },

@@ -43,7 +43,7 @@ const mockAuthUser = {
 
 const mockBot = {
   id: 'bot-1',
-  botId: 'markdown-renderer',
+  botId: 'bot-markdown-renderer',
   name: 'Markdown Renderer',
   version: '1.0.0',
   description: 'Renders markdown content',

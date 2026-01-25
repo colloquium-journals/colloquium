@@ -63,7 +63,7 @@ async function testEmailInvitations() {
     console.log(`      ${MAILHOG_BASE}\n`);
     
     console.log('   c) Use editorial bot to send invitation:');
-    console.log('      @editorial-bot invite-reviewer reviewer@test.com\n');
+    console.log('      @bot-editorial invite-reviewer reviewer@test.com\n');
     
     console.log('   d) Check MailHog for invitation email');
     console.log('   e) Click "Accept Review" or "Decline Review" button');
@@ -105,7 +105,7 @@ async function testEmailInvitations() {
     
     console.log('\n🎉 Email invitation system is ready for testing!');
     console.log('\n💡 Pro tips:');
-    console.log('   - Use @editorial-bot summary to see invitation statuses');
+    console.log('   - Use @bot-editorial summary to see invitation statuses');
     console.log('   - Check conversation threads for automatic notifications');
     console.log('   - Test both accept and decline workflows');
     console.log('   - Verify SSE updates work in real-time');
@@ -130,7 +130,7 @@ async function createSampleInvitation() {
   
   console.log('Sample invitation data:', JSON.stringify(sampleData, null, 2));
   console.log('\nTo create actual invitations, use the editorial bot in the web interface:');
-  console.log('@editorial-bot invite-reviewer test-reviewer@example.com message="Please review this manuscript"');
+  console.log('@bot-editorial invite-reviewer test-reviewer@example.com message="Please review this manuscript"');
 }
 
 if (require.main === module) {

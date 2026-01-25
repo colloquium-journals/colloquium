@@ -62,11 +62,11 @@ describe('Bot Mentions Integration', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: 'Hello @editorial-bot'
+          content: 'Hello @bot-editorial'
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.message.content).toBe('Hello @editorial-bot');
+      expect(response.body.message.content).toBe('Hello @bot-editorial');
 
       // Wait a bit for bot processing
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -81,7 +81,7 @@ describe('Bot Mentions Integration', () => {
       expect(messages).toHaveLength(2);
       
       // User message
-      expect(messages[1].content).toBe('Hello @editorial-bot');
+      expect(messages[1].content).toBe('Hello @bot-editorial');
       expect(messages[1].isBot).toBe(false);
       
       // Bot response
@@ -123,7 +123,7 @@ describe('Bot Mentions Integration', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@editorial-bot status UNDER_REVIEW reason="Ready for review"'
+          content: '@bot-editorial status UNDER_REVIEW reason="Ready for review"'
         });
 
       expect(response.status).toBe(201);
@@ -177,12 +177,12 @@ describe('Bot Mentions Integration', () => {
   });
 
   describe('Bot Name Resolution', () => {
-    it('should resolve editorial-bot by exact ID', async () => {
+    it('should resolve bot-editorial by exact ID', async () => {
       const response = await request(app)
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@editorial-bot help'
+          content: '@bot-editorial help'
         });
 
       expect(response.status).toBe(201);
@@ -256,7 +256,7 @@ describe('Bot Mentions Integration', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@editorial-bot unknowncommand some parameters'
+          content: '@bot-editorial unknowncommand some parameters'
         });
 
       expect(response.status).toBe(201);
@@ -282,7 +282,7 @@ describe('Bot Mentions Integration', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@editorial-bot status INVALID_STATUS'
+          content: '@bot-editorial status INVALID_STATUS'
         });
 
       expect(response.status).toBe(201);
@@ -309,7 +309,7 @@ describe('Bot Mentions Integration', () => {
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@editorial-bot help @plagiarism-bot help'
+          content: '@bot-editorial help @plagiarism-bot help'
         });
 
       expect(response.status).toBe(201);

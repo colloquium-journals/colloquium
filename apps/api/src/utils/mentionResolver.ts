@@ -11,14 +11,14 @@ export interface ResolvedMention {
 const MENTION_REGEX = /(?<!\w)@([a-z][a-z0-9-]{2,29})(?=\s|$|[.,!?;:])/g;
 
 const KNOWN_BOT_IDS = [
-  'editorial-bot',
-  'plagiarism-checker',
-  'reference-bot',
-  'reviewer-checklist'
+  'bot-editorial',
+  'bot-plagiarism-checker',
+  'bot-reference',
+  'bot-reviewer-checklist'
 ];
 
 function isBotId(id: string): boolean {
-  return KNOWN_BOT_IDS.includes(id) || id.endsWith('-bot') || id.endsWith('-checker');
+  return KNOWN_BOT_IDS.includes(id) || id.startsWith('bot-');
 }
 
 /**

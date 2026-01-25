@@ -162,7 +162,7 @@ async function loadTemplateFromFile(filename: string, context: any): Promise<str
     }
 
     // Get the bot ID from context
-    const botId = context.botId || 'reviewer-checklist';
+    const botId = context.botId || 'bot-reviewer-checklist';
     
     // First, get the list of files for this bot
     const filesResponse = await fetch(`${context.apiBaseUrl}/api/bot-config-files/${botId}/files`, {
@@ -210,7 +210,7 @@ async function loadTemplateFromFile(filename: string, context: any): Promise<str
 const generateCommand: BotCommand = {
   name: 'generate',
   description: 'Generate a checklist for reviewers. By default, generates checklists for all assigned reviewers without one. Can target a specific reviewer by @mention or ID.',
-  usage: '@reviewer-checklist generate [reviewer="@username"]',
+  usage: '@bot-reviewer-checklist generate [reviewer="@username"]',
   parameters: [
     {
       name: 'reviewer',
@@ -221,9 +221,9 @@ const generateCommand: BotCommand = {
     }
   ],
   examples: [
-    '@reviewer-checklist generate',
-    '@reviewer-checklist generate reviewer="@DrSmith"',
-    '@reviewer-checklist generate reviewer="Prof.Johnson"'
+    '@bot-reviewer-checklist generate',
+    '@bot-reviewer-checklist generate reviewer="@DrSmith"',
+    '@bot-reviewer-checklist generate reviewer="Prof.Johnson"'
   ],
   permissions: ['read_manuscript', 'send_messages'],
   async execute(params, context) {
@@ -312,9 +312,9 @@ const generateCommand: BotCommand = {
 const helpCommand: BotCommand = {
   name: 'help',
   description: 'Show available commands and usage',
-  usage: '@reviewer-checklist help',
+  usage: '@bot-reviewer-checklist help',
   parameters: [],
-  examples: ['@reviewer-checklist help'],
+  examples: ['@bot-reviewer-checklist help'],
   permissions: [],
   async execute(params, context) {
     const helpContent = `# Reviewer Checklist Bot
@@ -324,12 +324,12 @@ const helpCommand: BotCommand = {
 ## \`generate\`
 Generate a customizable review checklist for manuscript evaluation.
 
-**Usage:** \`@reviewer-checklist generate [reviewer="@username"]\`
+**Usage:** \`@bot-reviewer-checklist generate [reviewer="@username"]\`
 
 **Examples:**
-- \`@reviewer-checklist generate\` - Generate checklists for all reviewers without one
-- \`@reviewer-checklist generate reviewer="@DrSmith"\` - Generate checklist for specific reviewer by @mention
-- \`@reviewer-checklist generate reviewer="Prof.Johnson"\` - Generate checklist using partial name
+- \`@bot-reviewer-checklist generate\` - Generate checklists for all reviewers without one
+- \`@bot-reviewer-checklist generate reviewer="@DrSmith"\` - Generate checklist for specific reviewer by @mention
+- \`@bot-reviewer-checklist generate reviewer="Prof.Johnson"\` - Generate checklist using partial name
 
 **Behavior:**
 - By default, generates checklists for all assigned reviewers who don't have one yet
@@ -346,7 +346,7 @@ Generate a customizable review checklist for manuscript evaluation.
 ## \`help\`
 Show this help message.
 
-**Usage:** \`@reviewer-checklist help\`
+**Usage:** \`@bot-reviewer-checklist help\`
 
 ---
 *This bot helps reviewers systematically evaluate manuscripts using configurable checklists.*`;
@@ -360,7 +360,7 @@ Show this help message.
 };
 
 export const reviewerChecklistBot: CommandBot = {
-  id: 'reviewer-checklist',
+  id: 'bot-reviewer-checklist',
   name: 'Reviewer Checklist',
   description: 'Generates customizable review checklists for assigned reviewers using configurable templates',
   version: '1.0.0',
@@ -370,11 +370,11 @@ export const reviewerChecklistBot: CommandBot = {
   permissions: ['read_manuscript', 'send_messages'],
   help: {
     overview: 'The Reviewer Checklist bot generates customizable review checklists for assigned reviewers using configurable templates.',
-    quickStart: 'Use `@reviewer-checklist generate` to create checklists for all reviewers who don\'t have one yet.',
+    quickStart: 'Use `@bot-reviewer-checklist generate` to create checklists for all reviewers who don\'t have one yet.',
     examples: [
-      '@reviewer-checklist generate',
-      '@reviewer-checklist generate reviewer="@DrSmith"',
-      '@reviewer-checklist generate reviewer="Prof.Johnson"'
+      '@bot-reviewer-checklist generate',
+      '@bot-reviewer-checklist generate reviewer="@DrSmith"',
+      '@bot-reviewer-checklist generate reviewer="Prof.Johnson"'
     ]
   },
   customHelpSections: [

@@ -28,7 +28,7 @@ global.ResizeObserver = class ResizeObserver {
 
 const mockBots = [
   {
-    id: 'editorial-bot',
+    id: 'bot-editorial',
     name: 'Editorial Bot',
     description: 'Assists with editorial workflows',
     isInstalled: true,

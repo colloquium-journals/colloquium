@@ -2,13 +2,13 @@ import { parseMentions, parseContentWithMentions } from '../mentions';
 
 describe('Mention Parsing', () => {
   it('should parse bot mentions correctly', () => {
-    const content = '@editorial-bot please review this article';
+    const content = '@bot-editorial please review this article';
     const mentions = parseMentions(content);
 
     expect(mentions).toHaveLength(1);
     expect(mentions[0]).toEqual({
-      id: 'editorial-bot',
-      name: '@editorial-bot',
+      id: 'bot-editorial',
+      name: '@bot-editorial',
       startIndex: 0,
       endIndex: 14,
       isBot: true
@@ -30,18 +30,18 @@ describe('Mention Parsing', () => {
   });
 
   it('should parse multiple mentions in one message', () => {
-    const content = '@editorial-bot please review, and @john-smith please approve';
+    const content = '@bot-editorial please review, and @john-smith please approve';
     const mentions = parseMentions(content);
 
     expect(mentions).toHaveLength(2);
-    expect(mentions[0].name).toBe('@editorial-bot');
+    expect(mentions[0].name).toBe('@bot-editorial');
     expect(mentions[0].isBot).toBe(true);
     expect(mentions[1].name).toBe('@john-smith');
     expect(mentions[1].isBot).toBe(false);
   });
 
   it('should identify known bots', () => {
-    const content = '@editorial-bot @plagiarism-checker @reference-bot @reviewer-checklist';
+    const content = '@bot-editorial @bot-plagiarism-checker @bot-reference @bot-reviewer-checklist';
     const mentions = parseMentions(content);
 
     expect(mentions).toHaveLength(4);
@@ -103,15 +103,15 @@ describe('Mention Parsing', () => {
   });
 
   it('should split content into chunks correctly', () => {
-    const content = 'Hello @editorial-bot, please review this for @john-smith';
+    const content = 'Hello @bot-editorial, please review this for @john-smith';
     const chunks = parseContentWithMentions(content);
 
     expect(chunks).toHaveLength(4);
     expect(chunks[0]).toEqual({ type: 'text', content: 'Hello ' });
     expect(chunks[1]).toEqual({
       type: 'mention',
-      content: '@editorial-bot',
-      mention: expect.objectContaining({ name: '@editorial-bot', isBot: true })
+      content: '@bot-editorial',
+      mention: expect.objectContaining({ name: '@bot-editorial', isBot: true })
     });
     expect(chunks[2]).toEqual({ type: 'text', content: ', please review this for ' });
     expect(chunks[3]).toEqual({

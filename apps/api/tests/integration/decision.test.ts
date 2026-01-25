@@ -118,7 +118,7 @@ describe('Simplified Editorial Decision Workflow', () => {
         });
 
       // Make decision via bot command (simplified)
-      const botCommand = '@editorial-bot decision accept';
+      const botCommand = '@bot-editorial decision accept';
       
       const response = await request(app)
         .post(`/api/conversations/${conversationId}/messages`)
@@ -199,7 +199,7 @@ describe('Simplified Editorial Decision Workflow', () => {
         });
 
       // Make revision decision
-      const botCommand = '@editorial-bot decision minor_revision';
+      const botCommand = '@bot-editorial decision minor_revision';
       
       const response = await request(app)
         .post(`/api/conversations/${revisionConversation.id}/messages`)
@@ -234,7 +234,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     });
 
     it('should reject invalid decision types', async () => {
-      const invalidCommand = '@editorial-bot decision invalid_decision';
+      const invalidCommand = '@bot-editorial decision invalid_decision';
       
       const response = await request(app)
         .post(`/api/conversations/${conversationId}/messages`)
@@ -267,7 +267,7 @@ describe('Simplified Editorial Decision Workflow', () => {
     });
 
     it('should show summary of available decisions', async () => {
-      const summaryCommand = '@editorial-bot summary';
+      const summaryCommand = '@bot-editorial summary';
       
       const response = await request(app)
         .post(`/api/conversations/${conversationId}/messages`)

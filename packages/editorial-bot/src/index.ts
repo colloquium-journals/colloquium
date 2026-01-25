@@ -184,11 +184,11 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
 const acceptCommand: BotCommand = {
   name: 'accept',
   description: 'Accept a manuscript for publication and initiate publication workflow',
-  usage: '@editorial-bot accept [reason="reason for acceptance"]',
+  usage: '@bot-editorial accept [reason="reason for acceptance"]',
   help: `Accepts a manuscript for publication, updating the status to ACCEPTED and immediately initiating the publication workflow.
 
 **Usage:**
-\`@editorial-bot accept [reason="reason for acceptance"]\`
+\`@bot-editorial accept [reason="reason for acceptance"]\`
 
 **Parameters:**
 - **reason**: Optional reason for the acceptance (optional)
@@ -205,9 +205,9 @@ const acceptCommand: BotCommand = {
 4. The manuscript proceeds through automated publication processes
 
 **Examples:**
-- \`@editorial-bot accept\`
-- \`@editorial-bot accept reason="High quality research with clear findings"\`
-- \`@editorial-bot accept reason="Excellent methodology and significant contribution"\``,
+- \`@bot-editorial accept\`
+- \`@bot-editorial accept reason="High quality research with clear findings"\`
+- \`@bot-editorial accept reason="Excellent methodology and significant contribution"\``,
   parameters: [
     {
       name: 'reason',
@@ -218,10 +218,10 @@ const acceptCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial-bot accept',
-    '@editorial-bot accept reason="High quality research with clear findings"',
-    '@editorial-bot accept reason="Excellent methodology and significant contribution"',
-    '@editorial-bot accept reason="Addresses important research gap"'
+    '@bot-editorial accept',
+    '@bot-editorial accept reason="High quality research with clear findings"',
+    '@bot-editorial accept reason="Excellent methodology and significant contribution"',
+    '@bot-editorial accept reason="Addresses important research gap"'
   ],
   permissions: ['make_editorial_decision'],
   async execute(params, context) {
@@ -261,11 +261,11 @@ const acceptCommand: BotCommand = {
 const rejectCommand: BotCommand = {
   name: 'reject',
   description: 'Reject a manuscript',
-  usage: '@editorial-bot reject [reason="reason for rejection"]',
+  usage: '@bot-editorial reject [reason="reason for rejection"]',
   help: `Rejects a manuscript, updating the status to REJECTED.
 
 **Usage:**
-\`@editorial-bot reject [reason="reason for rejection"]\`
+\`@bot-editorial reject [reason="reason for rejection"]\`
 
 **Parameters:**
 - **reason**: Optional reason for the rejection (optional)
@@ -276,9 +276,9 @@ const rejectCommand: BotCommand = {
 - Consider providing constructive feedback to authors
 
 **Examples:**
-- \`@editorial-bot reject\`
-- \`@editorial-bot reject reason="Insufficient methodology"\`
-- \`@editorial-bot reject reason="Does not meet journal scope"\``,
+- \`@bot-editorial reject\`
+- \`@bot-editorial reject reason="Insufficient methodology"\`
+- \`@bot-editorial reject reason="Does not meet journal scope"\``,
   parameters: [
     {
       name: 'reason',
@@ -289,10 +289,10 @@ const rejectCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial-bot reject',
-    '@editorial-bot reject reason="Insufficient methodology"',
-    '@editorial-bot reject reason="Does not meet journal scope"',
-    '@editorial-bot reject reason="Significant flaws in analysis"'
+    '@bot-editorial reject',
+    '@bot-editorial reject reason="Insufficient methodology"',
+    '@bot-editorial reject reason="Does not meet journal scope"',
+    '@bot-editorial reject reason="Significant flaws in analysis"'
   ],
   permissions: ['make_editorial_decision'],
   async execute(params, context) {
@@ -323,12 +323,12 @@ const rejectCommand: BotCommand = {
 const assignEditorCommand: BotCommand = {
   name: 'assign-editor',
   description: 'Assign an action editor to a manuscript',
-  usage: '@editorial-bot assign-editor <editor> [message="custom message"]',
+  usage: '@bot-editorial assign-editor <editor> [message="custom message"]',
   help: `Assigns an action editor to a manuscript with proper role validation.
 
 **Usage:**
-\`@editorial-bot assign-editor <editor> [message="custom message"]\`
-\`@editorial-bot assign-editor editor=<@mention> [message="custom message"]\`
+\`@bot-editorial assign-editor <editor> [message="custom message"]\`
+\`@bot-editorial assign-editor editor=<@mention> [message="custom message"]\`
 
 **Parameters:**
 - **editor**: @mention of the user to assign as action editor  
@@ -340,10 +340,10 @@ const assignEditorCommand: BotCommand = {
 - Cannot assign if an action editor is already assigned (use update instead)
 
 **Examples:**
-- \`@editorial-bot assign-editor @DrEditor\`
-- \`@editorial-bot assign-editor editor=@DrEditor\`
-- \`@editorial-bot assign-editor @SeniorEditor message="Please handle this urgently"\`
-- \`@editorial-bot assign-editor editor=@SeniorEditor message="Please handle this urgently"\``,
+- \`@bot-editorial assign-editor @DrEditor\`
+- \`@bot-editorial assign-editor editor=@DrEditor\`
+- \`@bot-editorial assign-editor @SeniorEditor message="Please handle this urgently"\`
+- \`@bot-editorial assign-editor editor=@SeniorEditor message="Please handle this urgently"\``,
   parameters: [
     {
       name: 'editor',
@@ -361,11 +361,11 @@ const assignEditorCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial-bot assign-editor @DrEditor',
-    '@editorial-bot assign-editor editor=@DrEditor',
-    '@editorial-bot assign-editor @SeniorEditor message="Please handle this urgently"',
-    '@editorial-bot assign-editor editor=@SeniorEditor message="Please handle this urgently"',
-    '@editorial-bot assign-editor @ManagingEditor message="Complex case requiring senior review"'
+    '@bot-editorial assign-editor @DrEditor',
+    '@bot-editorial assign-editor editor=@DrEditor',
+    '@bot-editorial assign-editor @SeniorEditor message="Please handle this urgently"',
+    '@bot-editorial assign-editor editor=@SeniorEditor message="Please handle this urgently"',
+    '@bot-editorial assign-editor @ManagingEditor message="Complex case requiring senior review"'
   ],
   permissions: ['assign_reviewers'],
   async execute(params, context) {
@@ -428,11 +428,11 @@ const assignEditorCommand: BotCommand = {
 const inviteReviewerCommand: BotCommand = {
   name: 'invite-reviewer',
   description: 'Send email invitations to potential reviewers',
-  usage: '@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]',
+  usage: '@bot-editorial invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]',
   help: `Sends email invitations to potential reviewers without immediately assigning them.
 
 **Usage:**
-\`@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
+\`@bot-editorial invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
 
 **Parameters:**
 - **reviewers**: Comma-separated list of reviewer email addresses or @mentions
@@ -446,9 +446,9 @@ const inviteReviewerCommand: BotCommand = {
 4. Accepting goes directly to IN_PROGRESS (review begins immediately)
 
 **Examples:**
-- \`@editorial-bot invite-reviewer reviewer@university.edu\`
-- \`@editorial-bot invite-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"\`
-- \`@editorial-bot invite-reviewer reviewer@uni.edu message="This paper requires statistical expertise"\``,
+- \`@bot-editorial invite-reviewer reviewer@university.edu\`
+- \`@bot-editorial invite-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"\`
+- \`@bot-editorial invite-reviewer reviewer@uni.edu message="This paper requires statistical expertise"\``,
   parameters: [
     {
       name: 'reviewers',
@@ -473,9 +473,9 @@ const inviteReviewerCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial-bot invite-reviewer reviewer@university.edu',
-    '@editorial-bot invite-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"',
-    '@editorial-bot invite-reviewer reviewer@uni.edu message="Statistical expertise needed"'
+    '@bot-editorial invite-reviewer reviewer@university.edu',
+    '@bot-editorial invite-reviewer @DrSmith,expert@domain.com deadline="2024-03-15"',
+    '@bot-editorial invite-reviewer reviewer@uni.edu message="Statistical expertise needed"'
   ],
   permissions: ['assign_reviewers'],
   async execute(params, context) {
@@ -491,7 +491,7 @@ const inviteReviewerCommand: BotCommand = {
     if (reviewerList.length === 0) {
       return {
         messages: [{
-          content: '❌ **Invalid Input**\n\nPlease provide at least one reviewer email address or @mention.\n\nExample: `@editorial-bot invite-reviewer reviewer@university.edu`'
+          content: '❌ **Invalid Input**\n\nPlease provide at least one reviewer email address or @mention.\n\nExample: `@bot-editorial invite-reviewer reviewer@university.edu`'
         }]
       };
     }
@@ -739,7 +739,7 @@ Decline: ${declineUrl}
         confirmText: `Are you sure you want to re-invite ${r.email}? Their previous decline will be reset.`,
         targetRoles: ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR', 'ACTION_EDITOR'],
         handler: {
-          botId: 'editorial-bot',
+          botId: 'bot-editorial',
           action: 'REINVITE_REVIEWER',
           params: {
             reviewerId: r.reviewerId,
@@ -763,7 +763,7 @@ Decline: ${declineUrl}
 const helpCommand: BotCommand = {
   name: 'help',
   description: 'Show available commands and usage information',
-  usage: '@editorial-bot help [command-name]',
+  usage: '@bot-editorial help [command-name]',
   parameters: [
     {
       name: 'command',
@@ -774,11 +774,11 @@ const helpCommand: BotCommand = {
     }
   ],
   examples: [
-    '@editorial-bot help',
-    '@editorial-bot help accept',
-    '@editorial-bot help reject',
-    '@editorial-bot help invite-reviewer',
-    '@editorial-bot help assign-editor'
+    '@bot-editorial help',
+    '@bot-editorial help accept',
+    '@bot-editorial help reject',
+    '@bot-editorial help invite-reviewer',
+    '@bot-editorial help assign-editor'
   ],
   permissions: [],
   async execute(params, context) {
@@ -792,7 +792,7 @@ const helpCommand: BotCommand = {
       if (!targetCommand) {
         return {
           messages: [{
-            content: `❌ **Command Not Found**\n\nCommand '${command}' not found. Use \`@editorial-bot help\` to see all available commands.`
+            content: `❌ **Command Not Found**\n\nCommand '${command}' not found. Use \`@bot-editorial help\` to see all available commands.`
           }]
         };
       }
@@ -839,21 +839,21 @@ The Editorial Bot streamlines manuscript management by automating reviewer invit
 
 ## Quick Start
 
-Start by using @editorial-bot help to see all available commands. Most common: @editorial-bot assign-editor <editor>, @editorial-bot invite-reviewer <reviewers>, @editorial-bot accept, and @editorial-bot reject
+Start by using @bot-editorial help to see all available commands. Most common: @bot-editorial assign-editor <editor>, @bot-editorial invite-reviewer <reviewers>, @bot-editorial accept, and @bot-editorial reject
 
 ## Available Commands
 
 **accept** - Accept a manuscript for publication and initiate publication workflow
-Usage: \`@editorial-bot accept [reason="reason for acceptance"]\`
+Usage: \`@bot-editorial accept [reason="reason for acceptance"]\`
 
 **reject** - Reject a manuscript
-Usage: \`@editorial-bot reject [reason="reason for rejection"]\`
+Usage: \`@bot-editorial reject [reason="reason for rejection"]\`
 
 **assign-editor** - Assign an action editor to a manuscript
-Usage: \`@editorial-bot assign-editor <editor> [message="custom message"]\`
+Usage: \`@bot-editorial assign-editor <editor> [message="custom message"]\`
 
 **invite-reviewer** - Send email invitations to potential reviewers
-Usage: \`@editorial-bot invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
+Usage: \`@bot-editorial invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
 
 ## Keywords
 
@@ -861,13 +861,13 @@ This bot also responds to these keywords: \`editorial decision\`, \`review statu
 
 ## Complete Examples
 
-\`@editorial-bot assign-editor @DrEditor\`
+\`@bot-editorial assign-editor @DrEditor\`
 
-\`@editorial-bot accept reason="High quality research"\`
+\`@bot-editorial accept reason="High quality research"\`
 
-\`@editorial-bot reject reason="Insufficient methodology"\`
+\`@bot-editorial reject reason="Insufficient methodology"\`
 
-\`@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
+\`@bot-editorial invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"\`
 
 ## ℹ️ Support
 
@@ -875,7 +875,7 @@ For editorial workflow questions, contact your journal administrator.
 
 ## Getting Detailed Help
 
-Use \`@editorial-bot help <command-name>\` for detailed help on specific commands.`;
+Use \`@bot-editorial help <command-name>\` for detailed help on specific commands.`;
 
     return {
       messages: [{ content: helpContent }]
@@ -885,7 +885,7 @@ Use \`@editorial-bot help <command-name>\` for detailed help on specific command
 
 // Define the editorial bot
 export const editorialBot: CommandBot = {
-  id: 'editorial-bot',
+  id: 'bot-editorial',
   name: 'Editorial Bot',
   description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management',
   version: '2.3.0',
@@ -895,12 +895,12 @@ export const editorialBot: CommandBot = {
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {
     overview: 'The Editorial Bot streamlines manuscript management by automating reviewer assignments, progress tracking, and editorial decisions.',
-    quickStart: 'Start by using @editorial-bot help to see all available commands. Use @editorial-bot invite-reviewer <reviewers> to send invitations with accept/decline links. Reviewers accept via the links and review begins immediately. Use @editorial-bot accept or @editorial-bot reject to make editorial decisions.',
+    quickStart: 'Start by using @bot-editorial help to see all available commands. Use @bot-editorial invite-reviewer <reviewers> to send invitations with accept/decline links. Reviewers accept via the links and review begins immediately. Use @bot-editorial accept or @bot-editorial reject to make editorial decisions.',
     examples: [
-      '@editorial-bot assign-editor @DrEditor',
-      '@editorial-bot invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
-      '@editorial-bot accept reason="High quality research"',
-      '@editorial-bot reject reason="Insufficient methodology"'
+      '@bot-editorial assign-editor @DrEditor',
+      '@bot-editorial invite-reviewer @DrSmith,@ProfJohnson deadline="2024-02-15"',
+      '@bot-editorial accept reason="High quality research"',
+      '@bot-editorial reject reason="Insufficient methodology"'
     ]
   },
   customHelpSections: [

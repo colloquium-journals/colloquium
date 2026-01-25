@@ -6,8 +6,8 @@
 // Mock the bot management response structure based on our implementation
 const mockBotInstallations = [
   {
-    id: 'editorial-bot-1',
-    botId: 'editorial-bot',
+    id: 'bot-editorial-1',
+    botId: 'bot-editorial',
     name: 'Editorial Bot',
     version: '1.0.0',
     description: 'Editorial workflow bot without file uploads',
@@ -21,8 +21,8 @@ const mockBotInstallations = [
     supportsFileUploads: false
   },
   {
-    id: 'markdown-renderer-1',
-    botId: 'markdown-renderer',
+    id: 'bot-markdown-renderer-1',
+    botId: 'bot-markdown-renderer',
     name: 'Markdown Renderer',
     version: '1.0.0',
     description: 'Renders markdown with file uploads',
@@ -36,8 +36,8 @@ const mockBotInstallations = [
     supportsFileUploads: true
   },
   {
-    id: 'reference-bot-1',
-    botId: 'reference-bot',
+    id: 'bot-reference-1',
+    botId: 'bot-reference',
     name: 'Reference Bot',
     version: '1.0.0',
     description: 'Reference management bot',
@@ -51,8 +51,8 @@ const mockBotInstallations = [
     supportsFileUploads: false
   },
   {
-    id: 'reviewer-checklist-1',
-    botId: 'reviewer-checklist',
+    id: 'bot-reviewer-checklist-1',
+    botId: 'bot-reviewer-checklist',
     name: 'Reviewer Checklist',
     version: '1.0.0',
     description: 'Review checklist management',

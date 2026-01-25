@@ -316,16 +316,8 @@ router.get('/profile/:identifier', authenticate, async (req, res, next) => {
   try {
     const identifier = req.params.identifier;
     
-    // Check if it's a bot identifier
-    const botPatterns = [
-      /^editorial-bot$/i,
-      /^plagiarism-bot$/i,
-      /^statistics-bot$/i,
-      /^formatting-bot$/i,
-      /-bot$/i
-    ];
-    
-    const isBot = botPatterns.some(pattern => pattern.test(identifier));
+    // Check if it's a bot identifier (all bots use bot- prefix)
+    const isBot = identifier.toLowerCase().startsWith('bot-');
     
     if (isBot) {
       // Return bot profile information
@@ -396,22 +388,22 @@ router.get('/profile/:identifier', authenticate, async (req, res, next) => {
 // Helper function to get bot profile information
 function getBotProfile(botId: string) {
   const botProfiles: Record<string, { displayName: string; description: string; role: string }> = {
-    'editorial-bot': {
+    'bot-editorial': {
       displayName: 'Editorial Bot',
       description: 'Assists with manuscript editorial workflows and review processes',
       role: 'Editorial Assistant'
     },
-    'plagiarism-bot': {
-      displayName: 'Plagiarism Bot',
+    'bot-plagiarism-checker': {
+      displayName: 'Plagiarism Checker',
       description: 'Checks manuscripts for potential plagiarism and citation issues',
       role: 'Content Reviewer'
     },
-    'statistics-bot': {
+    'bot-statistics': {
       displayName: 'Statistics Bot',
       description: 'Reviews statistical analysis and methodology in manuscripts',
       role: 'Statistical Reviewer'
     },
-    'formatting-bot': {
+    'bot-formatting': {
       displayName: 'Formatting Bot',
       description: 'Checks manuscript formatting and style guidelines',
       role: 'Style Checker'

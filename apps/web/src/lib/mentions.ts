@@ -12,22 +12,22 @@ const MENTION_REGEX = /(?<!\w)@([a-z][a-z0-9-]{2,29})(?=\s|$|[.,!?;:])/g;
  * Common bot information for hover cards
  */
 export const BOT_INFO: Record<string, { displayName: string; description: string; role: string }> = {
-  'editorial-bot': {
+  'bot-editorial': {
     displayName: 'Editorial Bot',
     description: 'Assists with manuscript editorial workflows, status updates, and reviewer assignments',
     role: 'Editorial Assistant'
   },
-  'plagiarism-checker': {
+  'bot-plagiarism-checker': {
     displayName: 'Plagiarism Checker',
     description: 'Advanced plagiarism detection using multiple academic databases and AI algorithms',
     role: 'Content Reviewer'
   },
-  'reference-bot': {
+  'bot-reference': {
     displayName: 'Reference Bot',
     description: 'Validates references and checks DOI availability and correctness',
     role: 'Reference Validator'
   },
-  'reviewer-checklist': {
+  'bot-reviewer-checklist': {
     displayName: 'Reviewer Checklist',
     description: 'Generates customizable checklists for manuscript reviewers',
     role: 'Review Assistant'
@@ -35,7 +35,7 @@ export const BOT_INFO: Record<string, { displayName: string; description: string
 };
 
 function isBotId(id: string): boolean {
-  return id in BOT_INFO || id.endsWith('-bot') || id.endsWith('-checker');
+  return id in BOT_INFO || id.startsWith('bot-');
 }
 
 /**

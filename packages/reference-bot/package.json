@@ -45,7 +45,7 @@
     "access": "public"
   },
   "colloquium": {
-    "botId": "reference-bot",
+    "botId": "bot-reference",
     "apiVersion": "1.0.0",
     "permissions": [
       "read_manuscript_files",

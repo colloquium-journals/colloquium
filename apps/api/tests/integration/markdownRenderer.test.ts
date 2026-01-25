@@ -153,7 +153,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render'
+          content: '@bot-markdown-renderer render'
         });
 
       expect(response.status).toBe(201);
@@ -182,7 +182,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer templates'
+          content: '@bot-markdown-renderer templates'
         });
 
       expect(response.status).toBe(201);
@@ -212,7 +212,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render output="pdf"'
+          content: '@bot-markdown-renderer render output="pdf"'
         });
 
       expect(response.status).toBe(201);
@@ -252,7 +252,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render output="both"'
+          content: '@bot-markdown-renderer render output="both"'
         });
 
       expect(response.status).toBe(201);
@@ -288,7 +288,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render template="minimal" output="pdf"'
+          content: '@bot-markdown-renderer render template="minimal" output="pdf"'
         });
 
       expect(response.status).toBe(201);
@@ -321,7 +321,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render template="academic-standard" output="pdf" includeAssets=true'
+          content: '@bot-markdown-renderer render template="academic-standard" output="pdf" includeAssets=true'
         });
 
       expect(response.status).toBe(201);
@@ -352,7 +352,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render output=pdf'
+          content: '@bot-markdown-renderer render output=pdf'
         });
 
       expect(response.status).toBe(201);
@@ -384,7 +384,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render output="invalid"'
+          content: '@bot-markdown-renderer render output="invalid"'
         });
 
       expect(response.status).toBe(201);
@@ -432,7 +432,7 @@ Testing complete.
           .post(`/api/conversations/${emptyConversation.id}/messages`)
           .set('Authorization', `Bearer ${authToken}`)
           .send({
-            content: '@markdown-renderer render'
+            content: '@bot-markdown-renderer render'
           });
 
         expect(response.status).toBe(201);
@@ -468,7 +468,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render output="pdf"'
+          content: '@bot-markdown-renderer render output="pdf"'
         });
 
       expect(response.status).toBe(201);
@@ -503,7 +503,7 @@ Testing complete.
         .post(`/api/conversations/${conversationId}/messages`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
-          content: '@markdown-renderer render output="html"'
+          content: '@bot-markdown-renderer render output="html"'
         });
 
       expect(response.status).toBe(201);

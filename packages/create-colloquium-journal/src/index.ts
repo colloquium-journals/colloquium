@@ -13,7 +13,7 @@ import { validateJournalName, validateSlug, validateEmail, validateDomain } from
 // Required bots (always included)
 const REQUIRED_BOTS: AvailableBot[] = [
   {
-    id: 'editorial-bot',
+    id: 'bot-editorial',
     name: 'Editorial Bot',
     description: 'Automates editorial workflow and decisions (required)',
     category: 'editorial',
@@ -24,21 +24,21 @@ const REQUIRED_BOTS: AvailableBot[] = [
 // Optional bots that users can choose from
 const OPTIONAL_BOTS: AvailableBot[] = [
   {
-    id: 'markdown-renderer-bot',
+    id: 'bot-markdown-renderer',
     name: 'Markdown Renderer Bot',
     description: 'Renders manuscripts in various formats',
     category: 'formatting',
     isDefault: true
   },
   {
-    id: 'reference-bot',
+    id: 'bot-reference',
     name: 'Reference Bot',
     description: 'Validates and formats citations',
     category: 'quality',
     isDefault: false
   },
   {
-    id: 'reviewer-checklist-bot',
+    id: 'bot-reviewer-checklist',
     name: 'Reviewer Checklist Bot',
     description: 'Provides structured review checklists',
     category: 'quality',
@@ -179,11 +179,11 @@ async function parseCliConfig(journalName?: string, options?: any): Promise<Jour
     }
   }
 
-  // Parse optional bots and ensure editorial-bot is always included
+  // Parse optional bots and ensure bot-editorial is always included
   const requiredBotIds = REQUIRED_BOTS.map(bot => bot.id);
-  const optionalBots = options.bots 
+  const optionalBots = options.bots
     ? options.bots.split(',').map((b: string) => b.trim()).filter((bot: string) => !requiredBotIds.includes(bot))
-    : ['markdown-renderer-bot']; // Default optional bot
+    : ['bot-markdown-renderer']; // Default optional bot
   const allSelectedBots = [...requiredBotIds, ...optionalBots];
 
   const config: JournalConfig = {

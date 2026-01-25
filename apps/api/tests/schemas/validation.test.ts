@@ -191,7 +191,7 @@ describe('Validation Schemas', () => {
         type: 'TEXT' as const,
         parentId: '123e4567-e89b-12d3-a456-426614174001',
         mentions: ['123e4567-e89b-12d3-a456-426614174002'],
-        botMentions: ['@plagiarism-checker']
+        botMentions: ['@bot-plagiarism-checker']
       };
 
       const result = MessageCreateSchema.parse(validData);
@@ -290,7 +290,7 @@ describe('Validation Schemas', () => {
   describe('BotInstallSchema', () => {
     it('should validate valid bot installation data', () => {
       const validData = {
-        name: 'plagiarism-checker',
+        name: 'bot-plagiarism-checker',
         version: '1.0.0',
         source: 'https://github.com/user/repo',
         config: { threshold: 0.8 }

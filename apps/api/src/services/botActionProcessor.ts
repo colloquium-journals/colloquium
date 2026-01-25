@@ -772,7 +772,7 @@ ${isPositive ? 'Congratulations! Your manuscript has been accepted for publicati
     await prisma.messages.create({
       data: {
         id: randomUUID(),
-        content: `📝 **Revision Discussion Created**\n\nThis conversation is for discussing the ${revisionType || 'manuscript'} revisions. Please use this space to:\n\n- Address reviewer comments\n- Discuss specific changes\n- Ask questions about the revision requirements\n\nUse @editorial-bot commands to update manuscript status when revisions are complete.`,
+        content: `📝 **Revision Discussion Created**\n\nThis conversation is for discussing the ${revisionType || 'manuscript'} revisions. Please use this space to:\n\n- Address reviewer comments\n- Discuss specific changes\n- Ask questions about the revision requirements\n\nUse @bot-editorial commands to update manuscript status when revisions are complete.`,
         conversationId: conversation.id,
         authorId: editorId,
         privacy: 'PUBLIC',

@@ -2,7 +2,7 @@ import { referenceBot } from '../index';
 
 describe('Reference Bot', () => {
   it('should have correct bot metadata', () => {
-    expect(referenceBot.id).toBe('reference-bot');
+    expect(referenceBot.id).toBe('bot-reference');
     expect(referenceBot.name).toBe('Reference Bot');
     expect(referenceBot.description).toBe('Validates references and checks DOI availability and correctness');
     expect(referenceBot.version).toBe('1.0.0');

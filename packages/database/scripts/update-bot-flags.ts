@@ -10,7 +10,7 @@ async function updateBotFlags() {
     // Update markdown-renderer bot to support file uploads
     const markdownUpdated = await prisma.botDefinition.updateMany({
       where: {
-        id: 'markdown-renderer'
+        id: 'bot-markdown-renderer'
       },
       data: {
         supportsFileUploads: true
@@ -23,7 +23,7 @@ async function updateBotFlags() {
     const otherBotsUpdated = await prisma.botDefinition.updateMany({
       where: {
         id: {
-          not: 'markdown-renderer'
+          not: 'bot-markdown-renderer'
         },
         supportsFileUploads: {
           not: false

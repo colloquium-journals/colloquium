@@ -395,7 +395,7 @@ export class DatabaseBotManager implements BotManager {
     // Convert to BotInstallation format
     return installations.map((install: any) => ({
       id: install.id,
-      packageName: `@colloquium/bot-${install.botId}`, // Default package name format
+      packageName: this.constructPackageNameFromBotId(install.botId),
       version: install.bot_definitions.version,
       manifest: this.createManifestFromBot(install.bot_definitions),
       config: install.config as Record<string, any>,
@@ -421,7 +421,7 @@ export class DatabaseBotManager implements BotManager {
 
     return {
       id: installation.id,
-      packageName: `@colloquium/bot-${installation.botId}`,
+      packageName: this.constructPackageNameFromBotId(installation.botId),
       version: installation.bot_definitions.version,
       manifest: this.createManifestFromBot(installation.bot_definitions),
       config: installation.config as Record<string, any>,
@@ -556,8 +556,14 @@ export class DatabaseBotManager implements BotManager {
     switch (source.type) {
       case "npm":
         return this.extractBotIdFromPackageName(source.packageName);
-      case "local":
-        return path.basename(source.path);
+      case "local": {
+        // Folder names like "editorial-bot" become bot ID "bot-editorial"
+        const folderName = path.basename(source.path);
+        if (folderName.endsWith('-bot')) {
+          return 'bot-' + folderName.slice(0, -4);
+        }
+        return 'bot-' + folderName;
+      }
       case "git":
         return path.basename(source.url, ".git");
       case "url":
@@ -583,10 +589,21 @@ export class DatabaseBotManager implements BotManager {
   }
 
   private extractBotIdFromPackageName(packageName: string): string {
-    // Convert @colloquium/editorial-bot to editorial-bot
-    return packageName
-      .replace("@colloquium/bot-", "")
-      .replace("@colloquium/", "");
+    // Convert @colloquium/editorial-bot to bot-editorial
+    const stripped = packageName.replace("@colloquium/", "");
+    // Package names like "editorial-bot" become bot ID "bot-editorial"
+    if (stripped.endsWith('-bot')) {
+      return 'bot-' + stripped.slice(0, -4);
+    }
+    return 'bot-' + stripped;
+  }
+
+  private constructPackageNameFromBotId(botId: string): string {
+    // Convert bot-editorial to @colloquium/editorial-bot
+    if (botId.startsWith('bot-')) {
+      return `@colloquium/${botId.slice(4)}-bot`;
+    }
+    return `@colloquium/${botId}`;
   }
 
   private generateConfigSchema(bot: any): any {
@@ -642,7 +659,7 @@ export class DatabaseBotManager implements BotManager {
       let source: BotInstallationSource;
       
       if (isDevelopment) {
-        const folderName = botId.endsWith('-bot') ? botId : `${botId}-bot`;
+        const folderName = botId.startsWith('bot-') ? `${botId.slice(4)}-bot` : botId;
         source = {
           type: "local",
           path: path.resolve(__dirname, `../../../${folderName}`)
@@ -690,7 +707,7 @@ export class DatabaseBotManager implements BotManager {
         
         if (isDevelopment) {
           // In development, use local paths - correct the botId to match folder names
-          const folderName = botId.endsWith('-bot') ? botId : `${botId}-bot`;
+          const folderName = botId.startsWith('bot-') ? `${botId.slice(4)}-bot` : botId;
           source = {
             type: "local",
             path: path.resolve(__dirname, `../../../${folderName}`)

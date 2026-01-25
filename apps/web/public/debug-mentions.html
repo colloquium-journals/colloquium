@@ -31,7 +31,7 @@
     
     <div class="section">
         <h2>3. Test Mention Parsing</h2>
-        <textarea id="test-text" rows="3" cols="60" placeholder="Enter text with @mentions...">@editorial-bot please review this manuscript</textarea>
+        <textarea id="test-text" rows="3" cols="60" placeholder="Enter text with @mentions...">@bot-editorial please review this manuscript</textarea>
         <br>
         <button onclick="testMentionParsing()">Parse Mentions</button>
         <div id="parsing-result"></div>
@@ -212,7 +212,7 @@
             const mentions = [];
             
             // Bot regex from the frontend
-            const botRegex = /@(reviewer-checklist|plagiarism-checker|statistics-reviewer|editorial-bot|plagiarism-bot|statistics-bot|formatting-bot|[\w-]*bot(?:\b|$)|[\w-]*checker(?:\b|$)|[\w-]*reviewer(?:\b|$)|Editorial\s+Bot|Plagiarism\s+Bot|Statistics\s+Bot|Formatting\s+Bot|Reviewer\s+Checklist|Plagiarism\s+Checker|Statistics\s+Reviewer)/gi;
+            const botRegex = /@(bot-[\w-]+)/gi;
             
             let match;
             while ((match = botRegex.exec(content)) !== null) {

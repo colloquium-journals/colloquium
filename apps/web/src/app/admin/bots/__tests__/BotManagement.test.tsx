@@ -43,7 +43,7 @@ const mockAuthUser = {
 
 const mockBot = {
   id: 'bot-1',
-  botId: 'markdown-renderer',
+  botId: 'bot-markdown-renderer',
   name: 'Markdown Renderer',
   version: '1.0.0',
   description: 'Renders markdown content',
@@ -293,7 +293,7 @@ describe('BotManagementPage - File Configuration', () => {
 
     // Verify fetch was called with correct data
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/bot-config-files/markdown-renderer/files',
+      'http://localhost:4000/api/bot-config-files/bot-markdown-renderer/files',
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',

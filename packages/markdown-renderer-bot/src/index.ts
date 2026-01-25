@@ -129,7 +129,7 @@ async function getBuiltInTemplates(): Promise<Record<string, any>> {
 const renderCommand: BotCommand = {
   name: 'render',
   description: 'Render Markdown files to PDF or HTML using journal templates',
-  usage: '@markdown-renderer render [output=pdf|html] [template=name] [engine=typst|latex|html]',
+  usage: '@bot-markdown-renderer render [output=pdf|html] [template=name] [engine=typst|latex|html]',
   parameters: [
     {
       name: 'output',
@@ -153,10 +153,10 @@ const renderCommand: BotCommand = {
     }
   ],
   examples: [
-    '@markdown-renderer render',
-    '@markdown-renderer render output=html',
-    '@markdown-renderer render output=pdf engine=typst',
-    '@markdown-renderer render template=academic-standard output=html'
+    '@bot-markdown-renderer render',
+    '@bot-markdown-renderer render output=html',
+    '@bot-markdown-renderer render output=pdf engine=typst',
+    '@bot-markdown-renderer render template=academic-standard output=html'
   ],
   permissions: ['read_manuscript_files', 'upload_files'],
   async execute(params, context) {
@@ -341,9 +341,9 @@ const renderCommand: BotCommand = {
 const uploadTemplateCommand: BotCommand = {
   name: 'upload-template',
   description: 'Instructions for uploading custom journal templates',
-  usage: '@markdown-renderer upload-template',
+  usage: '@bot-markdown-renderer upload-template',
   parameters: [],
-  examples: ['@markdown-renderer upload-template'],
+  examples: ['@bot-markdown-renderer upload-template'],
   permissions: [],
   async execute(_params, _context) {
     let message = `📤 **Upload Custom Journal Templates**\n\n`;
@@ -362,7 +362,7 @@ const uploadTemplateCommand: BotCommand = {
     message += `• Add descriptions to help identify your templates\n\n`;
     
     message += `**Step 3: Use Your Template**\n`;
-    message += `• Use \`@markdown-renderer render template="file:my-template"\`\n`;
+    message += `• Use \`@bot-markdown-renderer render template="file:my-template"\`\n`;
     message += `• The filename should match your uploaded HTML file (without extension)\n\n`;
     
     message += `**Available Template Variables:**\n`;
@@ -404,9 +404,9 @@ const uploadTemplateCommand: BotCommand = {
 const listTemplatesCommand: BotCommand = {
   name: 'templates',
   description: 'List available journal templates',
-  usage: '@markdown-renderer templates',
+  usage: '@bot-markdown-renderer templates',
   parameters: [],
-  examples: ['@markdown-renderer templates'],
+  examples: ['@bot-markdown-renderer templates'],
   permissions: [],
   async execute(_params, context) {
     const { config } = context;
@@ -454,9 +454,9 @@ const listTemplatesCommand: BotCommand = {
     }
 
     message += `💡 **Usage Examples:**\n`;
-    message += `• \`@markdown-renderer render template="academic-standard"\` - Built-in template\n`;
-    message += `• \`@markdown-renderer render template="file:my-template"\` - File-based template\n`;
-    message += `• \`@markdown-renderer render template="minimal" output="pdf"\` - Generate PDF`;
+    message += `• \`@bot-markdown-renderer render template="academic-standard"\` - Built-in template\n`;
+    message += `• \`@bot-markdown-renderer render template="file:my-template"\` - File-based template\n`;
+    message += `• \`@bot-markdown-renderer render template="minimal" output="pdf"\` - Generate PDF`;
 
     return {
       messages: [{ content: message }]
@@ -1115,7 +1115,7 @@ async function uploadRenderedFile(
     
   formData.append('files', blob, filename);
   formData.append('fileType', 'RENDERED');
-  formData.append('renderedBy', 'markdown-renderer');
+  formData.append('renderedBy', 'bot-markdown-renderer');
   
   const response = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/files`, {
     method: 'POST',
@@ -1170,7 +1170,7 @@ function getFileDescription(filename: string): string {
 
 // Export the bot
 export const markdownRendererBot: CommandBot = {
-  id: 'markdown-renderer',
+  id: 'bot-markdown-renderer',
   name: 'Markdown Renderer',
   description: 'Renders Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines',
   version: '1.0.0',
@@ -1299,10 +1299,10 @@ export const markdownRendererBot: CommandBot = {
   },
   help: {
     overview: 'The Markdown Renderer bot converts Markdown manuscripts into professional PDFs using configurable journal templates and multiple rendering engines (HTML, LaTeX, Typst). Configuration is managed at the journal level.',
-    quickStart: 'Use `@markdown-renderer render` to convert your Markdown manuscript to PDF using your journal\'s configured template and rendering engine.',
+    quickStart: 'Use `@bot-markdown-renderer render` to convert your Markdown manuscript to PDF using your journal\'s configured template and rendering engine.',
     examples: [
-      '@markdown-renderer render - Render using journal configuration',
-      '@markdown-renderer templates - List available templates'
+      '@bot-markdown-renderer render - Render using journal configuration',
+      '@bot-markdown-renderer templates - List available templates'
     ]
   },
   customHelpSections: [
@@ -1313,7 +1313,7 @@ export const markdownRendererBot: CommandBot = {
     },
     {
       title: '🚀 Quick Start',
-      content: '1. Submit a Markdown manuscript\n2. Use `@markdown-renderer render` to convert to PDF\n3. Output format and template determined by journal configuration\n4. Contact admin to configure rendering engine and templates',
+      content: '1. Submit a Markdown manuscript\n2. Use `@bot-markdown-renderer render` to convert to PDF\n3. Output format and template determined by journal configuration\n4. Contact admin to configure rendering engine and templates',
       position: 'before'
     },
     {

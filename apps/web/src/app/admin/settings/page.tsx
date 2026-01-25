@@ -296,7 +296,7 @@ export default function JournalSettingsPage() {
 
   // Helper function to check if a bot is required
   const isRequiredBot = (botId: string) => {
-    return botId === 'editorial-bot';
+    return botId === 'bot-editorial';
   };
 
   // Fetch installed bots
@@ -1265,7 +1265,7 @@ export default function JournalSettingsPage() {
                 <Divider label="Auto-Invoke Commands" />
                 <Text size="sm" c="dimmed">
                   Bot commands to automatically run on every new submission.
-                  Use the format @bot-name command (e.g., @markdown-renderer render).
+                  Use the format @bot-name command (e.g., @bot-markdown-renderer render).
                 </Text>
                 {(settings.autoSubmissionCommands || []).map((cmd, index) => (
                   <Group key={index}>
@@ -1962,7 +1962,7 @@ export default function JournalSettingsPage() {
                   Files ({botFiles.length})
                 </Tabs.Tab>
               )}
-              {selectedBot?.botId === 'markdown-renderer-bot' && (
+              {selectedBot?.botId === 'bot-markdown-renderer' && (
                 <Tabs.Tab value="templates" leftSection={<IconFileText size={16} />}>
                   Built-in Templates
                 </Tabs.Tab>
@@ -2009,7 +2009,7 @@ export default function JournalSettingsPage() {
                     Upload and manage configuration files for {selectedBot?.name}.
                   </Text>
 
-                  {selectedBot?.botId === 'markdown-renderer-bot' && (
+                  {selectedBot?.botId === 'bot-markdown-renderer' && (
                     <Card withBorder p="md" bg="green.0">
                       <Stack gap="xs">
                         <Text size="sm" fw={500} c="green">
@@ -2200,7 +2200,7 @@ export default function JournalSettingsPage() {
             </Tabs.Panel>
             )}
 
-            {selectedBot?.botId === 'markdown-renderer-bot' && (
+            {selectedBot?.botId === 'bot-markdown-renderer' && (
               <Tabs.Panel value="templates" pt="md" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <Stack gap="md" style={{ height: '100%' }}>
                   <Text size="sm" c="dimmed">
@@ -2209,7 +2209,7 @@ export default function JournalSettingsPage() {
 
                   <Stack gap="md" style={{ flex: 1, overflowY: 'auto' }}>
                     {(() => {
-                      const markdownBot = bots.find(bot => bot.botId === 'markdown-renderer');
+                      const markdownBot = bots.find(bot => bot.botId === 'bot-markdown-renderer');
                       const config = markdownBot?.config;
                       
                       if (!config?.templates || Object.keys(config.templates).length === 0) {
@@ -2269,7 +2269,7 @@ export default function JournalSettingsPage() {
                             )}
                             
                             <Text size="xs" c="dimmed">
-                              Usage: <code>@markdown-renderer render template="{templateName}"</code>
+                              Usage: <code>@bot-markdown-renderer render template="{templateName}"</code>
                             </Text>
                           </Stack>
                         </Card>

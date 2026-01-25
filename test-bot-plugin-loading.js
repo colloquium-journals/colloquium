@@ -45,8 +45,8 @@ try {
   console.log('Registered bots:', parser.getAllBots().map(b => b.id));
   
   // Test parsing help commands
-  const editorialHelp = parser.parseMessage('@editorial-bot help');
-  const reviewerHelp = parser.parseMessage('@reviewer-checklist help');
+  const editorialHelp = parser.parseMessage('@bot-editorial help');
+  const reviewerHelp = parser.parseMessage('@bot-reviewer-checklist help');
   
   console.log('Editorial help parse result:', editorialHelp);
   console.log('Reviewer help parse result:', reviewerHelp);

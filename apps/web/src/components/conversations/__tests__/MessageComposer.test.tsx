@@ -159,28 +159,28 @@ describe('MessageComposer Bot Mention Functionality', () => {
     });
 
     // Verify that all expected bots are recognized
-    expect(screen.getByTestId('bot-editorial-bot')).toHaveTextContent('Editorial Bot');
-    expect(screen.getByTestId('bot-plagiarism-checker')).toHaveTextContent('Plagiarism Checker');
-    expect(screen.getByTestId('bot-reference-bot')).toHaveTextContent('Reference Bot');
+    expect(screen.getByTestId('bot-bot-editorial')).toHaveTextContent('Editorial Bot');
+    expect(screen.getByTestId('bot-bot-plagiarism-checker')).toHaveTextContent('Plagiarism Checker');
+    expect(screen.getByTestId('bot-bot-reference')).toHaveTextContent('Reference Bot');
     
     // Verify the bot data structure is correct
     expect(capturedAvailableBots).toHaveLength(3);
     expect(capturedAvailableBots).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: 'editorial-bot',
+          id: 'bot-editorial',
           name: 'Editorial Bot',
           isInstalled: true,
           isEnabled: true
         }),
         expect.objectContaining({
-          id: 'plagiarism-checker',
+          id: 'bot-plagiarism-checker',
           name: 'Plagiarism Checker',
           isInstalled: true,
           isEnabled: true
         }),
         expect.objectContaining({
-          id: 'reference-bot',
+          id: 'bot-reference',
           name: 'Reference Bot',
           isInstalled: true,
           isEnabled: true
@@ -213,11 +213,11 @@ describe('MessageComposer Bot Mention Functionality', () => {
           />
           <button 
             onClick={() => addBotMention({
-              id: 'editorial-bot',
+              id: 'bot-editorial',
               name: 'Editorial Bot',
               description: 'Assists with article editorial workflows'
             })}
-            data-testid="add-editorial-bot"
+            data-testid="add-bot-editorial"
           >
             Add Editorial Bot
           </button>
@@ -239,21 +239,21 @@ describe('MessageComposer Bot Mention Functionality', () => {
     );
 
     // Click to add Editorial Bot mention
-    const addButton = screen.getByTestId('add-editorial-bot');
+    const addButton = screen.getByTestId('add-bot-editorial');
     fireEvent.click(addButton);
 
     // Check if the textarea contains the correct bot ID mention
     const textarea = screen.getByTestId('message-input');
-    expect(textarea).toHaveValue('@editorial-bot ');
+    expect(textarea).toHaveValue('@bot-editorial ');
     
     // Check if the bot is tracked in mentioned bots
-    expect(screen.getByTestId('mentioned-editorial-bot')).toHaveTextContent('@editorial-bot');
+    expect(screen.getByTestId('mentioned-bot-editorial')).toHaveTextContent('@bot-editorial');
   });
 
   it('should display bot ID in mention badge, not display name', async () => {
     const TestMessageComposer = () => {
       const [mentionedBots, setMentionedBots] = useState([{
-        id: 'editorial-bot',
+        id: 'bot-editorial',
         name: 'Editorial Bot',
         color: 'blue'
       }]);
@@ -276,14 +276,14 @@ describe('MessageComposer Bot Mention Functionality', () => {
     );
 
     // Check if badge displays bot ID, not display name
-    expect(screen.getByTestId('mention-badge')).toHaveTextContent('@editorial-bot');
+    expect(screen.getByTestId('mention-badge')).toHaveTextContent('@bot-editorial');
     // Should NOT display the full name
     expect(screen.queryByText('@Editorial Bot')).not.toBeInTheDocument();
   });
 
   it('should remove bot mention when programmatically removing mention', async () => {
     const TestBotMentionComponent = () => {
-      const [content, setContent] = useState('@editorial-bot some text');
+      const [content, setContent] = useState('@bot-editorial some text');
       const [mentionedBots, setMentionedBots] = useState([mockBots[0]]);
       
       const removeBotMention = (botId: string) => {
@@ -328,16 +328,16 @@ describe('MessageComposer Bot Mention Functionality', () => {
     );
 
     // Verify bot is initially mentioned
-    expect(screen.getByTestId('mentioned-editorial-bot')).toBeInTheDocument();
+    expect(screen.getByTestId('mentioned-bot-editorial')).toBeInTheDocument();
     const textarea = screen.getByTestId('message-input');
-    expect(textarea).toHaveValue('@editorial-bot some text');
+    expect(textarea).toHaveValue('@bot-editorial some text');
 
     // Click remove button
-    const removeButton = screen.getByTestId('remove-editorial-bot');
+    const removeButton = screen.getByTestId('remove-bot-editorial');
     fireEvent.click(removeButton);
 
     // Verify bot mention is removed
-    expect(screen.queryByTestId('mentioned-editorial-bot')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mentioned-bot-editorial')).not.toBeInTheDocument();
     expect(textarea).toHaveValue('some text');
   });
 
@@ -365,7 +365,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
           />
           <button 
             onClick={() => addBotMention(mockBots[0])}
-            data-testid="add-editorial-bot"
+            data-testid="add-bot-editorial"
           >
             Add Editorial Bot
           </button>
@@ -383,13 +383,13 @@ describe('MessageComposer Bot Mention Functionality', () => {
     );
 
     // Add the same bot mention twice
-    const addButton = screen.getByTestId('add-editorial-bot');
+    const addButton = screen.getByTestId('add-bot-editorial');
     fireEvent.click(addButton);
     fireEvent.click(addButton); // Try to add again
 
     // Should only have one mention in the textarea
     const textarea = screen.getByTestId('message-input') as HTMLTextAreaElement;
-    expect(textarea.value.split('@editorial-bot').length - 1).toBe(1);
+    expect(textarea.value.split('@bot-editorial').length - 1).toBe(1);
     
     // Should only have one bot in mentioned bots
     expect(screen.getByTestId('mentioned-count')).toHaveTextContent('1');
@@ -419,13 +419,13 @@ describe('MessageComposer Bot Mention Functionality', () => {
           />
           <button 
             onClick={() => addBotMention(mockBots[0])}
-            data-testid="add-editorial-bot"
+            data-testid="add-bot-editorial"
           >
             Add Editorial Bot
           </button>
           <button 
             onClick={() => addBotMention(mockBots[1])}
-            data-testid="add-plagiarism-checker"
+            data-testid="add-bot-plagiarism-checker"
           >
             Add Plagiarism Checker
           </button>
@@ -447,19 +447,19 @@ describe('MessageComposer Bot Mention Functionality', () => {
     );
 
     // Add Editorial Bot mention
-    const editorialButton = screen.getByTestId('add-editorial-bot');
+    const editorialButton = screen.getByTestId('add-bot-editorial');
     fireEvent.click(editorialButton);
 
     // Add Plagiarism Checker mention
-    const plagiarismButton = screen.getByTestId('add-plagiarism-checker');
+    const plagiarismButton = screen.getByTestId('add-bot-plagiarism-checker');
     fireEvent.click(plagiarismButton);
 
     // Check if both bots are mentioned
-    expect(screen.getByTestId('mentioned-editorial-bot')).toHaveTextContent('@editorial-bot');
-    expect(screen.getByTestId('mentioned-plagiarism-checker')).toHaveTextContent('@plagiarism-checker');
+    expect(screen.getByTestId('mentioned-bot-editorial')).toHaveTextContent('@bot-editorial');
+    expect(screen.getByTestId('mentioned-bot-plagiarism-checker')).toHaveTextContent('@bot-plagiarism-checker');
 
     const textarea = screen.getByTestId('message-input');
-    expect(textarea).toHaveValue('@editorial-bot  @plagiarism-checker ');
+    expect(textarea).toHaveValue('@bot-editorial  @bot-plagiarism-checker ');
   });
 
   it('should handle API error gracefully when fetching bots', async () => {
@@ -490,7 +490,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
     
     // Should only include enabled and installed bots
     expect(filteredBots).toHaveLength(3);
-    expect(filteredBots.map(bot => bot.id)).toEqual(['editorial-bot', 'plagiarism-checker', 'reference-bot']);
+    expect(filteredBots.map(bot => bot.id)).toEqual(['bot-editorial', 'bot-plagiarism-checker', 'bot-reference']);
     
     // Should not include disabled or uninstalled bots
     expect(filteredBots.find(bot => bot.id === 'disabled-bot')).toBeUndefined();
@@ -508,7 +508,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
     const mockOnSubmit = jest.fn();
     
     const TestMessageComposer = () => {
-      const [content, setContent] = useState('@editorial-bot help with this article');
+      const [content, setContent] = useState('@bot-editorial help with this article');
       
       const handleSubmit = () => {
         mockOnSubmit(content, 'AUTHOR_VISIBLE');
@@ -540,7 +540,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
 
     // Verify that the message was sent with the bot ID preserved
     expect(mockOnSubmit).toHaveBeenCalledWith(
-      '@editorial-bot help with this article',
+      '@bot-editorial help with this article',
       'AUTHOR_VISIBLE'
     );
   });
@@ -575,12 +575,12 @@ describe('MessageComposer Bot Mention Functionality', () => {
     // Type bot mention manually
     const textarea = screen.getByTestId('message-input');
     fireEvent.change(textarea, { 
-      target: { value: '@editorial-bot help with this article' } 
+      target: { value: '@bot-editorial help with this article' } 
     });
 
     // Verify that manually typed bot IDs are preserved correctly
-    expect(screen.getByTestId('content-display')).toHaveTextContent('@editorial-bot help with this article');
-    expect(textarea).toHaveValue('@editorial-bot help with this article');
+    expect(screen.getByTestId('content-display')).toHaveTextContent('@bot-editorial help with this article');
+    expect(textarea).toHaveValue('@bot-editorial help with this article');
   });
 
   // Specific regression tests for bot recognition issue
@@ -728,9 +728,9 @@ describe('MessageComposer Bot Mention Functionality', () => {
       });
 
       // Should show only enabled and installed bots
-      expect(screen.getByTestId('enabled-bot-editorial-bot')).toHaveTextContent('Editorial Bot');
-      expect(screen.getByTestId('enabled-bot-plagiarism-checker')).toHaveTextContent('Plagiarism Checker');
-      expect(screen.getByTestId('enabled-bot-reference-bot')).toHaveTextContent('Reference Bot');
+      expect(screen.getByTestId('enabled-bot-bot-editorial')).toHaveTextContent('Editorial Bot');
+      expect(screen.getByTestId('enabled-bot-bot-plagiarism-checker')).toHaveTextContent('Plagiarism Checker');
+      expect(screen.getByTestId('enabled-bot-bot-reference')).toHaveTextContent('Reference Bot');
 
       // Should NOT include disabled or uninstalled bots in the results
       expect(capturedAvailableBots.find(bot => bot.id === 'disabled-bot')).toBeUndefined();
