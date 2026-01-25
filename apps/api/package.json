@@ -15,6 +15,8 @@
     "migrate-published-assets": "tsx src/scripts/migrate-published-assets.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.478.0",
+    "@aws-sdk/lib-storage": "^3.478.0",
     "@colloquium/auth": "*",
     "@colloquium/bots": "*",
     "@colloquium/database": "*",
@@ -23,8 +25,9 @@
     "@colloquium/reference-bot": "*",
     "@colloquium/reviewer-checklist-bot": "*",
     "@colloquium/types": "*",
+    "@google-cloud/storage": "^7.7.0",
+    "axios": "^1.9.0",
     "bcrypt": "^5.1.1",
-    "bull": "^4.11.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -32,18 +35,14 @@
     "express": "^4.18.2",
     "express-session": "^1.18.1",
     "fs-extra": "^11.1.1",
+    "graphile-worker": "^0.16.6",
     "helmet": "^7.0.0",
-    "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.0",
     "redis": "^4.6.0",
-    "axios": "^1.9.0",
-    "zod": "^3.22.0",
-    "@aws-sdk/client-s3": "^3.478.0",
-    "@aws-sdk/lib-storage": "^3.478.0",
-    "@google-cloud/storage": "^7.7.0"
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "@colloquium/eslint-config": "*",

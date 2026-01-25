@@ -55,12 +55,6 @@ variable "db_allocated_storage" {
   default     = 20
 }
 
-variable "redis_node_type" {
-  description = "ElastiCache node type"
-  type        = string
-  default     = "cache.t3.micro"
-}
-
 variable "web_cpu" {
   description = "CPU units for web container (1024 = 1 vCPU)"
   type        = number

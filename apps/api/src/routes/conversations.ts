@@ -6,7 +6,7 @@ import { WorkflowConfig, WorkflowPhase } from '@colloquium/types';
 import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
 import { botActionProcessor } from '../services/botActionProcessor';
-import { getBotQueue } from '../jobs';
+import { addBotJob } from '../jobs';
 import { randomUUID } from 'crypto';
 import {
   canUserSeeMessageWithWorkflow,
@@ -605,22 +605,12 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       try {
         console.log(`Queuing bot processing for message ${message.id} with content: "${content.substring(0, 100)}..."`);
         
-        const botQueue = getBotQueue();
-        
-        // Add job to the bot processing queue
-        await botQueue.add('bot-processing', {
+        // Add job to the bot processing queue (uses PostgreSQL via graphile-worker)
+        await addBotJob({
           messageId: message.id,
           conversationId,
           userId: req.user!.id,
           manuscriptId: conversation.manuscriptId
-        }, {
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 2000,
-          },
-          removeOnComplete: true, // Remove completed jobs to save memory
-          removeOnFail: false,    // Keep failed jobs for debugging
         });
         
         console.log(`Bot processing job queued successfully for message ${message.id}`);

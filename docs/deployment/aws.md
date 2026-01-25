@@ -1,6 +1,6 @@
 # AWS Deployment Guide
 
-Deploy Colloquium to Amazon Web Services using ECS Fargate, RDS, and ElastiCache.
+Deploy Colloquium to Amazon Web Services using ECS Fargate and RDS.
 
 ## Prerequisites
 
@@ -70,9 +70,7 @@ The AWS deployment creates the following infrastructure:
 │  │  │  └──────────────┘  │    │          ▼              │   │  │
 │  │  └─────────────────────┘    │  ┌─────────────────┐   │   │  │
 │  │                             │  │   RDS Postgres   │   │   │  │
-│  │                             │  └─────────────────┘   │   │  │
-│  │                             │  ┌─────────────────┐   │   │  │
-│  │                             │  │ ElastiCache Redis│   │   │  │
+│  │                             │  │  (+ job queue)   │   │   │  │
 │  │                             │  └─────────────────┘   │   │  │
 │  │                             └─────────────────────────┘   │  │
 │  └───────────────────────────────────────────────────────────┘  │
@@ -93,8 +91,7 @@ The AWS deployment creates the following infrastructure:
 | ALB | Elastic Load Balancing | HTTP/HTTPS traffic distribution |
 | ECS Cluster | Elastic Container Service | Container orchestration |
 | Fargate Tasks | ECS Fargate | Serverless containers (web + API) |
-| RDS Instance | Amazon RDS | PostgreSQL 15 database |
-| ElastiCache | Amazon ElastiCache | Redis 7 for job queues |
+| RDS Instance | Amazon RDS | PostgreSQL 15 database (also handles job queue) |
 | S3 Buckets | Amazon S3 | File uploads and published assets |
 | Secrets | Secrets Manager | Secure credential storage |
 | Log Group | CloudWatch | Application logging |
@@ -110,10 +107,6 @@ Edit `terraform/terraform.tfvars` to customize your deployment:
 db_instance_class = "db.t3.micro"    # Development
 db_instance_class = "db.t3.small"    # Production
 db_instance_class = "db.t3.medium"   # High traffic
-
-# Redis (affects queue processing)
-redis_node_type = "cache.t3.micro"   # Default
-redis_node_type = "cache.t3.small"   # Higher throughput
 
 # Container resources
 web_cpu    = 256   # 0.25 vCPU
@@ -158,13 +151,14 @@ smtp_from = "noreply@journal.example.com"
 | Component | Monthly Cost (min config) |
 |-----------|--------------------------|
 | RDS db.t3.micro | ~$15 |
-| ElastiCache cache.t3.micro | ~$12 |
 | NAT Gateway | ~$32 |
 | ALB | ~$16 |
 | ECS Fargate (1 task each) | ~$8 |
 | S3 | <$1 (depends on usage) |
 | CloudWatch | <$1 |
-| **Total** | **~$60-80/month** |
+| **Total** | **~$50-65/month** |
+
+Job queue uses PostgreSQL (via graphile-worker) instead of Redis, eliminating ElastiCache costs.
 
 To reduce costs for development:
 - Use FARGATE_SPOT capacity provider (set in `ecs.tf`)
@@ -230,7 +224,7 @@ aws rds create-db-snapshot \
 
 ## Security Considerations
 
-1. **Network Isolation**: Database and Redis are in private subnets with no public access
+1. **Network Isolation**: Database is in private subnets with no public access
 2. **Encryption**: S3 buckets use server-side encryption, RDS uses storage encryption
 3. **Secrets**: Credentials stored in AWS Secrets Manager, not in environment variables
 4. **Security Groups**: Minimal ingress rules - only necessary ports between services

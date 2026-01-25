@@ -29,12 +29,6 @@ output "database_connection_name" {
   sensitive   = true
 }
 
-output "redis_host" {
-  description = "Memorystore Redis host"
-  value       = google_redis_instance.main.host
-  sensitive   = true
-}
-
 output "vpc_connector_name" {
   description = "VPC connector name for serverless services"
   value       = google_vpc_access_connector.main.name

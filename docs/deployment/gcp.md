@@ -93,8 +93,7 @@ The GCP deployment creates the following infrastructure:
 |----------|-------------|---------|
 | VPC Network | Compute Engine | Network isolation |
 | VPC Connector | Serverless VPC Access | Connect Cloud Run to private network |
-| Cloud SQL | Cloud SQL for PostgreSQL | PostgreSQL 15 database |
-| Memorystore | Memorystore for Redis | Redis 7 for job queues |
+| Cloud SQL | Cloud SQL for PostgreSQL | PostgreSQL 15 database (also handles job queue) |
 | Web Service | Cloud Run | Next.js web application |
 | API Service | Cloud Run | Express.js API server |
 | Uploads Bucket | Cloud Storage | Private file uploads |
@@ -113,10 +112,6 @@ Edit `terraform/terraform.tfvars` to customize your deployment:
 db_tier = "db-f1-micro"        # Development (~$7/month)
 db_tier = "db-g1-small"        # Production (~$25/month)
 db_tier = "db-custom-1-3840"   # High traffic (~$50/month)
-
-# Redis (affects queue processing)
-redis_memory_size_gb = 1       # Basic tier
-redis_memory_size_gb = 2       # Higher throughput
 
 # Container resources
 web_cpu    = "1"       # 1 vCPU
@@ -161,14 +156,15 @@ smtp_from = "noreply@journal.example.com"
 | Component | Monthly Cost (min config) |
 |-----------|--------------------------|
 | Cloud SQL db-f1-micro | ~$7 |
-| Memorystore 1GB Basic | ~$35 |
 | VPC Connector | ~$6 |
 | Cloud Run | Pay-per-use (scale-to-zero) |
 | Cloud Storage | <$1 (depends on usage) |
 | Cloud Logging | <$1 |
-| **Total** | **~$40-70/month** |
+| **Total** | **~$15-20/month** |
 
-Key advantage: Cloud Run's scale-to-zero means you only pay for actual usage, making it cost-effective for journals with variable traffic.
+Key advantages:
+- Cloud Run's scale-to-zero means you only pay for actual usage
+- Job queue uses PostgreSQL (via graphile-worker) instead of Redis, eliminating Memorystore costs
 
 ## Operations
 

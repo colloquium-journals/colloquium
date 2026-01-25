@@ -106,8 +106,6 @@ resource "aws_ecs_task_definition" "api" {
         { name = "STORAGE_TYPE", value = "S3" },
         { name = "AWS_S3_BUCKET", value = aws_s3_bucket.uploads.id },
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "REDIS_HOST", value = aws_elasticache_cluster.main.cache_nodes[0].address },
-        { name = "REDIS_PORT", value = "6379" },
         { name = "ADMIN_EMAIL", value = var.admin_email },
         { name = "SELECTED_BOTS", value = join(",", var.selected_bots) },
         { name = "SMTP_HOST", value = var.smtp_host },

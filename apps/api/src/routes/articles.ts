@@ -10,7 +10,7 @@ import { authenticate, requirePermission, optionalAuth, authenticateWithBots } f
 import { Permission, hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermission, hasGlobalPermission } from '@colloquium/auth';
 import { fileStorage } from '../services/fileStorage';
 import { formatDetection } from '../services/formatDetection';
-import { getBotQueue } from '../jobs';
+import { addBotJob } from '../jobs';
 
 const router = Router();
 
@@ -569,8 +569,6 @@ router.post('/', authenticate, (req, res, next) => {
         });
         if (!botUser) return;
 
-        const botQueue = getBotQueue();
-
         for (const command of autoCommands) {
           const message = await prisma.messages.create({
             data: {
@@ -585,16 +583,12 @@ router.post('/', authenticate, (req, res, next) => {
             }
           });
 
-          await botQueue.add('bot-processing', {
+          // Add job to the bot processing queue (uses PostgreSQL via graphile-worker)
+          await addBotJob({
             messageId: message.id,
             conversationId: result.conversation.id,
             userId: botUser.id,
             manuscriptId: result.manuscript.id
-          }, {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 2000 },
-            removeOnComplete: true,
-            removeOnFail: false,
           });
         }
       } catch (err) {

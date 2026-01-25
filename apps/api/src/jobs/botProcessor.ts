@@ -1,4 +1,3 @@
-import { Job } from 'bull';
 import { prisma } from '@colloquium/database';
 import { botExecutor } from '../bots/index';
 import { broadcastToConversation } from '../routes/events';
@@ -7,10 +6,10 @@ import { BotProcessingJob } from './index';
 import { randomUUID } from 'crypto';
 import { BotActionProcessor } from '../services/botActionProcessor';
 
-export const processBotJob = async (job: Job<BotProcessingJob>) => {
-  const { messageId, conversationId, userId, manuscriptId } = job.data;
-  
-  
+export const processBotJob = async (payload: BotProcessingJob) => {
+  const { messageId, conversationId, userId, manuscriptId } = payload;
+
+
   try {
     // Fetch the message and related data
     const message = await prisma.messages.findUnique({
@@ -60,7 +59,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
     });
 
     if (botResponses && botResponses.length > 0) {
-      
+
       // Process each bot response
       for (const botResponse of botResponses) {
         if (botResponse.messages && botResponse.botId) {
@@ -130,7 +129,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
             userId: userId,
             conversationId: conversationId
           };
-          
+
           try {
             await actionProcessor.processActions(botResponse.actions, actionContext);
           } catch (actionError) {
@@ -156,7 +155,7 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
 
   } catch (error) {
     console.error(`Bot processing failed for message ${messageId}:`, error);
-    
+
     // Create a user-visible error message for critical failures
     try {
       // Try to get system bot user ID, fallback to first available bot user
@@ -212,4 +211,3 @@ export const processBotJob = async (job: Job<BotProcessingJob>) => {
     throw error; // Re-throw to mark the job as failed
   }
 };
-

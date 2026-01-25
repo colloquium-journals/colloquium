@@ -54,12 +54,6 @@ variable "db_disk_size" {
   default     = 10
 }
 
-variable "redis_memory_size_gb" {
-  description = "Memorystore Redis memory size in GB"
-  type        = number
-  default     = 1
-}
-
 variable "web_cpu" {
   description = "CPU for web container (e.g., '1' or '2')"
   type        = string

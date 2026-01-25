@@ -10,12 +10,6 @@ resource "google_project_iam_member" "cloudrun_sql" {
   member  = "serviceAccount:${google_service_account.cloudrun.email}"
 }
 
-resource "google_project_iam_member" "cloudrun_redis" {
-  project = var.project_id
-  role    = "roles/redis.editor"
-  member  = "serviceAccount:${google_service_account.cloudrun.email}"
-}
-
 resource "google_project_iam_member" "cloudrun_logging" {
   project = var.project_id
   role    = "roles/logging.logWriter"

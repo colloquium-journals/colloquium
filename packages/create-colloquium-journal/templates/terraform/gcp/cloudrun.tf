@@ -154,16 +154,6 @@ resource "google_cloud_run_v2_service" "api" {
       }
 
       env {
-        name  = "REDIS_HOST"
-        value = google_redis_instance.main.host
-      }
-
-      env {
-        name  = "REDIS_PORT"
-        value = "6379"
-      }
-
-      env {
         name  = "ADMIN_EMAIL"
         value = var.admin_email
       }
