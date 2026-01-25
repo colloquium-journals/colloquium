@@ -10,14 +10,15 @@ This document outlines the technical approach for transforming Colloquium from a
 - **✅ Solid Foundation**: Production-ready infrastructure with comprehensive testing
 - **✅ Complete Feature Set**: All core journal functionality implemented
 - **✅ Bot Ecosystem**: Sophisticated plugin architecture ready for multi-tenancy
-- **❌ Single-Tenant Architecture**: Currently designed for one journal per deployment
+- **✅ Instance-Per-Journal Architecture**: CLI generates isolated instances
+- **✅ Cloud Storage**: S3 and GCS implementations complete
+- **✅ Cloud Deployment**: AWS (ECS/RDS/ElastiCache) and GCP (Cloud Run/Cloud SQL/Memorystore) via Terraform
 
-### Key Challenges
-1. **Database Schema**: Single-tenant design with global settings
-2. **Bot System**: Global bot installations without tenant isolation
-3. **File Storage**: Shared upload directories and asset management
-4. **Authentication**: Global user roles without tenant context
-5. **Deployment**: Single-instance Docker configuration
+### Remaining Work
+1. **Bot Configuration**: Instance-specific bot installation and configuration
+2. **Interactive Mode**: Guided CLI setup for non-technical users
+3. **Additional Platforms**: Railway, Fly.io, Render, Azure, Kubernetes
+4. **Managed Hosting**: Optional SaaS offering (Phase 4)
 
 ## Proposed Solution: Self-Hosted First Architecture
 
@@ -507,25 +508,25 @@ npx create-colloquium-journal init "My Journal" \
 
 ## Implementation Plan
 
-### Phase 1: Instance Generator Foundation (Months 1-2)
+### Phase 1: Instance Generator Foundation (Months 1-2) ✅ COMPLETED
 **Goal**: Build the core instance generation system
 
 #### Instance Generator CLI
-- [ ] Build `create-colloquium-journal` NPM package (works with npx)
-- [ ] Configuration file generation (Docker, Nginx, etc.)
-- [ ] Database initialization scripts
+- [x] Build `create-colloquium-journal` NPM package (works with npx)
+- [x] Configuration file generation (Docker, Nginx, etc.)
+- [x] Database initialization scripts
 - [ ] Bot installation and configuration system
-- [ ] Template system for customization
+- [x] Template system for customization
 
 #### Core Deployment Templates
-- [ ] Docker Compose templates for different configurations
+- [x] Docker Compose templates for different configurations
 - [ ] Kubernetes deployment manifests
 - [ ] Deployment-agnostic configurations (Railway, Fly.io, Render)
 - [ ] Pulumi templates for multi-cloud deployment
-- [ ] Terraform templates for AWS/GCP/Azure
-- [ ] Cloud-native service configurations
-- [ ] SSL certificate automation (Let's Encrypt + cloud providers)
-- [ ] Backup and maintenance scripts
+- [x] Terraform templates for AWS/GCP (11 AWS files, 10 GCP files)
+- [x] Cloud-native service configurations (ECS Fargate, Cloud Run)
+- [x] SSL certificate automation (ACM for AWS, managed certs for GCP)
+- [x] Backup and maintenance scripts (deploy.sh, teardown.sh)
 
 #### Required Changes to Current Codebase:
 ```typescript
@@ -559,18 +560,18 @@ JWT_SECRET={{JWT_SECRET}}
 
 #### CLI Enhancement
 - [ ] Interactive mode for guided setup
-- [ ] Configuration validation and testing
-- [ ] Template customization options
-- [ ] Advanced deployment configurations
+- [x] Configuration validation and testing (via CI/CD Terraform validation)
+- [x] Template customization options (terraform.tfvars)
+- [x] Advanced deployment configurations (AWS/GCP flags)
 - [ ] Error handling and recovery
 
 #### Documentation & Support
-- [ ] Comprehensive deployment guides
+- [x] Comprehensive deployment guides (`docs/deployment/aws.md`, `gcp.md`)
 - [ ] Video tutorials for common setups
 - [ ] Community forum and support system
 - [ ] Bot marketplace with installation guides
 - [ ] Best practices documentation
-- [ ] Troubleshooting guides
+- [x] Troubleshooting guides (`docs/deployment/troubleshooting.md`)
 
 ### Phase 3: Advanced Deployment Options (Months 5-6)
 **Goal**: Support enterprise and complex deployment scenarios
@@ -579,15 +580,15 @@ JWT_SECRET={{JWT_SECRET}}
 - [ ] Kubernetes Helm charts
 - [ ] Multi-region deployment support
 - [ ] Advanced monitoring and logging
-- [ ] Custom domain and SSL automation
+- [x] Custom domain and SSL automation (via ALB/Cloud Load Balancer)
 - [ ] Integration with institutional SSO
 
 #### Cloud Provider Integration
-- [ ] AWS deployment with ECS + RDS + ElastiCache
-- [ ] GCP deployment with Cloud Run + Cloud SQL + Memorystore
+- [x] AWS deployment with ECS + RDS + ElastiCache + S3 + ALB
+- [x] GCP deployment with Cloud Run + Cloud SQL + Memorystore + Cloud Storage
 - [ ] Azure deployment with Container Instances + PostgreSQL + Redis
 - [ ] DigitalOcean App Platform integration
-- [ ] Terraform/CDK support for infrastructure as code
+- [x] Terraform support for infrastructure as code
 
 ### Phase 4: Managed Hosting Service (Months 7-8)
 **Goal**: Launch optional managed hosting for revenue

@@ -40,10 +40,17 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Deployment & Operations
 
-- [ ] Instance creation CLI tool (see [instance-creation-deployment-plan.md](instance-creation-deployment-plan.md))
-- [ ] Production Docker configurations
-- [ ] Cloud storage integration (S3/GCS/Azure)
-- [ ] CI/CD pipeline
+- [x] Instance creation CLI tool (see [instance-creation-deployment-plan.md](instance-creation-deployment-plan.md))
+  - [x] `create-colloquium-journal` CLI with Docker, AWS, and GCP support
+  - [x] AWS Terraform templates (ECS Fargate, RDS, ElastiCache, S3, ALB)
+  - [x] GCP Terraform templates (Cloud Run, Cloud SQL, Memorystore, Cloud Storage)
+  - [x] Deployment documentation (`docs/deployment/aws.md`, `gcp.md`, `troubleshooting.md`)
+- [x] Production Docker configurations
+- [x] Cloud storage integration (S3/GCS)
+  - [x] S3 storage implementation with `@aws-sdk/client-s3`
+  - [x] GCS storage implementation with `@google-cloud/storage`
+  - [x] Storage configuration factory (`apps/api/src/config/storage.ts`)
+- [x] CI/CD pipeline for Terraform validation (`.github/workflows/terraform-validate.yml`)
 - [ ] Backup and disaster recovery automation
 - [ ] Performance monitoring and logging
 
