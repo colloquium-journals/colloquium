@@ -42,9 +42,13 @@ High-level roadmap of unimplemented features and planned work.
 
 - [x] Instance creation CLI tool (see [instance-creation-deployment-plan.md](instance-creation-deployment-plan.md))
   - [x] `create-colloquium-journal` CLI with Docker, AWS, and GCP support
-  - [x] AWS Terraform templates (ECS Fargate, RDS, ElastiCache, S3, ALB)
-  - [x] GCP Terraform templates (Cloud Run, Cloud SQL, Memorystore, Cloud Storage)
+  - [x] AWS Terraform templates (ECS Fargate, RDS, S3, ALB)
+  - [x] GCP Terraform templates (Cloud Run, Cloud SQL, Cloud Storage)
   - [x] Deployment documentation (`docs/deployment/aws.md`, `gcp.md`, `troubleshooting.md`)
+- [x] PostgreSQL-based job queue (graphile-worker)
+  - [x] Replaced Bull/Redis with graphile-worker for async bot processing
+  - [x] Uses PostgreSQL LISTEN/NOTIFY (no polling, no Redis needed)
+  - [x] Removed Memorystore (GCP) and ElastiCache (AWS) - saves ~$35-40/month
 - [x] Production Docker configurations
 - [x] Cloud storage integration (S3/GCS)
   - [x] S3 storage implementation with `@aws-sdk/client-s3`
@@ -56,7 +60,7 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Infrastructure
 
-- [ ] Redis caching layer
+- [ ] Redis caching layer (optional - for high-traffic caching only, not needed for job queue)
 - [ ] WebSocket scaling (replace/augment SSE)
 - [ ] Database connection pooling and query optimization
 - [ ] CDN for published static assets

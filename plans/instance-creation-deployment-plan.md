@@ -12,7 +12,8 @@ This document outlines the technical approach for transforming Colloquium from a
 - **✅ Bot Ecosystem**: Sophisticated plugin architecture ready for multi-tenancy
 - **✅ Instance-Per-Journal Architecture**: CLI generates isolated instances
 - **✅ Cloud Storage**: S3 and GCS implementations complete
-- **✅ Cloud Deployment**: AWS (ECS/RDS/ElastiCache) and GCP (Cloud Run/Cloud SQL/Memorystore) via Terraform
+- **✅ Cloud Deployment**: AWS (ECS/RDS/S3) and GCP (Cloud Run/Cloud SQL/Cloud Storage) via Terraform
+- **✅ PostgreSQL Job Queue**: Uses graphile-worker instead of Redis (eliminates Memorystore/ElastiCache costs)
 
 ### Remaining Work
 1. **Bot Configuration**: Instance-specific bot installation and configuration
@@ -584,9 +585,9 @@ JWT_SECRET={{JWT_SECRET}}
 - [ ] Integration with institutional SSO
 
 #### Cloud Provider Integration
-- [x] AWS deployment with ECS + RDS + ElastiCache + S3 + ALB
-- [x] GCP deployment with Cloud Run + Cloud SQL + Memorystore + Cloud Storage
-- [ ] Azure deployment with Container Instances + PostgreSQL + Redis
+- [x] AWS deployment with ECS + RDS + S3 + ALB (no Redis - uses PostgreSQL job queue)
+- [x] GCP deployment with Cloud Run + Cloud SQL + Cloud Storage (no Redis - uses PostgreSQL job queue)
+- [ ] Azure deployment with Container Instances + PostgreSQL
 - [ ] DigitalOcean App Platform integration
 - [x] Terraform support for infrastructure as code
 
