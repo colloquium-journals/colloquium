@@ -7,15 +7,17 @@
 Create a new bot package using npx (no installation required):
 
 ```bash
-npx create-colloquium-bot my-awesome-bot
+npx create-colloquium-bot bot-my-awesome
 ```
 
 Or install globally:
 
 ```bash
 npm install -g create-colloquium-bot
-create-colloquium-bot my-awesome-bot
+create-colloquium-bot bot-my-awesome
 ```
+
+**Note:** Bot names must start with `bot-` prefix (e.g., `bot-my-awesome`, `bot-plagiarism-checker`).
 
 ## Features
 
@@ -37,7 +39,7 @@ npx create-colloquium-bot
 
 The CLI will guide you through the setup process:
 
-1. **Bot Name**: Choose a unique identifier (lowercase, hyphens allowed)
+1. **Bot Name**: Choose a unique identifier starting with `bot-` prefix (lowercase, hyphens allowed)
 2. **Description**: Describe what your bot does
 3. **Category**: Select from predefined categories
 4. **Author Info**: Your name, email, and website
@@ -69,7 +71,7 @@ Options:
 A complete bot package with:
 
 ```
-my-awesome-bot/
+bot-my-awesome/
 ├── src/
 │   └── index.ts          # Main bot implementation
 ├── tests/
@@ -97,7 +99,7 @@ my-awesome-bot/
 ```typescript
 // Generated bot with analyze command
 export const MyAwesomeBot = {
-  id: 'my-awesome-bot',
+  id: 'bot-my-awesome',  // Bot IDs must start with 'bot-' prefix
   name: 'My Awesome Bot',
   commands: [
     {
@@ -134,7 +136,7 @@ Choose from these predefined categories:
 After generating your bot:
 
 ```bash
-cd my-awesome-bot
+cd bot-my-awesome
 
 # Install dependencies
 npm install
@@ -239,13 +241,14 @@ When ready to publish your bot:
 3. **Build Package**: `npm run build`
 4. **Publish**: `npm publish`
 
-### npm Package Naming
+### Naming Conventions
 
 Follow these conventions:
 
-- **Scoped**: `@yourorg/bot-name` (recommended)
+- **Bot IDs**: Must start with `bot-` prefix (e.g., `bot-plagiarism-checker`)
+- **Package names**: Use `-bot` suffix: `@yourorg/plagiarism-checker-bot`
 - **Descriptive**: Use clear, searchable names
-- **Consistent**: Follow `*-bot` suffix pattern
+- **Reserved prefix**: The `bot-` username prefix is reserved for system bots
 
 ## Templates
 
@@ -270,21 +273,21 @@ Follow these conventions:
 
 ### Create Analysis Bot
 ```bash
-npx create-colloquium-bot manuscript-analyzer
+npx create-colloquium-bot bot-manuscript-analyzer
 # Choose "analysis" category
 # Implement custom analysis logic
 ```
 
 ### Create Integration Bot
 ```bash
-npx create-colloquium-bot slack-notifier
-# Choose "integration" category  
+npx create-colloquium-bot bot-slack-notifier
+# Choose "integration" category
 # Add Slack webhook integration
 ```
 
 ### Create Quality Bot
 ```bash
-npx create-colloquium-bot citation-checker
+npx create-colloquium-bot bot-citation-checker
 # Choose "quality" category
 # Implement citation validation
 ```
@@ -338,7 +341,7 @@ Error: Invalid package name "@myorg/existing-bot": already exists
 
 **Solution**: Choose a unique name or scope:
 ```bash
-npx create-colloquium-bot my-unique-bot-name
+npx create-colloquium-bot bot-my-unique-feature
 ```
 
 ### Permission Issues
@@ -351,7 +354,7 @@ Error: EACCES: permission denied, mkdir '/path/to/bot'
 **Solution**: Check directory permissions or choose different location:
 ```bash
 cd ~/projects
-npx create-colloquium-bot my-bot
+npx create-colloquium-bot bot-my-feature
 ```
 
 ## Support

@@ -192,7 +192,7 @@ class MyCustomAction implements BotAction {
 import { Bot } from '../BotRegistry';
 
 export const MyCustomBot: Bot = {
-  id: 'my-custom-bot',
+  id: 'bot-my-custom',  // Bot IDs must start with 'bot-' prefix
   name: 'My Custom Bot',
   description: 'Detailed description of what this bot does',
   version: '1.0.0',
@@ -289,10 +289,10 @@ await BotRegistry.installBot('my-custom-bot', {
 
 ### 1. Mention in Conversations
 
-Users can mention bots in conversation messages:
+Users can mention bots in conversation messages using their bot ID (always starts with `bot-`):
 
 ```
-@Editorial Bot please assign john.doe@university.edu as a reviewer for this manuscript
+@bot-editorial please assign john.doe@university.edu as a reviewer for this manuscript
 ```
 
 ### 2. Direct API Execution
@@ -501,10 +501,11 @@ describe('Editorial Bot', () => {
 
 ### Common Issues
 
-1. **"Bot not found"**: Ensure bot is registered in `initializeBots()`
+1. **"Bot not found"**: Ensure bot is registered in `initializeBots()` and bot ID starts with `bot-` prefix
 2. **"Permission denied"**: Check user role and bot permissions
 3. **"Bot not installed"**: Install bot via API or programmatically
 4. **"Action failed"**: Check execution logs for detailed error messages
+5. **"Invalid bot ID"**: Bot IDs must start with `bot-` prefix (e.g., `bot-my-custom`)
 
 ### Debugging
 
@@ -513,15 +514,15 @@ describe('Editorial Bot', () => {
 console.log('Bot execution context:', context);
 console.log('Input parameters:', input);
 
-// Check bot registration
-const bot = BotRegistry.getBot('my-bot-id');
+// Check bot registration (bot IDs start with 'bot-' prefix)
+const bot = BotRegistry.getBot('bot-my-custom');
 console.log('Bot registered:', !!bot);
 
 // Verify permissions
 const hasPermission = await BotRegistry.checkPermission(
-  'my-bot-id', 
-  'my-action', 
-  userId, 
+  'bot-my-custom',
+  'my-action',
+  userId,
   manuscriptId
 );
 console.log('User has permission:', hasPermission);

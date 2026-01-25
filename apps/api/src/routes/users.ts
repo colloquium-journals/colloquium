@@ -15,7 +15,10 @@ const updateRoleSchema = z.object({
 
 const updateProfileSchema = z.object({
   name: z.string().optional(),
-  username: z.string().regex(/^[a-z][a-z0-9-]{2,29}$/, 'Username must be 3-30 characters, start with a letter, and contain only lowercase letters, numbers, and hyphens').optional(),
+  username: z.string()
+    .regex(/^[a-z][a-z0-9-]{2,29}$/, 'Username must be 3-30 characters, start with a letter, and contain only lowercase letters, numbers, and hyphens')
+    .refine(val => !val.startsWith('bot-'), 'Usernames starting with "bot-" are reserved for system bots')
+    .optional(),
   bio: z.string().optional(),
   affiliation: z.string().optional(),
   website: z.string().url().optional()
@@ -143,6 +146,11 @@ router.get('/check-username/:username', authenticate, async (req, res, next) => 
 
     if (!usernameRegex.test(username)) {
       return res.json({ available: false, reason: 'Invalid format' });
+    }
+
+    // Reject usernames starting with 'bot-' (reserved for system bots)
+    if (username.startsWith('bot-')) {
+      return res.json({ available: false, reason: 'Reserved prefix' });
     }
 
     const existing = await prisma.users.findUnique({

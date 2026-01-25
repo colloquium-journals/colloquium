@@ -124,8 +124,13 @@ REDIS_PORT=6379
 
 ### Conversation System
 - **Privacy levels**: PUBLIC, AUTHOR_VISIBLE, REVIEWER_ONLY, EDITOR_ONLY, ADMIN_ONLY
-- **Bot mentions**: `@bot-name command` triggers async processing
+- **Bot mentions**: `@bot-<name> command` triggers async processing (all bot IDs must start with `bot-` prefix)
 - **Real-time**: Server-Sent Events for live updates
+
+### Bot Naming Convention
+- **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference`, `bot-reviewer-checklist`)
+- **Package folders**: Use `-bot` suffix (e.g., `editorial-bot/`, `reference-bot/`)
+- **Reserved prefix**: The `bot-` username prefix is reserved for system bots - non-bot accounts cannot use usernames starting with `bot-`
 
 ## Environment Setup
 

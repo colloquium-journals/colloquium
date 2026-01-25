@@ -6,8 +6,8 @@ The Editorial Bot is Colloquium's core manuscript management assistant, designed
 
 The Editorial Bot assists with manuscript editorial workflows, status updates, and reviewer assignments. It provides a conversational interface for managing the entire review process from submission to publication decision.
 
-**Bot ID**: `editorial-bot`  
-**Version**: `2.1.0`  
+**Bot ID**: `bot-editorial`
+**Version**: `2.1.0`
 **Author**: Colloquium System
 
 ## Commands
@@ -16,7 +16,7 @@ The Editorial Bot assists with manuscript editorial workflows, status updates, a
 
 Updates the status of a manuscript with an optional reason.
 
-**Usage:** `@editorial-bot status <new-status> [reason="reason for change"]`
+**Usage:** `@bot-editorial status <new-status> [reason="reason for change"]`
 
 #### Parameters
 - `newStatus` (required): The new status - one of: SUBMITTED, UNDER_REVIEW, REVISION_REQUESTED, REVISED, ACCEPTED, REJECTED, PUBLISHED
@@ -24,9 +24,9 @@ Updates the status of a manuscript with an optional reason.
 
 #### Examples
 ```
-@editorial-bot status UNDER_REVIEW
-@editorial-bot status REVISION_REQUESTED reason="Minor formatting issues"
-@editorial-bot status ACCEPTED reason="High quality research with clear findings"
+@bot-editorial status UNDER_REVIEW
+@bot-editorial status REVISION_REQUESTED reason="Minor formatting issues"
+@bot-editorial status ACCEPTED reason="High quality research with clear findings"
 ```
 
 ---
@@ -35,7 +35,7 @@ Updates the status of a manuscript with an optional reason.
 
 Assigns reviewers to a manuscript with optional deadline and custom message.
 
-**Usage:** `@editorial-bot assign <reviewer-emails> [deadline="YYYY-MM-DD"] [message="custom message"]`
+**Usage:** `@bot-editorial assign <reviewer-emails> [deadline="YYYY-MM-DD"] [message="custom message"]`
 
 #### Parameters
 - `reviewers` (required): Comma-separated list of reviewer email addresses
@@ -44,9 +44,9 @@ Assigns reviewers to a manuscript with optional deadline and custom message.
 
 #### Examples
 ```
-@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org
-@editorial-bot assign reviewer@example.com deadline="2024-02-15"
-@editorial-bot assign expert@university.edu deadline="2024-03-01" message="This paper needs statistical review"
+@bot-editorial assign reviewer1@uni.edu,reviewer2@inst.org
+@bot-editorial assign reviewer@example.com deadline="2024-02-15"
+@bot-editorial assign expert@university.edu deadline="2024-03-01" message="This paper needs statistical review"
 ```
 
 ---
@@ -55,15 +55,15 @@ Assigns reviewers to a manuscript with optional deadline and custom message.
 
 Generates a summary of manuscript review progress.
 
-**Usage:** `@editorial-bot summary [format="brief|detailed"]`
+**Usage:** `@bot-editorial summary [format="brief|detailed"]`
 
 #### Parameters
 - `format` (optional): Level of detail - "brief" (default) or "detailed"
 
 #### Examples
 ```
-@editorial-bot summary
-@editorial-bot summary format="detailed"
+@bot-editorial summary
+@bot-editorial summary format="detailed"
 ```
 
 ---
@@ -72,7 +72,7 @@ Generates a summary of manuscript review progress.
 
 Respond to a review invitation (accept or decline).
 
-**Usage:** `@editorial-bot respond <assignment-id> <accept|decline> [message="optional message"]`
+**Usage:** `@bot-editorial respond <assignment-id> <accept|decline> [message="optional message"]`
 
 #### Parameters
 - `assignmentId` (required): The ID of the review assignment to respond to
@@ -81,9 +81,9 @@ Respond to a review invitation (accept or decline).
 
 #### Examples
 ```
-@editorial-bot respond assignment-12345 accept
-@editorial-bot respond assignment-67890 decline message="I have a conflict of interest"
-@editorial-bot respond assignment-11111 accept message="Happy to review this work"
+@bot-editorial respond assignment-12345 accept
+@bot-editorial respond assignment-67890 decline message="I have a conflict of interest"
+@bot-editorial respond assignment-11111 accept message="Happy to review this work"
 ```
 
 ---
@@ -92,7 +92,7 @@ Respond to a review invitation (accept or decline).
 
 Submit a review for a manuscript.
 
-**Usage:** `@editorial-bot submit <assignment-id> recommendation=<accept|minor_revision|major_revision|reject> review="your review text" [score=1-10] [confidential="editor comments"]`
+**Usage:** `@bot-editorial submit <assignment-id> recommendation=<accept|minor_revision|major_revision|reject> review="your review text" [score=1-10] [confidential="editor comments"]`
 
 #### Parameters
 - `assignmentId` (required): The ID of the review assignment
@@ -103,9 +103,9 @@ Submit a review for a manuscript.
 
 #### Examples
 ```
-@editorial-bot submit assignment-12345 recommendation="accept" review="Excellent work with clear methodology"
-@editorial-bot submit assignment-67890 recommendation="minor_revision" review="Good work but needs revision" score="7"
-@editorial-bot submit assignment-11111 recommendation="major_revision" review="Interesting but needs significant work" confidential="Author seems inexperienced"
+@bot-editorial submit assignment-12345 recommendation="accept" review="Excellent work with clear methodology"
+@bot-editorial submit assignment-67890 recommendation="minor_revision" review="Good work but needs revision" score="7"
+@bot-editorial submit assignment-11111 recommendation="major_revision" review="Interesting but needs significant work" confidential="Author seems inexperienced"
 ```
 
 ---
@@ -114,16 +114,16 @@ Submit a review for a manuscript.
 
 Show help information for editorial bot commands.
 
-**Usage:** `@editorial-bot help [command="command-name"]`
+**Usage:** `@bot-editorial help [command="command-name"]`
 
 #### Parameters
 - `command` (optional): Specific command to get help for
 
 #### Examples
 ```
-@editorial-bot help
-@editorial-bot help command="status"
-@editorial-bot help command="assign"
+@bot-editorial help
+@bot-editorial help command="status"
+@bot-editorial help command="assign"
 ```
 
 ## Permissions
@@ -152,22 +152,22 @@ And is automatically triggered by these events:
 
 The Editorial Bot streamlines manuscript management by automating status updates, reviewer assignments, and progress tracking.
 
-1. Use `@editorial-bot help` to see all available commands
+1. Use `@bot-editorial help` to see all available commands
 2. Most common commands:
-   - `@editorial-bot status <status>` to update manuscript status
-   - `@editorial-bot assign <reviewers>` to assign reviewers
+   - `@bot-editorial status <status>` to update manuscript status
+   - `@bot-editorial assign <reviewers>` to assign reviewers
 
 ### Common Workflow Examples
 
 ```
 # Update manuscript status to under review
-@editorial-bot status UNDER_REVIEW reason="Initial review passed"
+@bot-editorial status UNDER_REVIEW reason="Initial review passed"
 
 # Assign reviewers with deadline
-@editorial-bot assign reviewer1@uni.edu,reviewer2@inst.org deadline="2024-02-15"
+@bot-editorial assign reviewer1@uni.edu,reviewer2@inst.org deadline="2024-02-15"
 
 # Get detailed progress summary
-@editorial-bot summary format="detailed"
+@bot-editorial summary format="detailed"
 ```
 
 ## Implementation Details
@@ -192,7 +192,7 @@ Commands can trigger these system actions:
 - Commands are executed within manuscript conversation contexts
 - The bot has access to manuscript IDs from the conversation context
 - All actions are logged for audit trails
-- Commands can be triggered by mentioning `@editorial-bot` in conversations
+- Commands can be triggered by mentioning `@bot-editorial` in conversations
 
 ## Supported Manuscript Statuses
 

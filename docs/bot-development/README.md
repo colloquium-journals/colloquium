@@ -15,12 +15,12 @@ Colloquium bots are npm packages that extend the functionality of academic journ
 ## Bot Architecture
 
 ### Command-Based System
-Colloquium uses a command-based bot system where users interact with bots by mentioning them in conversations:
+Colloquium uses a command-based bot system where users interact with bots by mentioning them in conversations. All bot IDs must start with the `bot-` prefix:
 
 ```
-@plagiarism-bot check threshold=0.15
-@reference-bot check-doi detailed=true
-@editorial-bot assign-reviewer manuscript=123 reviewer=456
+@bot-plagiarism-checker check threshold=0.15
+@bot-reference check-doi detailed=true
+@bot-editorial assign-reviewer manuscript=123 reviewer=456
 ```
 
 ### Bot Structure
@@ -57,7 +57,7 @@ import { z } from 'zod';
 
 // Define your bot
 export const myAwesomeBot = {
-  id: 'my-awesome-bot',
+  id: 'bot-my-awesome',  // Bot IDs must start with 'bot-' prefix
   name: 'My Awesome Bot',
   description: 'Does awesome things with manuscripts',
   version: '1.0.0',
@@ -65,7 +65,7 @@ export const myAwesomeBot = {
     {
       name: 'analyze',
       description: 'Analyze the manuscript for awesome things',
-      usage: '@my-awesome-bot analyze [option=value]',
+      usage: '@bot-my-awesome analyze [option=value]',
       parameters: [
         {
           name: 'depth',
@@ -78,8 +78,8 @@ export const myAwesomeBot = {
         }
       ],
       examples: [
-        '@my-awesome-bot analyze',
-        '@my-awesome-bot analyze depth=deep'
+        '@bot-my-awesome analyze',
+        '@bot-my-awesome analyze depth=deep'
       ],
       permissions: ['read_manuscript'],
       async execute(params: any, context: BotContext): Promise<BotResponse> {
@@ -107,14 +107,14 @@ export const myAwesomeBot = {
   permissions: ['read_manuscript'],
   help: {
     overview: 'Analyzes manuscripts for awesome things.',
-    quickStart: 'Use @my-awesome-bot analyze to get started.',
-    examples: ['@my-awesome-bot analyze depth=deep']
+    quickStart: 'Use @bot-my-awesome analyze to get started.',
+    examples: ['@bot-my-awesome analyze depth=deep']
   }
 };
 
 // Bot manifest for the plugin system
 export const manifest = {
-  name: '@myorg/my-awesome-bot',
+  name: '@myorg/my-awesome-bot',  // npm package name uses -bot suffix
   version: '1.0.0',
   description: 'Does awesome things with manuscripts',
   author: {
@@ -124,7 +124,7 @@ export const manifest = {
   license: 'MIT',
   keywords: ['colloquium', 'bot', 'analysis'],
   colloquium: {
-    botId: 'my-awesome-bot',
+    botId: 'bot-my-awesome',  // Bot ID uses bot- prefix
     apiVersion: '1.0.0',
     permissions: ['read_manuscript'],
     category: 'analysis',
@@ -156,7 +156,7 @@ async function analyzeManuscript(manuscriptId: string, depth: string) {
   "author": "Your Name <you@example.com>",
   "license": "MIT",
   "colloquium": {
-    "botId": "my-awesome-bot",
+    "botId": "bot-my-awesome",
     "apiVersion": "1.0.0",
     "permissions": ["read_manuscript"],
     "category": "analysis",
@@ -286,7 +286,7 @@ import { myAwesomeBot } from '../src/index';
 
 describe('My Awesome Bot', () => {
   test('should have correct metadata', () => {
-    expect(myAwesomeBot.id).toBe('my-awesome-bot');
+    expect(myAwesomeBot.id).toBe('bot-my-awesome');
     expect(myAwesomeBot.commands).toHaveLength(1);
   });
   
@@ -319,8 +319,10 @@ Test your bot in a development Colloquium instance:
 
 ## Publishing Guidelines
 
-### Package Naming
-- Use `@yourorg/botname-bot` format
+### Bot ID Naming Convention
+- **Bot IDs must start with `bot-` prefix** (e.g., `bot-plagiarism-checker`, `bot-statistics`)
+- The `bot-` prefix is reserved in the system to prevent username impersonation
+- Package names use `-bot` suffix: `@yourorg/plagiarism-checker-bot`
 - Keep names descriptive and searchable
 - Avoid generic names like "helper" or "utility"
 
@@ -368,7 +370,7 @@ See the [reference bot example](../packages/bots/standalone-packages/reference-b
 ```typescript
 // Example: Slack notification bot
 export const slackBot = {
-  id: 'slack-notifications',
+  id: 'bot-slack-notifications',  // Bot IDs must start with 'bot-'
   name: 'Slack Notifications',
   commands: [
     {

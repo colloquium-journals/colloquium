@@ -6,18 +6,18 @@ To ensure a consistent and high-quality user experience, all bots now feature an
 
 By default, every bot automatically gets a powerful `help` command. You don't have to do anything.
 
-- A user can type `@your-bot-name help`.
+- A user can type `@bot-your-feature help` (all bot IDs start with `bot-` prefix).
 - The system will automatically generate a help message listing all available commands, using the `name` and `description` you've provided for each command in your bot's definition.
 
 This means every bot has working help out-of-the-box.
 
 ## How Users Get Help
 
-The help system supports two levels of detail for users:
+The help system supports two levels of detail for users (all bot IDs start with `bot-` prefix):
 
-1.  **General Help:** `@bot-name help`  
+1.  **General Help:** `@bot-editorial help`
     Displays an overview of the bot and a list of all its commands.
-2.  **Command-Specific Help:** `@bot-name help <command-name>`  
+2.  **Command-Specific Help:** `@bot-editorial help <command-name>`
     Displays detailed information, usage, and examples for a single command.
 
 ## Customizing Help Content

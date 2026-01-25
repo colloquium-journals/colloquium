@@ -67,6 +67,9 @@ export default function EditProfilePage() {
         if (!/^[a-z][a-z0-9-]{2,29}$/.test(value)) {
           return 'Must be 3-30 chars, start with a letter, and contain only lowercase letters, numbers, and hyphens';
         }
+        if (value.startsWith('bot-')) {
+          return 'Usernames starting with "bot-" are reserved for system bots';
+        }
         return null;
       },
       bio: (value) => value.length > 1000 ? 'Bio must be less than 1000 characters' : null,

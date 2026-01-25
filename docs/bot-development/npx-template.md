@@ -5,7 +5,7 @@ The fastest way to create a new Colloquium bot is using the `create-colloquium-b
 ## Quick Start
 
 ```bash
-npx create-colloquium-bot my-awesome-bot
+npx create-colloquium-bot bot-my-awesome
 ```
 
 This will:
@@ -14,12 +14,14 @@ This will:
 3. Include TypeScript, tests, and documentation
 4. Provide ready-to-run example code
 
+**Note:** Bot names must start with `bot-` prefix (e.g., `bot-my-awesome`, `bot-plagiarism-checker`).
+
 ## Interactive Setup
 
 The CLI will ask you for:
 
 ### Bot Information
-- **Bot Name**: Unique identifier (lowercase, hyphens allowed)
+- **Bot Name**: Unique identifier starting with `bot-` prefix (lowercase, hyphens allowed)
 - **Description**: What your bot does
 - **Category**: Choose from 6 predefined categories
 
@@ -32,7 +34,7 @@ The CLI will ask you for:
 ### Generated Structure
 
 ```
-my-awesome-bot/
+bot-my-awesome/
 ├── src/
 │   └── index.ts              # Main bot implementation
 ├── tests/
@@ -64,7 +66,7 @@ Every generated bot includes:
 ```typescript
 // Generated bot structure
 export const MyAwesomeBot = {
-  id: 'my-awesome-bot',
+  id: 'bot-my-awesome',  // Bot IDs must start with 'bot-' prefix
   name: 'My Awesome Bot',
   commands: [
     {
@@ -102,7 +104,7 @@ export const MyAwesomeBot = {
 After generation:
 
 ```bash
-cd my-awesome-bot
+cd bot-my-awesome
 
 # Install dependencies
 npm install
@@ -258,11 +260,11 @@ Choose the appropriate category for your bot:
 # Interactive mode (recommended)
 npx create-colloquium-bot
 
-# Specify bot name
-npx create-colloquium-bot my-bot
+# Specify bot name (must start with bot-)
+npx create-colloquium-bot bot-my-feature
 
 # Non-interactive with defaults
-npx create-colloquium-bot my-bot --yes
+npx create-colloquium-bot bot-my-feature --yes
 
 # Show help
 npx create-colloquium-bot --help
@@ -272,21 +274,21 @@ npx create-colloquium-bot --help
 
 ### Analysis Bot
 ```bash
-npx create-colloquium-bot readability-checker
+npx create-colloquium-bot bot-readability-checker
 # Category: analysis
 # Implement text readability algorithms
 ```
 
-### Integration Bot  
+### Integration Bot
 ```bash
-npx create-colloquium-bot slack-notifier
+npx create-colloquium-bot bot-slack-notifier
 # Category: integration
 # Add Slack webhook integration
 ```
 
 ### Quality Bot
 ```bash
-npx create-colloquium-bot citation-validator
+npx create-colloquium-bot bot-citation-validator
 # Category: quality
 # Implement citation format checking
 ```
@@ -297,20 +299,20 @@ npx create-colloquium-bot citation-validator
 
 **Template not found**
 ```bash
-npx create-colloquium-bot@latest my-bot
+npx create-colloquium-bot@latest bot-my-feature
 ```
 
 **Permission denied**
 ```bash
 # Use a different directory
 cd ~/projects
-npx create-colloquium-bot my-bot
+npx create-colloquium-bot bot-my-feature
 ```
 
 **Package name conflicts**
 ```bash
 # Choose a unique name or scope
-npx create-colloquium-bot my-unique-bot-name
+npx create-colloquium-bot bot-my-unique-feature
 ```
 
 ## Advanced Usage
@@ -319,8 +321,8 @@ npx create-colloquium-bot my-unique-bot-name
 Future versions will support custom templates:
 
 ```bash
-npx create-colloquium-bot my-bot --template advanced
-npx create-colloquium-bot my-bot --template integration
+npx create-colloquium-bot bot-my-feature --template advanced
+npx create-colloquium-bot bot-my-feature --template integration
 ```
 
 ### Configuration File

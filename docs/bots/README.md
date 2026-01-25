@@ -26,14 +26,14 @@ Colloquium's bot ecosystem provides intelligent automation for editorial workflo
 
 ### Using Bots in Conversations
 
-Mention bots directly in conversation messages:
+Mention bots directly in conversation messages using their bot ID (always starts with `bot-`):
 
 ```
-@Editorial Bot assign reviewer@university.edu as reviewer for this manuscript
+@bot-editorial assign reviewer@university.edu as reviewer for this manuscript
 
-@Plagiarism Checker scan this manuscript for potential plagiarism
+@bot-plagiarism-checker scan this manuscript for potential plagiarism
 
-@Statistics Reviewer check the statistical analysis in the results section
+@bot-statistics check the statistical analysis in the results section
 ```
 
 ### Using Bots via API
@@ -88,24 +88,24 @@ curl http://localhost:4000/api/bots \
 
 ```bash
 # Complete manuscript assignment workflow
-@Editorial Bot set editor@journal.org as action editor for manuscript ms-123
-@Editorial Bot assign reviewer1@university.edu as reviewer with due date 2024-02-15
-@Editorial Bot assign reviewer2@institute.org as reviewer with due date 2024-02-15
+@bot-editorial set editor@journal.org as action editor for manuscript ms-123
+@bot-editorial assign reviewer1@university.edu as reviewer with due date 2024-02-15
+@bot-editorial assign reviewer2@institute.org as reviewer with due date 2024-02-15
 
 # Later, after reviews are complete
-@Editorial Bot accept manuscript ms-123 with comments "Excellent contribution"
+@bot-editorial accept manuscript ms-123 with comments "Excellent contribution"
 ```
 
 ### Quality Assurance Pipeline
 
 ```bash
 # Automated quality checks
-@Plagiarism Checker scan manuscript ms-123 for potential plagiarism
-@Statistics Reviewer check statistical methods in manuscript ms-123
+@bot-plagiarism-checker scan manuscript ms-123 for potential plagiarism
+@bot-statistics check statistical methods in manuscript ms-123
 
 # Generate comprehensive reports
-@Plagiarism Checker generate report for scan scan-456
-@Statistics Reviewer generate statistics report for review stats-789
+@bot-plagiarism-checker generate report for scan scan-456
+@bot-statistics generate statistics report for review stats-789
 ```
 
 ### Batch Operations
@@ -218,7 +218,7 @@ class CustomAction implements BotAction {
 
 ```typescript
 export const CustomBot: Bot = {
-  id: 'custom-bot',
+  id: 'bot-custom',  // Bot IDs must start with 'bot-' prefix
   name: 'Custom Bot',
   description: 'Description of what this bot does',
   version: '1.0.0',
