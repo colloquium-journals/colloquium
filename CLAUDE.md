@@ -10,6 +10,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Roadmap**: See [plans/TODO.md](plans/TODO.md) for the high-level feature roadmap and links to detailed plans.
 
+## Development Stage
+
+This project is in **early active development**. There are no production deployments yet.
+
+- **No backwards compatibility requirements**: Breaking changes to APIs, database schemas, and interfaces are acceptable
+- **Prefer clean solutions**: Don't add migration shims, deprecation warnings, or compatibility layers—just make the change directly
+- **Database resets are fine**: Schema changes can use `db:reset` rather than incremental migrations during this phase
+- **Refactoring encouraged**: If a better approach emerges, refactor aggressively rather than working around existing patterns
+
 ## Architecture
 
 ```

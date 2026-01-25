@@ -22,11 +22,12 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Editorial Workflow
 
-- [ ] Editorial decision interface (accept/reject/revise with structured criteria)
-- [ ] Manuscript status transition automation
+- [ ] Configurable review workflow system (see [configurable-review-workflow-plan.md](configurable-review-workflow-plan.md))
+  - Template-based workflow configuration (blind, open, progressive disclosure, etc.)
+  - Phase-aware visibility and participation enforcement
+  - Editorial release controls and round tracking
 - [ ] Deadline management with automated reminders
 - [ ] Revision diff visualization
-- [ ] Re-review coordination for additional rounds
 - [ ] Appeal handling process
 
 ## Authentication & Identity
