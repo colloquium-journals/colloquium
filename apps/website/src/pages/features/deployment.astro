@@ -4,7 +4,7 @@ import Marketing from '../../layouts/Marketing.astro';
 const base = import.meta.env.BASE_URL;
 ---
 
-<Marketing title="Self-Hosted Deployment - Colloquium" description="Deploy your journal on your own infrastructure with a single command. Docker, cloud platforms, or Kubernetes.">
+<Marketing title="Self-Hosted Deployment - Colloquium" description="Deploy your journal on your own infrastructure with a single command. Docker, AWS, GCP, or Kubernetes.">
   <section class="mx-auto max-w-6xl px-6 py-20">
     <h1 class="text-4xl font-bold text-gray-900">Self-Hosted Deployment</h1>
     <p class="mt-4 max-w-2xl text-lg text-gray-600">
@@ -16,14 +16,42 @@ const base = import.meta.env.BASE_URL;
   <section class="border-t border-gray-200 bg-gray-50">
     <div class="mx-auto max-w-6xl px-6 py-20">
       <h2 class="text-2xl font-bold text-gray-900">One command to start</h2>
-      <pre class="mt-6 overflow-x-auto rounded-lg bg-gray-900 p-6 text-sm text-gray-100"><code>npx create-colloquium-journal init "My Journal" \
-  --slug "my-journal" \
-  --domain "journal.university.edu" \
-  --admin-email "editor@university.edu" \
+      <div class="mt-6 grid gap-6 lg:grid-cols-3">
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Docker (Local)</h3>
+          <pre class="mt-2 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>npx create-colloquium-journal init \
+  "My Journal" \
   --deployment docker \
-  --bots "editorial-bot,reference-bot,markdown-renderer-bot"</code></pre>
-      <p class="mt-4 text-sm text-gray-600">
-        This generates a complete deployment package: Docker Compose configuration, environment variables, bot installations, database initialization, backup scripts, and SSL setup.
+  --admin-email "editor@uni.edu"
+
+cd my-journal-instance
+./scripts/setup.sh</code></pre>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">AWS</h3>
+          <pre class="mt-2 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>npx create-colloquium-journal init \
+  "My Journal" \
+  --deployment aws \
+  --region us-east-1 \
+  --admin-email "editor@uni.edu"
+
+cd my-journal-instance
+./deploy.sh</code></pre>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Google Cloud</h3>
+          <pre class="mt-2 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>npx create-colloquium-journal init \
+  "My Journal" \
+  --deployment gcp \
+  --project-id my-project \
+  --admin-email "editor@uni.edu"
+
+cd my-journal-instance
+./deploy.sh</code></pre>
+        </div>
+      </div>
+      <p class="mt-6 text-sm text-gray-600">
+        The CLI generates everything you need: Terraform infrastructure code (for cloud), Docker Compose (for local), environment configuration, database setup, and deployment scripts. Total deployment time: ~15-20 minutes.
       </p>
     </div>
   </section>
@@ -34,32 +62,52 @@ const base = import.meta.env.BASE_URL;
       <h2 class="text-2xl font-bold text-gray-900">Choose your deployment target</h2>
       <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div class="rounded-lg border border-gray-200 p-6">
-          <h3 class="font-semibold text-gray-900">Docker Compose</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Docker Compose</h3>
+            <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Available</span>
+          </div>
           <p class="mt-2 text-sm text-gray-600">Simplest option. Run everything on a single server with Docker. Ideal for small journals and evaluation.</p>
           <code class="mt-3 block text-xs text-gray-500">--deployment docker</code>
         </div>
-        <div class="rounded-lg border border-gray-200 p-6">
-          <h3 class="font-semibold text-gray-900">Railway</h3>
+        <div class="rounded-lg border-2 border-accent-500 bg-accent-50/30 p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">AWS</h3>
+            <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Available</span>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">ECS Fargate + RDS + ElastiCache + S3. Enterprise-grade with managed services, auto-scaling, and Terraform IaC.</p>
+          <p class="mt-2 text-xs text-gray-500">Est. cost: $60-80/month</p>
+          <code class="mt-2 block text-xs text-gray-500">--deployment aws</code>
+        </div>
+        <div class="rounded-lg border-2 border-accent-500 bg-accent-50/30 p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Google Cloud</h3>
+            <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Available</span>
+          </div>
+          <p class="mt-2 text-sm text-gray-600">Cloud Run + Cloud SQL + Memorystore. Scale-to-zero pricing, managed containers, and Terraform IaC.</p>
+          <p class="mt-2 text-xs text-gray-500">Est. cost: $40-70/month (scale-to-zero)</p>
+          <code class="mt-2 block text-xs text-gray-500">--deployment gcp</code>
+        </div>
+        <div class="rounded-lg border border-gray-200 p-6 opacity-75">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Railway</h3>
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Planned</span>
+          </div>
           <p class="mt-2 text-sm text-gray-600">Zero-config cloud deployment. Managed PostgreSQL, Redis, and automatic scaling. Deploy and forget.</p>
           <code class="mt-3 block text-xs text-gray-500">--deployment railway</code>
         </div>
-        <div class="rounded-lg border border-gray-200 p-6">
-          <h3 class="font-semibold text-gray-900">Fly.io</h3>
+        <div class="rounded-lg border border-gray-200 p-6 opacity-75">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Fly.io</h3>
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Planned</span>
+          </div>
           <p class="mt-2 text-sm text-gray-600">Global edge deployment. Run your journal close to your readers with automatic multi-region replication.</p>
           <code class="mt-3 block text-xs text-gray-500">--deployment fly</code>
         </div>
-        <div class="rounded-lg border border-gray-200 p-6">
-          <h3 class="font-semibold text-gray-900">AWS</h3>
-          <p class="mt-2 text-sm text-gray-600">ECS + RDS + ElastiCache + S3 + CloudFront. Enterprise-grade with managed services and auto-scaling.</p>
-          <code class="mt-3 block text-xs text-gray-500">--deployment aws</code>
-        </div>
-        <div class="rounded-lg border border-gray-200 p-6">
-          <h3 class="font-semibold text-gray-900">GCP</h3>
-          <p class="mt-2 text-sm text-gray-600">Cloud Run + Cloud SQL + Memorystore. Google's managed container platform with pay-per-use pricing.</p>
-          <code class="mt-3 block text-xs text-gray-500">--deployment gcp</code>
-        </div>
-        <div class="rounded-lg border border-gray-200 p-6">
-          <h3 class="font-semibold text-gray-900">Kubernetes</h3>
+        <div class="rounded-lg border border-gray-200 p-6 opacity-75">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-gray-900">Kubernetes</h3>
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Planned</span>
+          </div>
           <p class="mt-2 text-sm text-gray-600">Helm charts for large-scale deployments. Multi-node, auto-scaling, suitable for institutional hosting.</p>
           <code class="mt-3 block text-xs text-gray-500">--deployment kubernetes</code>
         </div>
@@ -67,8 +115,79 @@ const base = import.meta.env.BASE_URL;
     </div>
   </section>
 
-  <!-- Architecture -->
+  <!-- AWS/GCP Details -->
   <section class="border-t border-gray-200 bg-gray-50">
+    <div class="mx-auto max-w-6xl px-6 py-20">
+      <h2 class="text-2xl font-bold text-gray-900">Cloud Infrastructure</h2>
+      <p class="mt-2 max-w-2xl text-gray-600">
+        AWS and GCP deployments use Terraform for infrastructure-as-code, giving you complete control over your cloud resources.
+      </p>
+
+      <div class="mt-10 grid gap-8 lg:grid-cols-2">
+        <div>
+          <h3 class="font-semibold text-gray-900">AWS Architecture</h3>
+          <ul class="mt-3 space-y-2 text-sm text-gray-600">
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>ECS Fargate</strong> — Serverless containers for web and API</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>RDS PostgreSQL 15</strong> — Managed database with backups</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>ElastiCache Redis 7</strong> — Job queues and real-time events</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Application Load Balancer</strong> — HTTPS with ACM certificates</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>S3</strong> — File uploads and published assets</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Secrets Manager</strong> — Secure credential storage</span>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-900">GCP Architecture</h3>
+          <ul class="mt-3 space-y-2 text-sm text-gray-600">
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Cloud Run</strong> — Scale-to-zero containers</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Cloud SQL PostgreSQL 15</strong> — Managed database</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Memorystore Redis 7</strong> — Job queues</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>HTTPS Load Balancer</strong> — Managed SSL certificates</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Cloud Storage</strong> — File uploads and CDN</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent-600">→</span>
+              <span><strong>Secret Manager</strong> — Secure credential storage</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Instance architecture -->
+  <section class="border-t border-gray-200">
     <div class="mx-auto max-w-6xl px-6 py-20">
       <h2 class="text-2xl font-bold text-gray-900">Instance architecture</h2>
       <p class="mt-2 max-w-2xl text-gray-600">
@@ -83,24 +202,26 @@ const base = import.meta.env.BASE_URL;
             <li><strong>API server</strong> — Express.js backend (port 4000)</li>
             <li><strong>PostgreSQL</strong> — primary database</li>
             <li><strong>Redis</strong> — job queue and real-time events</li>
-            <li><strong>File storage</strong> — local volume or cloud storage (S3/GCS/Azure)</li>
-            <li><strong>Reverse proxy</strong> — Nginx with SSL termination</li>
+            <li><strong>File storage</strong> — local volume or cloud storage (S3/GCS)</li>
+            <li><strong>Reverse proxy</strong> — ALB/Cloud Load Balancer with SSL</li>
           </ul>
         </div>
         <div>
-          <h3 class="font-semibold text-gray-900">Generated output</h3>
-          <pre class="mt-2 overflow-x-auto rounded bg-gray-100 p-4 text-xs text-gray-700">my-journal/
-├── docker-compose.yml
-├── .env
+          <h3 class="font-semibold text-gray-900">Generated output (cloud)</h3>
+          <pre class="mt-2 overflow-x-auto rounded bg-gray-100 p-4 text-xs text-gray-700">my-journal-instance/
+├── deploy.sh            # One-command deployment
+├── teardown.sh          # Clean destruction
+├── terraform/
+│   ├── main.tf         # Provider config
+│   ├── variables.tf    # Input variables
+│   ├── outputs.tf      # URLs, endpoints
+│   ├── vpc.tf          # Network resources
+│   ├── [database].tf   # RDS/Cloud SQL
+│   ├── [cache].tf      # ElastiCache/Memorystore
+│   ├── [compute].tf    # ECS/Cloud Run
+│   └── terraform.tfvars
 ├── config/
-│   ├── journal.json
-│   └── bots.json
-├── scripts/
-│   ├── setup.sh
-│   ├── backup.sh
-│   └── update.sh
-├── nginx/
-│   └── nginx.conf
+│   └── journal.json
 └── README.md</pre>
         </div>
       </div>
@@ -108,22 +229,50 @@ const base = import.meta.env.BASE_URL;
   </section>
 
   <!-- Operations -->
-  <section class="border-t border-gray-200">
+  <section class="border-t border-gray-200 bg-gray-50">
     <div class="mx-auto max-w-6xl px-6 py-20">
       <h2 class="text-2xl font-bold text-gray-900">Day-2 operations</h2>
       <div class="mt-8 grid gap-6 md:grid-cols-3">
         <div>
           <h3 class="font-semibold text-gray-900">Automated Backups</h3>
-          <p class="mt-1 text-sm text-gray-600">Generated backup scripts for database dumps and file storage snapshots. Schedule with cron or your orchestrator.</p>
+          <p class="mt-1 text-sm text-gray-600">Cloud deployments include automated database backups with point-in-time recovery. Configure retention via Terraform.</p>
         </div>
         <div>
           <h3 class="font-semibold text-gray-900">Zero-Downtime Updates</h3>
-          <p class="mt-1 text-sm text-gray-600">Update scripts pull new container images, run migrations, and restart services with no interruption to users.</p>
+          <p class="mt-1 text-sm text-gray-600">ECS and Cloud Run handle rolling deployments automatically. Run <code class="bg-gray-200 px-1 rounded">./deploy.sh</code> to update.</p>
         </div>
         <div>
-          <h3 class="font-semibold text-gray-900">Migration Support</h3>
-          <p class="mt-1 text-sm text-gray-600">Convert existing deployments to the instance format. Preserve all data and configuration during the transition.</p>
+          <h3 class="font-semibold text-gray-900">Infrastructure as Code</h3>
+          <p class="mt-1 text-sm text-gray-600">All cloud resources are defined in Terraform. Version control your infrastructure alongside your journal config.</p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="border-t border-gray-200">
+    <div class="mx-auto max-w-6xl px-6 py-20 text-center">
+      <h2 class="text-2xl font-bold text-gray-900">Ready to deploy?</h2>
+      <p class="mt-4 text-gray-600">Get started with the deployment guide for your platform.</p>
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-4">
+        <a
+          href="https://docs.colloquium.org/deployment/aws"
+          class="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white hover:bg-accent-600/90"
+        >
+          AWS Guide
+        </a>
+        <a
+          href="https://docs.colloquium.org/deployment/gcp"
+          class="rounded-md bg-accent-600 px-6 py-3 text-sm font-medium text-white hover:bg-accent-600/90"
+        >
+          GCP Guide
+        </a>
+        <a
+          href="https://docs.colloquium.org/deployment/docker"
+          class="rounded-md border border-gray-300 px-6 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Docker Guide
+        </a>
       </div>
     </div>
   </section>

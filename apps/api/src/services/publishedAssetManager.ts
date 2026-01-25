@@ -1,53 +1,40 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { PrismaClient } from '@colloquium/database';
+import { PrismaClient, StorageType } from '@colloquium/database';
+import { fileStorage, FileStorageService } from './fileStorage';
 
 const prisma = new PrismaClient();
 
 export class PublishedAssetManager {
   private readonly staticDir: string;
+  private readonly storage: FileStorageService;
 
-  constructor() {
-    // Static directory for published assets
+  constructor(storageService?: FileStorageService) {
     this.staticDir = path.join(process.cwd(), 'static', 'published');
+    this.storage = storageService || fileStorage;
   }
 
-  /**
-   * Publishes all assets for a manuscript to static hosting
-   * Called when a manuscript status changes to PUBLISHED
-   */
   async publishManuscriptAssets(manuscriptId: string): Promise<void> {
     console.log(`Publishing assets for manuscript: ${manuscriptId}`);
-    
-    try {
-      // Create manuscript-specific static directory
-      const manuscriptStaticDir = path.join(this.staticDir, manuscriptId);
-      await fs.ensureDir(manuscriptStaticDir);
 
-      // Get all ASSET files for this manuscript
+    try {
       const assets = await prisma.manuscript_files.findMany({
         where: {
           manuscriptId,
-          fileType: 'ASSET'
-        }
+          fileType: 'ASSET',
+        },
       });
 
       console.log(`Found ${assets.length} assets to publish for manuscript ${manuscriptId}`);
 
-      // Copy each asset to static directory with original filename
-      for (const asset of assets) {
-        const sourcePath = this.resolveAssetPath(asset.path);
-        const targetPath = path.join(manuscriptStaticDir, asset.originalName);
+      const storageType = this.storage.getStorageType();
 
-        if (await fs.pathExists(sourcePath)) {
-          await fs.copy(sourcePath, targetPath);
-          console.log(`Published asset: ${asset.originalName}`);
-        } else {
-          console.warn(`Asset file not found: ${sourcePath}`);
-        }
+      if (storageType === StorageType.LOCAL) {
+        await this.publishAssetsLocal(manuscriptId, assets);
+      } else {
+        await this.publishAssetsCloud(manuscriptId, assets);
       }
 
-      // Update all RENDERED HTML files to use static URLs
       await this.updateRenderedHTMLFiles(manuscriptId);
 
       console.log(`Successfully published assets for manuscript: ${manuscriptId}`);
@@ -57,18 +44,64 @@ export class PublishedAssetManager {
     }
   }
 
-  /**
-   * Removes published assets when a manuscript is retracted
-   */
+  private async publishAssetsLocal(manuscriptId: string, assets: any[]): Promise<void> {
+    const manuscriptStaticDir = path.join(this.staticDir, manuscriptId);
+    await fs.ensureDir(manuscriptStaticDir);
+
+    for (const asset of assets) {
+      const sourcePath = this.resolveAssetPath(asset.path);
+      const targetPath = path.join(manuscriptStaticDir, asset.originalName);
+
+      if (await fs.pathExists(sourcePath)) {
+        await fs.copy(sourcePath, targetPath);
+        console.log(`Published asset: ${asset.originalName}`);
+      } else {
+        console.warn(`Asset file not found: ${sourcePath}`);
+      }
+    }
+  }
+
+  private async publishAssetsCloud(manuscriptId: string, assets: any[]): Promise<void> {
+    const publishedPrefix = `published/${manuscriptId}`;
+
+    for (const asset of assets) {
+      const sourcePath = asset.path;
+      const destPath = `${publishedPrefix}/${asset.originalName}`;
+
+      const success = await this.storage.copyFile(sourcePath, destPath);
+      if (success) {
+        console.log(`Published asset to cloud: ${asset.originalName}`);
+      } else {
+        console.warn(`Failed to publish asset: ${asset.originalName}`);
+      }
+    }
+  }
+
   async unpublishManuscriptAssets(manuscriptId: string): Promise<void> {
     console.log(`Unpublishing assets for manuscript: ${manuscriptId}`);
-    
+
     try {
-      const manuscriptStaticDir = path.join(this.staticDir, manuscriptId);
-      
-      if (await fs.pathExists(manuscriptStaticDir)) {
-        await fs.remove(manuscriptStaticDir);
-        console.log(`Removed static assets for manuscript: ${manuscriptId}`);
+      const storageType = this.storage.getStorageType();
+
+      if (storageType === StorageType.LOCAL) {
+        const manuscriptStaticDir = path.join(this.staticDir, manuscriptId);
+        if (await fs.pathExists(manuscriptStaticDir)) {
+          await fs.remove(manuscriptStaticDir);
+          console.log(`Removed static assets for manuscript: ${manuscriptId}`);
+        }
+      } else {
+        const assets = await prisma.manuscript_files.findMany({
+          where: {
+            manuscriptId,
+            fileType: 'ASSET',
+          },
+        });
+
+        for (const asset of assets) {
+          const publishedPath = `published/${manuscriptId}/${asset.originalName}`;
+          await this.storage.deleteFile(publishedPath);
+        }
+        console.log(`Removed cloud assets for manuscript: ${manuscriptId}`);
       }
     } catch (error) {
       console.error(`Failed to unpublish assets for manuscript ${manuscriptId}:`, error);
@@ -76,45 +109,36 @@ export class PublishedAssetManager {
     }
   }
 
-  /**
-   * Updates RENDERED HTML files to use static asset URLs instead of API URLs
-   */
   private async updateRenderedHTMLFiles(manuscriptId: string): Promise<void> {
-    // Get all assets to build a mapping from file ID to filename
     const assets = await prisma.manuscript_files.findMany({
       where: {
         manuscriptId,
-        fileType: 'ASSET'
+        fileType: 'ASSET',
       },
       select: {
         id: true,
-        originalName: true
-      }
+        originalName: true,
+      },
     });
 
-    const fileIdToNameMap = new Map(assets.map(asset => [asset.id, asset.originalName]));
+    const fileIdToNameMap = new Map(assets.map((asset) => [asset.id, asset.originalName]));
 
     const renderedFiles = await prisma.manuscript_files.findMany({
       where: {
         manuscriptId,
         fileType: 'RENDERED',
-        mimetype: 'text/html'
-      }
+        mimetype: 'text/html',
+      },
     });
+
+    const storageType = this.storage.getStorageType();
 
     for (const file of renderedFiles) {
       try {
-        const filePath = this.resolveAssetPath(file.path);
-        
-        if (await fs.pathExists(filePath)) {
-          const htmlContent = await fs.readFile(filePath, 'utf-8');
-          const updatedHTML = this.rewriteAssetURLs(htmlContent, manuscriptId, fileIdToNameMap);
-          
-          // Only update if URLs were actually changed
-          if (updatedHTML !== htmlContent) {
-            await fs.writeFile(filePath, updatedHTML, 'utf-8');
-            console.log(`Updated asset URLs in rendered file: ${file.originalName}`);
-          }
+        if (storageType === StorageType.LOCAL) {
+          await this.updateLocalRenderedFile(file, manuscriptId, fileIdToNameMap);
+        } else {
+          await this.updateCloudRenderedFile(file, manuscriptId, fileIdToNameMap);
         }
       } catch (error) {
         console.error(`Failed to update rendered file ${file.originalName}:`, error);
@@ -122,70 +146,121 @@ export class PublishedAssetManager {
     }
   }
 
-  /**
-   * Rewrites API asset URLs to static URLs in HTML content
-   */
-  private rewriteAssetURLs(htmlContent: string, manuscriptId: string, fileIdToNameMap: Map<string, string>): string {
-    // Pattern to match API asset URLs: /api/articles/{manuscriptId}/files/{fileId}/download?...
+  private async updateLocalRenderedFile(
+    file: any,
+    manuscriptId: string,
+    fileIdToNameMap: Map<string, string>
+  ): Promise<void> {
+    const filePath = this.resolveAssetPath(file.path);
+
+    if (await fs.pathExists(filePath)) {
+      const htmlContent = await fs.readFile(filePath, 'utf-8');
+      const updatedHTML = this.rewriteAssetURLsLocal(htmlContent, manuscriptId, fileIdToNameMap);
+
+      if (updatedHTML !== htmlContent) {
+        await fs.writeFile(filePath, updatedHTML, 'utf-8');
+        console.log(`Updated asset URLs in rendered file: ${file.originalName}`);
+      }
+    }
+  }
+
+  private async updateCloudRenderedFile(
+    file: any,
+    manuscriptId: string,
+    fileIdToNameMap: Map<string, string>
+  ): Promise<void> {
+    const stream = await this.storage.getFileStream(file.path);
+    if (!stream) {
+      console.warn(`Could not read rendered file: ${file.path}`);
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    const htmlContent = Buffer.concat(chunks).toString('utf-8');
+
+    const updatedHTML = this.rewriteAssetURLsCloud(htmlContent, manuscriptId, fileIdToNameMap);
+
+    if (updatedHTML !== htmlContent) {
+      const multerFile = {
+        originalname: file.originalName,
+        mimetype: 'text/html',
+        size: Buffer.byteLength(updatedHTML, 'utf-8'),
+        buffer: Buffer.from(updatedHTML, 'utf-8'),
+      } as Express.Multer.File;
+
+      await this.storage.deleteFile(file.path);
+
+      const category = file.path.includes('/rendered/')
+        ? 'rendered'
+        : file.path.includes('/assets/')
+          ? 'assets'
+          : 'manuscripts';
+      await this.storage.storeFile(multerFile, category as any, manuscriptId);
+
+      console.log(`Updated asset URLs in cloud rendered file: ${file.originalName}`);
+    }
+  }
+
+  private rewriteAssetURLsLocal(
+    htmlContent: string,
+    manuscriptId: string,
+    fileIdToNameMap: Map<string, string>
+  ): string {
     const apiUrlPattern = /\/api\/articles\/[^\/]+\/files\/([a-f0-9-]+)\/download\?[^"'\s]*/g;
-    
+
     return htmlContent.replace(apiUrlPattern, (match, fileId) => {
-      // Look up the original filename using the file ID
       const filename = fileIdToNameMap.get(fileId);
-      
+
       if (filename) {
         return `/static/published/${manuscriptId}/${filename}`;
       } else {
         console.warn(`Could not find filename for file ID: ${fileId}`);
-        return match; // Return original URL if we can't map it
+        return match;
       }
     });
   }
 
-  /**
-   * Resolves asset path handling both absolute and relative paths
-   */
+  private rewriteAssetURLsCloud(
+    htmlContent: string,
+    manuscriptId: string,
+    fileIdToNameMap: Map<string, string>
+  ): string {
+    const apiUrlPattern = /\/api\/articles\/[^\/]+\/files\/([a-f0-9-]+)\/download\?[^"'\s]*/g;
+
+    return htmlContent.replace(apiUrlPattern, (match, fileId) => {
+      const filename = fileIdToNameMap.get(fileId);
+
+      if (filename) {
+        const publishedPath = `published/${manuscriptId}/${filename}`;
+        return this.storage.getPublicUrl(publishedPath);
+      } else {
+        console.warn(`Could not find filename for file ID: ${fileId}`);
+        return match;
+      }
+    });
+  }
+
   private resolveAssetPath(assetPath: string): string {
     if (assetPath.startsWith('/uploads/')) {
-      // Convert absolute path starting with /uploads/ to relative path
       return '.' + assetPath;
     }
     return assetPath;
   }
 
-  /**
-   * Creates asset manifest for tracking published assets
-   */
-  private async createAssetManifest(manuscriptId: string, assets: any[]): Promise<void> {
-    const manifestPath = path.join(this.staticDir, manuscriptId, 'manifest.json');
-    const manifest = {
-      manuscriptId,
-      publishedAt: new Date().toISOString(),
-      assets: assets.map(asset => ({
-        originalName: asset.originalName,
-        mimetype: asset.mimetype,
-        size: asset.size,
-        checksum: asset.checksum
-      }))
-    };
-    
-    await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
-  }
-
-  /**
-   * Migrates existing published manuscripts to static hosting
-   */
   async migrateExistingPublishedManuscripts(): Promise<void> {
     console.log('Starting migration of existing published manuscripts...');
-    
+
     const publishedManuscripts = await prisma.manuscripts.findMany({
       where: {
-        status: 'PUBLISHED'
+        status: 'PUBLISHED',
       },
       select: {
         id: true,
-        title: true
-      }
+        title: true,
+      },
     });
 
     console.log(`Found ${publishedManuscripts.length} published manuscripts to migrate`);
@@ -203,5 +278,4 @@ export class PublishedAssetManager {
   }
 }
 
-// Export singleton instance
 export const publishedAssetManager = new PublishedAssetManager();

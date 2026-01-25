@@ -1,35 +1,55 @@
+export type DeploymentType = 'docker' | 'aws' | 'gcp';
+
 export interface JournalConfig {
-  // Journal details
   name: string;
   slug: string;
   description?: string;
   domain?: string;
-  
-  // Admin setup
+
   adminEmail: string;
   adminName: string;
-  
-  // Bot selection
+
   selectedBots: string[];
-  
-  // Database configuration
+
   dbPassword: string;
   dbName: string;
-  
-  // Security
+
   jwtSecret: string;
   magicLinkSecret: string;
-  
-  // Deployment configuration
-  deploymentType: 'docker';
-  
-  // Generated values
+
+  deploymentType: DeploymentType;
+
   instanceId: string;
   createdAt: string;
+
+  aws?: AWSConfig;
+  gcp?: GCPConfig;
+}
+
+export interface AWSConfig {
+  region: string;
+  dbInstanceClass: string;
+  redisNodeType: string;
+  certificateArn?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpFrom?: string;
+}
+
+export interface GCPConfig {
+  projectId: string;
+  region: string;
+  dbTier: string;
+  redisMemoryGb: number;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpFrom?: string;
 }
 
 export interface DeploymentConfig {
-  type: 'docker';
+  type: DeploymentType;
   services: ContainerSpec[];
   volumes: VolumeSpec[];
   networks?: NetworkSpec[];
@@ -55,28 +75,22 @@ export interface NetworkSpec {
 }
 
 export interface TemplateContext {
-  // Journal configuration
   JOURNAL_NAME: string;
   JOURNAL_SLUG: string;
   JOURNAL_DESCRIPTION: string;
   JOURNAL_DOMAIN: string;
-  
-  // Admin configuration
+
   ADMIN_EMAIL: string;
   ADMIN_NAME: string;
-  
-  // Database configuration
+
   DB_PASSWORD: string;
   DB_NAME: string;
-  
-  // Security
+
   JWT_SECRET: string;
   MAGIC_LINK_SECRET: string;
-  
-  // Bot configuration
+
   SELECTED_BOTS: string;
-  
-  // Instance metadata
+
   INSTANCE_ID: string;
   CREATED_AT: string;
 }
@@ -87,4 +101,21 @@ export interface AvailableBot {
   description: string;
   category: string;
   isDefault: boolean;
+}
+
+export interface CloudTemplateContext extends TemplateContext {
+  AWS_REGION?: string;
+  AWS_DB_INSTANCE_CLASS?: string;
+  AWS_REDIS_NODE_TYPE?: string;
+  AWS_CERTIFICATE_ARN?: string;
+
+  GCP_PROJECT_ID?: string;
+  GCP_REGION?: string;
+  GCP_DB_TIER?: string;
+  GCP_REDIS_MEMORY_GB?: string;
+
+  SMTP_HOST?: string;
+  SMTP_PORT?: string;
+  SMTP_USER?: string;
+  SMTP_FROM?: string;
 }

@@ -1,25 +1,23 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { Readable } from 'stream';
 import { StorageType } from '@prisma/client';
-
-export interface StorageConfig {
-  type: StorageType;
-  basePath: string;
-  maxFileSize: number;
-  
-  // Storage-specific configuration
-  local?: {
-    uploadsDir: string;
-  };
-  s3?: {
-    bucket: string;
-    region: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-  };
-  // Additional storage types can be added here
-}
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import { Storage as GCSStorage, Bucket } from '@google-cloud/storage';
+import {
+  StorageConfiguration,
+  S3StorageConfig,
+  GCSStorageConfig,
+  createStorageConfig,
+} from '../config/storage';
 
 export interface FileReference {
   id: string;
@@ -40,67 +38,109 @@ export interface UploadResult {
 }
 
 export class FileStorageService {
-  private config: StorageConfig;
+  private config: StorageConfiguration;
+  private s3Client?: S3Client;
+  private gcsStorage?: GCSStorage;
+  private gcsBucket?: Bucket;
 
-  constructor(config?: Partial<StorageConfig>) {
-    this.config = {
-      type: (process.env.STORAGE_TYPE as StorageType) || StorageType.LOCAL,
-      basePath: process.env.STORAGE_BASE_PATH || 'uploads/',
-      maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '50') * 1024 * 1024, // 50MB default
-      local: {
-        uploadsDir: 'uploads/',
-      },
-      ...config
-    };
+  constructor(config?: Partial<StorageConfiguration>) {
+    this.config = config ? { ...createStorageConfig(), ...config } : createStorageConfig();
+    this.initializeClients();
   }
 
-  /**
-   * Store an uploaded file and return a reference
-   */
+  private initializeClients(): void {
+    if (this.config.type === StorageType.S3 && this.config.s3) {
+      this.s3Client = this.createS3Client(this.config.s3);
+    } else if (this.config.type === StorageType.GCS && this.config.gcs) {
+      const { storage, bucket } = this.createGCSClient(this.config.gcs);
+      this.gcsStorage = storage;
+      this.gcsBucket = bucket;
+    }
+  }
+
+  private createS3Client(s3Config: S3StorageConfig): S3Client {
+    const clientConfig: any = {
+      region: s3Config.region,
+    };
+
+    if (s3Config.accessKeyId && s3Config.secretAccessKey) {
+      clientConfig.credentials = {
+        accessKeyId: s3Config.accessKeyId,
+        secretAccessKey: s3Config.secretAccessKey,
+      };
+    }
+
+    if (s3Config.endpoint) {
+      clientConfig.endpoint = s3Config.endpoint;
+    }
+
+    if (s3Config.forcePathStyle) {
+      clientConfig.forcePathStyle = true;
+    }
+
+    return new S3Client(clientConfig);
+  }
+
+  private createGCSClient(gcsConfig: GCSStorageConfig): { storage: GCSStorage; bucket: Bucket } {
+    const storageOptions: any = {};
+
+    if (gcsConfig.projectId) {
+      storageOptions.projectId = gcsConfig.projectId;
+    }
+
+    if (gcsConfig.keyFilename) {
+      storageOptions.keyFilename = gcsConfig.keyFilename;
+    } else if (gcsConfig.credentials) {
+      storageOptions.credentials = gcsConfig.credentials;
+    }
+
+    const storage = new GCSStorage(storageOptions);
+    const bucket = storage.bucket(gcsConfig.bucket);
+
+    return { storage, bucket };
+  }
+
   async storeFile(
-    file: Express.Multer.File, 
+    file: Express.Multer.File,
     category: 'manuscripts' | 'assets' | 'rendered' = 'manuscripts',
     manuscriptId?: string
   ): Promise<UploadResult> {
     try {
-      // Validate file size
       if (file.size > this.config.maxFileSize) {
         return {
           success: false,
-          error: `File size exceeds maximum allowed size of ${this.config.maxFileSize / (1024 * 1024)}MB`
+          error: `File size exceeds maximum allowed size of ${this.config.maxFileSize / (1024 * 1024)}MB`,
         };
       }
 
-      // Generate unique filename
       const fileExtension = path.extname(file.originalname);
       const uniqueFilename = this.generateUniqueFilename(file.originalname, fileExtension);
-      
-      // Calculate checksum
-      const checksum = await this.calculateChecksum(file.buffer || fs.readFileSync(file.path));
-      
-      // Determine storage path
+      const fileBuffer = file.buffer || fs.readFileSync(file.path);
+      const checksum = await this.calculateChecksum(fileBuffer);
       const storagePath = this.getStoragePath(category, manuscriptId, uniqueFilename);
-      
-      // Store file based on storage type
+
       let success = false;
       switch (this.config.type) {
         case StorageType.LOCAL:
           success = await this.storeFileLocal(file, storagePath);
           break;
         case StorageType.S3:
-          success = await this.storeFileS3(file, storagePath);
+          success = await this.storeFileS3(fileBuffer, storagePath, file.mimetype);
+          break;
+        case StorageType.GCS:
+          success = await this.storeFileGCS(fileBuffer, storagePath, file.mimetype);
           break;
         default:
           return {
             success: false,
-            error: `Unsupported storage type: ${this.config.type}`
+            error: `Unsupported storage type: ${this.config.type}`,
           };
       }
 
       if (!success) {
         return {
           success: false,
-          error: 'Failed to store file'
+          error: 'Failed to store file',
         };
       }
 
@@ -115,73 +155,101 @@ export class FileStorageService {
           mimeType: file.mimetype,
           size: file.size,
           checksum,
-          encoding: this.detectEncoding(file.mimetype)
-        }
+          encoding: this.detectEncoding(file.mimetype),
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: `Storage error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Storage error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
   }
 
-  /**
-   * Retrieve a file stream for download
-   */
   async getFileStream(storagePath: string): Promise<NodeJS.ReadableStream | null> {
     switch (this.config.type) {
       case StorageType.LOCAL:
         return this.getFileStreamLocal(storagePath);
       case StorageType.S3:
         return this.getFileStreamS3(storagePath);
+      case StorageType.GCS:
+        return this.getFileStreamGCS(storagePath);
       default:
         return null;
     }
   }
 
-  /**
-   * Delete a file from storage
-   */
   async deleteFile(storagePath: string): Promise<boolean> {
     switch (this.config.type) {
       case StorageType.LOCAL:
         return this.deleteFileLocal(storagePath);
       case StorageType.S3:
         return this.deleteFileS3(storagePath);
+      case StorageType.GCS:
+        return this.deleteFileGCS(storagePath);
       default:
         return false;
     }
   }
 
-  /**
-   * Check if a file exists
-   */
   async fileExists(storagePath: string): Promise<boolean> {
     switch (this.config.type) {
       case StorageType.LOCAL:
         return this.fileExistsLocal(storagePath);
       case StorageType.S3:
         return this.fileExistsS3(storagePath);
+      case StorageType.GCS:
+        return this.fileExistsGCS(storagePath);
       default:
         return false;
     }
   }
 
-  // Private helper methods
+  async copyFile(sourcePath: string, destPath: string): Promise<boolean> {
+    switch (this.config.type) {
+      case StorageType.LOCAL:
+        return this.copyFileLocal(sourcePath, destPath);
+      case StorageType.S3:
+        return this.copyFileS3(sourcePath, destPath);
+      case StorageType.GCS:
+        return this.copyFileGCS(sourcePath, destPath);
+      default:
+        return false;
+    }
+  }
+
+  getPublicUrl(storagePath: string): string {
+    if (this.config.publicBaseUrl) {
+      const cleanPath = storagePath.replace(/^\/+/, '');
+      return `${this.config.publicBaseUrl}/${cleanPath}`;
+    }
+
+    switch (this.config.type) {
+      case StorageType.S3:
+        return `https://${this.config.s3!.bucket}.s3.${this.config.s3!.region}.amazonaws.com/${storagePath}`;
+      case StorageType.GCS:
+        return `https://storage.googleapis.com/${this.config.gcs!.bucket}/${storagePath}`;
+      default:
+        return `/static/${storagePath}`;
+    }
+  }
+
+  getStorageType(): StorageType {
+    return this.config.type;
+  }
 
   private generateUniqueFilename(originalName: string, extension: string): string {
     const timestamp = Date.now();
-    const randomSuffix = Math.round(Math.random() * 1E9);
+    const randomSuffix = Math.round(Math.random() * 1e9);
     const baseName = path.basename(originalName, extension).replace(/[^a-zA-Z0-9]/g, '-');
     return `${baseName}-${timestamp}-${randomSuffix}${extension}`;
   }
 
   private getStoragePath(category: string, manuscriptId?: string, filename?: string): string {
-    const parts = [this.config.basePath, category];
+    const parts = [this.config.basePath.replace(/^\/+|\/+$/g, ''), category];
     if (manuscriptId) parts.push(manuscriptId);
     if (filename) parts.push(filename);
-    return path.join(...parts);
+    return parts.join('/');
   }
 
   private async calculateChecksum(data: Buffer): Promise<string> {
@@ -200,13 +268,11 @@ export class FileStorageService {
     try {
       const fullPath = path.resolve(storagePath);
       const directory = path.dirname(fullPath);
-      
-      // Ensure directory exists
+
       if (!fs.existsSync(directory)) {
         fs.mkdirSync(directory, { recursive: true });
       }
 
-      // Move file if it was uploaded via multer, otherwise write buffer
       if (file.path) {
         fs.renameSync(file.path, fullPath);
       } else if (file.buffer) {
@@ -252,37 +318,227 @@ export class FileStorageService {
     try {
       const fullPath = path.resolve(storagePath);
       return fs.existsSync(fullPath);
-    } catch (error) {
+    } catch {
       return false;
     }
   }
 
-  // S3 storage implementation (placeholder - requires AWS SDK)
-  private async storeFileS3(file: Express.Multer.File, storagePath: string): Promise<boolean> {
-    // TODO: Implement S3 storage using AWS SDK
-    // This would require: npm install @aws-sdk/client-s3
-    console.warn('S3 storage not yet implemented');
-    return false;
+  private async copyFileLocal(sourcePath: string, destPath: string): Promise<boolean> {
+    try {
+      const fullSourcePath = path.resolve(sourcePath);
+      const fullDestPath = path.resolve(destPath);
+      const destDir = path.dirname(fullDestPath);
+
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+
+      fs.copyFileSync(fullSourcePath, fullDestPath);
+      return true;
+    } catch (error) {
+      console.error('Local file copy error:', error);
+      return false;
+    }
+  }
+
+  // S3 storage implementation
+  private async storeFileS3(
+    buffer: Buffer,
+    storagePath: string,
+    contentType: string
+  ): Promise<boolean> {
+    if (!this.s3Client || !this.config.s3) {
+      console.error('S3 client not initialized');
+      return false;
+    }
+
+    try {
+      const upload = new Upload({
+        client: this.s3Client,
+        params: {
+          Bucket: this.config.s3.bucket,
+          Key: storagePath,
+          Body: buffer,
+          ContentType: contentType,
+        },
+      });
+
+      await upload.done();
+      return true;
+    } catch (error) {
+      console.error('S3 upload error:', error);
+      return false;
+    }
   }
 
   private async getFileStreamS3(storagePath: string): Promise<NodeJS.ReadableStream | null> {
-    // TODO: Implement S3 file retrieval
-    console.warn('S3 file retrieval not yet implemented');
-    return null;
+    if (!this.s3Client || !this.config.s3) {
+      console.error('S3 client not initialized');
+      return null;
+    }
+
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.config.s3.bucket,
+        Key: storagePath,
+      });
+
+      const response = await this.s3Client.send(command);
+      return response.Body as Readable;
+    } catch (error) {
+      console.error('S3 file read error:', error);
+      return null;
+    }
   }
 
   private async deleteFileS3(storagePath: string): Promise<boolean> {
-    // TODO: Implement S3 file deletion
-    console.warn('S3 file deletion not yet implemented');
-    return false;
+    if (!this.s3Client || !this.config.s3) {
+      console.error('S3 client not initialized');
+      return false;
+    }
+
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.config.s3.bucket,
+        Key: storagePath,
+      });
+
+      await this.s3Client.send(command);
+      return true;
+    } catch (error) {
+      console.error('S3 file delete error:', error);
+      return false;
+    }
   }
 
   private async fileExistsS3(storagePath: string): Promise<boolean> {
-    // TODO: Implement S3 file existence check
-    console.warn('S3 file existence check not yet implemented');
-    return false;
+    if (!this.s3Client || !this.config.s3) {
+      return false;
+    }
+
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.config.s3.bucket,
+        Key: storagePath,
+      });
+
+      await this.s3Client.send(command);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async copyFileS3(sourcePath: string, destPath: string): Promise<boolean> {
+    if (!this.s3Client || !this.config.s3) {
+      return false;
+    }
+
+    try {
+      const stream = await this.getFileStreamS3(sourcePath);
+      if (!stream) return false;
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const buffer = Buffer.concat(chunks);
+
+      return this.storeFileS3(buffer, destPath, 'application/octet-stream');
+    } catch (error) {
+      console.error('S3 file copy error:', error);
+      return false;
+    }
+  }
+
+  // GCS storage implementation
+  private async storeFileGCS(
+    buffer: Buffer,
+    storagePath: string,
+    contentType: string
+  ): Promise<boolean> {
+    if (!this.gcsBucket) {
+      console.error('GCS bucket not initialized');
+      return false;
+    }
+
+    try {
+      const file = this.gcsBucket.file(storagePath);
+      await file.save(buffer, {
+        contentType,
+        resumable: buffer.length > 5 * 1024 * 1024,
+      });
+      return true;
+    } catch (error) {
+      console.error('GCS upload error:', error);
+      return false;
+    }
+  }
+
+  private async getFileStreamGCS(storagePath: string): Promise<NodeJS.ReadableStream | null> {
+    if (!this.gcsBucket) {
+      console.error('GCS bucket not initialized');
+      return null;
+    }
+
+    try {
+      const file = this.gcsBucket.file(storagePath);
+      const [exists] = await file.exists();
+      if (!exists) {
+        return null;
+      }
+      return file.createReadStream();
+    } catch (error) {
+      console.error('GCS file read error:', error);
+      return null;
+    }
+  }
+
+  private async deleteFileGCS(storagePath: string): Promise<boolean> {
+    if (!this.gcsBucket) {
+      console.error('GCS bucket not initialized');
+      return false;
+    }
+
+    try {
+      const file = this.gcsBucket.file(storagePath);
+      await file.delete({ ignoreNotFound: true });
+      return true;
+    } catch (error) {
+      console.error('GCS file delete error:', error);
+      return false;
+    }
+  }
+
+  private async fileExistsGCS(storagePath: string): Promise<boolean> {
+    if (!this.gcsBucket) {
+      return false;
+    }
+
+    try {
+      const file = this.gcsBucket.file(storagePath);
+      const [exists] = await file.exists();
+      return exists;
+    } catch {
+      return false;
+    }
+  }
+
+  private async copyFileGCS(sourcePath: string, destPath: string): Promise<boolean> {
+    if (!this.gcsBucket) {
+      return false;
+    }
+
+    try {
+      const sourceFile = this.gcsBucket.file(sourcePath);
+      const destFile = this.gcsBucket.file(destPath);
+      await sourceFile.copy(destFile);
+      return true;
+    } catch (error) {
+      console.error('GCS file copy error:', error);
+      return false;
+    }
   }
 }
 
-// Export a default instance
 export const fileStorage = new FileStorageService();
