@@ -33,6 +33,13 @@ describe('CommandParser', () => {
           required: true,
           enumValues: ['SUBMITTED', 'UNDER_REVIEW', 'ACCEPTED'],
           examples: ['UNDER_REVIEW']
+        },
+        {
+          name: 'notes',
+          description: 'Optional notes',
+          type: 'string',
+          required: false,
+          examples: ['Please review carefully']
         }
       ],
       examples: ['@test status UNDER_REVIEW'],
@@ -107,7 +114,7 @@ describe('CommandParser', () => {
 
     it('should parse bot mention with command and parameters', () => {
       const result = parser.parseMessage('@test status UNDER_REVIEW');
-      
+
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         botId: 'test-bot',
@@ -115,6 +122,36 @@ describe('CommandParser', () => {
         parameters: { newStatus: 'UNDER_REVIEW' },
         rawText: '@test status UNDER_REVIEW'
       });
+    });
+
+    it('should parse quoted parameter values with double quotes', () => {
+      const result = parser.parseMessage('@test status newStatus="UNDER_REVIEW"');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].parameters.newStatus).toBe('UNDER_REVIEW');
+    });
+
+    it('should parse quoted parameter values with single quotes', () => {
+      const result = parser.parseMessage("@test status newStatus='ACCEPTED'");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].parameters.newStatus).toBe('ACCEPTED');
+    });
+
+    it('should parse quoted values containing spaces', () => {
+      const result = parser.parseMessage('@test status newStatus="UNDER_REVIEW" notes="Please address all reviewer concerns"');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].parameters.newStatus).toBe('UNDER_REVIEW');
+      expect(result[0].parameters.notes).toBe('Please address all reviewer concerns');
+    });
+
+    it('should handle mixed quoted and unquoted parameters', () => {
+      const result = parser.parseMessage('@test status newStatus=ACCEPTED notes="Great work overall"');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].parameters.newStatus).toBe('ACCEPTED');
+      expect(result[0].parameters.notes).toBe('Great work overall');
     });
 
     it('should handle unrecognized commands', () => {

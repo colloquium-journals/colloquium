@@ -124,7 +124,8 @@ export class CommandParser {
     }
 
     // Parse key=value pairs and positional arguments
-    const keyValuePattern = /(\w+)=([^\s]+)/g;
+    // Supports: key=value, key="value with spaces", key='value with spaces'
+    const keyValuePattern = /(\w+)=("[^"]*"|'[^']*'|[^\s]+)/g;
     const keyValueMatches = Array.from(text.matchAll(keyValuePattern));
     
     // Extract key=value parameters
@@ -188,6 +189,12 @@ export class CommandParser {
 
   // Convert string value to appropriate type
   private convertValue(value: string, paramDef: BotCommandParameter): any {
+    // Strip surrounding quotes (single or double)
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
     switch (paramDef.type) {
       case 'number':
         const num = parseFloat(value);
