@@ -83,55 +83,37 @@ const base = import.meta.env.BASE_URL;
     </div>
   </section>
 
-  <!-- Build your own -->
+  <!-- Custom automation -->
   <section class="border-t border-gray-200">
     <div class="mx-auto max-w-6xl px-6 py-20">
-      <h2 class="text-2xl font-bold text-gray-900">Build your own</h2>
+      <h2 class="text-2xl font-bold text-gray-900">Custom automation for your journal</h2>
       <p class="mt-2 max-w-2xl text-gray-600">
-        Create custom bots with the Colloquium bot framework. TypeScript-first, with Zod validation, async execution, and clear API access patterns.
+        Every journal has unique needs. Colloquium's bot framework lets you automate specialized workflows — from discipline-specific checklists to integration with external systems.
       </p>
-
-      <div class="mt-8">
-        <pre class="overflow-x-auto rounded-lg bg-gray-900 p-6 text-sm text-gray-100"><code># Scaffold a new bot
-npx create-colloquium-bot my-custom-bot
-
-# Project structure
-my-custom-bot/
-├── src/
-│   ├── index.ts          # Bot definition and commands
-│   └── __tests__/        # Test suite
-├── bot.config.yaml       # Default configuration
-├── package.json
-└── tsconfig.json</code></pre>
-      </div>
 
       <div class="mt-10 grid gap-8 md:grid-cols-2">
         <div>
-          <h3 class="font-semibold text-gray-900">Framework features</h3>
+          <h3 class="font-semibold text-gray-900">What bots can do</h3>
           <ul class="mt-2 space-y-2 text-sm text-gray-600">
-            <li><strong>Standard interface</strong> — consistent API for all bots</li>
-            <li><strong>Async execution</strong> — Redis/Bull job queue, non-blocking</li>
-            <li><strong>Rich context</strong> — manuscript, conversation, user info passed to every command</li>
-            <li><strong>Declarative permissions</strong> — bots request only what they need</li>
-            <li><strong>YAML config</strong> — journal admins configure bots without code</li>
-            <li><strong>Service tokens</strong> — authenticated API access for data retrieval</li>
+            <li><strong>Read manuscripts</strong> — access submitted files for analysis</li>
+            <li><strong>Post messages</strong> — report results in the conversation thread</li>
+            <li><strong>Call external services</strong> — integrate with APIs, databases, or tools</li>
+            <li><strong>Take editorial actions</strong> — with appropriate permissions, bots can invite reviewers, update status, etc.</li>
           </ul>
         </div>
         <div>
-          <h3 class="font-semibold text-gray-900">Architecture</h3>
+          <h3 class="font-semibold text-gray-900">Safety and control</h3>
           <ul class="mt-2 space-y-2 text-sm text-gray-600">
-            <li><strong>Event-driven</strong> — bots respond to @mentions in conversations</li>
-            <li><strong>Job queue</strong> — 3 concurrent workers process bot tasks</li>
-            <li><strong>Audit trail</strong> — every execution logged with status and output</li>
-            <li><strong>Error isolation</strong> — bot failures don't affect the platform</li>
-            <li><strong>API-first data access</strong> — bots use REST endpoints, not direct DB</li>
-            <li><strong>Zod validation</strong> — type-safe input/output handling</li>
+            <li><strong>Journal admin approval</strong> — bots must be explicitly enabled</li>
+            <li><strong>Declared permissions</strong> — bots state what they need access to</li>
+            <li><strong>Full audit trail</strong> — every bot action is logged</li>
+            <li><strong>Isolated execution</strong> — bot errors don't crash the platform</li>
           </ul>
         </div>
       </div>
 
       <div class="mt-8">
-        <a href={`${base}/bots/introduction`} class="text-sm font-medium text-accent-600 hover:underline">Read the bot development documentation →</a>
+        <a href={`${base}/bots/introduction`} class="text-sm font-medium text-accent-600 hover:underline">Learn about bot development →</a>
       </div>
     </div>
   </section>

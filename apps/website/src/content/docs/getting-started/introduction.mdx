@@ -26,36 +26,38 @@ Instead of emailing PDFs back and forth, all review communication happens in str
 
 Individual messages can have their own privacy level too, so an editor can post a public comment and a private note in the same thread.
 
-### Bot automation
+### Automated assistance
 
-Bots are triggered by @mentions in conversations. Type `@reference-bot check` and the reference bot will extract DOIs from the manuscript, validate them against CrossRef, and report back. Type `@editorial-bot invite-reviewer @jane.doe` to send a review invitation.
+Bots help with routine tasks. @mention them in any conversation:
 
-Four bots are included:
-- **@editorial-bot** — reviewer management, status transitions, deadline tracking
-- **@markdown-renderer-bot** — manuscript formatting and PDF generation
-- **@reference-bot** — DOI validation and citation checking
-- **@reviewer-checklist-bot** — structured evaluation forms
+- **@editorial-bot** — manage the review process: invite reviewers, track deadlines, record decisions
+- **@reference-bot** — check that citations are valid and complete
+- **@markdown-renderer-bot** — format manuscripts for publication
+- **@reviewer-checklist-bot** — guide reviewers through structured evaluation criteria
 
-You can also [build your own bots](/bots/introduction) with the TypeScript SDK.
+Type `@reference-bot check` and the bot will scan the manuscript, find all DOIs, and verify each one against CrossRef — reporting any that are invalid or missing metadata.
 
-### Self-hosted instances
+Journals can also add custom bots for specialized workflows. See the [bot development guide](/bots/introduction) for details.
 
-Each journal runs as its own isolated instance with its own database, file storage, and application containers. You deploy on your own infrastructure using Docker, a cloud platform, or Kubernetes. The `create-colloquium-journal` CLI tool generates everything you need.
+### Independent journals
 
-## Architecture overview
+Each journal runs as its own separate installation. Your journal's data — manuscripts, reviews, user accounts — stays completely isolated from other journals. This means:
 
-```
-apps/
-├── web/       # Next.js 14 frontend
-├── api/       # Express.js backend
-packages/
-├── database/  # Prisma schema + PostgreSQL
-├── bots/      # Bot framework core
-├── types/     # Shared TypeScript types
-└── ...        # Bot packages, auth, UI components
-```
+- **Data sovereignty** — your institution controls where data is stored
+- **Customization** — configure workflows, templates, and bots for your specific needs
+- **Independence** — your journal isn't affected by other journals or platform-wide changes
 
-The stack is TypeScript throughout, with PostgreSQL for the database, Redis for the job queue and real-time events, and Prisma for type-safe database access.
+Deployment options range from one-click cloud setups to on-premises installation.
+
+## What makes Colloquium different
+
+**Conversations, not email chains.** Every interaction happens in context. Editors, reviewers, and authors discuss manuscripts in persistent threads with full history. No more forwarding PDFs or losing track of who said what.
+
+**Flexible privacy models.** Run traditional double-blind review, open peer review, or anything in between. Privacy controls work at the conversation level and the individual message level.
+
+**Automation that helps, not hinders.** Bots handle mechanical tasks — validating references, formatting for publication, generating reviewer checklists — so humans can focus on scholarly judgment.
+
+**Your data, your infrastructure.** Each journal runs on its own instance. Deploy on your university servers, a cloud provider, or your own hardware. No data sharing across journals, no platform lock-in.
 
 ## Next steps
 

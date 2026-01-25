@@ -1,11 +1,13 @@
 ---
 title: Quick Start
-description: Get a local Colloquium instance running for evaluation.
+description: Try Colloquium locally to explore the editorial workflow.
 ---
 
-This guide gets a Colloquium instance running on your local machine using Docker Compose. You'll have a fully functional journal platform in a few commands.
+This guide helps you run Colloquium on your own computer to explore the editorial workflow, test the conversation system, and see how bots work. This is for evaluation — for production deployment, see the [deployment guide](/deployment/overview).
 
 ## Prerequisites
+
+You'll need some technical tools installed. If you're not comfortable with command-line tools, ask a colleague from your IT department to help set this up.
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
 - [Node.js](https://nodejs.org/) 18 or later
@@ -47,15 +49,17 @@ This starts:
 4. Open MailHog at http://localhost:8025 to find the magic link email
 5. Click the magic link to complete authentication
 
-## Explore
+## Explore the workflow
 
-With the dev instance running, you can:
+With the local instance running, try the complete editorial cycle:
 
-- **Submit a manuscript** — upload a PDF or Markdown file as an author
-- **View conversations** — see the conversational review interface
-- **Try bot commands** — @mention bots in a conversation thread
-- **Admin settings** — configure journal settings, install bots
-- **Prisma Studio** — browse the database at http://localhost:5555
+- **Submit a manuscript** — upload a PDF or Markdown file to see the author experience
+- **Assign reviewers** — use `@editorial-bot invite-reviewer @username` in a conversation
+- **Try the review process** — switch between user accounts to see different privacy levels
+- **Check references** — use `@reference-bot check` to validate citations
+- **Make a decision** — use `@editorial-bot accept` or `@editorial-bot request-revision`
+
+The sample data includes several users with different roles, so you can experience the platform from multiple perspectives.
 
 ## Next steps
 

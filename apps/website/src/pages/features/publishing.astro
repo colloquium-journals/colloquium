@@ -106,21 +106,19 @@ const base = import.meta.env.BASE_URL;
   <!-- Hosting -->
   <section class="border-t border-gray-200">
     <div class="mx-auto max-w-6xl px-6 py-20">
-      <h2 class="text-2xl font-bold text-gray-900">Dual-tier asset hosting</h2>
+      <h2 class="text-2xl font-bold text-gray-900">Secure during review, fast after publication</h2>
       <div class="mt-8 grid gap-8 md:grid-cols-2">
         <div class="rounded-lg border border-gray-200 p-6">
           <h3 class="font-semibold text-gray-900">During review</h3>
           <p class="mt-2 text-sm text-gray-600">
-            Files served through authenticated API endpoints. Only authorized participants (editors, assigned reviewers, authors) can access manuscript files.
+            Manuscript files are protected. Only authorized participants — editors, assigned reviewers, and authors — can access them. No accidental leaks of unpublished work.
           </p>
-          <code class="mt-3 block text-xs text-gray-500">/api/articles/{'{id}'}/files/{'{fileId}'}/download</code>
         </div>
         <div class="rounded-lg border border-gray-200 p-6">
           <h3 class="font-semibold text-gray-900">After publication</h3>
           <p class="mt-2 text-sm text-gray-600">
-            Assets copied to static hosting with long-term caching. Rendered HTML updated with static URLs. Ready for CDN distribution.
+            Published articles are served as fast static files. Readers get instant access without authentication barriers. Ready for distribution through academic networks and search engines.
           </p>
-          <code class="mt-3 block text-xs text-gray-500">/static/published/{'{id}'}/{'{filename}'}</code>
         </div>
       </div>
     </div>
