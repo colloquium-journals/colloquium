@@ -760,6 +760,286 @@ Decline: ${declineUrl}
   }
 };
 
+const releaseCommand: BotCommand = {
+  name: 'release',
+  description: 'Release reviews to authors with an editorial decision',
+  usage: '@bot-editorial release <decision> [notes="additional notes"]',
+  help: `Releases reviews to authors and updates the workflow phase. This makes reviews visible to authors according to the journal's workflow configuration.
+
+**Usage:**
+\`@bot-editorial release <decision> [notes="additional notes"]\`
+
+**Parameters:**
+- **decision**: The editorial decision (required). One of: accept, revise, reject, update
+  - **accept**: Accept the manuscript for publication
+  - **revise**: Request revisions from the author
+  - **reject**: Reject the manuscript
+  - **update**: Release reviews without a final decision (for informational purposes)
+- **notes**: Optional notes to include with the release
+
+**Requirements:**
+- Only editors with decision-making authority can release reviews
+- Manuscript must be in the review phase
+- By default, requires all assigned reviews to be complete (configurable per journal)
+
+**What happens when you release:**
+1. Workflow phase changes to RELEASED
+2. Authors can now see reviews (based on workflow config)
+3. Authors are notified via email
+4. If using phases, author can begin responding
+
+**Examples:**
+- \`@bot-editorial release decision="revise"\`
+- \`@bot-editorial release decision="accept" notes="Outstanding contribution"\`
+- \`@bot-editorial release decision="reject" notes="Does not meet scope requirements"\`
+- \`@bot-editorial release decision="update" notes="Initial reviewer feedback"\``,
+  parameters: [
+    {
+      name: 'decision',
+      description: 'The editorial decision: accept, revise, reject, or update',
+      type: 'enum',
+      required: true,
+      enumValues: ['accept', 'revise', 'reject', 'update'],
+      examples: ['accept', 'revise', 'reject', 'update']
+    },
+    {
+      name: 'notes',
+      description: 'Optional notes to include with the release',
+      type: 'string',
+      required: false,
+      examples: ['Outstanding contribution', 'Please address reviewer concerns']
+    }
+  ],
+  examples: [
+    '@bot-editorial release decision="revise"',
+    '@bot-editorial release decision="accept" notes="Outstanding contribution"',
+    '@bot-editorial release decision="reject" notes="Does not meet scope requirements"',
+    '@bot-editorial release decision="update" notes="Initial reviewer feedback"'
+  ],
+  permissions: ['make_editorial_decision'],
+  async execute(params, context) {
+    const { decision, notes } = params;
+    const { manuscriptId } = context;
+
+    const decisionLabels: Record<string, string> = {
+      'accept': 'Accept for Publication',
+      'revise': 'Revision Required',
+      'reject': 'Rejected',
+      'update': 'Reviews Released (No Decision)'
+    };
+
+    let message = `📨 **Reviews Released to Authors**\n\n`;
+    message += `**Decision:** ${decisionLabels[decision] || decision}\n`;
+    message += `**Manuscript ID:** ${manuscriptId}\n`;
+    message += `**Release Date:** ${new Date().toLocaleString()}\n`;
+
+    if (notes) {
+      message += `**Notes:** ${notes}\n`;
+    }
+
+    message += `\n✅ Authors have been notified and can now view reviews.`;
+
+    const actions: any[] = [{
+      type: 'UPDATE_WORKFLOW_PHASE',
+      data: {
+        phase: 'RELEASED',
+        decision,
+        notes,
+        requireAllReviewsComplete: true
+      }
+    }];
+
+    // If decision is accept or reject, also update manuscript status
+    if (decision === 'accept') {
+      actions.push({
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { status: 'ACCEPTED', reason: notes }
+      });
+      actions.push({
+        type: 'EXECUTE_PUBLICATION_WORKFLOW',
+        data: {
+          manuscriptId,
+          acceptedDate: new Date().toISOString(),
+          reason: notes,
+          triggeredBy: 'editorial-release'
+        }
+      });
+    } else if (decision === 'reject') {
+      actions.push({
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { status: 'REJECTED', reason: notes }
+      });
+    } else if (decision === 'revise') {
+      actions.push({
+        type: 'UPDATE_MANUSCRIPT_STATUS',
+        data: { status: 'REVISION_REQUESTED', reason: notes }
+      });
+    }
+
+    return {
+      messages: [{ content: message }],
+      actions
+    };
+  }
+};
+
+const reviseCommand: BotCommand = {
+  name: 'request-revision',
+  description: 'Request revisions from the author with a deadline',
+  usage: '@bot-editorial request-revision [deadline="YYYY-MM-DD"] [notes="revision requirements"]',
+  help: `Requests revisions from the author, releasing reviews and setting a deadline for the revised submission.
+
+**Usage:**
+\`@bot-editorial request-revision [deadline="YYYY-MM-DD"] [notes="revision requirements"]\`
+
+**Parameters:**
+- **deadline**: The deadline for submitting revisions (optional, format: YYYY-MM-DD)
+- **notes**: Notes describing the required revisions (optional)
+
+**Requirements:**
+- Only editors with decision-making authority can request revisions
+- Manuscript should be in review phase
+
+**What happens:**
+1. Manuscript status changes to REVISION_REQUESTED
+2. Reviews are released to the author
+3. Author is notified with deadline and requirements
+4. When author responds, a new review cycle begins (if configured)
+
+**Examples:**
+- \`@bot-editorial request-revision\`
+- \`@bot-editorial request-revision deadline="2024-03-15"\`
+- \`@bot-editorial request-revision notes="Please address all reviewer concerns"\`
+- \`@bot-editorial request-revision deadline="2024-03-15" notes="Major revisions required"\``,
+  parameters: [
+    {
+      name: 'deadline',
+      description: 'Deadline for revised submission (YYYY-MM-DD format)',
+      type: 'string',
+      required: false,
+      examples: ['2024-03-15', '2024-04-01']
+    },
+    {
+      name: 'notes',
+      description: 'Notes describing the required revisions',
+      type: 'string',
+      required: false,
+      examples: ['Please address all reviewer concerns', 'Major revisions required']
+    }
+  ],
+  examples: [
+    '@bot-editorial request-revision',
+    '@bot-editorial request-revision deadline="2024-03-15"',
+    '@bot-editorial request-revision notes="Please address all reviewer concerns"',
+    '@bot-editorial request-revision deadline="2024-03-15" notes="Major revisions required"'
+  ],
+  permissions: ['make_editorial_decision'],
+  async execute(params, context) {
+    const { deadline, notes } = params;
+    const { manuscriptId } = context;
+
+    let message = `📝 **Revision Requested**\n\n`;
+    message += `**Status:** Revision Requested\n`;
+    message += `**Manuscript ID:** ${manuscriptId}\n`;
+
+    if (deadline) {
+      message += `**Deadline:** ${deadline}\n`;
+    }
+
+    if (notes) {
+      message += `**Requirements:** ${notes}\n`;
+    }
+
+    message += `**Request Date:** ${new Date().toLocaleString()}\n\n`;
+    message += `✅ Reviews have been released. Author has been notified to submit revisions.`;
+
+    return {
+      messages: [{ content: message }],
+      actions: [
+        {
+          type: 'UPDATE_WORKFLOW_PHASE',
+          data: {
+            phase: 'RELEASED',
+            decision: 'revise',
+            notes,
+            requireAllReviewsComplete: true
+          }
+        },
+        {
+          type: 'UPDATE_MANUSCRIPT_STATUS',
+          data: { status: 'REVISION_REQUESTED', reason: notes }
+        }
+      ]
+    };
+  }
+};
+
+const deliberateCommand: BotCommand = {
+  name: 'begin-deliberation',
+  description: 'Move to deliberation phase where reviewers can see each other\'s reviews',
+  usage: '@bot-editorial begin-deliberation [notes="optional notes"]',
+  help: `Moves the manuscript to the deliberation phase, allowing reviewers to see each other's reviews and discuss.
+
+**Usage:**
+\`@bot-editorial begin-deliberation [notes="optional notes"]\`
+
+**Parameters:**
+- **notes**: Optional notes about the deliberation (optional)
+
+**Requirements:**
+- Only editors with decision-making authority can begin deliberation
+- All reviews should typically be complete before beginning deliberation
+
+**What happens:**
+1. Workflow phase changes to DELIBERATION
+2. Reviewers can now see each other's reviews (if workflow config allows)
+3. Reviewers are notified via email
+
+**Examples:**
+- \`@bot-editorial begin-deliberation\`
+- \`@bot-editorial begin-deliberation notes="Please discuss the methodology concerns"\``,
+  parameters: [
+    {
+      name: 'notes',
+      description: 'Optional notes about the deliberation',
+      type: 'string',
+      required: false,
+      examples: ['Please discuss the methodology concerns']
+    }
+  ],
+  examples: [
+    '@bot-editorial begin-deliberation',
+    '@bot-editorial begin-deliberation notes="Please discuss the methodology concerns"'
+  ],
+  permissions: ['make_editorial_decision'],
+  async execute(params, context) {
+    const { notes } = params;
+    const { manuscriptId } = context;
+
+    let message = `🤝 **Deliberation Phase Started**\n\n`;
+    message += `**Manuscript ID:** ${manuscriptId}\n`;
+
+    if (notes) {
+      message += `**Notes:** ${notes}\n`;
+    }
+
+    message += `**Started:** ${new Date().toLocaleString()}\n\n`;
+    message += `✅ Reviewers can now see each other's reviews and participate in deliberation.`;
+
+    return {
+      messages: [{ content: message }],
+      actions: [{
+        type: 'UPDATE_WORKFLOW_PHASE',
+        data: {
+          phase: 'DELIBERATION',
+          notes,
+          requireAllReviewsComplete: true
+        }
+      }]
+    };
+  }
+};
+
 const helpCommand: BotCommand = {
   name: 'help',
   description: 'Show available commands and usage information',
@@ -786,7 +1066,7 @@ const helpCommand: BotCommand = {
     
     if (command) {
       // Return help for specific command
-      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand];
+      const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand];
       const targetCommand = commands.find(cmd => cmd.name === command);
       
       if (!targetCommand) {
@@ -855,6 +1135,15 @@ Usage: \`@bot-editorial assign-editor <editor> [message="custom message"]\`
 **invite-reviewer** - Send email invitations to potential reviewers
 Usage: \`@bot-editorial invite-reviewer <reviewers> [deadline="YYYY-MM-DD"] [message="custom message"]\`
 
+**release** - Release reviews to authors with an editorial decision
+Usage: \`@bot-editorial release <decision> [notes="additional notes"]\`
+
+**request-revision** - Request revisions from the author with a deadline
+Usage: \`@bot-editorial request-revision [deadline="YYYY-MM-DD"] [notes="revision requirements"]\`
+
+**begin-deliberation** - Move to deliberation phase where reviewers can see each other's reviews
+Usage: \`@bot-editorial begin-deliberation [notes="optional notes"]\`
+
 ## Keywords
 
 This bot also responds to these keywords: \`editorial decision\`, \`review status\`, \`invite reviewer\`, \`assign editor\`, \`manuscript status\`, \`make decision\`
@@ -887,10 +1176,10 @@ Use \`@bot-editorial help <command-name>\` for detailed help on specific command
 export const editorialBot: CommandBot = {
   id: 'bot-editorial',
   name: 'Editorial Bot',
-  description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, and action editor management',
-  version: '2.3.0',
-  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, helpCommand],
-  keywords: ['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision'],
+  description: 'Assists with manuscript editorial workflows, status updates, reviewer assignments, action editor management, and workflow phase transitions',
+  version: '3.0.0',
+  commands: [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand, helpCommand],
+  keywords: ['editorial decision', 'review status', 'invite reviewer', 'assign editor', 'manuscript status', 'make decision', 'release reviews', 'request revision', 'deliberation'],
   triggers: ['MANUSCRIPT_SUBMITTED', 'REVIEW_COMPLETE'],
   permissions: ['read_manuscript', 'update_manuscript', 'assign_reviewers', 'make_editorial_decision'],
   help: {

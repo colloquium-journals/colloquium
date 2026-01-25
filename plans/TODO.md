@@ -22,10 +22,12 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Editorial Workflow
 
-- [ ] Configurable review workflow system (see [configurable-review-workflow-plan.md](configurable-review-workflow-plan.md))
-  - Template-based workflow configuration (blind, open, progressive disclosure, etc.)
-  - Phase-aware visibility and participation enforcement
-  - Editorial release controls and round tracking
+- [x] Configurable review workflow system (see [configurable-review-workflow-plan.md](configurable-review-workflow-plan.md))
+  - [x] Template-based workflow configuration (blind, open, progressive disclosure, etc.)
+  - [x] Phase-aware visibility and participation enforcement
+  - [x] Editorial release controls and round tracking
+  - [x] Admin UI for workflow configuration (WorkflowConfigPanel)
+  - [x] Frontend conversation UI adaptations (AuthorLockedState, EditorPhaseControls, RoundDivider, masked identities)
 - [ ] Deadline management with automated reminders
 - [ ] Revision diff visualization
 - [ ] Appeal handling process

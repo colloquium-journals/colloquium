@@ -8,10 +8,11 @@ interface UseSSEOptions {
   onActionEditorAssigned?: (assignment: any) => void;
   onReviewerAssigned?: (assignment: any) => void;
   onReviewerInvitationResponse?: (response: any) => void;
+  onWorkflowPhaseChanged?: (data: { phase: string; round: number; decision?: string; manuscriptId: string }) => void;
 }
 
 export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
-  const { enabled = true, onNewMessage, onMessageUpdated, onActionEditorAssigned, onReviewerAssigned, onReviewerInvitationResponse } = options;
+  const { enabled = true, onNewMessage, onMessageUpdated, onActionEditorAssigned, onReviewerAssigned, onReviewerInvitationResponse, onWorkflowPhaseChanged } = options;
   const { token } = useAuth();
   const eventSourceRef = useRef<EventSource | null>(null);
   const onNewMessageRef = useRef(onNewMessage);
@@ -19,6 +20,7 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
   const onActionEditorAssignedRef = useRef(onActionEditorAssigned);
   const onReviewerAssignedRef = useRef(onReviewerAssigned);
   const onReviewerInvitationResponseRef = useRef(onReviewerInvitationResponse);
+  const onWorkflowPhaseChangedRef = useRef(onWorkflowPhaseChanged);
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
@@ -42,6 +44,10 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
   useEffect(() => {
     onReviewerInvitationResponseRef.current = onReviewerInvitationResponse;
   }, [onReviewerInvitationResponse]);
+
+  useEffect(() => {
+    onWorkflowPhaseChangedRef.current = onWorkflowPhaseChanged;
+  }, [onWorkflowPhaseChanged]);
 
   useEffect(() => {
     if (!enabled || !conversationId) {
@@ -105,6 +111,10 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
           } else if (data.type === 'reviewer-invitation-response') {
             if (onReviewerInvitationResponseRef.current) {
               onReviewerInvitationResponseRef.current(data.response);
+            }
+          } else if (data.type === 'workflow-phase-changed') {
+            if (onWorkflowPhaseChangedRef.current) {
+              onWorkflowPhaseChangedRef.current(data);
             }
           }
         } catch (error) {

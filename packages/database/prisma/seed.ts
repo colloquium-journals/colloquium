@@ -1,18 +1,48 @@
-import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel, MessagePrivacy } from '@prisma/client';
+import { PrismaClient, GlobalRole, ManuscriptStatus, ConversationType, PrivacyLevel, MessagePrivacy, WorkflowPhase, ReviewStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { papers, createSeedFiles } from './seed-content';
+
+// Traditional double-blind workflow config (defined inline to avoid import issues with tsx)
+const traditionalBlindWorkflowConfig = {
+  author: {
+    seesReviews: 'on_release' as const,
+    seesReviewerIdentity: 'never' as const,
+    canParticipate: 'on_release' as const,
+  },
+  reviewers: {
+    seeEachOther: 'never' as const,
+    seeAuthorIdentity: 'never' as const,
+    seeAuthorResponses: 'on_release' as const,
+  },
+  phases: {
+    enabled: true,
+    authorResponseStartsNewCycle: true,
+    requireAllReviewsBeforeRelease: true,
+  },
+};
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
-  // Create journal settings
+  // Create journal settings with workflow config (traditional double-blind)
+  const workflowConfig = traditionalBlindWorkflowConfig;
   const journalSettings = await prisma.journal_settings.upsert({
     where: { id: 'singleton' },
-    update: {},
+    update: {
+      settings: {
+        allowPublicSubmissions: true,
+        requireOrcid: false,
+        enableBots: true,
+        reviewDeadlineDays: 30,
+        revisionDeadlineDays: 60,
+        workflowTemplateId: 'traditional-blind',
+        workflowConfig: workflowConfig
+      }
+    },
     create: {
       id: 'singleton',
       name: 'Colloquium Journal',
@@ -22,13 +52,15 @@ async function main() {
         requireOrcid: false,
         enableBots: true,
         reviewDeadlineDays: 30,
-        revisionDeadlineDays: 60
+        revisionDeadlineDays: 60,
+        workflowTemplateId: 'traditional-blind',
+        workflowConfig: workflowConfig
       },
       updatedAt: new Date()
     }
   });
 
-  console.log('✅ Journal settings created');
+  console.log('✅ Journal settings created (with traditional-blind workflow)');
 
   // Create admin user
   const adminUser = await prisma.users.upsert({
@@ -80,7 +112,7 @@ async function main() {
     }
   });
 
-  // Create sample reviewer
+  // Create sample reviewers (multiple for workflow testing)
   const reviewerUser = await prisma.users.upsert({
     where: { email: 'reviewer@colloquium.example.com' },
     update: { username: 'sample-reviewer' },
@@ -90,6 +122,38 @@ async function main() {
       username: 'sample-reviewer',
       name: 'Sample Reviewer',
       role: GlobalRole.USER,
+      affiliation: 'University of Review Sciences',
+      bio: 'Expert reviewer with 10 years of experience in peer review.',
+      updatedAt: new Date()
+    }
+  });
+
+  const reviewerUser2 = await prisma.users.upsert({
+    where: { email: 'reviewer2@colloquium.example.com' },
+    update: { username: 'second-reviewer' },
+    create: {
+      id: randomUUID(),
+      email: 'reviewer2@colloquium.example.com',
+      username: 'second-reviewer',
+      name: 'Second Reviewer',
+      role: GlobalRole.USER,
+      affiliation: 'Institute for Scholarly Assessment',
+      bio: 'Specialist in methodology and research design evaluation.',
+      updatedAt: new Date()
+    }
+  });
+
+  const reviewerUser3 = await prisma.users.upsert({
+    where: { email: 'reviewer3@colloquium.example.com' },
+    update: { username: 'third-reviewer' },
+    create: {
+      id: randomUUID(),
+      email: 'reviewer3@colloquium.example.com',
+      username: 'third-reviewer',
+      name: 'Third Reviewer',
+      role: GlobalRole.USER,
+      affiliation: 'Center for Academic Excellence',
+      bio: 'Senior researcher with expertise in statistical analysis.',
       updatedAt: new Date()
     }
   });
@@ -334,6 +398,43 @@ async function main() {
       keywords: ['open access', 'publishing', 'open science', 'technology trends', 'social factors'],
       publishedAt: new Date('2024-01-25'),
       doi: '10.1371/journal.pone.0298765'
+    },
+    // Workflow testing manuscripts - different phases
+    {
+      title: 'Workflow Test: In Review Phase',
+      abstract: 'This manuscript is in the REVIEW phase for testing workflow visibility. Reviewers are currently evaluating the submission independently.',
+      status: ManuscriptStatus.UNDER_REVIEW,
+      authors: [author5.id, author6.id],
+      keywords: ['workflow', 'testing', 'review phase'],
+      workflowPhase: 'REVIEW' as const,
+      workflowRound: 1
+    },
+    {
+      title: 'Workflow Test: Deliberation Phase',
+      abstract: 'This manuscript is in the DELIBERATION phase for testing workflow visibility. Reviewers can now see each other\'s reviews and discuss.',
+      status: ManuscriptStatus.UNDER_REVIEW,
+      authors: [author7.id],
+      keywords: ['workflow', 'testing', 'deliberation phase'],
+      workflowPhase: 'DELIBERATION' as const,
+      workflowRound: 1
+    },
+    {
+      title: 'Workflow Test: Released to Author',
+      abstract: 'This manuscript is in the RELEASED phase for testing workflow visibility. Reviews have been released to the author with a revision decision.',
+      status: ManuscriptStatus.REVISION_REQUESTED,
+      authors: [author8.id, author9.id],
+      keywords: ['workflow', 'testing', 'released phase'],
+      workflowPhase: 'RELEASED' as const,
+      workflowRound: 1
+    },
+    {
+      title: 'Workflow Test: Author Responding (Round 2)',
+      abstract: 'This manuscript is in the AUTHOR_RESPONDING phase after revisions. This is round 2 of the review cycle.',
+      status: ManuscriptStatus.UNDER_REVIEW,
+      authors: [author10.id],
+      keywords: ['workflow', 'testing', 'author responding', 'round 2'],
+      workflowPhase: 'AUTHOR_RESPONDING' as const,
+      workflowRound: 2
     }
   ];
 
@@ -345,15 +446,18 @@ async function main() {
     });
 
     if (!existingManuscript) {
+      const manuscriptId = randomUUID();
       const manuscript = await prisma.manuscripts.create({
         data: {
-          id: randomUUID(),
+          id: manuscriptId,
           title: manuscriptData.title,
           abstract: manuscriptData.abstract,
           authors: manuscriptData.authors.map(authorId => {
             const author = [authorUser, author2, author3, author4, author5, author6, author7, author8, author9, author10].find(u => u.id === authorId);
             return author ? author.name : 'Unknown Author';
           }),
+          workflowPhase: (manuscriptData as any).workflowPhase ? WorkflowPhase[(manuscriptData as any).workflowPhase as keyof typeof WorkflowPhase] : WorkflowPhase.REVIEW,
+          workflowRound: (manuscriptData as any).workflowRound || 1,
           content: `# ${manuscriptData.title}
 
 ## Abstract
@@ -442,6 +546,75 @@ This work demonstrates the potential for innovative approaches to academic publi
   }
 
   console.log('✅ Sample manuscripts created');
+
+  // Create reviewer assignments for workflow test manuscripts
+  const workflowTestManuscripts = createdManuscripts.filter(m =>
+    m.title.startsWith('Workflow Test:')
+  );
+
+  for (const manuscript of workflowTestManuscripts) {
+    // Assign reviewers to workflow test manuscripts
+    const reviewers = [reviewerUser, reviewerUser2, reviewerUser3];
+
+    for (let i = 0; i < reviewers.length; i++) {
+      const reviewer = reviewers[i];
+      const existingAssignment = await prisma.review_assignments.findFirst({
+        where: { manuscriptId: manuscript.id, reviewerId: reviewer.id }
+      });
+
+      if (!existingAssignment) {
+        // Determine status based on manuscript phase
+        let status: ReviewStatus = ReviewStatus.IN_PROGRESS;
+        if (manuscript.workflowPhase === WorkflowPhase.DELIBERATION ||
+            manuscript.workflowPhase === WorkflowPhase.RELEASED ||
+            manuscript.workflowPhase === WorkflowPhase.AUTHOR_RESPONDING) {
+          status = ReviewStatus.COMPLETED;
+        }
+
+        await prisma.review_assignments.create({
+          data: {
+            id: randomUUID(),
+            manuscriptId: manuscript.id,
+            reviewerId: reviewer.id,
+            status,
+            assignedAt: new Date('2024-01-05'),
+            dueDate: new Date('2024-02-05'),
+            completedAt: status === ReviewStatus.COMPLETED ? new Date('2024-01-20') : null
+          }
+        });
+      }
+    }
+  }
+
+  console.log('✅ Reviewer assignments created for workflow test manuscripts');
+
+  // Create workflow releases for released/author-responding manuscripts
+  const releasedManuscripts = workflowTestManuscripts.filter(m =>
+    m.workflowPhase === WorkflowPhase.RELEASED ||
+    m.workflowPhase === WorkflowPhase.AUTHOR_RESPONDING
+  );
+
+  for (const manuscript of releasedManuscripts) {
+    const existingRelease = await prisma.workflow_releases.findFirst({
+      where: { manuscriptId: manuscript.id, round: 1 }
+    });
+
+    if (!existingRelease) {
+      await prisma.workflow_releases.create({
+        data: {
+          id: randomUUID(),
+          manuscriptId: manuscript.id,
+          round: 1,
+          releasedAt: new Date('2024-01-25'),
+          releasedBy: editorUser.id,
+          decisionType: 'revise',
+          notes: 'Please address the reviewer concerns regarding methodology and expand the discussion section.'
+        }
+      });
+    }
+  }
+
+  console.log('✅ Workflow releases created');
 
   // Create sample conversations for the manuscripts
   const conversations = [
@@ -668,6 +841,148 @@ This work demonstrates the potential for innovative approaches to academic publi
           authorId: editorUser.id
         }
       ]
+    },
+    // Workflow test manuscript conversations
+    {
+      manuscriptIndex: 11, // Workflow Test: In Review Phase
+      title: 'Peer Review Discussion',
+      type: ConversationType.REVIEW,
+      includeReviewers: true,
+      messages: [
+        {
+          content: 'This manuscript has been assigned for peer review. Reviewers, please evaluate independently.',
+          authorId: editorUser.id
+        },
+        {
+          content: '## Reviewer Assessment\n\nThe methodology section presents a novel approach. However, I have concerns about the sample size used in the experiments. The statistical analysis would benefit from additional validation.\n\n**Recommendation:** Major revision',
+          authorId: 'reviewer1', // Will be replaced with reviewerUser.id
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        },
+        {
+          content: '## Review Summary\n\nThe paper addresses an important research gap. The literature review is comprehensive. I suggest expanding the discussion of limitations.\n\n**Recommendation:** Minor revision',
+          authorId: 'reviewer2', // Will be replaced with reviewerUser2.id
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 12, // Workflow Test: Deliberation Phase
+      title: 'Review Deliberation',
+      type: ConversationType.REVIEW,
+      includeReviewers: true,
+      messages: [
+        {
+          content: 'Reviewers have submitted their assessments. Moving to deliberation phase where you can discuss your evaluations.',
+          authorId: editorUser.id
+        },
+        {
+          content: '## Initial Review\n\nStrong theoretical foundation but weak empirical validation. The claims made in Section 3 need stronger support.\n\n**Score:** 6/10',
+          authorId: 'reviewer1',
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        },
+        {
+          content: '## Review Comments\n\nI appreciate the innovative approach. The writing is clear and well-organized. My main concern is the generalizability of the findings.\n\n**Score:** 7/10',
+          authorId: 'reviewer2',
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        },
+        {
+          content: '## Additional Review\n\nThe methodology is sound but the sample selection criteria need clarification. I recommend the authors provide more detail on their recruitment process.\n\n**Score:** 7/10',
+          authorId: 'reviewer3',
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        },
+        {
+          content: '@reviewer1 I see your point about Section 3. Do you think supplementary analysis would address your concerns, or does the core argument need revision?',
+          authorId: 'reviewer2',
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        },
+        {
+          content: 'Supplementary analysis could help, but I think the authors need to be clearer about the scope of their claims. @reviewer3 what are your thoughts?',
+          authorId: 'reviewer1',
+          privacy: MessagePrivacy.REVIEWER_ONLY
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 13, // Workflow Test: Released to Author
+      title: 'Review Released',
+      type: ConversationType.REVIEW,
+      includeReviewers: true,
+      messages: [
+        {
+          content: 'The peer review is complete. Reviews will be released to the authors.',
+          authorId: editorUser.id
+        },
+        {
+          content: '## Reviewer A Assessment\n\nThis paper presents interesting findings on workflow management. The experimental design is appropriate for the research questions. However, several areas need improvement:\n\n1. The related work section should include recent publications from 2023\n2. Figure 3 is difficult to read - please improve resolution\n3. The discussion of threats to validity is insufficient\n\n**Recommendation:** Minor revision',
+          authorId: 'reviewer1',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE
+        },
+        {
+          content: '## Reviewer B Assessment\n\nThe contribution is meaningful and the results are convincing. I have the following suggestions:\n\n1. Add confidence intervals to Table 2\n2. Clarify the participant recruitment process\n3. Consider discussing implications for practitioners\n\n**Recommendation:** Minor revision',
+          authorId: 'reviewer2',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE
+        },
+        {
+          content: '## Reviewer C Assessment\n\nWell-written paper with clear structure. The methodology is rigorous. Minor issues:\n\n1. Typo on page 5, line 23\n2. Reference [15] appears incomplete\n3. The abstract could better highlight the main contributions\n\n**Recommendation:** Accept with minor changes',
+          authorId: 'reviewer3',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE
+        },
+        {
+          content: '@bot-editorial release decision="revise" notes="Please address the reviewer concerns regarding methodology and expand the discussion section."',
+          authorId: editorUser.id
+        },
+        {
+          content: 'Thank you for the thorough reviews. We will address all the points raised. Could we get clarification on Reviewer A\'s comment about Figure 3 - which specific aspect needs improvement?',
+          authorId: author8.id
+        }
+      ]
+    },
+    {
+      manuscriptIndex: 14, // Workflow Test: Author Responding (Round 2)
+      title: 'Revision Review - Round 2',
+      type: ConversationType.REVIEW,
+      includeReviewers: true,
+      messages: [
+        {
+          content: '## Round 1 Review\n\nThe initial submission had potential but needed significant improvements to the methodology section.\n\n**Recommendation:** Major revision',
+          authorId: 'reviewer1',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE,
+          round: 1
+        },
+        {
+          content: '## Round 1 Review\n\nInteresting approach but the experimental validation was weak. The authors should conduct additional experiments.\n\n**Recommendation:** Major revision',
+          authorId: 'reviewer2',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE,
+          round: 1
+        },
+        {
+          content: '@bot-editorial release decision="revise" notes="Major revisions required. Please strengthen the methodology and add additional experiments."',
+          authorId: editorUser.id,
+          round: 1
+        },
+        {
+          content: 'We have substantially revised the manuscript based on reviewer feedback. Key changes:\n\n1. Completely rewritten methodology section with more detail\n2. Added two new experiments as suggested\n3. Expanded the discussion with practical implications\n4. Updated literature review with recent publications\n\nPlease see the detailed response document attached.',
+          authorId: author10.id,
+          round: 1
+        },
+        {
+          content: 'Thank you for the revised submission. The manuscript has been sent back to reviewers for re-evaluation.',
+          authorId: editorUser.id,
+          round: 2
+        },
+        {
+          content: '## Round 2 Review\n\nThe authors have addressed most of my concerns. The new methodology section is much clearer. The additional experiments strengthen the paper significantly.\n\n**Remaining minor issues:**\n- Please fix the formatting in Table 4\n- Consider adding a limitations paragraph\n\n**Recommendation:** Accept with minor revisions',
+          authorId: 'reviewer1',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE,
+          round: 2
+        },
+        {
+          content: '## Round 2 Review\n\nExcellent revision. The authors have thoroughly addressed my concerns. The new experiments provide convincing evidence for the claims.\n\n**Recommendation:** Accept',
+          authorId: 'reviewer2',
+          privacy: MessagePrivacy.AUTHOR_VISIBLE,
+          round: 2
+        }
+      ]
     }
   ];
 
@@ -710,12 +1025,31 @@ This work demonstrates the potential for innovative approaches to academic publi
         }
       }
 
-      // Add reviewer if not already included
-      if (!participants.some(p => p.userId === reviewerUser.id)) {
-        participants.push({
-          userId: reviewerUser.id,
-          role: 'PARTICIPANT'
-        });
+      // Add reviewers based on conversation config
+      const reviewerMapping: Record<string, string> = {
+        'reviewer1': reviewerUser.id,
+        'reviewer2': reviewerUser2.id,
+        'reviewer3': reviewerUser3.id
+      };
+
+      if ((convData as any).includeReviewers) {
+        // Add all three reviewers for workflow test conversations
+        for (const reviewer of [reviewerUser, reviewerUser2, reviewerUser3]) {
+          if (!participants.some(p => p.userId === reviewer.id)) {
+            participants.push({
+              userId: reviewer.id,
+              role: 'PARTICIPANT'
+            });
+          }
+        }
+      } else {
+        // Add single reviewer if not already included (for backward compatibility)
+        if (!participants.some(p => p.userId === reviewerUser.id)) {
+          participants.push({
+            userId: reviewerUser.id,
+            role: 'PARTICIPANT'
+          });
+        }
       }
 
       // Create conversation with messages
@@ -739,18 +1073,28 @@ This work demonstrates the potential for innovative approaches to academic publi
 
       // Create messages with proper timestamps to show progression
       for (let i = 0; i < convData.messages.length; i++) {
-        const message = convData.messages[i];
+        const message = convData.messages[i] as any;
         const baseDate = new Date('2024-01-01');
         const messageDate = new Date(baseDate.getTime() + (i * 2 * 24 * 60 * 60 * 1000)); // 2 days apart
+
+        // Resolve reviewer placeholders to actual user IDs
+        let authorId = message.authorId;
+        if (reviewerMapping[authorId]) {
+          authorId = reviewerMapping[authorId];
+        }
+
+        // Use message-specific privacy if provided, otherwise default based on conversation type
+        const messagePrivacy = message.privacy ||
+          (convData.type === ConversationType.EDITORIAL ? MessagePrivacy.EDITOR_ONLY : MessagePrivacy.AUTHOR_VISIBLE);
 
         await prisma.messages.create({
           data: {
             id: randomUUID(),
             content: message.content,
-            authorId: message.authorId,
+            authorId: authorId,
             conversationId: conversation.id,
             isBot: message.content.includes('@bot-editorial'),
-            privacy: convData.type === ConversationType.EDITORIAL ? MessagePrivacy.EDITOR_ONLY : MessagePrivacy.AUTHOR_VISIBLE,
+            privacy: messagePrivacy,
             createdAt: messageDate,
             updatedAt: messageDate
           }

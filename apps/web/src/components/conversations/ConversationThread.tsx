@@ -7,7 +7,20 @@ import { MessageThread } from './MessageThread';
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Mock data types (will be replaced with real API calls)
+interface WorkflowInfo {
+  phase: string;
+  round: number;
+  hasConfig: boolean;
+}
+
+interface ParticipationInfo {
+  canParticipate: boolean;
+  reason?: string;
+  viewerRole: string;
+  phase: string;
+  round: number;
+}
+
 interface ConversationData {
   id: string;
   title: string;
@@ -16,6 +29,9 @@ interface ConversationData {
     title: string;
     authors: string[];
     status: string;
+    workflowPhase?: string;
+    workflowRound?: number;
+    releasedAt?: string;
     action_editors?: {
       editorId: string;
     } | null;
@@ -38,6 +54,8 @@ interface ConversationData {
       role: string;
     };
   }>;
+  workflow?: WorkflowInfo;
+  participation?: ParticipationInfo;
 }
 
 interface MessageData {
@@ -53,6 +71,7 @@ interface MessageData {
     orcid?: string;
     joinedAt?: string;
     bio?: string;
+    isMasked?: boolean;
   };
   createdAt: string;
   editedAt?: string;
@@ -100,11 +119,33 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     });
   }, []);
 
+  // Handle workflow phase changes
+  const handleWorkflowPhaseChanged = useCallback((data: { phase: string; round: number }) => {
+    setConversation(prev => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        workflow: prev.workflow ? {
+          ...prev.workflow,
+          phase: data.phase,
+          round: data.round
+        } : undefined,
+        participation: prev.participation ? {
+          ...prev.participation,
+          phase: data.phase,
+          round: data.round
+        } : undefined
+      };
+    });
+  }, []);
+
   // Initialize SSE connection
   const { isConnected, connectionStatus } = useSSE(conversationId, {
     enabled: !!conversationId,
     onNewMessage: handleNewMessage,
-    onMessageUpdated: handleMessageUpdated
+    onMessageUpdated: handleMessageUpdated,
+    onWorkflowPhaseChanged: handleWorkflowPhaseChanged
   });
 
   // Mock data - will be replaced with API call
@@ -132,7 +173,9 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
           totalMessageCount: data.totalMessageCount,
           visibleMessageCount: data.visibleMessageCount,
           messageVisibilityMap: data.messageVisibilityMap,
-          participants: data.participants
+          participants: data.participants,
+          workflow: data.workflow,
+          participation: data.participation
         };
         
         setConversation(formattedConversation);

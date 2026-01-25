@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { prisma } from '@colloquium/database';
+import { WorkflowConfigSchema } from '@colloquium/types';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -67,6 +68,10 @@ const JournalSettingsSchema = z.object({
   defaultReviewPeriod: z.number().min(7).max(365).default(30),
   allowPublicReviews: z.boolean().default(true),
   requireReviewerRegistration: z.boolean().default(true),
+
+  // Workflow Settings
+  workflowTemplateId: z.string().optional(),
+  workflowConfig: WorkflowConfigSchema.optional(),
   
   // Publication Settings
   issn: z.string().optional(),
@@ -114,6 +119,8 @@ const defaultSettings = {
   defaultReviewPeriod: 30,
   allowPublicReviews: true,
   requireReviewerRegistration: true,
+  workflowTemplateId: undefined as string | undefined,
+  workflowConfig: undefined as any,
   issn: undefined as string | undefined,
   doi: undefined as string | undefined,
   licenseType: 'CC BY 4.0',

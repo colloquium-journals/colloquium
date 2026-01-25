@@ -45,6 +45,7 @@ interface MessageData {
     orcid?: string;
     joinedAt?: string;
     bio?: string;
+    isMasked?: boolean;
   };
   createdAt: string;
   editedAt?: string;
@@ -241,7 +242,7 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
         {/* Message Header */}
         <Group justify="space-between" align="flex-start">
           <Group gap="sm">
-            <UserProfileHover 
+            <UserProfileHover
               user={{
                 name: message.author.name,
                 email: message.author.email,
@@ -252,20 +253,20 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
                 joinedAt: message.author.joinedAt,
                 bio: message.author.bio
               }}
-              disabled={message.isBot}
+              disabled={message.isBot || message.author.isMasked}
             >
-              <Avatar 
-                size="md" 
-                color={message.isBot ? 'blue' : 'gray'}
+              <Avatar
+                size="md"
+                color={message.isBot ? 'blue' : message.author.isMasked ? 'violet' : 'gray'}
                 radius="xl"
-                style={{ cursor: message.isBot ? 'default' : 'pointer' }}
+                style={{ cursor: (message.isBot || message.author.isMasked) ? 'default' : 'pointer' }}
               >
-                {message.isBot ? '🤖' : getInitials(message.author.name)}
+                {message.isBot ? '🤖' : message.author.isMasked ? '?' : getInitials(message.author.name)}
               </Avatar>
             </UserProfileHover>
             <div>
               <Group gap="xs" align="center">
-                <UserProfileHover 
+                <UserProfileHover
                   user={{
                     name: message.author.name,
                     email: message.author.email,
@@ -276,12 +277,15 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
                     joinedAt: message.author.joinedAt,
                     bio: message.author.bio
                   }}
-                  disabled={message.isBot}
+                  disabled={message.isBot || message.author.isMasked}
                 >
-                  <Text 
-                    size="sm" 
+                  <Text
+                    size="sm"
                     fw={500}
-                    style={{ cursor: message.isBot ? 'default' : 'pointer' }}
+                    style={{
+                      cursor: (message.isBot || message.author.isMasked) ? 'default' : 'pointer',
+                      fontStyle: message.author.isMasked ? 'italic' : 'normal'
+                    }}
                   >
                     {message.author.name}
                   </Text>
@@ -289,6 +293,11 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
                 {message.isBot && (
                   <Badge size="xs" variant="light" color="blue">
                     Bot
+                  </Badge>
+                )}
+                {message.author.isMasked && (
+                  <Badge size="xs" variant="light" color="violet">
+                    Anonymous
                   </Badge>
                 )}
               </Group>

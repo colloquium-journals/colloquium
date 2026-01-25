@@ -1,5 +1,5 @@
 import { prisma } from '@colloquium/database';
-import { BotAction } from '@colloquium/types';
+import { BotAction, WorkflowPhase } from '@colloquium/types';
 import * as nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 import { broadcastToConversation } from '../routes/events';
@@ -69,7 +69,11 @@ export class BotActionProcessor {
       case 'EXECUTE_PUBLICATION_WORKFLOW':
         await this.handleExecutePublicationWorkflow(action.data, context);
         break;
-      
+
+      case 'UPDATE_WORKFLOW_PHASE':
+        await this.handleUpdateWorkflowPhase(action.data, context);
+        break;
+
       default:
         console.warn(`Unknown bot action type: ${action.type}`);
     }
@@ -1169,6 +1173,215 @@ This publication was processed via Editorial Bot automation.
       subject,
       html: htmlContent,
       text: textContent
+    });
+  }
+
+  private async handleUpdateWorkflowPhase(data: any, context: ActionContext): Promise<void> {
+    const { phase, decision, notes, requireAllReviewsComplete } = data;
+    const { manuscriptId, userId, conversationId } = context;
+
+    console.log(`Updating workflow phase for manuscript ${manuscriptId} to ${phase}`);
+
+    // Get manuscript with current state
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id: manuscriptId },
+      include: {
+        review_assignments: {
+          where: { status: { in: ['ACCEPTED', 'IN_PROGRESS', 'COMPLETED'] } },
+          select: { status: true, reviewerId: true }
+        },
+        manuscript_authors: {
+          include: { users: { select: { email: true, name: true } } }
+        }
+      }
+    });
+
+    if (!manuscript) {
+      throw new Error(`Manuscript ${manuscriptId} not found`);
+    }
+
+    // Validate reviews complete if required
+    if (requireAllReviewsComplete && phase === 'RELEASED') {
+      const incompleteReviews = manuscript.review_assignments.filter(
+        a => a.status !== 'COMPLETED'
+      );
+      if (incompleteReviews.length > 0) {
+        throw new Error(`Cannot release: ${incompleteReviews.length} review(s) are not yet complete`);
+      }
+    }
+
+    // Update manuscript phase
+    const updatedManuscript = await prisma.manuscripts.update({
+      where: { id: manuscriptId },
+      data: {
+        workflowPhase: phase,
+        releasedAt: phase === 'RELEASED' ? new Date() : undefined,
+        updatedAt: new Date()
+      }
+    });
+
+    // Create workflow release record
+    await prisma.workflow_releases.create({
+      data: {
+        id: randomUUID(),
+        manuscriptId,
+        round: manuscript.workflowRound,
+        releasedBy: userId,
+        decisionType: decision,
+        notes
+      }
+    });
+
+    // Create system message documenting the phase change
+    const phaseLabels: Record<string, string> = {
+      'REVIEW': 'Review Phase',
+      'DELIBERATION': 'Deliberation Phase',
+      'RELEASED': 'Released to Authors',
+      'AUTHOR_RESPONDING': 'Author Response Phase'
+    };
+
+    let notificationMessage = `🔄 **Workflow Phase Updated**\n\n`;
+    notificationMessage += `**New Phase:** ${phaseLabels[phase] || phase}\n`;
+    notificationMessage += `**Round:** ${manuscript.workflowRound}\n`;
+    if (decision) {
+      notificationMessage += `**Decision:** ${decision}\n`;
+    }
+    if (notes) {
+      notificationMessage += `**Notes:** ${notes}\n`;
+    }
+    notificationMessage += `**Updated:** ${new Date().toLocaleString()}\n`;
+
+    await prisma.messages.create({
+      data: {
+        id: randomUUID(),
+        content: notificationMessage,
+        conversationId,
+        authorId: userId,
+        privacy: 'EDITOR_ONLY',
+        isBot: true,
+        updatedAt: new Date(),
+        metadata: {
+          type: 'workflow_phase_change',
+          previousPhase: manuscript.workflowPhase,
+          newPhase: phase,
+          round: manuscript.workflowRound,
+          decision,
+          via: 'bot'
+        }
+      }
+    });
+
+    // Broadcast phase change via SSE
+    await broadcastToConversation(conversationId, {
+      type: 'workflow-phase-changed',
+      phase,
+      round: manuscript.workflowRound,
+      decision,
+      manuscriptId
+    }, manuscriptId);
+
+    // Send notification emails based on phase
+    if (phase === 'RELEASED') {
+      const authorEmails = manuscript.manuscript_authors.map(a => a.users.email);
+      for (const email of authorEmails) {
+        try {
+          await this.sendReleaseNotificationEmail(email, manuscript, decision, conversationId);
+        } catch (emailError) {
+          console.error(`Failed to send release notification to ${email}:`, emailError);
+        }
+      }
+    }
+
+    if (phase === 'DELIBERATION') {
+      // Notify reviewers that deliberation has begun
+      for (const assignment of manuscript.review_assignments) {
+        try {
+          const reviewer = await prisma.users.findUnique({
+            where: { id: assignment.reviewerId },
+            select: { email: true }
+          });
+          if (reviewer) {
+            await this.sendDeliberationNotificationEmail(reviewer.email, manuscript, conversationId);
+          }
+        } catch (emailError) {
+          console.error(`Failed to send deliberation notification:`, emailError);
+        }
+      }
+    }
+
+    console.log(`Workflow phase updated for manuscript ${manuscriptId}: ${phase}`);
+  }
+
+  private async sendReleaseNotificationEmail(email: string, manuscript: any, decision: string | undefined, conversationId: string): Promise<void> {
+    const subject = `Reviews Released: ${manuscript.title}`;
+
+    const htmlContent = `
+      <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <h1 style="color: #2563eb; margin-bottom: 24px;">Reviews Have Been Released</h1>
+
+        <div style="background-color: #f9fafb; padding: 20px; margin: 24px 0; border-radius: 6px;">
+          <h2 style="margin-top: 0; color: #374151;">${manuscript.title}</h2>
+          ${decision ? `<p><strong>Editorial Decision:</strong> ${decision}</p>` : ''}
+          <p><strong>Release Date:</strong> ${new Date().toLocaleDateString()}</p>
+        </div>
+
+        <p>The reviews for your manuscript are now available. You can view the reviewer comments and respond to them through the conversation.</p>
+
+        <div style="margin: 32px 0;">
+          <a href="${process.env.FRONTEND_URL}/conversations/${conversationId}"
+             style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+            View Reviews
+          </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+          This notification was sent via Editorial Bot automation.
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+      to: email,
+      subject,
+      html: htmlContent,
+      text: `Reviews Released: ${manuscript.title}\n\n${decision ? `Decision: ${decision}\n` : ''}View reviews: ${process.env.FRONTEND_URL}/conversations/${conversationId}`
+    });
+  }
+
+  private async sendDeliberationNotificationEmail(email: string, manuscript: any, conversationId: string): Promise<void> {
+    const subject = `Deliberation Phase: ${manuscript.title}`;
+
+    const htmlContent = `
+      <div style="max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <h1 style="color: #2563eb; margin-bottom: 24px;">Deliberation Phase Has Begun</h1>
+
+        <div style="background-color: #f9fafb; padding: 20px; margin: 24px 0; border-radius: 6px;">
+          <h2 style="margin-top: 0; color: #374151;">${manuscript.title}</h2>
+          <p>All reviews have been submitted and the manuscript has entered the deliberation phase.</p>
+        </div>
+
+        <p>You can now see other reviewers' assessments and participate in the deliberation discussion.</p>
+
+        <div style="margin: 32px 0;">
+          <a href="${process.env.FRONTEND_URL}/conversations/${conversationId}"
+             style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+            View Conversation
+          </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+          This notification was sent via Editorial Bot automation.
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.FROM_EMAIL || 'noreply@colloquium.example.com',
+      to: email,
+      subject,
+      html: htmlContent,
+      text: `Deliberation Phase: ${manuscript.title}\n\nView conversation: ${process.env.FRONTEND_URL}/conversations/${conversationId}`
     });
   }
 

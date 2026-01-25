@@ -136,6 +136,29 @@ REDIS_PORT=6379
 - **Bot mentions**: `@bot-<name> command` triggers async processing (all bot IDs must start with `bot-` prefix)
 - **Real-time**: Server-Sent Events for live updates
 
+### Workflow System
+Configurable review workflows support different peer review models. See [docs/development/workflow.md](docs/development/workflow.md) for full documentation.
+
+**Phases**: REVIEW → DELIBERATION → RELEASED → AUTHOR_RESPONDING
+
+**Key Components**:
+- **Database**: `workflowPhase`, `workflowRound` on manuscripts; `workflow_releases` table
+- **Visibility Service**: `apps/api/src/services/workflowVisibility.ts` - controls who sees what
+- **Participation Service**: `apps/api/src/services/workflowParticipation.ts` - controls who can post
+- **Templates**: `packages/types/src/workflowTemplates.ts` - predefined workflow configs
+
+**Templates Available**:
+- `traditional-blind`: Double-blind with release phases
+- `single-blind`: Reviewers see authors, authors don't see reviewers
+- `open-continuous`: Fully transparent, real-time visibility
+- `progressive-disclosure`: Reviewers collaborate after all submit
+- `open-gated`: Open but authors need invitation to respond
+
+**Editorial Bot Commands**:
+- `@bot-editorial release decision="revise"` - Release reviews to authors
+- `@bot-editorial begin-deliberation` - Start reviewer deliberation phase
+- `@bot-editorial request-revision deadline="2024-03-15"` - Request author revisions
+
 ### Bot Naming Convention
 - **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference`, `bot-reviewer-checklist`)
 - **Package folders**: Use `-bot` suffix (e.g., `editorial-bot/`, `reference-bot/`)

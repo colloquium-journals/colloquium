@@ -198,11 +198,15 @@ model manuscripts {
   metadata           Json?
   publishedAt        DateTime?
   doi                String?
+  workflowPhase      WorkflowPhase        @default(REVIEW)
+  workflowRound      Int                  @default(1)
+  releasedAt         DateTime?
   action_editors     action_editors?
   conversations      conversations[]
   manuscript_authors manuscript_authors[]
   manuscript_files   manuscript_files[]
   review_assignments review_assignments[]
+  workflow_releases  workflow_releases[]
 }
 
 model messages {
@@ -276,6 +280,7 @@ model users {
   manuscript_authors                              manuscript_authors[]
   messages                                        messages[]
   review_assignments                              review_assignments[]
+  workflow_releases                               workflow_releases[]
 }
 
 enum BotExecutionStatus {
@@ -354,4 +359,23 @@ enum StorageType {
   S3
   GCS
   AZURE
+}
+
+enum WorkflowPhase {
+  REVIEW
+  DELIBERATION
+  RELEASED
+  AUTHOR_RESPONDING
+}
+
+model workflow_releases {
+  id            String      @id @default(cuid())
+  manuscriptId  String
+  round         Int
+  releasedAt    DateTime    @default(now())
+  releasedBy    String
+  decisionType  String?
+  notes         String?
+  manuscripts   manuscripts @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  users         users       @relation(fields: [releasedBy], references: [id])
 }

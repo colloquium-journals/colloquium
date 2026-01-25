@@ -48,6 +48,33 @@ export enum PrivacyLevel {
   PUBLIC = 'PUBLIC'
 }
 
+export enum WorkflowPhase {
+  REVIEW = 'REVIEW',
+  DELIBERATION = 'DELIBERATION',
+  RELEASED = 'RELEASED',
+  AUTHOR_RESPONDING = 'AUTHOR_RESPONDING',
+}
+
+export const WorkflowConfigSchema = z.object({
+  author: z.object({
+    seesReviews: z.enum(['realtime', 'on_release', 'never']),
+    seesReviewerIdentity: z.enum(['always', 'never', 'on_release']),
+    canParticipate: z.enum(['anytime', 'on_release', 'invited']),
+  }),
+  reviewers: z.object({
+    seeEachOther: z.enum(['realtime', 'after_all_submit', 'never']),
+    seeAuthorIdentity: z.enum(['always', 'never']),
+    seeAuthorResponses: z.enum(['realtime', 'on_release']),
+  }),
+  phases: z.object({
+    enabled: z.boolean(),
+    authorResponseStartsNewCycle: z.boolean(),
+    requireAllReviewsBeforeRelease: z.boolean(),
+  }),
+});
+
+export type WorkflowConfig = z.infer<typeof WorkflowConfigSchema>;
+
 // API Response types
 export interface ApiResponse<T = any> {
   data?: T;
@@ -173,7 +200,7 @@ export interface BotAttachment {
 }
 
 export interface BotAction {
-  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION' | 'ASSIGN_ACTION_EDITOR' | 'EXECUTE_PUBLICATION_WORKFLOW';
+  type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION' | 'ASSIGN_ACTION_EDITOR' | 'EXECUTE_PUBLICATION_WORKFLOW' | 'UPDATE_WORKFLOW_PHASE';
   data: Record<string, any>;
 }
 
@@ -318,3 +345,6 @@ export type UpdateUserData = z.infer<typeof userUpdateSchema>;
 export type UpdateJournalSettingsData = z.infer<typeof journalSettingsSchema>;
 export type UpdateBotConfigData = z.infer<typeof botConfigSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
+
+// Re-export workflow templates (after WorkflowConfig is defined to avoid circular dependency)
+export * from './workflowTemplates';

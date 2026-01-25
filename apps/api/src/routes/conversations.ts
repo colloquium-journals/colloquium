@@ -2,13 +2,44 @@ import { Router } from 'express';
 import { prisma } from '@colloquium/database';
 import { authenticate, requirePermission, optionalAuth, generateBotServiceToken } from '../middleware/auth';
 import { Permission, GlobalRole } from '@colloquium/auth';
+import { WorkflowConfig, WorkflowPhase } from '@colloquium/types';
 import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
 import { botActionProcessor } from '../services/botActionProcessor';
 import { getBotQueue } from '../jobs';
 import { randomUUID } from 'crypto';
+import {
+  canUserSeeMessageWithWorkflow,
+  maskMessageAuthor,
+  getViewerRole,
+  MaskedAuthor
+} from '../services/workflowVisibility';
+import {
+  canUserParticipate,
+  handleAuthorResponse,
+  getParticipationStatus
+} from '../services/workflowParticipation';
 
 const router = Router();
+
+// Helper function to get workflow config from journal settings
+async function getWorkflowConfig(): Promise<WorkflowConfig | null> {
+  try {
+    const settings = await prisma.journal_settings.findFirst({
+      where: { id: 'singleton' },
+      select: { settings: true }
+    });
+
+    if (settings?.settings && typeof settings.settings === 'object') {
+      const journalSettings = settings.settings as any;
+      return journalSettings.workflowConfig || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to get workflow config:', error);
+    return null;
+  }
+}
 
 // Helper function to determine if user can see a message based on privacy level
 export async function canUserSeeMessage(userId: string | undefined, userRole: string | undefined, messagePrivacy: string, manuscriptId: string) {
@@ -236,6 +267,9 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             title: true,
             authors: true,
             status: true,
+            workflowPhase: true,
+            workflowRound: true,
+            releasedAt: true,
             action_editors: {
               select: {
                 editorId: true
@@ -279,55 +313,119 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       });
     }
 
+    // Get workflow config for additional visibility rules
+    const workflowConfig = await getWorkflowConfig();
+    const manuscriptContext = {
+      id: conversation.manuscriptId,
+      workflowPhase: conversation.manuscripts.workflowPhase,
+      workflowRound: conversation.manuscripts.workflowRound
+    };
+
     // Filter messages based on user's permission to see them
     console.log(`Found ${conversation.messages.length} total messages for conversation ${id}`);
     const visibleMessages = [];
     const messageVisibilityMap = [];
-    
+
     for (const msg of conversation.messages) {
-      const canSee = await canUserSeeMessage(
-        req.user?.id, 
-        req.user?.role, 
-        msg.privacy, 
+      // First check privacy-based visibility
+      const canSeePrivacy = await canUserSeeMessage(
+        req.user?.id,
+        req.user?.role,
+        msg.privacy,
         conversation.manuscriptId
       );
-      
+
+      // Then apply workflow-based visibility if config exists
+      let canSeeWorkflow = true;
+      if (workflowConfig && canSeePrivacy) {
+        canSeeWorkflow = await canUserSeeMessageWithWorkflow(
+          req.user?.id,
+          req.user?.role,
+          msg.authorId,
+          msg.privacy,
+          conversation.manuscriptId,
+          workflowConfig,
+          manuscriptContext
+        );
+      }
+
+      const canSee = canSeePrivacy && canSeeWorkflow;
+
       messageVisibilityMap.push({
         id: msg.id,
         visible: canSee,
         createdAt: msg.createdAt
       });
-      
+
       if (canSee) {
         visibleMessages.push(msg);
       }
     }
     console.log(`Returning ${visibleMessages.length} visible messages`);
 
+    // Apply identity masking to visible message authors
+    const maskedMessages = await Promise.all(
+      visibleMessages.map(async msg => {
+        const maskedAuthor = await maskMessageAuthor(
+          msg.users,
+          req.user?.id,
+          req.user?.role,
+          conversation.manuscriptId,
+          workflowConfig,
+          manuscriptContext.workflowPhase
+        );
+
+        return {
+          id: msg.id,
+          content: msg.content,
+          privacy: msg.privacy,
+          author: maskedAuthor,
+          createdAt: msg.createdAt,
+          updatedAt: msg.updatedAt,
+          parentId: msg.parentId,
+          isBot: msg.isBot,
+          metadata: msg.metadata
+        };
+      })
+    );
+
+    // Get participation status for the current user
+    let participationStatus = null;
+    if (req.user?.id) {
+      participationStatus = await getParticipationStatus(
+        req.user.id,
+        req.user.role,
+        conversation.manuscriptId,
+        workflowConfig,
+        { ...manuscriptContext, status: conversation.manuscripts.status }
+      );
+    }
+
     // Format response
     const formattedConversation = {
       id: conversation.id,
       title: conversation.title,
-      manuscript: conversation.manuscripts,
+      manuscript: {
+        ...conversation.manuscripts,
+        workflowPhase: conversation.manuscripts.workflowPhase,
+        workflowRound: conversation.manuscripts.workflowRound,
+        releasedAt: conversation.manuscripts.releasedAt
+      },
       participants: conversation.conversation_participants.map(p => ({
         id: p.id,
         role: p.role,
         user: p.users
       })),
       totalMessageCount: conversation.messages.length,
-      visibleMessageCount: visibleMessages.length,
+      visibleMessageCount: maskedMessages.length,
       messageVisibilityMap,
-      messages: visibleMessages.map(msg => ({
-        id: msg.id,
-        content: msg.content,
-        privacy: msg.privacy,
-        author: msg.users,
-        createdAt: msg.createdAt,
-        updatedAt: msg.updatedAt,
-        parentId: msg.parentId,
-        isBot: msg.isBot,
-        metadata: msg.metadata
-      })),
+      messages: maskedMessages,
+      workflow: workflowConfig ? {
+        phase: manuscriptContext.workflowPhase,
+        round: manuscriptContext.workflowRound,
+        hasConfig: true
+      } : null,
+      participation: participationStatus,
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt
     };
@@ -368,10 +466,17 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
     // Verify conversation exists and get manuscript info
     const conversation = await prisma.conversations.findUnique({
       where: { id: conversationId },
-      select: { 
-        id: true, 
-        title: true, 
-        manuscriptId: true 
+      select: {
+        id: true,
+        title: true,
+        manuscriptId: true,
+        manuscripts: {
+          select: {
+            workflowPhase: true,
+            workflowRound: true,
+            status: true
+          }
+        }
       }
     });
 
@@ -380,6 +485,32 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
         error: 'Conversation not found',
         message: `No conversation found with ID: ${conversationId}`
       });
+    }
+
+    // Check workflow-based participation permission
+    const workflowConfig = await getWorkflowConfig();
+    if (workflowConfig) {
+      const manuscriptContext = {
+        id: conversation.manuscriptId,
+        workflowPhase: conversation.manuscripts.workflowPhase,
+        workflowRound: conversation.manuscripts.workflowRound,
+        status: conversation.manuscripts.status
+      };
+
+      const participationResult = await canUserParticipate(
+        req.user!.id,
+        req.user!.role,
+        conversation.manuscriptId,
+        workflowConfig,
+        manuscriptContext
+      );
+
+      if (!participationResult.allowed) {
+        return res.status(403).json({
+          error: 'Participation Not Allowed',
+          message: participationResult.reason || 'You cannot participate in this discussion at this time'
+        });
+      }
     }
 
     // Verify parent message exists if provided
@@ -440,6 +571,31 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       where: { id: conversationId },
       data: { updatedAt: new Date() }
     });
+
+    // Handle author response cycle if workflow config is enabled
+    let phaseChangeInfo = null;
+    if (workflowConfig) {
+      const cycleResult = await handleAuthorResponse(
+        conversation.manuscriptId,
+        req.user!.id,
+        workflowConfig
+      );
+
+      if (cycleResult.phaseChanged) {
+        phaseChangeInfo = {
+          newPhase: cycleResult.newPhase,
+          newRound: cycleResult.newRound
+        };
+
+        // Broadcast phase change event
+        await broadcastToConversation(conversationId, {
+          type: 'workflow-phase-changed',
+          phase: cycleResult.newPhase,
+          round: cycleResult.newRound,
+          manuscriptId: conversation.manuscriptId
+        }, conversation.manuscriptId);
+      }
+    }
 
     // Queue bot processing for asynchronous execution
     // Check if the message contains bot mentions before queuing

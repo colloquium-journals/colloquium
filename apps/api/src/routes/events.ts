@@ -1,7 +1,42 @@
 import { Router, Request, Response } from 'express';
 import { authenticate, optionalAuth } from '../middleware/auth';
+import { prisma } from '@colloquium/database';
+import { WorkflowConfig } from '@colloquium/types';
+import { maskMessageAuthor } from '../services/workflowVisibility';
 
 const router = Router();
+
+// Helper function to get workflow config from journal settings
+async function getWorkflowConfig(): Promise<WorkflowConfig | null> {
+  try {
+    const settings = await prisma.journal_settings.findFirst({
+      where: { id: 'singleton' },
+      select: { settings: true }
+    });
+
+    if (settings?.settings && typeof settings.settings === 'object') {
+      const journalSettings = settings.settings as any;
+      return journalSettings.workflowConfig || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to get workflow config:', error);
+    return null;
+  }
+}
+
+// Helper function to get manuscript workflow context
+async function getManuscriptWorkflowContext(manuscriptId: string) {
+  const manuscript = await prisma.manuscripts.findUnique({
+    where: { id: manuscriptId },
+    select: {
+      workflowPhase: true,
+      workflowRound: true
+    }
+  });
+
+  return manuscript || { workflowPhase: 'REVIEW', workflowRound: 1 };
+}
 
 // Store active SSE connections with user context
 interface AuthenticatedConnection {
@@ -134,21 +169,25 @@ import { canUserSeeMessage } from './conversations';
 // Function to broadcast message to authorized connections in a conversation
 export async function broadcastToConversation(conversationId: string, eventData: any, manuscriptId?: string) {
   const conversationConnections = connections.get(conversationId);
-  
+
   if (!conversationConnections || conversationConnections.length === 0) {
     return;
   }
 
-  // For message events, we need to check permissions per user
+  // For message events, we need to check permissions per user and apply identity masking
   if (eventData.type === 'new-message' && eventData.message && manuscriptId) {
     const message = eventData.message;
-    
+
+    // Get workflow config and manuscript context for masking
+    const workflowConfig = await getWorkflowConfig();
+    const manuscriptContext = await getManuscriptWorkflowContext(manuscriptId);
+
     const deadConnections: AuthenticatedConnection[] = [];
-    
+
     // Check each connection's permission to see this message
     for (let index = 0; index < conversationConnections.length; index++) {
       const connection = conversationConnections[index];
-      
+
       try {
         // Check if this user can see the message
         const canSee = await canUserSeeMessage(
@@ -157,9 +196,24 @@ export async function broadcastToConversation(conversationId: string, eventData:
           message.privacy,
           manuscriptId
         );
-        
+
         if (canSee) {
-          const data = JSON.stringify(eventData);
+          // Apply identity masking based on viewer's context
+          let maskedMessage = { ...message };
+
+          if (workflowConfig && message.author) {
+            const maskedAuthor = await maskMessageAuthor(
+              message.author,
+              connection.userId || undefined,
+              connection.userRole || undefined,
+              manuscriptId,
+              workflowConfig,
+              manuscriptContext.workflowPhase
+            );
+            maskedMessage = { ...message, author: maskedAuthor };
+          }
+
+          const data = JSON.stringify({ ...eventData, message: maskedMessage });
           connection.response.write(`data: ${data}\n\n`);
           connection.response.flush();
         }
@@ -168,7 +222,7 @@ export async function broadcastToConversation(conversationId: string, eventData:
         deadConnections.push(connection);
       }
     }
-    
+
     // Remove dead connections
     deadConnections.forEach((deadConnection) => {
       const index = conversationConnections.indexOf(deadConnection);

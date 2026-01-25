@@ -54,7 +54,8 @@ import {
   IconUpload,
   IconFileText,
   IconX,
-  IconEdit
+  IconEdit,
+  IconGitBranch
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
@@ -63,6 +64,7 @@ import { YamlInput } from '@/components/YamlInput';
 import { BotCommandInput } from '@/components/shared/BotCommandInput';
 import { MentionSuggestion } from '@/components/shared/MentionSuggest';
 import { parseMarkdown } from '@/lib/markdown';
+import { WorkflowConfigPanel } from '@/components/admin/WorkflowConfigPanel';
 import yaml from 'js-yaml';
 
 interface BotInstallation {
@@ -148,7 +150,27 @@ interface JournalSettings {
   defaultReviewPeriod: number; // in days
   allowPublicReviews: boolean;
   requireReviewerRegistration: boolean;
-  
+
+  // Workflow Settings
+  workflowTemplateId?: string;
+  workflowConfig?: {
+    author: {
+      seesReviews: 'realtime' | 'on_release' | 'never';
+      seesReviewerIdentity: 'always' | 'never' | 'on_release';
+      canParticipate: 'anytime' | 'on_release' | 'invited';
+    };
+    reviewers: {
+      seeEachOther: 'realtime' | 'after_all_submit' | 'never';
+      seeAuthorIdentity: 'always' | 'never';
+      seeAuthorResponses: 'realtime' | 'on_release';
+    };
+    phases: {
+      enabled: boolean;
+      authorResponseStartsNewCycle: boolean;
+      requireAllReviewsBeforeRelease: boolean;
+    };
+  };
+
   // Publication Settings
   issn?: string;
   doi?: string;
@@ -1062,6 +1084,11 @@ export default function JournalSettingsPage() {
               </Tabs.Tab>
             )}
             {user?.role === 'ADMIN' && (
+              <Tabs.Tab value="workflow" leftSection={<IconGitBranch size={16} />}>
+                Review Workflow
+              </Tabs.Tab>
+            )}
+            {user?.role === 'ADMIN' && (
               <Tabs.Tab value="advanced" leftSection={<IconShield size={16} />}>
                 Advanced
               </Tabs.Tab>
@@ -1323,6 +1350,36 @@ export default function JournalSettingsPage() {
                   onChange={(e) => setSettings({ ...settings, requireReviewerRegistration: e.currentTarget.checked })}
                 />
               </Stack>
+            </Card>
+          </Tabs.Panel>
+
+          {/* Review Workflow Tab */}
+          <Tabs.Panel value="workflow">
+            <Card shadow="sm" padding="lg" radius="md" mt="md">
+              <WorkflowConfigPanel
+                currentTemplateId={settings.workflowTemplateId}
+                currentConfig={settings.workflowConfig}
+                onSave={async (templateId, config) => {
+                  const newSettings = {
+                    ...settings,
+                    workflowTemplateId: templateId || undefined,
+                    workflowConfig: config || undefined
+                  };
+                  setSettings(newSettings);
+                  // handleSaveSettings will use the current state, but we need to save these specific settings
+                  try {
+                    const response = await fetch('http://localhost:4000/api/settings', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify(newSettings)
+                    });
+                    if (!response.ok) throw new Error('Failed to save');
+                  } catch (error) {
+                    throw error;
+                  }
+                }}
+              />
             </Card>
           </Tabs.Panel>
 
