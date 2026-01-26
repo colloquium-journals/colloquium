@@ -1324,5 +1324,152 @@ export const markdownRendererBot: CommandBot = {
   ]
 };
 
+// ============================================================================
+// Standalone Rendering API
+// ============================================================================
+
+/**
+ * Options for standalone markdown rendering (used by seed scripts).
+ */
+export interface StandaloneRenderOptions {
+  title: string;
+  abstract?: string;
+  authors?: string;
+  authorList?: Array<{ name: string; affiliation?: string; isCorresponding?: boolean }>;
+  renderDate?: string;
+  journalName?: string;
+  template?: string;
+  /** Map of image filenames to their paths (for replacing image references) */
+  imagePathMap?: Record<string, string>;
+}
+
+/**
+ * Render markdown to HTML without requiring API calls or Pandoc.
+ * Uses the same marked/DOMPurify/Handlebars stack as the bot.
+ * Intended for seed scripts and offline rendering.
+ */
+export async function renderMarkdownStandalone(
+  markdownContent: string,
+  options: StandaloneRenderOptions
+): Promise<string> {
+  const templateName = options.template || 'academic-standard';
+
+  // Load template
+  const template = await getBuiltInTemplates().then(templates => {
+    return templates[templateName] || {
+      name: 'fallback',
+      title: 'Fallback',
+      htmlTemplate: getFallbackHtmlTemplate()
+    };
+  });
+
+  // Replace image paths if mapping provided
+  let processedMarkdown = markdownContent;
+  if (options.imagePathMap) {
+    for (const [filename, newPath] of Object.entries(options.imagePathMap)) {
+      // Replace various forms of image references
+      const cleanFilename = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const patterns = [
+        new RegExp(`!\\[([^\\]]*)\\]\\(${cleanFilename}\\)`, 'g'),
+        new RegExp(`!\\[([^\\]]*)\\]\\(\\./${cleanFilename}\\)`, 'g'),
+        new RegExp(`!\\[([^\\]]*)\\]\\(/${cleanFilename}\\)`, 'g'),
+      ];
+      for (const pattern of patterns) {
+        processedMarkdown = processedMarkdown.replace(pattern, `![$1](${newPath})`);
+      }
+    }
+  }
+
+  // Configure marked
+  marked.setOptions({ breaks: true, gfm: true });
+
+  // Convert markdown to HTML
+  const contentHtml = marked(processedMarkdown);
+  const cleanHtml = purify.sanitize(contentHtml);
+
+  // Prepare template variables
+  const templateVariables = {
+    title: options.title,
+    abstract: options.abstract || '',
+    authors: options.authors || (options.authorList ? options.authorList.map(a => a.name).join(', ') : ''),
+    authorList: options.authorList || [],
+    authorCount: options.authorList?.length || 0,
+    renderDate: options.renderDate || new Date().toLocaleDateString(),
+    journalName: options.journalName || 'Colloquium Journal',
+    content: cleanHtml,
+    customCss: ''
+  };
+
+  // Render template
+  const compiledTemplate = Handlebars.compile(template.htmlTemplate);
+  return compiledTemplate(templateVariables);
+}
+
+/**
+ * Fallback HTML template when file-based template isn't found.
+ */
+function getFallbackHtmlTemplate(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header { text-align: center; margin-bottom: 2rem; }
+        .title { font-size: 1.75rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .authors { color: #666; margin-bottom: 0.5rem; }
+        .abstract {
+            background: #f9f9f9;
+            border-left: 4px solid #2c5aa0;
+            padding: 1rem;
+            margin: 1.5rem 0;
+        }
+        .abstract h3 { margin-top: 0; color: #2c5aa0; }
+        h1, h2, h3, h4 { margin-top: 1.5em; margin-bottom: 0.5em; }
+        h1 { font-size: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+        code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
+        pre code { background: none; padding: 0; }
+        blockquote { border-left: 4px solid #ddd; margin: 1em 0; padding-left: 1em; color: #666; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid #ddd; padding: 0.5em; text-align: left; }
+        th { background: #f6f8fa; }
+        img { max-width: 100%; height: auto; }
+        figure { margin: 1em 0; text-align: center; }
+        figcaption { font-size: 0.9em; color: #666; margin-top: 0.5em; font-style: italic; }
+        .footer { margin-top: 2rem; text-align: center; color: #999; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">{{title}}</div>
+        {{#if authors}}<div class="authors">{{authors}}</div>{{/if}}
+    </div>
+    {{#if abstract}}
+    <div class="abstract">
+        <h3>Abstract</h3>
+        <p>{{abstract}}</p>
+    </div>
+    {{/if}}
+    <div class="content">
+        {{{content}}}
+    </div>
+    <div class="footer">
+        Rendered by Colloquium Markdown Renderer
+        {{#if renderDate}} • {{renderDate}}{{/if}}
+    </div>
+</body>
+</html>`;
+}
+
 // Export the bot for npm package compatibility
 export default markdownRendererBot;

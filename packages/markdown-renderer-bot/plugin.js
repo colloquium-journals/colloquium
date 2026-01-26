@@ -1,4 +1,4 @@
-const { markdownRendererBot } = require('./dist/index');
+const { markdownRendererBot, renderMarkdownStandalone } = require('./dist/index');
 const packageJson = require('./package.json');
 
 // Create manifest from package.json
@@ -22,5 +22,7 @@ const manifest = {
 // Export plugin format
 module.exports = {
   manifest,
-  bot: markdownRendererBot
+  bot: markdownRendererBot,
+  // Standalone rendering for seed scripts and external use
+  renderMarkdownStandalone
 };

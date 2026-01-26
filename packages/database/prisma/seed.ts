@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { papers, createSeedFiles } from './seed-content';
+import { renderMarkdownStandalone } from '@colloquium/markdown-renderer-bot';
 
 // Traditional double-blind workflow config (defined inline to avoid import issues with tsx)
 const traditionalBlindWorkflowConfig = {
@@ -1217,7 +1218,97 @@ This work demonstrates the potential for innovative approaches to academic publi
 
   console.log('✅ Manuscript files created');
 
-  console.log('✅ Sample bots ready');
+  // Render HTML for published manuscripts
+  console.log('📄 Rendering HTML for published manuscripts...');
+
+  for (const [contentKey, manuscriptIndex] of Object.entries(contentKeyToIndex)) {
+    const manuscript = createdManuscripts[manuscriptIndex];
+    if (!manuscript || manuscript.status !== ManuscriptStatus.PUBLISHED) continue;
+
+    const paper = papers[contentKey as keyof typeof papers];
+    if (!paper) continue;
+
+    // Check if rendered file already exists
+    const renderedFilename = `${contentKey}-rendered.html`;
+    const existingRendered = await prisma.manuscript_files.findFirst({
+      where: { manuscriptId: manuscript.id, filename: renderedFilename }
+    });
+
+    if (existingRendered) {
+      console.log(`  ⏭️ Skipping ${contentKey} - already rendered`);
+      continue;
+    }
+
+    try {
+      // Build image path map for the template
+      const imagePathMap: Record<string, string> = {};
+      for (const img of paper.images) {
+        // Point to the static published assets path (matches publishedAssetManager behavior)
+        imagePathMap[img.filename] = `/static/published/${manuscript.id}/${img.filename}`;
+      }
+
+      // Get author info from manuscript
+      const manuscriptAuthors = await prisma.manuscript_authors.findMany({
+        where: { manuscriptId: manuscript.id },
+        include: { users: true },
+        orderBy: { order: 'asc' }
+      });
+
+      const authorList = manuscriptAuthors.map(ma => ({
+        name: ma.users?.name || 'Unknown',
+        affiliation: ma.users?.affiliation || undefined,
+        isCorresponding: ma.isCorresponding
+      }));
+
+      // Render the markdown to HTML
+      const htmlContent = await renderMarkdownStandalone(paper.content, {
+        title: paper.title,
+        abstract: paper.abstract,
+        authorList,
+        journalName: 'Colloquium Journal',
+        imagePathMap
+      });
+
+      // Write HTML file to disk
+      const htmlPath = path.join(uploadsDir, renderedFilename);
+      fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
+
+      // Create RENDERED file record
+      await prisma.manuscript_files.create({
+        data: {
+          id: randomUUID(),
+          manuscriptId: manuscript.id,
+          filename: renderedFilename,
+          originalName: renderedFilename,
+          mimetype: 'text/html',
+          size: Buffer.byteLength(htmlContent),
+          path: `/uploads/manuscripts/${renderedFilename}`,
+          fileType: 'RENDERED',
+          uploadedAt: new Date()
+        }
+      });
+
+      // Also copy ASSET files to static published directory (simulating what publishedAssetManager does)
+      const staticDir = path.resolve(__dirname, '../../../apps/api/static/published', manuscript.id);
+      if (!fs.existsSync(staticDir)) {
+        fs.mkdirSync(staticDir, { recursive: true });
+      }
+
+      for (const img of paper.images) {
+        const srcPath = path.join(uploadsDir, img.filename);
+        const destPath = path.join(staticDir, img.filename);
+        if (fs.existsSync(srcPath)) {
+          fs.copyFileSync(srcPath, destPath);
+        }
+      }
+
+      console.log(`  ✅ Rendered ${paper.title.substring(0, 50)}...`);
+    } catch (error) {
+      console.error(`  ❌ Failed to render ${contentKey}:`, error);
+    }
+  }
+
+  console.log('✅ Published manuscripts rendered');
 
   console.log('🎉 Database seeding completed successfully!');
 }
