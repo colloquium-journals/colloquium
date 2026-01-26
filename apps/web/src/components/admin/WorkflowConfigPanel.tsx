@@ -13,8 +13,9 @@ import {
   Divider,
   Alert,
   Badge,
-  Collapse,
-  Paper,
+  NavLink,
+  Grid,
+  ThemeIcon,
   SimpleGrid
 } from '@mantine/core';
 import {
@@ -22,10 +23,14 @@ import {
   IconDeviceFloppy,
   IconAlertCircle,
   IconEye,
-  IconEyeOff,
   IconUsers,
   IconMessages,
-  IconRefresh
+  IconEyeOff,
+  IconLock,
+  IconWorld,
+  IconArrowRight,
+  IconShield,
+  IconAdjustments
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
@@ -54,11 +59,18 @@ interface WorkflowTemplate {
   config: WorkflowConfig;
 }
 
-const workflowTemplates: WorkflowTemplate[] = [
+interface WorkflowTemplateWithIcon extends WorkflowTemplate {
+  icon: React.ReactNode;
+  shortDescription: string;
+}
+
+const workflowTemplates: WorkflowTemplateWithIcon[] = [
   {
     id: 'traditional-blind',
     name: 'Traditional Double-Blind',
+    shortDescription: 'Full anonymity for all parties',
     description: 'Classic double-blind review where authors and reviewers cannot see each other\'s identities. Reviews are released to authors only after editorial decision.',
+    icon: <IconEyeOff size={20} />,
     config: {
       author: { seesReviews: 'on_release', seesReviewerIdentity: 'never', canParticipate: 'on_release' },
       reviewers: { seeEachOther: 'never', seeAuthorIdentity: 'never', seeAuthorResponses: 'on_release' },
@@ -68,7 +80,9 @@ const workflowTemplates: WorkflowTemplate[] = [
   {
     id: 'single-blind',
     name: 'Single-Blind Review',
+    shortDescription: 'Reviewers see authors, not vice versa',
     description: 'Reviewers know author identities, but authors do not know reviewer identities. Reviews are released after editorial decision.',
+    icon: <IconShield size={20} />,
     config: {
       author: { seesReviews: 'on_release', seesReviewerIdentity: 'never', canParticipate: 'on_release' },
       reviewers: { seeEachOther: 'never', seeAuthorIdentity: 'always', seeAuthorResponses: 'on_release' },
@@ -77,8 +91,10 @@ const workflowTemplates: WorkflowTemplate[] = [
   },
   {
     id: 'open-continuous',
-    name: 'Open Continuous Review',
+    name: 'Open Continuous',
+    shortDescription: 'Full transparency, real-time interaction',
     description: 'Fully open review where all identities are visible and authors can see and respond to reviews in real-time.',
+    icon: <IconWorld size={20} />,
     config: {
       author: { seesReviews: 'realtime', seesReviewerIdentity: 'always', canParticipate: 'anytime' },
       reviewers: { seeEachOther: 'realtime', seeAuthorIdentity: 'always', seeAuthorResponses: 'realtime' },
@@ -88,7 +104,9 @@ const workflowTemplates: WorkflowTemplate[] = [
   {
     id: 'progressive-disclosure',
     name: 'Progressive Disclosure',
+    shortDescription: 'Gradual reveal after review phase',
     description: 'Reviewers work independently during review phase. After all reviews submitted, identities and reviews become visible to all reviewers for deliberation.',
+    icon: <IconArrowRight size={20} />,
     config: {
       author: { seesReviews: 'on_release', seesReviewerIdentity: 'on_release', canParticipate: 'on_release' },
       reviewers: { seeEachOther: 'after_all_submit', seeAuthorIdentity: 'never', seeAuthorResponses: 'on_release' },
@@ -97,8 +115,10 @@ const workflowTemplates: WorkflowTemplate[] = [
   },
   {
     id: 'open-gated',
-    name: 'Open with Gated Participation',
+    name: 'Open Gated',
+    shortDescription: 'Visible reviews, controlled responses',
     description: 'Authors can see reviews in real-time but can only respond when explicitly invited by editors.',
+    icon: <IconLock size={20} />,
     config: {
       author: { seesReviews: 'realtime', seesReviewerIdentity: 'always', canParticipate: 'invited' },
       reviewers: { seeEachOther: 'realtime', seeAuthorIdentity: 'always', seeAuthorResponses: 'realtime' },
@@ -107,6 +127,12 @@ const workflowTemplates: WorkflowTemplate[] = [
   }
 ];
 
+const defaultCustomConfig: WorkflowConfig = {
+  author: { seesReviews: 'on_release', seesReviewerIdentity: 'never', canParticipate: 'on_release' },
+  reviewers: { seeEachOther: 'never', seeAuthorIdentity: 'never', seeAuthorResponses: 'on_release' },
+  phases: { enabled: true, authorResponseStartsNewCycle: true, requireAllReviewsBeforeRelease: true }
+};
+
 interface WorkflowConfigPanelProps {
   currentTemplateId?: string;
   currentConfig?: WorkflowConfig;
@@ -114,26 +140,35 @@ interface WorkflowConfigPanelProps {
 }
 
 export function WorkflowConfigPanel({ currentTemplateId, currentConfig, onSave }: WorkflowConfigPanelProps) {
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(currentTemplateId || null);
+  // 'custom' is a special selection for custom configuration
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (currentTemplateId) return currentTemplateId;
+    if (currentConfig && !currentTemplateId) return 'custom';
+    return null;
+  });
   const [customConfig, setCustomConfig] = useState<WorkflowConfig | null>(currentConfig || null);
-  const [isCustomizing, setIsCustomizing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const selectedTemplate = workflowTemplates.find(t => t.id === selectedTemplateId);
+  const isCustomMode = selectedId === 'custom';
+  const selectedTemplate = workflowTemplates.find(t => t.id === selectedId);
+  const displayConfig = isCustomMode ? customConfig : selectedTemplate?.config || null;
 
   useEffect(() => {
-    if (selectedTemplate && !isCustomizing) {
+    // When switching to a template, update the config preview
+    if (selectedTemplate && !isCustomMode) {
       setCustomConfig(selectedTemplate.config);
     }
-  }, [selectedTemplateId, selectedTemplate, isCustomizing]);
+  }, [selectedId, selectedTemplate, isCustomMode]);
 
-  const handleTemplateChange = (templateId: string | null) => {
-    setSelectedTemplateId(templateId);
-    setIsCustomizing(false);
+  const handleSelectionChange = (id: string | null) => {
+    setSelectedId(id);
     setHasChanges(true);
-    if (templateId) {
-      const template = workflowTemplates.find(t => t.id === templateId);
+    if (id === 'custom') {
+      // Start with current config or default
+      setCustomConfig(customConfig || defaultCustomConfig);
+    } else if (id) {
+      const template = workflowTemplates.find(t => t.id === id);
       if (template) {
         setCustomConfig(template.config);
       }
@@ -165,10 +200,11 @@ export function WorkflowConfigPanel({ currentTemplateId, currentConfig, onSave }
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(
-        isCustomizing ? null : selectedTemplateId,
-        customConfig
-      );
+      // If custom mode, save without templateId; otherwise save the template ID
+      const templateIdToSave = isCustomMode ? null : selectedId;
+      const configToSave = customConfig;
+
+      await onSave(templateIdToSave, configToSave);
       setHasChanges(false);
       notifications.show({
         title: 'Saved',
@@ -192,9 +228,8 @@ export function WorkflowConfigPanel({ currentTemplateId, currentConfig, onSave }
     setIsSaving(true);
     try {
       await onSave(null, null);
-      setSelectedTemplateId(null);
+      setSelectedId(null);
       setCustomConfig(null);
-      setIsCustomizing(false);
       setHasChanges(false);
       notifications.show({
         title: 'Cleared',
@@ -216,211 +251,244 @@ export function WorkflowConfigPanel({ currentTemplateId, currentConfig, onSave }
         </Text>
       </div>
 
-      {!selectedTemplateId && !currentConfig && (
-        <Alert icon={<IconAlertCircle size={16} />} color="blue">
-          No workflow configured. Using default behavior where all messages follow standard privacy rules.
-        </Alert>
-      )}
+      <Grid gutter="md">
+        {/* Left Panel - Template Selection */}
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Card withBorder h="100%">
+            <Stack gap="xs">
+              <Text fw={500} size="sm" c="dimmed" tt="uppercase">
+                Workflow Templates
+              </Text>
 
-      <Card withBorder>
-        <Stack gap="md">
-          <Title order={5}>Select Workflow Template</Title>
+              {workflowTemplates.map(template => (
+                <NavLink
+                  key={template.id}
+                  active={selectedId === template.id}
+                  label={template.name}
+                  description={template.shortDescription}
+                  leftSection={
+                    <ThemeIcon
+                      variant={selectedId === template.id ? 'filled' : 'light'}
+                      size="md"
+                      color={selectedId === template.id ? 'blue' : 'gray'}
+                    >
+                      {template.icon}
+                    </ThemeIcon>
+                  }
+                  onClick={() => handleSelectionChange(template.id)}
+                  styles={{
+                    root: { borderRadius: 'var(--mantine-radius-sm)' }
+                  }}
+                />
+              ))}
 
-          <SimpleGrid cols={{ base: 1, sm: 2 }}>
-            {workflowTemplates.map(template => (
-              <Paper
-                key={template.id}
-                p="md"
-                withBorder
-                style={{
-                  cursor: 'pointer',
-                  borderColor: selectedTemplateId === template.id ? 'var(--mantine-color-blue-5)' : undefined,
-                  backgroundColor: selectedTemplateId === template.id ? 'var(--mantine-color-blue-0)' : undefined
+              <Divider my="xs" />
+
+              <NavLink
+                active={selectedId === 'custom'}
+                label="Custom Configuration"
+                description="Build your own workflow"
+                leftSection={
+                  <ThemeIcon
+                    variant={selectedId === 'custom' ? 'filled' : 'light'}
+                    size="md"
+                    color={selectedId === 'custom' ? 'blue' : 'gray'}
+                  >
+                    <IconAdjustments size={20} />
+                  </ThemeIcon>
+                }
+                onClick={() => handleSelectionChange('custom')}
+                styles={{
+                  root: { borderRadius: 'var(--mantine-radius-sm)' }
                 }}
-                onClick={() => handleTemplateChange(template.id)}
-              >
-                <Group justify="space-between" mb="xs">
-                  <Text fw={500}>{template.name}</Text>
-                  {selectedTemplateId === template.id && (
-                    <Badge color="blue" size="sm">Selected</Badge>
+              />
+
+              {selectedId && (
+                <>
+                  <Divider my="xs" />
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    size="xs"
+                    onClick={handleClearConfig}
+                    loading={isSaving}
+                  >
+                    Clear Configuration
+                  </Button>
+                </>
+              )}
+            </Stack>
+          </Card>
+        </Grid.Col>
+
+        {/* Right Panel - Settings Display */}
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Card withBorder h="100%">
+            {!selectedId ? (
+              <Stack align="center" justify="center" h="100%" py="xl">
+                <ThemeIcon size={60} variant="light" color="gray">
+                  <IconAlertCircle size={30} />
+                </ThemeIcon>
+                <Text c="dimmed" ta="center">
+                  Select a workflow template from the left panel to configure your review process.
+                </Text>
+                <Text size="sm" c="dimmed" ta="center">
+                  No workflow configured. Using default behavior where all messages follow standard privacy rules.
+                </Text>
+              </Stack>
+            ) : (
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <div>
+                    <Title order={5}>
+                      {isCustomMode ? 'Custom Configuration' : selectedTemplate?.name}
+                    </Title>
+                    <Text size="sm" c="dimmed">
+                      {isCustomMode
+                        ? 'Configure each setting individually'
+                        : selectedTemplate?.description}
+                    </Text>
+                  </div>
+                  {!isCustomMode && (
+                    <Badge color="blue" variant="light">Template</Badge>
                   )}
                 </Group>
-                <Text size="sm" c="dimmed">{template.description}</Text>
-              </Paper>
-            ))}
-          </SimpleGrid>
 
-          {selectedTemplateId && (
-            <Group>
-              <Button
-                variant="subtle"
-                size="xs"
-                leftSection={<IconRefresh size={14} />}
-                onClick={() => handleTemplateChange(null)}
-              >
-                Clear Selection
-              </Button>
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={() => setIsCustomizing(!isCustomizing)}
-              >
-                {isCustomizing ? 'Use Template Defaults' : 'Customize Settings'}
-              </Button>
-            </Group>
-          )}
-        </Stack>
-      </Card>
+                <Divider label="Author Settings" labelPosition="left" />
 
-      <Collapse in={!!(customConfig && (isCustomizing || selectedTemplateId))}>
-        <Card withBorder>
-          <Stack gap="md">
-            <Group justify="space-between">
-              <Title order={5}>
-                {isCustomizing ? 'Custom Configuration' : 'Template Settings (Read-only)'}
-              </Title>
-              {!isCustomizing && selectedTemplateId && (
-                <Badge color="gray" size="sm">Template defaults</Badge>
-              )}
-            </Group>
+                <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+                  <Select
+                    label="When can authors see reviews?"
+                    description="Controls when review content is visible to authors"
+                    data={[
+                      { value: 'realtime', label: 'Real-time (as reviews are posted)' },
+                      { value: 'on_release', label: 'On release (after editorial decision)' },
+                      { value: 'never', label: 'Never' }
+                    ]}
+                    value={displayConfig?.author.seesReviews}
+                    onChange={(value) => handleConfigChange(['author', 'seesReviews'], value)}
+                    disabled={!isCustomMode}
+                    leftSection={<IconEye size={16} />}
+                  />
 
-            <Divider label="Author Settings" labelPosition="left" />
+                  <Select
+                    label="Can authors see reviewer identities?"
+                    description="Whether reviewers are anonymous to authors"
+                    data={[
+                      { value: 'always', label: 'Always visible' },
+                      { value: 'on_release', label: 'On release only' },
+                      { value: 'never', label: 'Never (anonymous)' }
+                    ]}
+                    value={displayConfig?.author.seesReviewerIdentity}
+                    onChange={(value) => handleConfigChange(['author', 'seesReviewerIdentity'], value)}
+                    disabled={!isCustomMode}
+                    leftSection={<IconUsers size={16} />}
+                  />
 
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              <Select
-                label="When can authors see reviews?"
-                description="Controls when review content is visible to authors"
-                data={[
-                  { value: 'realtime', label: 'Real-time (as reviews are posted)' },
-                  { value: 'on_release', label: 'On release (after editorial decision)' },
-                  { value: 'never', label: 'Never' }
-                ]}
-                value={customConfig?.author.seesReviews}
-                onChange={(value) => handleConfigChange(['author', 'seesReviews'], value)}
-                disabled={!isCustomizing}
-                leftSection={<IconEye size={16} />}
-              />
+                  <Select
+                    label="When can authors participate?"
+                    description="Controls when authors can post messages"
+                    data={[
+                      { value: 'anytime', label: 'Anytime' },
+                      { value: 'on_release', label: 'After reviews released' },
+                      { value: 'invited', label: 'Only when invited by editor' }
+                    ]}
+                    value={displayConfig?.author.canParticipate}
+                    onChange={(value) => handleConfigChange(['author', 'canParticipate'], value)}
+                    disabled={!isCustomMode}
+                    leftSection={<IconMessages size={16} />}
+                  />
+                </SimpleGrid>
 
-              <Select
-                label="Can authors see reviewer identities?"
-                description="Whether reviewers are anonymous to authors"
-                data={[
-                  { value: 'always', label: 'Always visible' },
-                  { value: 'on_release', label: 'On release only' },
-                  { value: 'never', label: 'Never (anonymous)' }
-                ]}
-                value={customConfig?.author.seesReviewerIdentity}
-                onChange={(value) => handleConfigChange(['author', 'seesReviewerIdentity'], value)}
-                disabled={!isCustomizing}
-                leftSection={<IconUsers size={16} />}
-              />
+                <Divider label="Reviewer Settings" labelPosition="left" />
 
-              <Select
-                label="When can authors participate?"
-                description="Controls when authors can post messages"
-                data={[
-                  { value: 'anytime', label: 'Anytime' },
-                  { value: 'on_release', label: 'After reviews released' },
-                  { value: 'invited', label: 'Only when invited by editor' }
-                ]}
-                value={customConfig?.author.canParticipate}
-                onChange={(value) => handleConfigChange(['author', 'canParticipate'], value)}
-                disabled={!isCustomizing}
-                leftSection={<IconMessages size={16} />}
-              />
-            </SimpleGrid>
+                <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+                  <Select
+                    label="Can reviewers see each other's reviews?"
+                    description="Whether reviewers can see other reviews"
+                    data={[
+                      { value: 'realtime', label: 'Real-time' },
+                      { value: 'after_all_submit', label: 'After all reviews submitted' },
+                      { value: 'never', label: 'Never' }
+                    ]}
+                    value={displayConfig?.reviewers.seeEachOther}
+                    onChange={(value) => handleConfigChange(['reviewers', 'seeEachOther'], value)}
+                    disabled={!isCustomMode}
+                    leftSection={<IconEye size={16} />}
+                  />
 
-            <Divider label="Reviewer Settings" labelPosition="left" />
+                  <Select
+                    label="Can reviewers see author identities?"
+                    description="Whether manuscript authors are anonymous"
+                    data={[
+                      { value: 'always', label: 'Always visible' },
+                      { value: 'never', label: 'Never (anonymous)' }
+                    ]}
+                    value={displayConfig?.reviewers.seeAuthorIdentity}
+                    onChange={(value) => handleConfigChange(['reviewers', 'seeAuthorIdentity'], value)}
+                    disabled={!isCustomMode}
+                    leftSection={<IconUsers size={16} />}
+                  />
 
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-              <Select
-                label="Can reviewers see each other's reviews?"
-                description="Whether reviewers can see other reviews"
-                data={[
-                  { value: 'realtime', label: 'Real-time' },
-                  { value: 'after_all_submit', label: 'After all reviews submitted' },
-                  { value: 'never', label: 'Never' }
-                ]}
-                value={customConfig?.reviewers.seeEachOther}
-                onChange={(value) => handleConfigChange(['reviewers', 'seeEachOther'], value)}
-                disabled={!isCustomizing}
-                leftSection={<IconEye size={16} />}
-              />
+                  <Select
+                    label="When can reviewers see author responses?"
+                    description="After authors respond, when are they visible"
+                    data={[
+                      { value: 'realtime', label: 'Real-time' },
+                      { value: 'on_release', label: 'On release' }
+                    ]}
+                    value={displayConfig?.reviewers.seeAuthorResponses}
+                    onChange={(value) => handleConfigChange(['reviewers', 'seeAuthorResponses'], value)}
+                    disabled={!isCustomMode}
+                    leftSection={<IconEye size={16} />}
+                  />
+                </SimpleGrid>
 
-              <Select
-                label="Can reviewers see author identities?"
-                description="Whether manuscript authors are anonymous"
-                data={[
-                  { value: 'always', label: 'Always visible' },
-                  { value: 'never', label: 'Never (anonymous)' }
-                ]}
-                value={customConfig?.reviewers.seeAuthorIdentity}
-                onChange={(value) => handleConfigChange(['reviewers', 'seeAuthorIdentity'], value)}
-                disabled={!isCustomizing}
-                leftSection={<IconUsers size={16} />}
-              />
+                <Divider label="Phase Settings" labelPosition="left" />
 
-              <Select
-                label="When can reviewers see author responses?"
-                description="After authors respond, when are they visible"
-                data={[
-                  { value: 'realtime', label: 'Real-time' },
-                  { value: 'on_release', label: 'On release' }
-                ]}
-                value={customConfig?.reviewers.seeAuthorResponses}
-                onChange={(value) => handleConfigChange(['reviewers', 'seeAuthorResponses'], value)}
-                disabled={!isCustomizing}
-                leftSection={<IconEye size={16} />}
-              />
-            </SimpleGrid>
+                <Stack gap="sm">
+                  <Switch
+                    label="Enable workflow phases"
+                    description="Use structured phases (Review, Deliberation, Released, Author Responding)"
+                    checked={displayConfig?.phases.enabled}
+                    onChange={(e) => handleConfigChange(['phases', 'enabled'], e.currentTarget.checked)}
+                    disabled={!isCustomMode}
+                  />
 
-            <Divider label="Phase Settings" labelPosition="left" />
+                  <Switch
+                    label="Author response starts new cycle"
+                    description="When author responds after release, increment review round"
+                    checked={displayConfig?.phases.authorResponseStartsNewCycle}
+                    onChange={(e) => handleConfigChange(['phases', 'authorResponseStartsNewCycle'], e.currentTarget.checked)}
+                    disabled={!isCustomMode || !displayConfig?.phases.enabled}
+                  />
 
-            <Stack gap="sm">
-              <Switch
-                label="Enable workflow phases"
-                description="Use structured phases (Review, Deliberation, Released, Author Responding)"
-                checked={customConfig?.phases.enabled}
-                onChange={(e) => handleConfigChange(['phases', 'enabled'], e.currentTarget.checked)}
-                disabled={!isCustomizing}
-              />
+                  <Switch
+                    label="Require all reviews before release"
+                    description="Prevent releasing to authors until all assigned reviews are complete"
+                    checked={displayConfig?.phases.requireAllReviewsBeforeRelease}
+                    onChange={(e) => handleConfigChange(['phases', 'requireAllReviewsBeforeRelease'], e.currentTarget.checked)}
+                    disabled={!isCustomMode || !displayConfig?.phases.enabled}
+                  />
+                </Stack>
 
-              <Switch
-                label="Author response starts new cycle"
-                description="When author responds after release, increment review round"
-                checked={customConfig?.phases.authorResponseStartsNewCycle}
-                onChange={(e) => handleConfigChange(['phases', 'authorResponseStartsNewCycle'], e.currentTarget.checked)}
-                disabled={!isCustomizing || !customConfig?.phases.enabled}
-              />
-
-              <Switch
-                label="Require all reviews before release"
-                description="Prevent releasing to authors until all assigned reviews are complete"
-                checked={customConfig?.phases.requireAllReviewsBeforeRelease}
-                onChange={(e) => handleConfigChange(['phases', 'requireAllReviewsBeforeRelease'], e.currentTarget.checked)}
-                disabled={!isCustomizing || !customConfig?.phases.enabled}
-              />
-            </Stack>
-          </Stack>
-        </Card>
-      </Collapse>
+                {!isCustomMode && (
+                  <Alert color="blue" variant="light" icon={<IconAlertCircle size={16} />}>
+                    Template settings are read-only. Select "Custom Configuration" from the left panel to modify individual settings.
+                  </Alert>
+                )}
+              </Stack>
+            )}
+          </Card>
+        </Grid.Col>
+      </Grid>
 
       <Group justify="flex-end">
-        {(currentConfig || currentTemplateId) && (
-          <Button
-            variant="subtle"
-            color="red"
-            onClick={handleClearConfig}
-            loading={isSaving}
-          >
-            Clear Configuration
-          </Button>
-        )}
         <Button
           leftSection={<IconDeviceFloppy size={16} />}
           onClick={handleSave}
           loading={isSaving}
-          disabled={!hasChanges}
+          disabled={!hasChanges || !selectedId}
         >
           Save Changes
         </Button>
