@@ -179,12 +179,12 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
               <Menu shadow="md" width={160}>
                 <Menu.Target>
                   <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    p="xs"
+                    variant="default"
+                    size="sm"
+                    px="xs"
                     title="Theme"
                   >
-                    {colorScheme === 'dark' ? <IconMoon size={18} /> : <IconSun size={18} />}
+                    {colorScheme === 'dark' ? <IconMoon size={20} /> : <IconSun size={20} />}
                   </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
@@ -267,33 +267,6 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                   >
                     Profile
                   </Menu.Item>
-                  {isDarkModeEnabled && (
-                    <>
-                      <Menu.Divider />
-                      <Menu.Label>Theme</Menu.Label>
-                      <Menu.Item
-                        leftSection={<IconSun size={14} />}
-                        rightSection={themeMode === 'light' ? <IconCheck size={14} /> : null}
-                        onClick={() => setThemeMode('light')}
-                      >
-                        Light
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={<IconMoon size={14} />}
-                        rightSection={themeMode === 'dark' ? <IconCheck size={14} /> : null}
-                        onClick={() => setThemeMode('dark')}
-                      >
-                        Dark
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={<IconDeviceDesktop size={14} />}
-                        rightSection={themeMode === 'auto' ? <IconCheck size={14} /> : null}
-                        onClick={() => setThemeMode('auto')}
-                      >
-                        System
-                      </Menu.Item>
-                    </>
-                  )}
                   {user.role === 'ADMIN' && (
                     <>
                       <Menu.Divider />

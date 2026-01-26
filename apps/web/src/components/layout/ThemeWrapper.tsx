@@ -1,12 +1,12 @@
 'use client';
 
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
+import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { ModalsProvider } from '@mantine/modals';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { createDynamicTheme } from '@/lib/dynamicTheme';
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 
 interface ThemeWrapperProps {
   children: React.ReactNode;
@@ -41,24 +41,28 @@ export function ThemeWrapper({ children }: ThemeWrapperProps) {
       isDarkModeEnabled={settings.enableDarkMode}
       defaultTheme={settings.defaultTheme}
     >
-      <MantineProvider theme={theme} defaultColorScheme="light">
-        <ColorSchemeSync />
+      <MantineProviderWithTheme theme={theme}>
         <ModalsProvider>
           <Notifications />
           {children}
         </ModalsProvider>
-      </MantineProvider>
+      </MantineProviderWithTheme>
     </ThemeProvider>
   );
 }
 
-function ColorSchemeSync() {
+function MantineProviderWithTheme({
+  children,
+  theme
+}: {
+  children: React.ReactNode;
+  theme: ReturnType<typeof createDynamicTheme>;
+}) {
   const { colorScheme } = useTheme();
-  const { setColorScheme } = useMantineColorScheme();
 
-  useEffect(() => {
-    setColorScheme(colorScheme);
-  }, [colorScheme, setColorScheme]);
-
-  return null;
+  return (
+    <MantineProvider theme={theme} forceColorScheme={colorScheme}>
+      {children}
+    </MantineProvider>
+  );
 }

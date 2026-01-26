@@ -1,7 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useLocalStorage } from '@mantine/hooks';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -31,64 +30,63 @@ interface ThemeProviderProps {
   defaultTheme?: ThemeMode;
 }
 
-export function ThemeProvider({ 
-  children, 
-  isDarkModeEnabled = false, 
-  defaultTheme = 'light' 
+function getStoredTheme(): ThemeMode | null {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem('theme-mode');
+  if (stored === 'light' || stored === 'dark' || stored === 'auto') {
+    return stored;
+  }
+  return null;
+}
+
+export function ThemeProvider({
+  children,
+  isDarkModeEnabled = false,
+  defaultTheme = 'light'
 }: ThemeProviderProps) {
-  const [themeMode, setThemeMode] = useLocalStorage<ThemeMode>({
-    key: 'theme-mode',
-    defaultValue: defaultTheme,
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    return getStoredTheme() || defaultTheme;
   });
 
   const [colorScheme, setColorSchemeState] = useState<'light' | 'dark'>('light');
 
+  const setThemeMode = useCallback((mode: ThemeMode) => {
+    setThemeModeState(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme-mode', mode);
+    }
+  }, []);
+
   // Determine the actual color scheme based on mode and system preference
   useEffect(() => {
-    const updateColorScheme = () => {
-      if (!isDarkModeEnabled) {
-        setColorSchemeState('light');
-        return;
-      }
+    if (!isDarkModeEnabled) {
+      setColorSchemeState('light');
+      return;
+    }
 
-      if (themeMode === 'auto') {
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        setColorSchemeState(mediaQuery.matches ? 'dark' : 'light');
-      } else {
-        setColorSchemeState(themeMode);
-      }
-    };
-
-    updateColorScheme();
-
-    // Listen for system theme changes when in auto mode
-    if (themeMode === 'auto' && isDarkModeEnabled) {
+    if (themeMode === 'auto') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setColorSchemeState(mediaQuery.matches ? 'dark' : 'light');
+
       const listener = (e: MediaQueryListEvent) => {
         setColorSchemeState(e.matches ? 'dark' : 'light');
       };
-
       mediaQuery.addEventListener('change', listener);
       return () => mediaQuery.removeEventListener('change', listener);
+    } else {
+      setColorSchemeState(themeMode);
     }
   }, [themeMode, isDarkModeEnabled]);
 
-  // Update theme mode when journal settings change
-  useEffect(() => {
-    if (!isDarkModeEnabled && themeMode !== 'light') {
-      setThemeMode('light');
-    }
-  }, [isDarkModeEnabled, themeMode, setThemeMode]);
-
-  const setColorScheme = (scheme: 'light' | 'dark') => {
+  const setColorScheme = useCallback((scheme: 'light' | 'dark') => {
     if (!isDarkModeEnabled && scheme === 'dark') return;
     setThemeMode(scheme);
-  };
+  }, [isDarkModeEnabled, setThemeMode]);
 
-  const toggleColorScheme = () => {
+  const toggleColorScheme = useCallback(() => {
     if (!isDarkModeEnabled) return;
     setThemeMode(colorScheme === 'dark' ? 'light' : 'dark');
-  };
+  }, [isDarkModeEnabled, colorScheme, setThemeMode]);
 
   const value: ThemeContextType = {
     colorScheme,
