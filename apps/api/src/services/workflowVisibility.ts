@@ -413,6 +413,15 @@ export async function computeEffectiveVisibility(
       // Authors can see, but check reviewer-to-reviewer visibility
       const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId);
       if (!canReviewersSeeEachOther) {
+        // Check if this is a permanent restriction or phase-based
+        if (config.reviewers.seeEachOther === 'never') {
+          return {
+            level: 'participants',
+            label: 'Authors & Editors',
+            description: 'Reviewers cannot see each other\'s reviews in this workflow',
+            releasedToAuthors: isReleased
+          };
+        }
         return {
           level: 'participants',
           label: 'Authors & Editors',
