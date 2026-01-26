@@ -39,6 +39,10 @@ interface EffectiveVisibility {
   description: string;
   phaseRestricted?: boolean;
   releasedToAuthors?: boolean;
+  pendingChange?: {
+    willBeVisibleTo: string;
+    when: string;
+  };
 }
 
 interface MessageData {
@@ -206,10 +210,16 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
         'admins_only': 'red'
       };
 
+      // Build tooltip with pending change info if available
+      let tooltip = effectiveVisibility.description;
+      if (effectiveVisibility.pendingChange) {
+        tooltip = `${effectiveVisibility.description}. Will become visible to ${effectiveVisibility.pendingChange.willBeVisibleTo} when ${effectiveVisibility.pendingChange.when}.`;
+      }
+
       return {
         icon: effectiveVisibility.phaseRestricted ? IconClock : iconMap[effectiveVisibility.level],
         label: effectiveVisibility.label,
-        tooltip: effectiveVisibility.description,
+        tooltip,
         color: effectiveVisibility.phaseRestricted ? 'yellow' : colorMap[effectiveVisibility.level],
         phaseRestricted: effectiveVisibility.phaseRestricted
       };
@@ -353,10 +363,16 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
           </Group>
 
           <Group gap="sm" align="center">
-            <Tooltip label={visibilityInfo.tooltip} withArrow>
-              <Badge 
-                size="xs" 
-                variant="light" 
+            <Tooltip
+              label={visibilityInfo.tooltip}
+              withArrow
+              multiline
+              w={280}
+              styles={{ tooltip: { textAlign: 'left' } }}
+            >
+              <Badge
+                size="xs"
+                variant="light"
                 color={visibilityInfo.color}
                 leftSection={<visibilityInfo.icon size={10} />}
               >

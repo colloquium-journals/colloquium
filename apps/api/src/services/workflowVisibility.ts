@@ -316,6 +316,11 @@ export interface EffectiveVisibility {
   description: string;
   phaseRestricted?: boolean;
   releasedToAuthors?: boolean;
+  /** When phaseRestricted, describes what will change */
+  pendingChange?: {
+    willBeVisibleTo: string;
+    when: string;
+  };
 }
 
 /**
@@ -362,8 +367,12 @@ export async function computeEffectiveVisibility(
         return {
           level: 'editors_only',
           label: 'Editors Only',
-          description: 'Other reviewers will see after all reviews submitted',
-          phaseRestricted: true
+          description: 'Currently visible only to editors',
+          phaseRestricted: true,
+          pendingChange: {
+            willBeVisibleTo: 'other reviewers',
+            when: 'all reviews are submitted'
+          }
         };
       }
     }
@@ -385,8 +394,12 @@ export async function computeEffectiveVisibility(
           return {
             level: 'reviewers_editors',
             label: 'Reviewers & Editors',
-            description: 'Authors will see after reviews are released',
-            phaseRestricted: true
+            description: 'Currently hidden from authors',
+            phaseRestricted: true,
+            pendingChange: {
+              willBeVisibleTo: 'authors',
+              when: 'reviews are released by an editor'
+            }
           };
         } else if (config.author.seesReviews === 'never') {
           return {
@@ -403,9 +416,13 @@ export async function computeEffectiveVisibility(
         return {
           level: 'participants',
           label: 'Authors & Editors',
-          description: 'Other reviewers will see after all reviews submitted',
+          description: 'Currently hidden from other reviewers',
           phaseRestricted: true,
-          releasedToAuthors: isReleased
+          releasedToAuthors: isReleased,
+          pendingChange: {
+            willBeVisibleTo: 'other reviewers',
+            when: 'all reviews are submitted'
+          }
         };
       }
     }
@@ -416,8 +433,12 @@ export async function computeEffectiveVisibility(
         return {
           level: 'editors_only',
           label: 'Editors Only',
-          description: 'Reviewers will see after release',
-          phaseRestricted: true
+          description: 'Currently hidden from reviewers',
+          phaseRestricted: true,
+          pendingChange: {
+            willBeVisibleTo: 'reviewers',
+            when: 'reviews are released'
+          }
         };
       }
     }
