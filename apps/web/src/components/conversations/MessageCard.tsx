@@ -25,17 +25,27 @@ import {
   IconShield,
   IconEdit,
   IconHistory,
-  IconLink
+  IconLink,
+  IconClock
 } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageContent } from './MessageContent';
 import { MessageActions } from './MessageActions';
 import { UserProfileHover } from '../shared';
 
+interface EffectiveVisibility {
+  level: 'everyone' | 'participants' | 'reviewers_editors' | 'editors_only' | 'admins_only';
+  label: string;
+  description: string;
+  phaseRestricted?: boolean;
+  releasedToAuthors?: boolean;
+}
+
 interface MessageData {
   id: string;
   content: string;
   privacy: string;
+  effectiveVisibility?: EffectiveVisibility;
   author: {
     id: string;
     name: string;
@@ -177,7 +187,35 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
     }
   };
 
-  const getVisibilityInfo = (privacy: string) => {
+  const getVisibilityInfo = (privacy: string, effectiveVisibility?: EffectiveVisibility) => {
+    // If we have effective visibility from workflow, use it
+    if (effectiveVisibility) {
+      const iconMap = {
+        'everyone': IconEye,
+        'participants': IconUsers,
+        'reviewers_editors': IconShield,
+        'editors_only': IconLock,
+        'admins_only': IconLock
+      };
+
+      const colorMap = {
+        'everyone': 'green',
+        'participants': 'blue',
+        'reviewers_editors': 'orange',
+        'editors_only': 'red',
+        'admins_only': 'red'
+      };
+
+      return {
+        icon: effectiveVisibility.phaseRestricted ? IconClock : iconMap[effectiveVisibility.level],
+        label: effectiveVisibility.label,
+        tooltip: effectiveVisibility.description,
+        color: effectiveVisibility.phaseRestricted ? 'yellow' : colorMap[effectiveVisibility.level],
+        phaseRestricted: effectiveVisibility.phaseRestricted
+      };
+    }
+
+    // Fallback to privacy-based display
     switch (privacy) {
       case 'PUBLIC':
         return {
@@ -224,7 +262,7 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
     }
   };
 
-  const visibilityInfo = getVisibilityInfo(currentPrivacy);
+  const visibilityInfo = getVisibilityInfo(currentPrivacy, message.effectiveVisibility);
 
   return (
     <div

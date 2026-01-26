@@ -309,3 +309,177 @@ export function clearReviewerIndexCache(manuscriptId?: string): void {
     reviewerIndexCache.clear();
   }
 }
+
+export interface EffectiveVisibility {
+  level: 'everyone' | 'participants' | 'reviewers_editors' | 'editors_only' | 'admins_only';
+  label: string;
+  description: string;
+  phaseRestricted?: boolean;
+  releasedToAuthors?: boolean;
+}
+
+/**
+ * Compute who can currently see a message based on privacy level and workflow config.
+ * This provides a unified view of visibility that accounts for both systems.
+ */
+export async function computeEffectiveVisibility(
+  messagePrivacy: string,
+  messageAuthorId: string,
+  manuscriptId: string,
+  config: WorkflowConfig | null | undefined,
+  phase: WorkflowPhase | string
+): Promise<EffectiveVisibility> {
+  // No workflow config - use simple privacy-based visibility
+  if (!config) {
+    return getPrivacyBasedVisibility(messagePrivacy);
+  }
+
+  const authorRole = await getMessageAuthorRole(messageAuthorId, manuscriptId);
+  const isReleased = phase === WorkflowPhase.RELEASED || phase === WorkflowPhase.AUTHOR_RESPONDING;
+
+  // ADMIN_ONLY and EDITOR_ONLY are never affected by workflow
+  if (messagePrivacy === 'ADMIN_ONLY') {
+    return {
+      level: 'admins_only',
+      label: 'Admins Only',
+      description: 'Only visible to administrators'
+    };
+  }
+
+  if (messagePrivacy === 'EDITOR_ONLY') {
+    return {
+      level: 'editors_only',
+      label: 'Editors Only',
+      description: 'Only visible to editors and administrators'
+    };
+  }
+
+  // REVIEWER_ONLY - check if reviewers can see each other
+  if (messagePrivacy === 'REVIEWER_ONLY') {
+    if (authorRole === 'reviewer') {
+      const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId);
+      if (!canReviewersSeeEachOther && config.reviewers.seeEachOther === 'after_all_submit') {
+        return {
+          level: 'editors_only',
+          label: 'Editors Only',
+          description: 'Other reviewers will see after all reviews submitted',
+          phaseRestricted: true
+        };
+      }
+    }
+    return {
+      level: 'reviewers_editors',
+      label: 'Reviewers & Editors',
+      description: 'Hidden from authors and public'
+    };
+  }
+
+  // AUTHOR_VISIBLE - most complex case with workflow interactions
+  if (messagePrivacy === 'AUTHOR_VISIBLE') {
+    // Message from a reviewer - apply workflow visibility rules
+    if (authorRole === 'reviewer') {
+      const canAuthorsSee = await canAuthorSeeReview(config, phase, messagePrivacy);
+
+      if (!canAuthorsSee) {
+        if (config.author.seesReviews === 'on_release') {
+          return {
+            level: 'reviewers_editors',
+            label: 'Reviewers & Editors',
+            description: 'Authors will see after reviews are released',
+            phaseRestricted: true
+          };
+        } else if (config.author.seesReviews === 'never') {
+          return {
+            level: 'reviewers_editors',
+            label: 'Reviewers & Editors',
+            description: 'Authors cannot see reviewer messages in this workflow'
+          };
+        }
+      }
+
+      // Authors can see, but check reviewer-to-reviewer visibility
+      const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId);
+      if (!canReviewersSeeEachOther) {
+        return {
+          level: 'participants',
+          label: 'Authors & Editors',
+          description: 'Other reviewers will see after all reviews submitted',
+          phaseRestricted: true,
+          releasedToAuthors: isReleased
+        };
+      }
+    }
+
+    // Message from an author - check if reviewers can see author responses
+    if (authorRole === 'author') {
+      if (config.reviewers.seeAuthorResponses === 'on_release' && !isReleased) {
+        return {
+          level: 'editors_only',
+          label: 'Editors Only',
+          description: 'Reviewers will see after release',
+          phaseRestricted: true
+        };
+      }
+    }
+
+    return {
+      level: 'participants',
+      label: 'All Participants',
+      description: 'Visible to authors, reviewers, and editors',
+      releasedToAuthors: isReleased || config.author.seesReviews === 'realtime'
+    };
+  }
+
+  // PUBLIC
+  if (messagePrivacy === 'PUBLIC') {
+    return {
+      level: 'everyone',
+      label: 'Public',
+      description: 'Visible to everyone'
+    };
+  }
+
+  // Fallback
+  return getPrivacyBasedVisibility(messagePrivacy);
+}
+
+function getPrivacyBasedVisibility(privacy: string): EffectiveVisibility {
+  switch (privacy) {
+    case 'PUBLIC':
+      return {
+        level: 'everyone',
+        label: 'Public',
+        description: 'Visible to everyone'
+      };
+    case 'AUTHOR_VISIBLE':
+      return {
+        level: 'participants',
+        label: 'All Participants',
+        description: 'Visible to authors, reviewers, and editors'
+      };
+    case 'REVIEWER_ONLY':
+      return {
+        level: 'reviewers_editors',
+        label: 'Reviewers & Editors',
+        description: 'Hidden from authors and public'
+      };
+    case 'EDITOR_ONLY':
+      return {
+        level: 'editors_only',
+        label: 'Editors Only',
+        description: 'Only visible to editors and administrators'
+      };
+    case 'ADMIN_ONLY':
+      return {
+        level: 'admins_only',
+        label: 'Admins Only',
+        description: 'Only visible to administrators'
+      };
+    default:
+      return {
+        level: 'everyone',
+        label: 'Unknown',
+        description: 'Visibility level unknown'
+      };
+  }
+}

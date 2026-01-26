@@ -12,7 +12,9 @@ import {
   canUserSeeMessageWithWorkflow,
   maskMessageAuthor,
   getViewerRole,
-  MaskedAuthor
+  computeEffectiveVisibility,
+  MaskedAuthor,
+  EffectiveVisibility
 } from '../services/workflowVisibility';
 import {
   canUserParticipate,
@@ -363,7 +365,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     }
     console.log(`Returning ${visibleMessages.length} visible messages`);
 
-    // Apply identity masking to visible message authors
+    // Apply identity masking and compute effective visibility for visible messages
     const maskedMessages = await Promise.all(
       visibleMessages.map(async msg => {
         const maskedAuthor = await maskMessageAuthor(
@@ -375,10 +377,19 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
           manuscriptContext.workflowPhase
         );
 
+        const effectiveVisibility = await computeEffectiveVisibility(
+          msg.privacy,
+          msg.authorId,
+          conversation.manuscriptId,
+          workflowConfig,
+          manuscriptContext.workflowPhase
+        );
+
         return {
           id: msg.id,
           content: msg.content,
           privacy: msg.privacy,
+          effectiveVisibility,
           author: maskedAuthor,
           createdAt: msg.createdAt,
           updatedAt: msg.updatedAt,
