@@ -1218,35 +1218,31 @@ This work demonstrates the potential for innovative approaches to academic publi
 
   console.log('✅ Manuscript files created');
 
-  // Render HTML for published manuscripts
+  // Render HTML for ALL published manuscripts
   console.log('📄 Rendering HTML for published manuscripts...');
 
-  for (const [contentKey, manuscriptIndex] of Object.entries(contentKeyToIndex)) {
-    const manuscript = createdManuscripts[manuscriptIndex];
+  for (let i = 0; i < createdManuscripts.length; i++) {
+    const manuscript = createdManuscripts[i];
     if (!manuscript || manuscript.status !== ManuscriptStatus.PUBLISHED) continue;
 
-    const paper = papers[contentKey as keyof typeof papers];
-    if (!paper) continue;
+    // Find contentKey if this manuscript has one
+    const contentKey = Object.entries(contentKeyToIndex).find(([_, idx]) => idx === i)?.[0];
+    const paper = contentKey ? papers[contentKey as keyof typeof papers] : null;
+
+    // Generate a unique filename based on manuscript id
+    const renderedFilename = `${manuscript.id}-rendered.html`;
 
     // Check if rendered file already exists
-    const renderedFilename = `${contentKey}-rendered.html`;
     const existingRendered = await prisma.manuscript_files.findFirst({
       where: { manuscriptId: manuscript.id, filename: renderedFilename }
     });
 
     if (existingRendered) {
-      console.log(`  ⏭️ Skipping ${contentKey} - already rendered`);
+      console.log(`  ⏭️ Skipping ${manuscript.title.substring(0, 40)}... - already rendered`);
       continue;
     }
 
     try {
-      // Build image path map for the template
-      const imagePathMap: Record<string, string> = {};
-      for (const img of paper.images) {
-        // Point to the static published assets path (matches publishedAssetManager behavior)
-        imagePathMap[img.filename] = `/static/published/${manuscript.id}/${img.filename}`;
-      }
-
       // Get author info from manuscript
       const manuscriptAuthors = await prisma.manuscript_authors.findMany({
         where: { manuscriptId: manuscript.id },
@@ -1260,10 +1256,25 @@ This work demonstrates the potential for innovative approaches to academic publi
         isCorresponding: ma.isCorresponding
       }));
 
+      // Determine content and image map based on whether we have rich paper content
+      let markdownContent: string;
+      const imagePathMap: Record<string, string> = {};
+
+      if (paper) {
+        // Use rich paper content with images
+        markdownContent = paper.content;
+        for (const img of paper.images) {
+          imagePathMap[img.filename] = `/static/published/${manuscript.id}/${img.filename}`;
+        }
+      } else {
+        // Use the manuscript's inline content (stored in database)
+        markdownContent = manuscript.content || `# ${manuscript.title}\n\n${manuscript.abstract}`;
+      }
+
       // Render the markdown to HTML
-      const htmlContent = await renderMarkdownStandalone(paper.content, {
-        title: paper.title,
-        abstract: paper.abstract,
+      const htmlContent = await renderMarkdownStandalone(markdownContent, {
+        title: manuscript.title,
+        abstract: manuscript.abstract || '',
         authorList,
         journalName: 'Colloquium Journal',
         imagePathMap
@@ -1288,23 +1299,25 @@ This work demonstrates the potential for innovative approaches to academic publi
         }
       });
 
-      // Also copy ASSET files to static published directory (simulating what publishedAssetManager does)
-      const staticDir = path.resolve(__dirname, '../../../apps/api/static/published', manuscript.id);
-      if (!fs.existsSync(staticDir)) {
-        fs.mkdirSync(staticDir, { recursive: true });
-      }
+      // Copy ASSET files to static published directory if we have rich content
+      if (paper && paper.images.length > 0) {
+        const staticDir = path.resolve(__dirname, '../../../apps/api/static/published', manuscript.id);
+        if (!fs.existsSync(staticDir)) {
+          fs.mkdirSync(staticDir, { recursive: true });
+        }
 
-      for (const img of paper.images) {
-        const srcPath = path.join(uploadsDir, img.filename);
-        const destPath = path.join(staticDir, img.filename);
-        if (fs.existsSync(srcPath)) {
-          fs.copyFileSync(srcPath, destPath);
+        for (const img of paper.images) {
+          const srcPath = path.join(uploadsDir, img.filename);
+          const destPath = path.join(staticDir, img.filename);
+          if (fs.existsSync(srcPath)) {
+            fs.copyFileSync(srcPath, destPath);
+          }
         }
       }
 
-      console.log(`  ✅ Rendered ${paper.title.substring(0, 50)}...`);
+      console.log(`  ✅ Rendered ${manuscript.title.substring(0, 50)}...`);
     } catch (error) {
-      console.error(`  ❌ Failed to render ${contentKey}:`, error);
+      console.error(`  ❌ Failed to render ${manuscript.title}:`, error);
     }
   }
 
