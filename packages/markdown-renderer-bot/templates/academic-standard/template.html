@@ -3,7 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>{{title}}{{#if journalName}} | {{journalName}}{{/if}}</title>
+
+    <!-- Dublin Core metadata -->
+    <meta name="DC.title" content="{{title}}">
+    {{#if doi}}<meta name="DC.identifier" content="{{doi}}">{{/if}}
+    {{#if authorList}}{{#each authorList}}<meta name="DC.creator" content="{{name}}">{{/each}}{{else}}{{#if authors}}<meta name="DC.creator" content="{{authors}}">{{/if}}{{/if}}
+    {{#if abstract}}<meta name="DC.description" content="{{abstract}}">{{/if}}
+    {{#if publishedDate}}<meta name="DC.date" content="{{publishedDate}}">{{/if}}
+    {{#if keywords}}<meta name="DC.subject" content="{{keywords}}">{{/if}}
+    {{#if license}}<meta name="DC.rights" content="{{license}}">{{/if}}
+
+    <!-- Citation metadata for Google Scholar -->
+    <meta name="citation_title" content="{{title}}">
+    {{#if authorList}}{{#each authorList}}<meta name="citation_author" content="{{name}}">{{/each}}{{else}}{{#if authors}}<meta name="citation_author" content="{{authors}}">{{/if}}{{/if}}
+    {{#if publishedDate}}<meta name="citation_publication_date" content="{{publishedDate}}">{{/if}}
+    {{#if journalName}}<meta name="citation_journal_title" content="{{journalName}}">{{/if}}
+    {{#if doi}}<meta name="citation_doi" content="{{doi}}">{{/if}}
+    {{#if abstract}}<meta name="citation_abstract" content="{{abstract}}">{{/if}}
+    {{#if keywords}}<meta name="citation_keywords" content="{{keywords}}">{{/if}}
+
+    <!-- Schema.org structured data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "ScholarlyArticle",
+        "headline": "{{title}}",
+        {{#if abstract}}"abstract": "{{abstract}}",{{/if}}
+        {{#if doi}}"identifier": {
+            "@type": "PropertyValue",
+            "propertyID": "DOI",
+            "value": "{{doi}}"
+        },{{/if}}
+        {{#if publishedDate}}"datePublished": "{{publishedDate}}",{{/if}}
+        {{#if submittedDate}}"dateCreated": "{{submittedDate}}",{{/if}}
+        {{#if journalName}}"isPartOf": {
+            "@type": "Periodical",
+            "name": "{{journalName}}"
+        },{{/if}}
+        {{#if keywords}}"keywords": "{{keywords}}",{{/if}}
+        {{#if license}}"license": "{{license}}",{{/if}}
+        {{#if authorList}}"author": [
+            {{#each authorList}}
+            {
+                "@type": "Person",
+                "name": "{{name}}"{{#if orcid}},
+                "identifier": {
+                    "@type": "PropertyValue",
+                    "propertyID": "ORCID",
+                    "value": "{{orcid}}"
+                }{{/if}}{{#if affiliation}},
+                "affiliation": {
+                    "@type": "Organization",
+                    "name": "{{affiliation}}"
+                }{{/if}}
+            }{{#unless @last}},{{/unless}}
+            {{/each}}
+        ]{{else}}{{#if authors}}"author": "{{authors}}"{{/if}}{{/if}}
+    }
+    </script>
+
     <style>
         body {
             max-width: 8.5in;
@@ -17,6 +76,22 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
+
+        /* Skip link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #2c5aa0;
+            color: white;
+            padding: 8px 16px;
+            z-index: 100;
+            text-decoration: none;
+        }
+        .skip-link:focus {
+            top: 0;
+        }
+
         .header {
             text-align: center;
             margin-bottom: 1em;
@@ -27,16 +102,83 @@
             margin-bottom: 0.5em;
             line-height: 1.2;
         }
+
+        /* Structured author list */
+        .author-list {
+            margin: 1em 0;
+        }
+        .author-entry {
+            margin-bottom: 0.5em;
+            text-align: center;
+        }
+        .author-name {
+            font-size: 12pt;
+        }
+        .corresponding-marker {
+            color: #2c5aa0;
+            font-weight: bold;
+        }
+        .author-affiliation {
+            font-size: 10pt;
+            font-style: italic;
+            color: #333;
+            margin-top: 2pt;
+        }
+        .author-orcid {
+            font-size: 9pt;
+            margin-top: 2pt;
+        }
+        .author-orcid a {
+            color: #16a34a;
+            text-decoration: none;
+        }
+        .author-orcid a:hover,
+        .author-orcid a:focus {
+            text-decoration: underline;
+        }
+        .corresponding-note {
+            font-size: 9pt;
+            font-style: italic;
+            color: #555;
+            margin-top: 0.5em;
+            text-align: center;
+        }
+
+        /* Simple author string fallback */
         .authors {
             font-size: 12pt;
             margin-bottom: 0.3em;
         }
+
         .metadata {
             font-size: 10pt;
             font-style: italic;
             color: #000;
             margin-bottom: 0;
         }
+        .doi-link {
+            font-size: 10pt;
+            margin-top: 0.5em;
+        }
+        .doi-link a {
+            color: #2c5aa0;
+            text-decoration: none;
+        }
+        .doi-link a:hover,
+        .doi-link a:focus {
+            text-decoration: underline;
+        }
+
+        /* Keywords */
+        .keywords {
+            font-size: 10pt;
+            margin: 1em 0;
+            text-align: center;
+        }
+        .keywords-label {
+            font-weight: bold;
+        }
+
         .abstract {
             width: 90%;
             margin: 1em auto 1.5em auto;
@@ -51,6 +193,7 @@
             font-weight: bold;
             color: #2c5aa0;
         }
+
         .content {
             text-align: justify;
             hyphens: auto;
@@ -156,6 +299,7 @@
             background: #f0f0f0;
             font-weight: bold;
         }
+
         /* Bibliography and References styling */
         .references {
             margin-top: 36pt;
@@ -179,7 +323,8 @@
             color: #000;
             text-decoration: none;
         }
-        .citation:hover {
+        .citation:hover,
+        .citation:focus {
             text-decoration: underline;
         }
         .footer {
@@ -189,17 +334,27 @@
             font-style: italic;
             text-align: center;
         }
-        
+
+        /* Focus styles for accessibility */
+        a:focus,
+        button:focus {
+            outline: 2px solid #2c5aa0;
+            outline-offset: 2px;
+        }
+
         /* WeasyPrint specific optimizations */
         @media print {
             body {
                 font-size: 11pt !important;
             }
+            .skip-link {
+                display: none;
+            }
             .content h1 { font-size: 13pt !important; }
             .content h2 { font-size: 12pt !important; }
             .content h3 { font-size: 11pt !important; }
         }
-        
+
         /* Ensure font rendering */
         * {
             -webkit-font-smoothing: antialiased;
@@ -209,20 +364,72 @@
     {{#if customCss}}<style>{{customCss}}</style>{{/if}}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
 
-    {{#if abstract}}
-    <div class="abstract">
-        <h3>Abstract</h3>
-        <p>{{abstract}}</p>
-    </div>
-    {{/if}}
+    <article>
+        <header class="header">
+            <h1 class="title">{{title}}</h1>
 
-    <div class="content">
-        {{{content}}}
-    </div>
+            {{#if authorList}}
+            <div class="author-list" role="list" aria-label="Authors">
+                {{#each authorList}}
+                <div class="author-entry" role="listitem">
+                    <span class="author-name">{{name}}</span>
+                    {{#if isCorresponding}}<sup class="corresponding-marker" aria-label="Corresponding author">*</sup>{{/if}}
+                    {{#if affiliation}}<div class="author-affiliation">{{affiliation}}</div>{{/if}}
+                    {{#if orcid}}
+                    <div class="author-orcid">
+                        <a href="https://orcid.org/{{orcid}}" target="_blank" rel="noopener" aria-label="ORCID profile for {{name}}">
+                            ORCID: {{orcid}}
+                        </a>
+                    </div>
+                    {{/if}}
+                </div>
+                {{/each}}
+                {{#if correspondingAuthor}}
+                <div class="corresponding-note">
+                    <sup>*</sup> Corresponding author{{#if correspondingAuthor.email}}: <a href="mailto:{{correspondingAuthor.email}}">{{correspondingAuthor.email}}</a>{{/if}}
+                </div>
+                {{/if}}
+            </div>
+            {{else}}
+            {{#if authors}}
+            <div class="authors">{{authors}}</div>
+            {{/if}}
+            {{/if}}
 
-    <!-- Bibliography will be inserted here by Pandoc -->
-    <div id="refs" class="references"></div>
+            <div class="metadata">
+                {{#if submittedDate}}Submitted: {{submittedDate}}{{/if}}
+                {{#if acceptedDate}}{{#if submittedDate}} • {{/if}}Accepted: {{acceptedDate}}{{/if}}
+                {{#if publishedDate}}{{#if submittedDate}}{{#unless acceptedDate}} • {{/unless}}{{/if}}{{#if acceptedDate}} • {{/if}}Published: {{publishedDate}}{{/if}}
+            </div>
 
+            {{#if doi}}
+            <div class="doi-link">
+                <a href="https://doi.org/{{doi}}" target="_blank" rel="noopener">https://doi.org/{{doi}}</a>
+            </div>
+            {{/if}}
+        </header>
+
+        {{#if keywords}}
+        <div class="keywords">
+            <span class="keywords-label">Keywords:</span> {{keywords}}
+        </div>
+        {{/if}}
+
+        {{#if abstract}}
+        <section class="abstract" role="doc-abstract" aria-labelledby="abstract-heading">
+            <h3 id="abstract-heading">Abstract</h3>
+            <p>{{abstract}}</p>
+        </section>
+        {{/if}}
+
+        <main id="main-content" class="content" role="main">
+            {{{content}}}
+        </main>
+
+        <!-- Bibliography will be inserted here by Pandoc -->
+        <section id="refs" class="references" role="doc-bibliography" aria-label="References"></section>
+    </article>
 </body>
 </html>

@@ -129,12 +129,24 @@ app.post('/convert', upload.none(), async (req, res) => {
       console.log('DEBUG: No asset files provided');
     }
     
+    // For Typst PDF with bibliography, use Typst's native bibliography handling:
+    // 1. Pandoc converts markdown to Typst ([@key] → @key automatically)
+    // 2. Bibliography is already written as references.bib in temp directory
+    // 3. Template includes #bibliography("references.bib")
+    // 4. Typst handles citations natively
+    const useTypstNativeBib = outputFormat === 'pdf' && engine === 'typst' && bibliographyFile;
+
+    if (useTypstNativeBib) {
+      console.log('DEBUG: Using Typst native bibliography handling');
+      console.log('DEBUG: Bibliography file at', bibliographyFile);
+    }
+
     // Build Pandoc command
     const args = [
       `"${inputFile}"`,
       '-o', `"${outputFile}"`
     ];
-    
+
     // Add engine-specific options
     if (outputFormat === 'pdf') {
       // PDF-specific engines
@@ -157,7 +169,7 @@ app.post('/convert', upload.none(), async (req, res) => {
         args.push('--self-contained'); // Include images and CSS inline
       }
     }
-    
+
     // Add template if provided
     if (template) {
       let templateExt;
@@ -170,20 +182,25 @@ app.post('/convert', upload.none(), async (req, res) => {
       await fs.writeFile(templateFile, template, 'utf8');
       args.push('--template', `"${templateFile}"`);
     }
-    
+
     // Add variables
     Object.entries(variables).forEach(([key, value]) => {
       if (typeof value === 'string' && value.trim() !== '') {
         args.push('--variable', `${key}:"${value.replace(/"/g, '\\"')}"`);
       }
     });
-    
-    // Add bibliography if provided
-    if (bibliographyFile) {
+
+    // Add bibliography if provided (skip for Typst as it handles bibliography natively)
+    if (bibliographyFile && !useTypstNativeBib) {
       args.push('--bibliography', `"${bibliographyFile}"`);
       args.push('--citeproc'); // Enable citation processing
     }
-    
+
+    // For Typst native bibliography, set the bibliography variable so template conditional works
+    if (useTypstNativeBib) {
+      args.push('--variable', 'bibliography:true');
+    }
+
     // Add format-specific settings
     if (outputFormat === 'pdf') {
       // PDF-specific settings
@@ -195,7 +212,7 @@ app.post('/convert', upload.none(), async (req, res) => {
       args.push('--variable', 'lang:en');
       args.push('--variable', 'viewport:width=device-width,initial-scale=1');
     }
-    
+
     const command = `pandoc ${args.join(' ')}`;
     console.log('CITATION DEBUG: Pandoc command includes --citeproc and --bibliography flags');
     console.log(`CITATION DEBUG: Executing: ${command}`);

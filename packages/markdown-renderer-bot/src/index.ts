@@ -1334,8 +1334,19 @@ export interface RenderOptions {
   title: string;
   abstract?: string;
   authors?: string;
-  authorList?: Array<{ name: string; affiliation?: string; isCorresponding?: boolean }>;
+  authorList?: Array<{
+    name: string;
+    affiliation?: string;
+    orcid?: string;
+    email?: string;
+    roles?: string;
+    isCorresponding?: boolean;
+  }>;
+  correspondingAuthor?: { email?: string };
   renderDate?: string;
+  submittedDate?: string;
+  acceptedDate?: string;
+  publishedDate?: string;
   journalName?: string;
   template?: string;
   /** Map of image filenames to their absolute paths for HTML output URL rewriting */
@@ -1348,6 +1359,50 @@ export interface RenderOptions {
   outputFormats?: ('html' | 'pdf')[];
   /** PDF engine to use (default: 'typst') */
   pdfEngine?: 'typst' | 'latex' | 'html';
+
+  // Extended metadata for maximal template
+  /** Digital Object Identifier */
+  doi?: string;
+  /** Keywords (comma-separated or as array via keywordList) */
+  keywords?: string;
+  keywordList?: string[];
+  /** Article type (e.g., "Research Article", "Review", "Case Study") */
+  articleType?: string;
+  /** License (e.g., "CC BY 4.0") */
+  license?: string;
+  /** Version number */
+  version?: string;
+  versionNote?: string;
+  /** Preprint status */
+  isPreprint?: boolean;
+  peerReviewedUrl?: string;
+
+  // Back matter sections
+  dataAvailability?: {
+    statement: string;
+    url?: string;
+    repository?: string;
+    doi?: string;
+  };
+  codeAvailability?: {
+    statement: string;
+    url?: string;
+    repository?: string;
+  };
+  supplementaryMaterials?: Array<{
+    label: string;
+    description?: string;
+    file?: string;
+  }>;
+  funding?: Array<{
+    funder: string;
+    grantNumber?: string;
+    recipient?: string;
+  }>;
+  authorContributions?: string;
+  acknowledgments?: string;
+  competingInterests?: string;
+  ethicsApproval?: string;
 }
 
 /**
@@ -1431,15 +1486,47 @@ export async function renderMarkdown(
 
   // Prepare template variables
   const templateVariables = {
+    // Core metadata
     title: options.title,
     abstract: options.abstract || '',
     authors: options.authors || (options.authorList ? options.authorList.map(a => a.name).join(', ') : ''),
     authorList: options.authorList || [],
+    correspondingAuthor: options.correspondingAuthor,
     authorCount: options.authorList?.length || 0,
+
+    // Dates
     renderDate: options.renderDate || new Date().toLocaleDateString(),
+    submittedDate: options.submittedDate || '',
+    acceptedDate: options.acceptedDate || '',
+    publishedDate: options.publishedDate || '',
+
+    // Journal info
     journalName: options.journalName || 'Colloquium Journal',
+
+    // Content
     content: processedContent,
-    customCss: ''
+    customCss: '',
+
+    // Extended metadata
+    doi: options.doi || '',
+    keywords: options.keywords || '',
+    keywordList: options.keywordList || (options.keywords ? options.keywords.split(',').map(k => k.trim()) : []),
+    articleType: options.articleType || '',
+    license: options.license || '',
+    version: options.version || '',
+    versionNote: options.versionNote || '',
+    isPreprint: options.isPreprint || false,
+    peerReviewedUrl: options.peerReviewedUrl || '',
+
+    // Back matter
+    dataAvailability: options.dataAvailability,
+    codeAvailability: options.codeAvailability,
+    supplementaryMaterials: options.supplementaryMaterials || [],
+    funding: options.funding || [],
+    authorContributions: options.authorContributions || '',
+    acknowledgments: options.acknowledgments || '',
+    competingInterests: options.competingInterests || '',
+    ethicsApproval: options.ethicsApproval || ''
   };
 
   // Render HTML template
@@ -1474,12 +1561,40 @@ export async function renderMarkdown(
       engine: pdfEngine,
       template: template.typstTemplate || template.latexTemplate || '',
       variables: {
+        // Core metadata
         title: options.title,
         authors: options.authors || (options.authorList ? options.authorList.map(a => a.name).join(', ') : ''),
+        authorList: options.authorList || [],
+        correspondingAuthor: options.correspondingAuthor,
         abstract: options.abstract || '',
-        submittedDate: options.renderDate || new Date().toLocaleDateString(),
+
+        // Dates
+        submittedDate: options.submittedDate || options.renderDate || new Date().toLocaleDateString(),
+        acceptedDate: options.acceptedDate || '',
+        publishedDate: options.publishedDate || '',
         renderDate: options.renderDate || new Date().toLocaleDateString(),
-        journalName: options.journalName || 'Colloquium Journal'
+
+        // Journal info
+        journalName: options.journalName || 'Colloquium Journal',
+
+        // Extended metadata
+        doi: options.doi || '',
+        keywords: options.keywords || '',
+        articleType: options.articleType || '',
+        license: options.license || '',
+        version: options.version || '',
+        versionNote: options.versionNote || '',
+        isPreprint: options.isPreprint || false,
+
+        // Back matter
+        dataAvailability: options.dataAvailability,
+        codeAvailability: options.codeAvailability,
+        supplementaryMaterials: options.supplementaryMaterials || [],
+        funding: options.funding || [],
+        authorContributions: options.authorContributions || '',
+        acknowledgments: options.acknowledgments || '',
+        competingInterests: options.competingInterests || '',
+        ethicsApproval: options.ethicsApproval || ''
       },
       outputFormat: 'pdf',
       bibliography: options.bibliography || '',

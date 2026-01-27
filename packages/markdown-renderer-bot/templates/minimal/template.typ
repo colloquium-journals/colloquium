@@ -37,3 +37,9 @@
 
 // Content
 $body$
+
+// Bibliography (if provided)
+$if(bibliography)$
+#v(1em)
+#bibliography("references.bib", title: "References", style: "apa")
+$endif$

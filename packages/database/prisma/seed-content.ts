@@ -1004,7 +1004,7 @@ Integrating social dynamics into climate modeling reveals important feedbacks th
     ],
     bibliography: {
       filename: 'references.bib',
-      content: `@report{ipcc2023,
+      content: `@techreport{ipcc2023,
   author = {{IPCC}},
   title = {Climate Change 2023: Synthesis Report},
   institution = {Intergovernmental Panel on Climate Change},
@@ -2928,6 +2928,374 @@ The future of open access publishing will be shaped by the interplay of technolo
   doi = {10.7717/peerj.16899}
 }
 `
+    }
+  },
+
+  // Paper designed to stress test the maximal template with all features
+  reproducibleResearch: {
+    title: "Building Reproducible Research Pipelines: A Practical Framework for Computational Science",
+    abstract: `Reproducibility is a cornerstone of scientific research, yet computational studies face unique challenges in achieving truly reproducible results. This paper presents a comprehensive framework for building reproducible research pipelines that integrate version control, containerization, workflow automation, and open data practices. We evaluated our framework across 50 research groups in computational biology, physics, and social sciences, demonstrating a 78% improvement in successful reproduction rates. Our findings indicate that combining technical infrastructure with cultural change initiatives yields the most sustainable improvements in research reproducibility.`,
+    content: `## 1. Introduction
+
+The reproducibility crisis in science has prompted intense scrutiny of research practices across disciplines [@baker2016reproducibility; @ioannidis2005why]. While concerns about reproducibility span all fields, computational research faces unique challenges: software dependencies change, computing environments evolve, and data formats become obsolete [@stodden2014implementing].
+
+This paper addresses these challenges by presenting a practical framework for building reproducible research pipelines. Our approach integrates:
+
+1. **Version control** for code and data provenance
+2. **Containerization** for environment reproducibility
+3. **Workflow automation** for process documentation
+4. **Open data practices** for accessibility
+
+We evaluated this framework across diverse research contexts to assess its effectiveness and identify implementation challenges.
+
+## 2. Background
+
+### 2.1 The Reproducibility Challenge
+
+Computational reproducibility requires that given the same input data and analysis code, another researcher can obtain the same results [@peng2011reproducible]. This seemingly simple requirement often proves difficult in practice:
+
+> "I spent three weeks trying to reproduce my own results from two years ago. The package versions had changed, and I couldn't remember which preprocessing steps I had used." — Survey respondent, Computational Biologist
+
+### 2.2 Current Approaches
+
+Existing solutions address different aspects of reproducibility:
+
+| Approach | Addresses | Limitations |
+|----------|-----------|-------------|
+| Git/GitHub | Code versioning | Doesn't capture environment |
+| Docker | Environment | Large images, learning curve |
+| Jupyter notebooks | Documentation | Hidden state issues |
+| Workflow systems | Process | Tool lock-in |
+
+Our framework integrates these approaches into a cohesive system.
+
+## 3. Methods
+
+### 3.1 Framework Components
+
+Our reproducibility framework consists of four interconnected layers:
+
+![Architecture of the reproducibility framework](reproducibility-architecture.png)
+
+#### 3.1.1 Data Layer
+
+All input data is registered with persistent identifiers and checksums:
+
+\`\`\`yaml
+# data-manifest.yaml
+datasets:
+  - name: participant_responses
+    source: osf.io/abc123
+    checksum: sha256:a3f2b8c9d1e4f5...
+    version: 2.1.0
+    license: CC-BY-4.0
+
+  - name: validation_cohort
+    source: zenodo.org/record/567890
+    checksum: sha256:b4c3d2e1f0a9b8...
+    version: 1.0.0
+    license: CC0
+\`\`\`
+
+#### 3.1.2 Environment Layer
+
+Computing environments are specified declaratively:
+
+\`\`\`dockerfile
+# Reproducible environment specification
+FROM rocker/verse:4.3.0
+
+# System dependencies
+RUN apt-get update && apt-get install -y \\
+    libcurl4-openssl-dev \\
+    libxml2-dev
+
+# R packages with specific versions
+RUN install2.r --error \\
+    tidyverse@2.0.0 \\
+    brms@2.19.0 \\
+    cmdstanr@0.5.3
+
+# Python environment
+COPY requirements.txt /tmp/
+RUN pip install -r /tmp/requirements.txt
+\`\`\`
+
+#### 3.1.3 Workflow Layer
+
+Analysis pipelines are defined as directed acyclic graphs (DAGs):
+
+\`\`\`python
+# workflow.py using Snakemake
+rule preprocess:
+    input: "data/raw/{sample}.csv"
+    output: "data/processed/{sample}.parquet"
+    script: "scripts/preprocess.py"
+
+rule analyze:
+    input: expand("data/processed/{s}.parquet", s=SAMPLES)
+    output: "results/analysis.rds"
+    script: "scripts/analyze.R"
+
+rule visualize:
+    input: "results/analysis.rds"
+    output: "figures/main_results.pdf"
+    script: "scripts/visualize.R"
+\`\`\`
+
+#### 3.1.4 Documentation Layer
+
+All decisions and parameters are captured in structured logs:
+
+\`\`\`json
+{
+  "analysis_log": {
+    "timestamp": "2024-03-15T14:30:00Z",
+    "analyst": "researcher@university.edu",
+    "parameters": {
+      "model_type": "hierarchical_bayesian",
+      "iterations": 4000,
+      "chains": 4,
+      "seed": 42
+    },
+    "decisions": [
+      {
+        "decision": "Excluded 3 participants",
+        "rationale": "Missing >50% of data points",
+        "date": "2024-03-10"
+      }
+    ]
+  }
+}
+\`\`\`
+
+### 3.2 Evaluation Design
+
+We evaluated the framework through:
+
+1. **Deployment study**: 50 research groups implemented the framework over 12 months
+2. **Reproduction attempts**: Independent researchers attempted to reproduce 200 analyses
+3. **Surveys**: Pre/post assessments of researcher attitudes and practices
+
+### 3.3 Outcome Measures
+
+Primary outcomes:
+- Reproduction success rate (binary)
+- Time to successful reproduction (hours)
+- Framework adoption rate (% of eligible projects)
+
+Secondary outcomes:
+- Researcher satisfaction scores
+- Perceived barriers to adoption
+- Long-term maintenance patterns
+
+## 4. Results
+
+### 4.1 Reproduction Success Rates
+
+Implementation of the framework significantly improved reproduction success:
+
+![Reproduction success rates before and after framework adoption](reproduction-rates.png)
+
+| Metric | Baseline | Post-Framework | Improvement |
+|--------|----------|----------------|-------------|
+| Full reproduction | 31% | 78% | +151% |
+| Partial reproduction | 52% | 89% | +71% |
+| Time to reproduce (hours) | 18.5 | 4.2 | -77% |
+
+### 4.2 Adoption Patterns
+
+Framework adoption varied by discipline and resource availability:
+
+![Framework adoption rates across research domains](adoption-patterns.png)
+
+Factors predicting successful adoption:
+- Prior version control experience (OR: 3.2, 95% CI: 2.1-4.8)
+- Institutional IT support (OR: 2.7, 95% CI: 1.8-4.0)
+- Funder reproducibility requirements (OR: 2.3, 95% CI: 1.5-3.5)
+
+### 4.3 Barriers and Facilitators
+
+Researcher-reported barriers (n=247):
+
+1. Learning curve for new tools (68%)
+2. Time investment for setup (61%)
+3. Lack of institutional support (45%)
+4. Unclear benefit for career (38%)
+5. Incompatibility with existing workflows (32%)
+
+Facilitators:
+
+1. Clear documentation and tutorials (72%)
+2. Community of practice support (65%)
+3. Visible examples from peers (58%)
+4. Funder requirements (52%)
+5. Journal policies (41%)
+
+### 4.4 Model Performance Comparison
+
+We compared different containerization strategies:
+
+![Comparison of containerization approaches](container-comparison.png)
+
+## 5. Discussion
+
+### 5.1 Key Findings
+
+Our evaluation demonstrates that structured reproducibility frameworks can substantially improve the replicability of computational research. The 78% reproduction success rate represents a significant improvement over baseline conditions, though it falls short of the ideal 100%.
+
+### 5.2 Implementation Recommendations
+
+Based on our findings, we recommend:
+
+1. **Start with version control**: Organizations without Git experience should prioritize this foundation
+2. **Containerize incrementally**: Begin with critical dependencies before full environment capture
+3. **Automate testing**: Continuous integration catches breaking changes early
+4. **Document decisions, not just code**: Rationale capture is as important as technical documentation
+
+### 5.3 Limitations
+
+This study has several limitations:
+
+- Self-selected research groups may be more motivated than average
+- 12-month follow-up may not capture long-term sustainability
+- Reproduction attempts were conducted by trained researchers
+- Framework components may not generalize to all computational contexts
+
+### 5.4 Future Directions
+
+Promising areas for future work include:
+
+- Integration with AI/ML model versioning systems
+- Automated compliance checking for funder requirements
+- Cross-platform portability improvements
+- Community standards for reproducibility metadata
+
+## 6. Conclusion
+
+Building reproducible research pipelines requires both technical infrastructure and cultural change. Our framework provides a practical approach to integrating version control, containerization, workflow automation, and open data practices. The substantial improvement in reproduction success rates (31% → 78%) demonstrates the value of systematic approaches to computational reproducibility.
+
+We encourage researchers, institutions, and funders to adopt and adapt these practices to improve the reliability and cumulative value of computational science.
+`,
+    images: [
+      {
+        filename: 'reproducibility-architecture.png',
+        generator: () => createBarChart(700, 450, [85, 72, 68, 81])
+      },
+      {
+        filename: 'reproduction-rates.png',
+        generator: () => createBarChart(650, 400, [31, 78, 52, 89])
+      },
+      {
+        filename: 'adoption-patterns.png',
+        generator: () => createBarChart(700, 400, [68, 75, 82, 58, 71])
+      },
+      {
+        filename: 'container-comparison.png',
+        generator: () => createLineChart(700, 450, [
+          [45, 52, 61, 68, 73, 76, 78, 78],
+          [38, 48, 55, 60, 65, 68, 70, 71],
+          [35, 42, 48, 54, 58, 61, 63, 65]
+        ])
+      }
+    ],
+    bibliography: {
+      filename: 'references.bib',
+      content: `@article{baker2016reproducibility,
+  author = {Baker, Monya},
+  title = {1,500 scientists lift the lid on reproducibility},
+  journal = {Nature},
+  year = {2016},
+  volume = {533},
+  number = {7604},
+  pages = {452--454},
+  doi = {10.1038/533452a}
+}
+
+@article{ioannidis2005why,
+  author = {Ioannidis, John P. A.},
+  title = {Why most published research findings are false},
+  journal = {PLoS Medicine},
+  year = {2005},
+  volume = {2},
+  number = {8},
+  pages = {e124},
+  doi = {10.1371/journal.pmed.0020124}
+}
+
+@article{stodden2014implementing,
+  author = {Stodden, Victoria and Miguez, Sheila},
+  title = {Best practices for computational science: Software infrastructure and environments for reproducible and extensible research},
+  journal = {Journal of Open Research Software},
+  year = {2014},
+  volume = {2},
+  number = {1},
+  pages = {e21},
+  doi = {10.5334/jors.ay}
+}
+
+@article{peng2011reproducible,
+  author = {Peng, Roger D.},
+  title = {Reproducible research in computational science},
+  journal = {Science},
+  year = {2011},
+  volume = {334},
+  number = {6060},
+  pages = {1226--1227},
+  doi = {10.1126/science.1213847}
+}
+`
+    },
+    // Extended metadata for maximal template
+    extendedMetadata: {
+      doi: '10.1000/reproducible-2024',
+      articleType: 'Research Article',
+      license: 'CC BY 4.0',
+      keywords: 'reproducibility, open science, computational research, version control, containerization, workflow automation',
+      dataAvailability: {
+        statement: 'All data supporting this study are available in the Open Science Framework repository.',
+        url: 'https://osf.io/example123',
+        repository: 'Open Science Framework',
+        doi: '10.17605/OSF.IO/EXAMPLE'
+      },
+      codeAvailability: {
+        statement: 'Analysis code and reproducibility framework are available on GitHub under MIT license.',
+        url: 'https://github.com/example/reproducibility-framework',
+        repository: 'GitHub'
+      },
+      supplementaryMaterials: [
+        {
+          label: 'Supplementary Table S1',
+          description: 'Complete survey responses and demographic data',
+          file: 'supplementary-table-s1.xlsx'
+        },
+        {
+          label: 'Supplementary Figure S1',
+          description: 'Extended adoption patterns by institution type',
+          file: 'supplementary-figure-s1.pdf'
+        },
+        {
+          label: 'Analysis Code',
+          description: 'Complete R and Python scripts for all analyses',
+          file: 'analysis-code.zip'
+        }
+      ],
+      funding: [
+        {
+          funder: 'National Science Foundation',
+          grantNumber: 'NSF-2024-12345',
+          recipient: 'A. Researcher'
+        },
+        {
+          funder: 'Alfred P. Sloan Foundation',
+          grantNumber: 'G-2024-56789',
+          recipient: 'B. Scientist'
+        }
+      ],
+      authorContributions: 'AR conceived the study and designed the framework. BS led the evaluation and data analysis. CM conducted surveys and qualitative analysis. DW developed the containerization tools. All authors contributed to writing and approved the final manuscript.',
+      acknowledgments: 'We thank the 50 research groups who participated in this study, particularly the early adopters who provided valuable feedback on framework design. We also thank the Research Computing Center for infrastructure support and the Open Science Foundation for data hosting.',
+      competingInterests: 'The authors declare no competing interests. AR serves on the advisory board of an open science nonprofit but receives no compensation.',
+      ethicsApproval: 'This study was approved by the University Institutional Review Board (Protocol #2023-0456). All participants provided informed consent.'
     }
   }
 };

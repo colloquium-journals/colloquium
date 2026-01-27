@@ -1,0 +1,32 @@
+{
+  "name": "maximal",
+  "title": "Maximal",
+  "description": "Feature-rich online-first template with full metadata support, accessibility, interactive elements, and dark mode",
+  "cssTemplate": "",
+  "engines": ["html", "typst"],
+  "defaultEngine": "html",
+  "metadata": {
+    "type": "online-first",
+    "responsive": true,
+    "printOptimized": true,
+    "features": {
+      "citations": true,
+      "crossReferences": true,
+      "mathSupport": true,
+      "figureSupport": true,
+      "structuredAuthors": true,
+      "schemaOrg": true,
+      "accessibility": true,
+      "darkMode": true,
+      "interactiveElements": true,
+      "altmetrics": true,
+      "dataAvailability": true,
+      "codeAvailability": true,
+      "funding": true,
+      "authorContributions": true,
+      "competingInterests": true,
+      "supplementaryMaterials": true,
+      "versionInfo": true
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "academic-standard",
   "title": "Academic Standard",
-  "description": "Clean, professional academic journal template",
+  "description": "Clean, professional academic journal template with structured author metadata and accessibility features",
   "cssTemplate": "",
   "engines": ["html", "latex", "typst"],
   "defaultEngine": "typst",
@@ -13,7 +13,10 @@
       "citations": true,
       "crossReferences": true,
       "mathSupport": true,
-      "figureSupport": true
+      "figureSupport": true,
+      "structuredAuthors": true,
+      "schemaOrg": true,
+      "accessibility": true
     }
   }
 }

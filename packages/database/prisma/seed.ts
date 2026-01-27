@@ -408,7 +408,20 @@ async function main() {
       keywords: ['open access', 'publishing', 'open science', 'technology trends', 'social factors'],
       publishedAt: new Date('2024-01-25'),
       doi: '10.1371/journal.pone.0298765',
-      contentKey: 'openAccessFuture'
+      contentKey: 'openAccessFuture',
+      template: 'colloquium-journal'
+    },
+    // Reproducible Research paper - uses maximal template to stress test all features
+    {
+      title: papers.reproducibleResearch.title,
+      abstract: papers.reproducibleResearch.abstract,
+      status: ManuscriptStatus.PUBLISHED,
+      authors: [author2.id, author3.id, author5.id, author8.id],
+      keywords: ['reproducibility', 'open science', 'computational research', 'version control', 'containerization'],
+      publishedAt: new Date('2024-04-01'),
+      doi: papers.reproducibleResearch.extendedMetadata.doi,
+      contentKey: 'reproducibleResearch',
+      template: 'maximal'
     },
     // Workflow testing manuscripts - different phases
     {
@@ -1133,7 +1146,17 @@ This work demonstrates the potential for innovative approaches to academic publi
     'climateModeling': 7,
     'aiEthics': 8,
     'nanoMedical': 9,
-    'openAccessFuture': 10
+    'openAccessFuture': 10,
+    'reproducibleResearch': 11
+  };
+
+  // Map contentKey to template configuration
+  const contentKeyToTemplate: Record<string, string> = {
+    'digitalLibraries': 'academic-standard',
+    'collaborativeResearch': 'academic-standard',
+    'climateModeling': 'minimal',
+    'openAccessFuture': 'colloquium-journal',
+    'reproducibleResearch': 'maximal'
   };
 
   // Create ManuscriptFile records linking manuscripts to their files
@@ -1294,8 +1317,12 @@ This work demonstrates the potential for innovative approaches to academic publi
         markdownContent = manuscript.content || `# ${manuscript.title}\n\n${manuscript.abstract}`;
       }
 
-      // Render the markdown to HTML and PDF
-      const renderResult = await renderMarkdown(markdownContent, {
+      // Determine template to use
+      const templateName = contentKey ? (contentKeyToTemplate[contentKey] || 'academic-standard') : 'academic-standard';
+      console.log(`  📋 Using template: ${templateName}`);
+
+      // Build render options
+      const renderOptions: any = {
         title: manuscript.title,
         abstract: manuscript.abstract || '',
         authorList,
@@ -1303,8 +1330,51 @@ This work demonstrates the potential for innovative approaches to academic publi
         imagePathMap,
         imageSourcePaths,
         bibliography,
-        outputFormats: ['html', 'pdf']
-      });
+        outputFormats: ['html', 'pdf'],
+        template: templateName,
+        submittedDate: manuscript.createdAt?.toLocaleDateString() || new Date().toLocaleDateString(),
+        publishedDate: manuscript.publishedAt?.toLocaleDateString() || ''
+      };
+
+      // Add extended metadata for maximal template
+      if (paper && (paper as any).extendedMetadata) {
+        const extended = (paper as any).extendedMetadata;
+        Object.assign(renderOptions, {
+          doi: extended.doi,
+          keywords: extended.keywords,
+          articleType: extended.articleType,
+          license: extended.license,
+          dataAvailability: extended.dataAvailability,
+          codeAvailability: extended.codeAvailability,
+          supplementaryMaterials: extended.supplementaryMaterials,
+          funding: extended.funding,
+          authorContributions: extended.authorContributions,
+          acknowledgments: extended.acknowledgments,
+          competingInterests: extended.competingInterests,
+          ethicsApproval: extended.ethicsApproval
+        });
+
+        // Add extended author info if using maximal template
+        if (templateName === 'maximal') {
+          // Enhance authorList with additional metadata for maximal template
+          renderOptions.authorList = manuscriptAuthors.map((ma, idx) => ({
+            name: ma.users?.name || 'Unknown',
+            affiliation: ma.users?.affiliation || undefined,
+            orcid: ma.users?.orcidId || undefined,
+            email: ma.isCorresponding ? ma.users?.email : undefined,
+            isCorresponding: ma.isCorresponding,
+            roles: idx === 0 ? 'Conceptualization, Writing' : 'Investigation, Analysis'
+          }));
+          // Set corresponding author
+          const correspondingAuth = manuscriptAuthors.find(ma => ma.isCorresponding);
+          if (correspondingAuth?.users?.email) {
+            renderOptions.correspondingAuthor = { email: correspondingAuth.users.email };
+          }
+        }
+      }
+
+      // Render the markdown to HTML and PDF
+      const renderResult = await renderMarkdown(markdownContent, renderOptions);
 
       // Write HTML file to disk
       const htmlPath = path.join(uploadsDir, renderedFilename);
