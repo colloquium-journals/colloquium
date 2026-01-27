@@ -230,6 +230,15 @@ export default function ArticleDetailPage() {
     return htmlFile || pdfFile;
   };
 
+  // Function to rewrite image paths to use absolute API URLs
+  const rewriteImagePaths = (html: string): string => {
+    // Rewrite /static/published/ paths to absolute API URLs
+    return html.replace(
+      /src="\/static\/published\//g,
+      'src="http://localhost:4000/static/published/'
+    );
+  };
+
   // Function to automatically scope CSS to prevent interference with page styles
   const scopeHTMLContent = (htmlContent: string): string => {
     // Extract CSS from style tags
@@ -297,7 +306,8 @@ export default function ArticleDetailPage() {
       }
       
       const htmlText = await response.text();
-      const scopedHTML = scopeHTMLContent(htmlText);
+      const rewrittenHTML = rewriteImagePaths(htmlText);
+      const scopedHTML = scopeHTMLContent(rewrittenHTML);
       setHtmlContent(scopedHTML);
     } catch (error) {
       console.error('Error fetching HTML content:', error);
