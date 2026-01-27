@@ -297,15 +297,7 @@ export const papers = {
   mlPeerReview: {
     title: "Machine Learning Applications in Automated Peer Review Systems",
     abstract: `This study explores the integration of machine learning algorithms into peer review workflows, examining their effectiveness in identifying methodological issues, statistical errors, and potential bias while maintaining reviewer anonymity. We evaluated five different ML approaches on a corpus of 15,000 peer-reviewed manuscripts across multiple disciplines, achieving an accuracy of 87.3% in predicting editorial decisions. Our findings suggest that hybrid human-AI review systems can reduce review times by 40% while maintaining quality standards comparable to traditional peer review.`,
-    content: `# Machine Learning Applications in Automated Peer Review Systems
-
-## Abstract
-
-This study explores the integration of machine learning algorithms into peer review workflows, examining their effectiveness in identifying methodological issues, statistical errors, and potential bias while maintaining reviewer anonymity. We evaluated five different ML approaches on a corpus of 15,000 peer-reviewed manuscripts across multiple disciplines, achieving an accuracy of 87.3% in predicting editorial decisions. Our findings suggest that hybrid human-AI review systems can reduce review times by 40% while maintaining quality standards comparable to traditional peer review.
-
-**Keywords:** machine learning, peer review, natural language processing, scholarly communication, automation
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The exponential growth of scientific literature has placed unprecedented demands on the peer review system [@smith2023growth; @jones2024peer]. With over 3 million articles published annually across scientific journals, the traditional model of peer review faces significant challenges including reviewer fatigue, delays in publication, and inconsistent quality standards [@brown2023review].
 
@@ -647,15 +639,7 @@ Wilson, R. (2022). Traditional peer review: Strengths and weaknesses. *European 
   colloquiumPlatform: {
     title: "A Novel Approach to Academic Publishing: The Colloquium Platform",
     abstract: `We present Colloquium, an open-source platform for academic publishing that reimagines the peer review process through conversational interfaces and transparent workflows. The platform integrates modern web technologies with established scholarly communication practices, enabling real-time collaboration between authors, reviewers, and editors. Early adoption studies with three pilot journals demonstrate a 35% improvement in author satisfaction and 28% reduction in time-to-decision compared to traditional submission systems.`,
-    content: `# A Novel Approach to Academic Publishing: The Colloquium Platform
-
-## Abstract
-
-We present Colloquium, an open-source platform for academic publishing that reimagines the peer review process through conversational interfaces and transparent workflows. The platform integrates modern web technologies with established scholarly communication practices, enabling real-time collaboration between authors, reviewers, and editors. Early adoption studies with three pilot journals demonstrate a 35% improvement in author satisfaction and 28% reduction in time-to-decision compared to traditional submission systems.
-
-**Keywords:** scholarly publishing, open source, peer review, conversational interfaces, academic journals
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 Academic publishing infrastructure has remained largely unchanged for decades, despite revolutionary advances in web technology and communication tools [@johnson2023future]. Traditional manuscript submission systems often create friction between stakeholders, leading to delays, miscommunication, and frustration for authors and reviewers alike.
 
@@ -863,15 +847,7 @@ Thompson, A. et al. (2023). Open source solutions for academic publishing. *Code
   climateModeling: {
     title: "Interdisciplinary Approaches to Climate Change Modeling: Integrating Physical and Social Systems",
     abstract: `Climate change modeling has traditionally focused on physical Earth systems, with human dimensions often treated as external forcing factors. This paper presents an integrated modeling framework that couples physical climate models with agent-based social simulation, enabling more realistic projections of climate-society feedbacks. We demonstrate the framework using three case studies examining agricultural adaptation, urban heat island dynamics, and coastal migration patterns. Results indicate that models incorporating social dynamics produce significantly different projections than purely physical models, with implications for policy planning.`,
-    content: `# Interdisciplinary Approaches to Climate Change Modeling: Integrating Physical and Social Systems
-
-## Abstract
-
-Climate change modeling has traditionally focused on physical Earth systems, with human dimensions often treated as external forcing factors. This paper presents an integrated modeling framework that couples physical climate models with agent-based social simulation, enabling more realistic projections of climate-society feedbacks. We demonstrate the framework using three case studies examining agricultural adaptation, urban heat island dynamics, and coastal migration patterns. Results indicate that models incorporating social dynamics produce significantly different projections than purely physical models, with implications for policy planning.
-
-**Keywords:** climate modeling, agent-based modeling, coupled systems, social-ecological systems, integrated assessment
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The challenge of projecting future climate change and its impacts requires understanding not only physical Earth systems but also how human societies respond to and influence environmental change [@ipcc2023]. Traditional climate models treat human activities as prescribed scenarios, missing crucial feedback mechanisms between climate and society.
 
@@ -1135,15 +1111,7 @@ Additional references available in supplementary materials.
   blockchainCredentials: {
     title: "Blockchain-Based Credential Verification for Academic Institutions",
     abstract: `This paper presents a decentralized framework for academic credential verification using blockchain technology. We propose a permissioned blockchain architecture that enables instant verification of degrees, certificates, and academic achievements while maintaining privacy and institutional autonomy. A pilot implementation across 12 universities demonstrated 99.7% verification accuracy with average response times under 3 seconds, compared to days or weeks for traditional verification methods.`,
-    content: `# Blockchain-Based Credential Verification for Academic Institutions
-
-## Abstract
-
-This paper presents a decentralized framework for academic credential verification using blockchain technology. We propose a permissioned blockchain architecture that enables instant verification of degrees, certificates, and academic achievements while maintaining privacy and institutional autonomy. A pilot implementation across 12 universities demonstrated 99.7% verification accuracy with average response times under 3 seconds, compared to days or weeks for traditional verification methods.
-
-**Keywords:** blockchain, academic credentials, verification, decentralized systems, higher education
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 Academic credential fraud has become a significant global problem, with estimates suggesting that up to 40% of credential verification requests reveal discrepancies or outright fraud [@deakin2023fraud]. Traditional verification methods rely on slow, paper-based processes or centralized databases that are vulnerable to tampering and single points of failure.
 
@@ -1359,15 +1327,7 @@ Sharples, M., & Domingue, J. (2016). The blockchain and kudos: A distributed sys
   openSciencePlatforms: {
     title: "Open Science Platforms: Impact on Research Collaboration and Knowledge Dissemination",
     abstract: `This comprehensive analysis examines the impact of open science platforms on research collaboration patterns, knowledge dissemination, and citation networks across academic disciplines. Through a mixed-methods study combining bibliometric analysis of 2.3 million publications with surveys of 5,400 researchers, we find that open science practices increase citation rates by 47% on average while fostering new collaborative networks across institutional and geographic boundaries. However, adoption remains uneven across disciplines and career stages.`,
-    content: `# Open Science Platforms: Impact on Research Collaboration and Knowledge Dissemination
-
-## Abstract
-
-This comprehensive analysis examines the impact of open science platforms on research collaboration patterns, knowledge dissemination, and citation networks across academic disciplines. Through a mixed-methods study combining bibliometric analysis of 2.3 million publications with surveys of 5,400 researchers, we find that open science practices increase citation rates by 47% on average while fostering new collaborative networks across institutional and geographic boundaries. However, adoption remains uneven across disciplines and career stages.
-
-**Keywords:** open science, collaboration, knowledge dissemination, citation networks, research impact
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The open science movement has transformed how research is conducted, shared, and evaluated over the past decade [@foster2017open]. Platforms enabling open access publishing, preprints, open data, and open peer review have proliferated, promising to accelerate scientific progress through increased transparency and collaboration.
 
@@ -1570,15 +1530,7 @@ Piwowar, H., et al. (2018). The state of OA: A large-scale analysis. *PeerJ*, 6,
   digitalLibraries: {
     title: "Digital Transformation in Academic Libraries: A Multi-Institutional Case Study",
     abstract: `This paper examines how academic libraries are adapting to digital transformation through a comparative case study of 24 research libraries across North America and Europe. We analyze changes in services, collections, and staffing from 2018-2023, finding significant shifts toward digital-first strategies, expanded research support services, and new roles in data management and digital scholarship. Results indicate that successful transformation requires substantial investment in staff development and organizational restructuring.`,
-    content: `# Digital Transformation in Academic Libraries: A Multi-Institutional Case Study
-
-## Abstract
-
-This paper examines how academic libraries are adapting to digital transformation through a comparative case study of 24 research libraries across North America and Europe. We analyze changes in services, collections, and staffing from 2018-2023, finding significant shifts toward digital-first strategies, expanded research support services, and new roles in data management and digital scholarship. Results indicate that successful transformation requires substantial investment in staff development and organizational restructuring.
-
-**Keywords:** digital transformation, academic libraries, research support, scholarly communication, library services
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 Academic libraries have historically served as repositories of knowledge and gateways to information resources. The digital revolution has fundamentally challenged this model, requiring libraries to reimagine their role in the research ecosystem [@dempsey2017library]. While much has been written about the death of the library, empirical evidence suggests a more nuanced transformation is underway.
 
@@ -1790,15 +1742,7 @@ Cox, A., Pinfield, S., & Rutter, S. (2019). Extending McKinsey's 7S model to und
   collaborativeResearch: {
     title: "Large-Scale Collaborative Research in Computational Biology: A Multi-Institutional Study",
     abstract: `This comprehensive study presents findings from a large-scale collaborative effort involving 23 research institutions worldwide. We analyzed genomic data from over 100,000 samples to identify novel patterns in gene expression and regulatory networks, demonstrating the power of international scientific cooperation. Our consortium developed standardized analysis pipelines, shared computational resources, and established governance frameworks that can serve as a model for future large-scale biological research initiatives.`,
-    content: `# Large-Scale Collaborative Research in Computational Biology: A Multi-Institutional Study
-
-## Abstract
-
-This comprehensive study presents findings from a large-scale collaborative effort involving 23 research institutions worldwide. We analyzed genomic data from over 100,000 samples to identify novel patterns in gene expression and regulatory networks, demonstrating the power of international scientific cooperation. Our consortium developed standardized analysis pipelines, shared computational resources, and established governance frameworks that can serve as a model for future large-scale biological research initiatives.
-
-**Keywords:** computational biology, genomics, collaboration, big data, gene expression, international cooperation
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 Modern biological research increasingly requires large-scale datasets and computational resources that exceed the capacity of individual laboratories [@lander2022human]. The success of projects like the Human Genome Project, ENCODE, and GTEx has demonstrated the transformative potential of collaborative science [@encode2020perspectives].
 
@@ -2009,15 +1953,7 @@ ENCODE Project Consortium (2020). Perspectives on ENCODE. *Nature*, 583, 693-698
   quantumCrypto: {
     title: "Quantum Computing Applications in Cryptographic Security: A Comprehensive Review",
     abstract: `This extensive review examines quantum computing applications in modern cryptographic systems, analyzing both the threats posed by quantum algorithms to current security protocols and the opportunities for quantum-enhanced cryptography. We provide a systematic assessment of post-quantum cryptographic candidates, evaluate the timeline for cryptographically relevant quantum computers, and recommend migration strategies for organizations preparing for the quantum transition.`,
-    content: `# Quantum Computing Applications in Cryptographic Security: A Comprehensive Review
-
-## Abstract
-
-This extensive review examines quantum computing applications in modern cryptographic systems, analyzing both the threats posed by quantum algorithms to current security protocols and the opportunities for quantum-enhanced cryptography. We provide a systematic assessment of post-quantum cryptographic candidates, evaluate the timeline for cryptographically relevant quantum computers, and recommend migration strategies for organizations preparing for the quantum transition.
-
-**Keywords:** quantum computing, cryptography, post-quantum, security protocols, Shor's algorithm, quantum key distribution
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The development of large-scale quantum computers poses an existential threat to widely deployed cryptographic systems [@mosca2018cybersecurity]. Shor's algorithm can efficiently factor large integers and compute discrete logarithms, breaking RSA, ECC, and related cryptosystems that underpin internet security, financial transactions, and government communications.
 
@@ -2264,15 +2200,7 @@ NIST (2024). Post-quantum cryptography standardization. *NIST SP 800-208*.
   aiEthics: {
     title: "Artificial Intelligence Ethics in Academic Research: Guidelines and Best Practices",
     abstract: `This paper presents a comprehensive framework for ethical AI implementation in academic research, developed through extensive consultation with 200+ ethicists, computer scientists, and social scientists across 45 institutions. We propose guidelines addressing transparency, accountability, fairness, privacy, and environmental impact of AI systems in research contexts. The framework includes practical assessment tools, case studies, and recommendations for institutional policy development.`,
-    content: `# Artificial Intelligence Ethics in Academic Research: Guidelines and Best Practices
-
-## Abstract
-
-This paper presents a comprehensive framework for ethical AI implementation in academic research, developed through extensive consultation with 200+ ethicists, computer scientists, and social scientists across 45 institutions. We propose guidelines addressing transparency, accountability, fairness, privacy, and environmental impact of AI systems in research contexts. The framework includes practical assessment tools, case studies, and recommendations for institutional policy development.
-
-**Keywords:** artificial intelligence, ethics, research integrity, responsible AI, guidelines, best practices
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The rapid integration of artificial intelligence into academic research raises profound ethical questions that existing research ethics frameworks inadequately address [@jobin2019global]. From AI-assisted peer review to automated data analysis, machine learning systems are increasingly shaping how research is conducted, evaluated, and disseminated.
 
@@ -2518,15 +2446,7 @@ Floridi, L., et al. (2018). AI4People—An ethical framework for a good AI socie
   nanoMedical: {
     title: "Nanotechnology Applications in Medical Device Manufacturing: Advances and Challenges",
     abstract: `This study explores cutting-edge applications of nanotechnology in medical device manufacturing, focusing on biocompatibility, precision engineering, and therapeutic applications. Through systematic review and experimental validation, we examine nanoscale surface modifications, drug-eluting coatings, and biosensor integration across cardiovascular, orthopedic, and neural device categories. Results demonstrate significant improvements in device performance and patient outcomes, while highlighting regulatory and manufacturing challenges that must be addressed for broader clinical adoption.`,
-    content: `# Nanotechnology Applications in Medical Device Manufacturing: Advances and Challenges
-
-## Abstract
-
-This study explores cutting-edge applications of nanotechnology in medical device manufacturing, focusing on biocompatibility, precision engineering, and therapeutic applications. Through systematic review and experimental validation, we examine nanoscale surface modifications, drug-eluting coatings, and biosensor integration across cardiovascular, orthopedic, and neural device categories. Results demonstrate significant improvements in device performance and patient outcomes, while highlighting regulatory and manufacturing challenges that must be addressed for broader clinical adoption.
-
-**Keywords:** nanotechnology, medical devices, biocompatibility, drug delivery, manufacturing, regulatory science
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The integration of nanotechnology into medical devices represents a paradigm shift in how we design, manufacture, and deploy therapeutic and diagnostic technologies [@webster2023nano]. Nanoscale engineering enables unprecedented control over device-tissue interactions, drug release kinetics, and sensing capabilities.
 
@@ -2771,15 +2691,7 @@ FDA (2022). Guidance for industry: Drug products containing nanomaterials.
   openAccessFuture: {
     title: "The Future of Open Access Publishing: Technological and Social Perspectives",
     abstract: `This analysis examines emerging trends in open access publishing, exploring both technological innovations and social factors influencing adoption of open science practices. Through surveys of 3,200 researchers, interviews with 85 publishers, and analysis of publication data from 2018-2024, we identify key drivers and barriers to open access adoption. Results indicate that while technical infrastructure has matured, sustainable business models and cultural change remain significant challenges for achieving universal open access.`,
-    content: `# The Future of Open Access Publishing: Technological and Social Perspectives
-
-## Abstract
-
-This analysis examines emerging trends in open access publishing, exploring both technological innovations and social factors influencing adoption of open science practices. Through surveys of 3,200 researchers, interviews with 85 publishers, and analysis of publication data from 2018-2024, we identify key drivers and barriers to open access adoption. Results indicate that while technical infrastructure has matured, sustainable business models and cultural change remain significant challenges for achieving universal open access.
-
-**Keywords:** open access, scholarly publishing, open science, technology adoption, sustainable publishing, transformative agreements
-
-## 1. Introduction
+    content: `## 1. Introduction
 
 The open access movement has evolved from a radical vision to mainstream policy over two decades [@suber2012open]. Funder mandates, institutional policies, and changing researcher attitudes have driven OA adoption from under 10% in 2004 to over 50% of new publications in 2024. Yet significant barriers remain, and the path to universal open access is contested.
 
