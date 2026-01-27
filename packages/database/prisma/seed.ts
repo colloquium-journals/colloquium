@@ -330,44 +330,49 @@ async function main() {
       contentKey: 'mlPeerReview'
     },
     {
-      title: 'Blockchain Technology for Transparent Academic Publishing',
-      abstract: 'We present a blockchain-based system for ensuring transparency and immutability in academic publishing, addressing concerns about research integrity and enabling verifiable peer review processes.',
+      title: papers.blockchainCredentials.title,
+      abstract: papers.blockchainCredentials.abstract,
       status: ManuscriptStatus.REVISION_REQUESTED,
       authors: [author3.id],
-      keywords: ['blockchain', 'transparency', 'research integrity', 'immutable records']
+      keywords: ['blockchain', 'credentials', 'verification', 'decentralized', 'higher education'],
+      contentKey: 'blockchainCredentials'
     },
     {
-      title: 'Open Science Platforms: Impact on Research Collaboration',
-      abstract: 'A comprehensive analysis of modern open science platforms and their effect on research collaboration patterns, knowledge dissemination, and citation networks in academic communities.',
+      title: papers.openSciencePlatforms.title,
+      abstract: papers.openSciencePlatforms.abstract,
       status: ManuscriptStatus.ACCEPTED,
       authors: [author4.id, author2.id],
-      keywords: ['open science', 'collaboration', 'knowledge dissemination', 'citation networks']
+      keywords: ['open science', 'collaboration', 'knowledge dissemination', 'citation networks'],
+      contentKey: 'openSciencePlatforms'
     },
     {
-      title: 'Digital Transformation in Academic Libraries: A Case Study',
-      abstract: 'This paper examines how academic libraries are adapting to digital transformation, focusing on new services, changing user needs, and the role of technology in modern scholarly communication.',
+      title: papers.digitalLibraries.title,
+      abstract: papers.digitalLibraries.abstract,
       status: ManuscriptStatus.PUBLISHED,
       authors: [author4.id],
-      keywords: ['digital transformation', 'academic libraries', 'scholarly communication', 'technology adoption'],
+      keywords: ['digital transformation', 'academic libraries', 'scholarly communication', 'research support'],
       publishedAt: new Date('2024-01-15'),
-      doi: '10.1000/182'
+      doi: '10.1000/182',
+      contentKey: 'digitalLibraries'
     },
     // New manuscripts with varying author counts for UI testing
     {
-      title: 'Large-Scale Collaborative Research in Computational Biology: A Multi-Institutional Study',
-      abstract: 'This comprehensive study presents findings from a large-scale collaborative effort involving multiple research institutions worldwide. We analyzed genomic data from over 100,000 samples to identify novel patterns in gene expression and regulatory networks, demonstrating the power of international scientific cooperation.',
+      title: papers.collaborativeResearch.title,
+      abstract: papers.collaborativeResearch.abstract,
       status: ManuscriptStatus.PUBLISHED,
       authors: [author2.id, author5.id, author6.id, author7.id, author8.id, author9.id, author10.id, authorUser.id],
       keywords: ['computational biology', 'genomics', 'collaboration', 'big data', 'international cooperation'],
       publishedAt: new Date('2024-02-20'),
-      doi: '10.1038/s41467-024-45892-3'
+      doi: '10.1038/s41467-024-45892-3',
+      contentKey: 'collaborativeResearch'
     },
     {
-      title: 'Quantum Computing Applications in Cryptographic Security: A Comprehensive Review',
-      abstract: 'An extensive review of quantum computing applications in modern cryptographic systems, examining both opportunities and threats posed by quantum algorithms to current security protocols.',
+      title: papers.quantumCrypto.title,
+      abstract: papers.quantumCrypto.abstract,
       status: ManuscriptStatus.UNDER_REVIEW,
       authors: [author9.id, author6.id, author7.id, author3.id],
-      keywords: ['quantum computing', 'cryptography', 'security', 'algorithms', 'quantum cryptography']
+      keywords: ['quantum computing', 'cryptography', 'post-quantum', 'security protocols'],
+      contentKey: 'quantumCrypto'
     },
     {
       title: papers.climateModeling.title,
@@ -380,27 +385,30 @@ async function main() {
       contentKey: 'climateModeling'
     },
     {
-      title: 'Artificial Intelligence Ethics in Academic Research: Guidelines and Best Practices',
-      abstract: 'A comprehensive framework for ethical AI implementation in academic research, developed through extensive consultation with ethicists, computer scientists, and social scientists.',
+      title: papers.aiEthics.title,
+      abstract: papers.aiEthics.abstract,
       status: ManuscriptStatus.ACCEPTED,
       authors: [author2.id, author4.id, author8.id, author10.id, author6.id],
-      keywords: ['artificial intelligence', 'ethics', 'research guidelines', 'best practices', 'responsible AI']
+      keywords: ['artificial intelligence', 'ethics', 'research guidelines', 'best practices', 'responsible AI'],
+      contentKey: 'aiEthics'
     },
     {
-      title: 'Nanotechnology Applications in Medical Device Manufacturing',
-      abstract: 'This study explores cutting-edge applications of nanotechnology in medical device manufacturing, focusing on biocompatibility, precision engineering, and therapeutic applications.',
+      title: papers.nanoMedical.title,
+      abstract: papers.nanoMedical.abstract,
       status: ManuscriptStatus.SUBMITTED,
       authors: [author7.id, author5.id],
-      keywords: ['nanotechnology', 'medical devices', 'biocompatibility', 'manufacturing', 'therapeutics']
+      keywords: ['nanotechnology', 'medical devices', 'biocompatibility', 'manufacturing', 'therapeutics'],
+      contentKey: 'nanoMedical'
     },
     {
-      title: 'The Future of Open Access Publishing: Technological and Social Perspectives',
-      abstract: 'An analysis of emerging trends in open access publishing, examining both technological innovations and social factors that influence the adoption of open science practices.',
+      title: papers.openAccessFuture.title,
+      abstract: papers.openAccessFuture.abstract,
       status: ManuscriptStatus.PUBLISHED,
       authors: [author4.id, author2.id, author3.id, authorUser.id, author8.id, author10.id],
       keywords: ['open access', 'publishing', 'open science', 'technology trends', 'social factors'],
       publishedAt: new Date('2024-01-25'),
-      doi: '10.1371/journal.pone.0298765'
+      doi: '10.1371/journal.pone.0298765',
+      contentKey: 'openAccessFuture'
     },
     // Workflow testing manuscripts - different phases
     {
@@ -1117,7 +1125,15 @@ This work demonstrates the potential for innovative approaches to academic publi
   const contentKeyToIndex: Record<string, number> = {
     'colloquiumPlatform': 0,
     'mlPeerReview': 1,
-    'climateModeling': 7
+    'blockchainCredentials': 2,
+    'openSciencePlatforms': 3,
+    'digitalLibraries': 4,
+    'collaborativeResearch': 5,
+    'quantumCrypto': 6,
+    'climateModeling': 7,
+    'aiEthics': 8,
+    'nanoMedical': 9,
+    'openAccessFuture': 10
   };
 
   // Create ManuscriptFile records linking manuscripts to their files
