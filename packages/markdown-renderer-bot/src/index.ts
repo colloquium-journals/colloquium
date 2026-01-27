@@ -1325,13 +1325,13 @@ export const markdownRendererBot: CommandBot = {
 };
 
 // ============================================================================
-// Standalone Rendering API
+// Exported Rendering API (uses Pandoc)
 // ============================================================================
 
 /**
- * Options for standalone markdown rendering (used by seed scripts).
+ * Options for rendering markdown.
  */
-export interface StandaloneRenderOptions {
+export interface RenderOptions {
   title: string;
   abstract?: string;
   authors?: string;
@@ -1339,19 +1339,40 @@ export interface StandaloneRenderOptions {
   renderDate?: string;
   journalName?: string;
   template?: string;
-  /** Map of image filenames to their paths (for replacing image references) */
+  /** Map of image filenames to their absolute paths for HTML output URL rewriting */
   imagePathMap?: Record<string, string>;
+  /** Map of image filenames to their actual file paths on disk (for PDF embedding) */
+  imageSourcePaths?: Record<string, string>;
+  /** BibTeX bibliography content for citation processing */
+  bibliography?: string;
+  /** Output formats to generate (default: ['html']) */
+  outputFormats?: ('html' | 'pdf')[];
+  /** PDF engine to use (default: 'typst') */
+  pdfEngine?: 'typst' | 'latex' | 'html';
 }
 
 /**
- * Render markdown to HTML without requiring API calls or Pandoc.
- * Uses the same marked/DOMPurify/Handlebars stack as the bot.
- * Intended for seed scripts and offline rendering.
+ * Result of rendering markdown.
  */
-export async function renderMarkdownStandalone(
+export interface RenderResult {
+  html: string;
+  pdf?: Buffer;
+}
+
+/**
+ * Render markdown to HTML and optionally PDF using Pandoc service.
+ * Requires Pandoc microservice to be running.
+ *
+ * @param markdownContent - The markdown content to render
+ * @param options - Rendering options including metadata and bibliography
+ * @returns Promise<RenderResult> - The rendered content
+ */
+export async function renderMarkdown(
   markdownContent: string,
-  options: StandaloneRenderOptions
-): Promise<string> {
+  options: RenderOptions
+): Promise<RenderResult> {
+  const outputFormats = options.outputFormats || ['html'];
+  const pdfEngine = options.pdfEngine || 'typst';
   const templateName = options.template || 'academic-standard';
 
   // Load template
@@ -1363,29 +1384,51 @@ export async function renderMarkdownStandalone(
     };
   });
 
-  // Replace image paths if mapping provided
-  let processedMarkdown = markdownContent;
+  // Call Pandoc service
+  const requestBody = {
+    markdown: markdownContent,
+    engine: 'html',
+    template: '',
+    variables: {},
+    outputFormat: 'html',
+    bibliography: options.bibliography || '',
+    assets: [],
+    selfContained: false  // Don't embed images - we'll rewrite paths in output
+  };
+
+  const response = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(`Pandoc service error: ${errorData.error || response.statusText}. Is the Pandoc service running at ${PANDOC_SERVICE_URL}?`);
+  }
+
+  // Get the processed HTML content (with citations and bibliography)
+  const pandocHtml = await response.text();
+
+  // Extract body content from Pandoc's output
+  const bodyMatch = pandocHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  let processedContent = bodyMatch ? bodyMatch[1] : pandocHtml;
+
+  // Replace image paths in the output HTML if mapping provided
   if (options.imagePathMap) {
     for (const [filename, newPath] of Object.entries(options.imagePathMap)) {
-      // Replace various forms of image references
       const cleanFilename = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Match src attributes with the filename
       const patterns = [
-        new RegExp(`!\\[([^\\]]*)\\]\\(${cleanFilename}\\)`, 'g'),
-        new RegExp(`!\\[([^\\]]*)\\]\\(\\./${cleanFilename}\\)`, 'g'),
-        new RegExp(`!\\[([^\\]]*)\\]\\(/${cleanFilename}\\)`, 'g'),
+        new RegExp(`src="${cleanFilename}"`, 'g'),
+        new RegExp(`src="\\./${cleanFilename}"`, 'g'),
+        new RegExp(`src="/${cleanFilename}"`, 'g'),
       ];
       for (const pattern of patterns) {
-        processedMarkdown = processedMarkdown.replace(pattern, `![$1](${newPath})`);
+        processedContent = processedContent.replace(pattern, `src="${newPath}"`);
       }
     }
   }
-
-  // Configure marked
-  marked.setOptions({ breaks: true, gfm: true });
-
-  // Convert markdown to HTML
-  const contentHtml = marked(processedMarkdown);
-  const cleanHtml = purify.sanitize(contentHtml);
 
   // Prepare template variables
   const templateVariables = {
@@ -1396,13 +1439,70 @@ export async function renderMarkdownStandalone(
     authorCount: options.authorList?.length || 0,
     renderDate: options.renderDate || new Date().toLocaleDateString(),
     journalName: options.journalName || 'Colloquium Journal',
-    content: cleanHtml,
+    content: processedContent,
     customCss: ''
   };
 
-  // Render template
+  // Render HTML template
   const compiledTemplate = Handlebars.compile(template.htmlTemplate);
-  return compiledTemplate(templateVariables);
+  const html = compiledTemplate(templateVariables);
+
+  const result: RenderResult = { html };
+
+  // Generate PDF if requested
+  if (outputFormats.includes('pdf')) {
+    // Read image assets for PDF embedding
+    const assets: Array<{ filename: string; content: string; encoding: string }> = [];
+    if (options.imageSourcePaths) {
+      for (const [filename, sourcePath] of Object.entries(options.imageSourcePaths)) {
+        try {
+          if (await fs.pathExists(sourcePath)) {
+            const imageBuffer = await fs.readFile(sourcePath);
+            assets.push({
+              filename,
+              content: imageBuffer.toString('base64'),
+              encoding: 'base64'
+            });
+          }
+        } catch (error) {
+          console.warn(`Failed to read image ${filename} from ${sourcePath}:`, error);
+        }
+      }
+    }
+
+    const pdfRequestBody = {
+      markdown: markdownContent,
+      engine: pdfEngine,
+      template: template.typstTemplate || template.latexTemplate || '',
+      variables: {
+        title: options.title,
+        authors: options.authors || (options.authorList ? options.authorList.map(a => a.name).join(', ') : ''),
+        abstract: options.abstract || '',
+        submittedDate: options.renderDate || new Date().toLocaleDateString(),
+        renderDate: options.renderDate || new Date().toLocaleDateString(),
+        journalName: options.journalName || 'Colloquium Journal'
+      },
+      outputFormat: 'pdf',
+      bibliography: options.bibliography || '',
+      assets
+    };
+
+    const pdfResponse = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pdfRequestBody)
+    });
+
+    if (!pdfResponse.ok) {
+      const errorData = await pdfResponse.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(`Pandoc PDF error: ${errorData.error || pdfResponse.statusText}`);
+    }
+
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    result.pdf = Buffer.from(pdfBuffer);
+  }
+
+  return result;
 }
 
 /**
@@ -1446,7 +1546,6 @@ function getFallbackHtmlTemplate(): string {
         img { max-width: 100%; height: auto; }
         figure { margin: 1em 0; text-align: center; }
         figcaption { font-size: 0.9em; color: #666; margin-top: 0.5em; font-style: italic; }
-        .footer { margin-top: 2rem; text-align: center; color: #999; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -1462,10 +1561,6 @@ function getFallbackHtmlTemplate(): string {
     {{/if}}
     <div class="content">
         {{{content}}}
-    </div>
-    <div class="footer">
-        Rendered by Colloquium Markdown Renderer
-        {{#if renderDate}} • {{renderDate}}{{/if}}
     </div>
 </body>
 </html>`;

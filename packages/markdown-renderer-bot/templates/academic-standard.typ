@@ -90,11 +90,3 @@ $if(bibliography)$
 #bibliography("references.bib", title: "References", style: "apa")
 $endif$
 
-// Footer
-#v(1fr)
-#align(center)[
-  #text(size: 9pt, style: "italic")[
-    Rendered by Colloquium Markdown Renderer
-    #if render_date != "" [ • #render_date]
-  ]
-]

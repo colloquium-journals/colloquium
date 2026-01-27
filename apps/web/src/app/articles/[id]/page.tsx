@@ -20,10 +20,9 @@ import {
   Grid,
   Box
 } from '@mantine/core';
-import { 
-  IconAlertCircle, 
-  IconCalendar, 
-  IconUsers, 
+import {
+  IconAlertCircle,
+  IconCalendar,
   IconTag,
   IconDownload,
   IconMessage,
@@ -33,7 +32,8 @@ import {
   IconUserCog,
   IconUserCheck,
   IconScale,
-  IconCheck
+  IconCheck,
+  IconMail
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import FileList, { FileItem } from '@/components/submissions/FileList';
@@ -73,6 +73,7 @@ interface Author {
   orcidVerified?: boolean;
   order: number;
   isCorresponding: boolean;
+  affiliation?: string;
 }
 
 interface ActionEditor {
@@ -364,74 +365,12 @@ export default function ArticleDetailPage() {
           </Alert>
         )}
 
-        {/* Article Title */}
-        <Title 
-          order={1}
-          mb="lg"
-          style={{ 
-            opacity: article.status === 'RETRACTED' ? 0.7 : 1,
-            lineHeight: 1.3
-          }}
-        >
-          {article.title}
-        </Title>
-
         <Grid>
           {/* Sidebar - Metadata */}
           <Grid.Col span={3}>
             <Stack gap="lg">
               <Card shadow="sm" padding="lg" radius="md" style={{ position: 'sticky', top: '20px' }}>
                 <Stack gap="md">
-
-                  {/* Authors */}
-                  <Box>
-                    <Group gap="xs" mb="xs">
-                      <IconUsers size={16} />
-                      <Text size="sm" fw={500} c="dimmed">Authors</Text>
-                    </Group>
-                    <Stack gap="xs">
-                      {article.authorDetails && article.authorDetails.length > 0 ? (
-                        article.authorDetails.map((author) => (
-                          <Group key={author.id} gap="xs" align="center">
-                            <Anchor
-                              component={Link}
-                              href={`/users/${author.id}`}
-                              size="sm"
-                              fw={500}
-                              style={{ textDecoration: 'none' }}
-                            >
-                              {author.name}
-                            </Anchor>
-                            {author.isCorresponding && (
-                              <Badge size="xs" variant="light" color="orange">
-                                corresponding
-                              </Badge>
-                            )}
-                            {author.orcidId && (
-                              <Group gap={2}>
-                                <Anchor
-                                  href={`https://orcid.org/${author.orcidId}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <OrcidIcon size={14} />
-                                </Anchor>
-                                {author.orcidVerified && (
-                                  <IconCheck size={12} color="var(--mantine-color-green-6)" />
-                                )}
-                              </Group>
-                            )}
-                          </Group>
-                        ))
-                      ) : (
-                        article.authors.map((name, index) => (
-                          <Text key={index} size="sm" fw={500}>{name}</Text>
-                        ))
-                      )}
-                    </Stack>
-                  </Box>
-
-                  <Divider />
 
                   {/* Dates */}
                   <Stack gap="xs">
@@ -464,6 +403,42 @@ export default function ArticleDetailPage() {
                       </Group>
                     )}
                   </Stack>
+
+                  {/* Corresponding Author */}
+                  {article.authorDetails?.find(a => a.isCorresponding) && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Group gap="xs" mb="xs">
+                          <IconMail size={14} />
+                          <Text size="xs" fw={500} c="dimmed">Corresponding Author</Text>
+                        </Group>
+                        {(() => {
+                          const corresponding = article.authorDetails.find(a => a.isCorresponding);
+                          return corresponding ? (
+                            <Stack gap={2}>
+                              <Anchor
+                                component={Link}
+                                href={`/users/${corresponding.id}`}
+                                size="sm"
+                                fw={500}
+                                style={{ textDecoration: 'none' }}
+                              >
+                                {corresponding.name}
+                              </Anchor>
+                              <Anchor
+                                href={`mailto:${corresponding.email}`}
+                                size="xs"
+                                c="dimmed"
+                              >
+                                {corresponding.email}
+                              </Anchor>
+                            </Stack>
+                          ) : null;
+                        })()}
+                      </Box>
+                    </>
+                  )}
 
                   {/* Action Editor */}
                   {article.action_editors && (
@@ -581,13 +556,13 @@ export default function ArticleDetailPage() {
 
                   {/* Actions */}
                   <Stack gap="xs">
-                    {article.fileUrl && (
-                      <Button 
+                    {getRenderedPDF() && (
+                      <Button
                         size="sm"
                         leftSection={<IconDownload size={14} />}
                         component="a"
-                        href={article.fileUrl}
-                        target="_blank"
+                        href={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download`}
+                        download
                         fullWidth
                       >
                         Download PDF
@@ -622,6 +597,69 @@ export default function ArticleDetailPage() {
 
           {/* Main Content Area */}
           <Grid.Col span={9}>
+            {/* Article Title */}
+            <Title
+              order={1}
+              mb="md"
+              ta="center"
+              style={{
+                opacity: article.status === 'RETRACTED' ? 0.7 : 1,
+                lineHeight: 1.3
+              }}
+            >
+              {article.title}
+            </Title>
+
+            {/* Authors - Centered List */}
+            <Stack align="center" gap={4} mb="lg">
+              <Group justify="center" gap={6} wrap="wrap">
+                {article.authorDetails && article.authorDetails.length > 0 ? (
+                  article.authorDetails.map((author, index) => (
+                    <Group key={author.id} gap={3} align="center">
+                      <Anchor
+                        component={Link}
+                        href={`/users/${author.id}`}
+                        size="sm"
+                        fw={500}
+                        style={{ textDecoration: 'none' }}
+                      >
+                        {author.name}
+                      </Anchor>
+                      {author.isCorresponding && (
+                        <span title="Corresponding author">
+                          <IconMail size={14} color="var(--mantine-color-orange-6)" />
+                        </span>
+                      )}
+                      {author.orcidId && (
+                        <Anchor
+                          href={`https://orcid.org/${author.orcidId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <OrcidIcon size={14} />
+                        </Anchor>
+                      )}
+                      {index < article.authorDetails.length - 1 && (
+                        <Text size="sm" c="dimmed">,</Text>
+                      )}
+                    </Group>
+                  ))
+                ) : (
+                  article.authors.map((name, index) => (
+                    <Text key={index} size="sm" fw={500}>
+                      {name}{index < article.authors.length - 1 ? ',' : ''}
+                    </Text>
+                  ))
+                )}
+              </Group>
+              {/* Affiliations */}
+              {article.authorDetails && article.authorDetails.length > 0 && (
+                <Text size="xs" c="dimmed" ta="center">
+                  {[...new Set(article.authorDetails.map(a => a.affiliation).filter(Boolean))].join('; ')}
+                </Text>
+              )}
+            </Stack>
+
             {/* Rendered Content - Primary Focus */}
             {getRenderedContent() ? (
               <Stack gap="md">

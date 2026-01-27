@@ -460,30 +460,6 @@ Future work should focus on developing more interpretable models that can explai
 ## Acknowledgments
 
 We thank the participating publishers and the thousands of reviewers whose work made this research possible. This research was supported by the National Science Foundation grant #2024-12345.
-
-## References
-
-Anderson, K. (2024). Automated citation verification in scholarly manuscripts. *Journal of Information Science*, 50(2), 234-251.
-
-Brown, M. et al. (2023). The state of peer review: A comprehensive survey. *Nature Human Behaviour*, 7, 1123-1135.
-
-Chen, L., Wang, H., & Zhang, Y. (2022). Deep learning approaches to plagiarism detection. *IEEE Transactions on Learning Technologies*, 15(4), 456-470.
-
-Garcia, R. & Martinez, S. (2024). Automation in academic publishing: Opportunities and challenges. *Learned Publishing*, 37(1), 45-58.
-
-Jones, A. (2024). Peer review in the age of information overload. *Science*, 383(6680), 234-236.
-
-Kumar, P., Singh, R., & Patel, N. (2023). Intelligent reviewer matching using semantic similarity. *Expert Systems with Applications*, 215, 119-134.
-
-Lee, J. (2023). Computational approaches to research integrity. *Research Ethics*, 19(3), 301-320.
-
-Smith, T. (2023). The growth of scientific literature: Trends and implications. *Scientometrics*, 128, 2341-2360.
-
-Taylor, E. & Roberts, D. (2024). Limitations of automated peer review systems. *Journal of Scholarly Publishing*, 55(2), 112-128.
-
-Williams, S. & Park, J. (2023). Statistical error detection in published research. *PLOS ONE*, 18(5), e0285432.
-
-Wilson, R. (2022). Traditional peer review: Strengths and weaknesses. *European Science Editing*, 48, e85632.
 `,
     images: [
       {
@@ -794,14 +770,6 @@ Planned enhancements for upcoming releases:
 The Colloquium platform demonstrates that modernizing scholarly communication infrastructure can yield significant improvements in efficiency and satisfaction without sacrificing the rigor of peer review. By treating peer review as a conversation rather than a transaction, we create opportunities for more constructive and efficient evaluation of scholarly work.
 
 The platform is available as open-source software at https://github.com/colloquium/colloquium under the MIT license. We welcome contributions from the scholarly communication community.
-
-## References
-
-Johnson, R. (2023). The future of scholarly publishing infrastructure. *Journal of Electronic Publishing*, 26(1).
-
-Martinez, L. & Chen, W. (2024). User experience in academic submission systems. *Learned Publishing*, 37(2), 89-104.
-
-Thompson, A. et al. (2023). Open source solutions for academic publishing. *Code4Lib Journal*, 54.
 `,
     images: [
       {
@@ -995,14 +963,6 @@ Ongoing development focuses on:
 ## 6. Conclusion
 
 Integrating social dynamics into climate modeling reveals important feedbacks that purely physical models cannot capture. As computing capabilities continue to advance, such coupled approaches should become standard practice for climate impact assessment and policy analysis.
-
-## References
-
-IPCC (2023). Climate Change 2023: Synthesis Report. Cambridge University Press.
-
-Smith, J. & Wong, L. (2024). Coupling agent-based and Earth system models. *Nature Climate Change*, 14, 234-242.
-
-Additional references available in supplementary materials.
 `,
     images: [
       {
@@ -1278,14 +1238,6 @@ Standards alignment with W3C Verifiable Credentials and DID specifications ensur
 ## 7. Conclusion
 
 Blockchain-based credential verification offers significant improvements over traditional methods in speed, cost, and fraud prevention. Our permissioned architecture addresses privacy and governance concerns while maintaining the benefits of decentralization. The successful pilot demonstrates feasibility for broader adoption, pending resolution of regulatory and interoperability challenges.
-
-## References
-
-Deakin, S., & Wang, L. (2023). The global scale of credential fraud. *Higher Education Policy*, 36, 245-267.
-
-Nakamoto, S. (2008). Bitcoin: A peer-to-peer electronic cash system. *Whitepaper*.
-
-Sharples, M., & Domingue, J. (2016). The blockchain and kudos: A distributed system for educational record, reputation and reward. *Proceedings of EC-TEL 2016*, 490-496.
 `,
     images: [
       {
@@ -1472,14 +1424,6 @@ Our findings support:
 ## 6. Conclusion
 
 Open science platforms have demonstrably positive effects on research visibility, collaboration, and dissemination speed. The 47% average citation increase and expanded collaborative networks provide strong evidence for continued investment in open science infrastructure. However, addressing disciplinary disparities and career incentive misalignment remains critical for equitable adoption.
-
-## References
-
-Foster, E., & Deardorff, A. (2017). Open science framework. *Journal of the Medical Library Association*, 105(2), 203-206.
-
-McKiernan, E. C., et al. (2016). How open science helps researchers succeed. *eLife*, 5, e16800.
-
-Piwowar, H., et al. (2018). The state of OA: A large-scale analysis. *PeerJ*, 6, e4375.
 `,
     images: [
       {
@@ -1699,12 +1643,6 @@ Emerging priorities for 2024-2028:
 ## 6. Conclusion
 
 Academic libraries are undergoing fundamental transformation in response to digital disruption. Success requires more than technology adoption—it demands organizational culture change, substantial investment in staff development, and willingness to abandon traditional service models. Libraries that thrive will be those that position themselves as essential partners in the research process rather than passive collections.
-
-## References
-
-Dempsey, L. (2017). Library collections in the life of the user. *LIBER Quarterly*, 26(4), 213-248.
-
-Cox, A., Pinfield, S., & Rutter, S. (2019). Extending McKinsey's 7S model to understand strategic alignment in academic libraries. *Library Management*, 40(5), 313-326.
 `,
     images: [
       {
@@ -1912,12 +1850,6 @@ Large-scale collaborative research in computational biology is feasible and prod
 ## Acknowledgments
 
 We thank the 450+ researchers who contributed to this effort. Funding was provided by NIH, Wellcome Trust, and the European Commission.
-
-## References
-
-Lander, E. S. (2022). The human genome at 20. *Nature*, 590, 206-210.
-
-ENCODE Project Consortium (2020). Perspectives on ENCODE. *Nature*, 583, 693-698.
 `,
     images: [
       {
@@ -2160,12 +2092,6 @@ Key recommendations:
 2. Design for crypto-agility in new systems
 3. Begin pilot testing of NIST-standardized PQC
 4. Monitor quantum computer development milestones
-
-## References
-
-Mosca, M. (2018). Cybersecurity in an era with quantum computers. *IEEE Security & Privacy*, 16(5), 38-41.
-
-NIST (2024). Post-quantum cryptography standardization. *NIST SP 800-208*.
 `,
     images: [
       {
@@ -2405,12 +2331,6 @@ Recommendations for funding agencies:
 ## 7. Conclusion
 
 The integration of AI into academic research offers tremendous potential but requires robust ethical frameworks to realize benefits while minimizing harms. The FAIR-AI framework provides practical guidance for researchers, institutions, and funders navigating this complex landscape. Success depends on collaborative effort across stakeholders and ongoing adaptation as technologies and contexts evolve.
-
-## References
-
-Jobin, A., Ienca, M., & Vayena, E. (2019). The global landscape of AI ethics guidelines. *Nature Machine Intelligence*, 1, 389-399.
-
-Floridi, L., et al. (2018). AI4People—An ethical framework for a good AI society. *Minds and Machines*, 28, 689-707.
 `,
     images: [
       {
@@ -2653,12 +2573,6 @@ Documented safety issues:
 ## 7. Conclusion
 
 Nanotechnology offers transformative potential for medical devices, with demonstrated improvements in biocompatibility, therapeutic delivery, and sensing capabilities. However, realizing this potential requires addressing significant manufacturing, regulatory, and safety challenges. Collaborative efforts between academia, industry, and regulatory agencies are essential to develop appropriate standards and accelerate translation to clinical practice.
-
-## References
-
-Webster, T. J., et al. (2023). Nanotechnology in medicine: 20 years of progress. *Nature Reviews Materials*, 8, 567-583.
-
-FDA (2022). Guidance for industry: Drug products containing nanomaterials.
 `,
     images: [
       {
@@ -2987,12 +2901,6 @@ Mandate compliance rates:
 ## 9. Conclusion
 
 The future of open access publishing will be shaped by the interplay of technological innovation, cultural change, and policy development. While significant progress has been made, sustainable business models and equitable access remain challenging. Success requires coordinated action across stakeholder groups and continued investment in community-governed infrastructure.
-
-## References
-
-Suber, P. (2012). Open Access. MIT Press.
-
-Piwowar, H., et al. (2024). The state of OA 2024: A large-scale analysis of trends. *PeerJ*, 12, e16899.
 `,
     images: [
       {

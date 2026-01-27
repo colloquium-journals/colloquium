@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { papers, createSeedFiles } from './seed-content';
-import { renderMarkdownStandalone } from '@colloquium/markdown-renderer-bot';
+import { renderMarkdown } from '@colloquium/markdown-renderer-bot';
 
 // Traditional double-blind workflow config (defined inline to avoid import issues with tsx)
 const traditionalBlindWorkflowConfig = {
@@ -1235,7 +1235,7 @@ This work demonstrates the potential for innovative approaches to academic publi
   console.log('✅ Manuscript files created');
 
   // Render HTML for ALL published manuscripts
-  console.log('📄 Rendering HTML for published manuscripts...');
+  console.log('📄 Rendering HTML and PDF for published manuscripts...');
 
   for (let i = 0; i < createdManuscripts.length; i++) {
     const manuscript = createdManuscripts[i];
@@ -1275,32 +1275,42 @@ This work demonstrates the potential for innovative approaches to academic publi
       // Determine content and image map based on whether we have rich paper content
       let markdownContent: string;
       const imagePathMap: Record<string, string> = {};
+      const imageSourcePaths: Record<string, string> = {};
+      let bibliography: string | undefined;
 
       if (paper) {
         // Use rich paper content with images
         markdownContent = paper.content;
         for (const img of paper.images) {
           imagePathMap[img.filename] = `/static/published/${manuscript.id}/${img.filename}`;
+          imageSourcePaths[img.filename] = path.join(uploadsDir, img.filename);
+        }
+        // Get bibliography content if available
+        if (paper.bibliography) {
+          bibliography = paper.bibliography.content;
         }
       } else {
         // Use the manuscript's inline content (stored in database)
         markdownContent = manuscript.content || `# ${manuscript.title}\n\n${manuscript.abstract}`;
       }
 
-      // Render the markdown to HTML
-      const htmlContent = await renderMarkdownStandalone(markdownContent, {
+      // Render the markdown to HTML and PDF
+      const renderResult = await renderMarkdown(markdownContent, {
         title: manuscript.title,
         abstract: manuscript.abstract || '',
         authorList,
         journalName: 'Colloquium Journal',
-        imagePathMap
+        imagePathMap,
+        imageSourcePaths,
+        bibliography,
+        outputFormats: ['html', 'pdf']
       });
 
       // Write HTML file to disk
       const htmlPath = path.join(uploadsDir, renderedFilename);
-      fs.writeFileSync(htmlPath, htmlContent, 'utf-8');
+      fs.writeFileSync(htmlPath, renderResult.html, 'utf-8');
 
-      // Create RENDERED file record
+      // Create RENDERED file record for HTML
       await prisma.manuscript_files.create({
         data: {
           id: randomUUID(),
@@ -1308,12 +1318,33 @@ This work demonstrates the potential for innovative approaches to academic publi
           filename: renderedFilename,
           originalName: renderedFilename,
           mimetype: 'text/html',
-          size: Buffer.byteLength(htmlContent),
+          size: Buffer.byteLength(renderResult.html),
           path: `/uploads/manuscripts/${renderedFilename}`,
           fileType: 'RENDERED',
           uploadedAt: new Date()
         }
       });
+
+      // Write PDF file to disk and create record
+      if (renderResult.pdf) {
+        const pdfFilename = renderedFilename.replace('.html', '.pdf');
+        const pdfPath = path.join(uploadsDir, pdfFilename);
+        fs.writeFileSync(pdfPath, renderResult.pdf);
+
+        await prisma.manuscript_files.create({
+          data: {
+            id: randomUUID(),
+            manuscriptId: manuscript.id,
+            filename: pdfFilename,
+            originalName: pdfFilename,
+            mimetype: 'application/pdf',
+            size: renderResult.pdf.length,
+            path: `/uploads/manuscripts/${pdfFilename}`,
+            fileType: 'RENDERED',
+            uploadedAt: new Date()
+          }
+        });
+      }
 
       // Copy ASSET files to static published directory if we have rich content
       if (paper && paper.images.length > 0) {

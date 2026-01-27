@@ -58,7 +58,8 @@ app.post('/convert', upload.none(), async (req, res) => {
       variables = {},
       outputFormat = 'pdf',
       bibliography = '',
-      assets = []
+      assets = [],
+      selfContained = true
     } = req.body;
     
     // Check for citations in markdown
@@ -152,7 +153,9 @@ app.post('/convert', upload.none(), async (req, res) => {
     } else if (outputFormat === 'html') {
       // HTML-specific options
       args.push('--standalone'); // Generate complete HTML document
-      args.push('--self-contained'); // Include images and CSS inline
+      if (selfContained) {
+        args.push('--self-contained'); // Include images and CSS inline
+      }
     }
     
     // Add template if provided
