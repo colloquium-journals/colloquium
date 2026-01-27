@@ -56,6 +56,7 @@ app.post('/convert', upload.none(), async (req, res) => {
       engine = 'html',
       template,
       variables = {},
+      metadata = {},  // Complex metadata (objects, arrays) for Pandoc templates
       outputFormat = 'pdf',
       bibliography = '',
       assets = [],
@@ -183,12 +184,22 @@ app.post('/convert', upload.none(), async (req, res) => {
       args.push('--template', `"${templateFile}"`);
     }
 
-    // Add variables
+    // Add simple string variables
     Object.entries(variables).forEach(([key, value]) => {
       if (typeof value === 'string' && value.trim() !== '') {
         args.push('--variable', `${key}:"${value.replace(/"/g, '\\"')}"`);
       }
     });
+
+    // Write complex metadata to YAML file for Pandoc templates
+    if (metadata && Object.keys(metadata).length > 0) {
+      const yaml = require('js-yaml');
+      const metadataYaml = yaml.dump(metadata);
+      const metadataFile = path.join(tempDir.name, 'metadata.yaml');
+      await fs.writeFile(metadataFile, metadataYaml, 'utf8');
+      args.push('--metadata-file', `"${metadataFile}"`);
+      console.log('DEBUG: Metadata file written with keys:', Object.keys(metadata));
+    }
 
     // Add bibliography if provided (skip for Typst as it handles bibliography natively)
     if (bibliographyFile && !useTypstNativeBib) {

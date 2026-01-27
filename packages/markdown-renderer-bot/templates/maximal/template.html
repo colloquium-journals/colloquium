@@ -4,82 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>{{title}}{{#if journalName}} | {{journalName}}{{/if}}</title>
+    <title>$title$$if(journalName)$ | $journalName$$endif$</title>
 
     <!-- Dublin Core metadata -->
-    <meta name="DC.title" content="{{title}}">
-    {{#if doi}}<meta name="DC.identifier" content="{{doi}}">{{/if}}
-    {{#if authorList}}{{#each authorList}}<meta name="DC.creator" content="{{name}}">{{/each}}{{else}}{{#if authors}}<meta name="DC.creator" content="{{authors}}">{{/if}}{{/if}}
-    {{#if abstract}}<meta name="DC.description" content="{{abstract}}">{{/if}}
-    {{#if publishedDate}}<meta name="DC.date" content="{{publishedDate}}">{{/if}}
-    {{#if keywords}}<meta name="DC.subject" content="{{keywords}}">{{/if}}
-    {{#if license}}<meta name="DC.rights" content="{{license}}">{{/if}}
-    {{#if articleType}}<meta name="DC.type" content="{{articleType}}">{{/if}}
+    <meta name="DC.title" content="$title$">
+$if(doi)$    <meta name="DC.identifier" content="$doi$">
+$endif$
+$if(authors)$    <meta name="DC.creator" content="$authors$">
+$endif$
+$if(abstract)$    <meta name="DC.description" content="$abstract$">
+$endif$
+$if(publishedDate)$    <meta name="DC.date" content="$publishedDate$">
+$endif$
+$if(keywords)$    <meta name="DC.subject" content="$keywords$">
+$endif$
+$if(license)$    <meta name="DC.rights" content="$license$">
+$endif$
+$if(articleType)$    <meta name="DC.type" content="$articleType$">
+$endif$
 
     <!-- Citation metadata for Google Scholar -->
-    <meta name="citation_title" content="{{title}}">
-    {{#if authorList}}{{#each authorList}}<meta name="citation_author" content="{{name}}">{{/each}}{{else}}{{#if authors}}<meta name="citation_author" content="{{authors}}">{{/if}}{{/if}}
-    {{#if publishedDate}}<meta name="citation_publication_date" content="{{publishedDate}}">{{/if}}
-    {{#if journalName}}<meta name="citation_journal_title" content="{{journalName}}">{{/if}}
-    {{#if doi}}<meta name="citation_doi" content="{{doi}}">{{/if}}
-    {{#if abstract}}<meta name="citation_abstract" content="{{abstract}}">{{/if}}
-    {{#if keywords}}<meta name="citation_keywords" content="{{keywords}}">{{/if}}
-    {{#if volume}}<meta name="citation_volume" content="{{volume}}">{{/if}}
-    {{#if issue}}<meta name="citation_issue" content="{{issue}}">{{/if}}
-    {{#if firstPage}}<meta name="citation_firstpage" content="{{firstPage}}">{{/if}}
-    {{#if lastPage}}<meta name="citation_lastpage" content="{{lastPage}}">{{/if}}
-
-    <!-- Schema.org structured data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "ScholarlyArticle",
-        "headline": "{{title}}",
-        {{#if abstract}}"abstract": "{{abstract}}",{{/if}}
-        {{#if doi}}"identifier": {
-            "@type": "PropertyValue",
-            "propertyID": "DOI",
-            "value": "{{doi}}"
-        },{{/if}}
-        {{#if publishedDate}}"datePublished": "{{publishedDate}}",{{/if}}
-        {{#if submittedDate}}"dateCreated": "{{submittedDate}}",{{/if}}
-        {{#if modifiedDate}}"dateModified": "{{modifiedDate}}",{{/if}}
-        {{#if journalName}}"isPartOf": {
-            "@type": "Periodical",
-            "name": "{{journalName}}"{{#if issn}},
-            "issn": "{{issn}}"{{/if}}
-        },{{/if}}
-        {{#if keywords}}"keywords": "{{keywords}}",{{/if}}
-        {{#if license}}"license": "{{license}}",{{/if}}
-        {{#if version}}"version": "{{version}}",{{/if}}
-        {{#if funding}}"funder": [
-            {{#each funding}}
-            {
-                "@type": "Organization",
-                "name": "{{funder}}"{{#if grantNumber}},
-                "identifier": "{{grantNumber}}"{{/if}}
-            }{{#unless @last}},{{/unless}}
-            {{/each}}
-        ],{{/if}}
-        {{#if authorList}}"author": [
-            {{#each authorList}}
-            {
-                "@type": "Person",
-                "name": "{{name}}"{{#if orcid}},
-                "identifier": {
-                    "@type": "PropertyValue",
-                    "propertyID": "ORCID",
-                    "value": "{{orcid}}"
-                }{{/if}}{{#if affiliation}},
-                "affiliation": {
-                    "@type": "Organization",
-                    "name": "{{affiliation}}"
-                }{{/if}}
-            }{{#unless @last}},{{/unless}}
-            {{/each}}
-        ]{{else}}{{#if authors}}"author": "{{authors}}"{{/if}}{{/if}}
-    }
-    </script>
+    <meta name="citation_title" content="$title$">
+$if(authors)$    <meta name="citation_author" content="$authors$">
+$endif$
+$if(publishedDate)$    <meta name="citation_publication_date" content="$publishedDate$">
+$endif$
+$if(journalName)$    <meta name="citation_journal_title" content="$journalName$">
+$endif$
+$if(doi)$    <meta name="citation_doi" content="$doi$">
+$endif$
+$if(abstract)$    <meta name="citation_abstract" content="$abstract$">
+$endif$
+$if(keywords)$    <meta name="citation_keywords" content="$keywords$">
+$endif$
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -301,15 +258,6 @@
             color: var(--color-warning);
         }
 
-        .author-roles {
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            color: var(--color-text-muted);
-            background: var(--color-bg-tertiary);
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-
         .corresponding-note {
             font-family: 'Inter', sans-serif;
             font-size: 13px;
@@ -345,19 +293,6 @@
         .doi-link:hover,
         .doi-link:focus {
             text-decoration: underline;
-        }
-
-        /* Altmetrics placeholder */
-        .altmetrics-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--color-bg-secondary);
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            padding: 8px 12px;
-            font-family: 'Inter', sans-serif;
-            font-size: 13px;
         }
 
         /* License badge */
@@ -473,8 +408,7 @@
         .content h2 + p,
         .content h3 + p,
         .content h4 + p,
-        .content figure + p,
-        .content .interactive-container + p {
+        .content figure + p {
             text-indent: 0;
         }
 
@@ -511,27 +445,6 @@
             margin-left: auto;
             margin-right: auto;
             line-height: 1.5;
-        }
-
-        /* Interactive element container */
-        .interactive-container {
-            margin: 32px 0;
-            border: 1px solid var(--color-border);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .interactive-container iframe {
-            width: 100%;
-            border: none;
-            min-height: 400px;
-        }
-        .interactive-label {
-            font-family: 'Inter', sans-serif;
-            font-size: 12px;
-            color: var(--color-text-muted);
-            background: var(--color-bg-secondary);
-            padding: 8px 12px;
-            border-top: 1px solid var(--color-border);
         }
 
         /* Tables */
@@ -609,139 +522,33 @@
             border-radius: 0 8px 8px 0;
         }
 
-        /* Back matter sections */
-        .back-matter {
+        /* References styling */
+        #refs {
             margin-top: 48px;
-            padding-top: 32px;
-            border-top: 2px solid var(--color-border);
-        }
-
-        .back-matter-section {
-            margin-bottom: 32px;
-        }
-
-        .back-matter-section h2 {
-            font-family: 'Inter', sans-serif;
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--color-text);
-            margin: 0 0 12px 0;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .back-matter-section p,
-        .back-matter-section ul {
             font-size: 15px;
-            color: var(--color-text-secondary);
-            margin: 0;
+            line-height: 1.6;
         }
-
-        .back-matter-section ul {
-            padding-left: 20px;
-        }
-
-        .back-matter-section li {
-            margin-bottom: 4px;
-        }
-
-        /* Data/Code availability badges */
-        .availability-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 12px;
-        }
-
-        .availability-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--color-bg-secondary);
-            border: 1px solid var(--color-border);
-            border-radius: 6px;
-            padding: 8px 14px;
-            font-family: 'Inter', sans-serif;
-            font-size: 13px;
-            color: var(--color-text);
-            text-decoration: none;
-            transition: border-color 0.2s, background 0.2s;
-        }
-
-        .availability-badge:hover,
-        .availability-badge:focus {
-            border-color: var(--color-accent);
-            background: var(--color-accent-bg);
-        }
-
-        .availability-badge .badge-icon {
-            font-size: 16px;
-        }
-
-        /* Supplementary materials */
-        .supplementary-list {
-            list-style: none;
-            padding: 0;
-            margin: 12px 0 0 0;
-        }
-
-        .supplementary-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 12px;
-            background: var(--color-bg-secondary);
-            border-radius: 6px;
-            margin-bottom: 8px;
-        }
-
-        .supplementary-item a {
-            color: var(--color-accent);
-            font-weight: 500;
-            text-decoration: none;
-        }
-
-        .supplementary-item a:hover,
-        .supplementary-item a:focus {
-            text-decoration: underline;
-        }
-
-        .supplementary-description {
-            font-size: 14px;
-            color: var(--color-text-muted);
-            margin-top: 4px;
-        }
-
-        /* References */
-        .references {
-            margin-top: 48px;
-        }
-
-        .references h1,
-        .references h2 {
+        #refs::before {
+            content: "References";
+            display: block;
             font-family: 'Inter', sans-serif;
             font-size: 20px;
             font-weight: 700;
             color: var(--color-text);
-            margin: 0 0 24px 0;
+            margin-bottom: 24px;
             padding-bottom: 12px;
             border-bottom: 2px solid var(--color-border);
         }
-
-        .references div[id^="ref-"] {
+        #refs > div {
             margin-bottom: 16px;
             padding-left: 28px;
             text-indent: -28px;
-            font-size: 15px;
-            line-height: 1.6;
             color: var(--color-text-secondary);
         }
-
         .citation {
             color: var(--color-accent);
             text-decoration: none;
         }
-
         .citation:hover,
         .citation:focus {
             text-decoration: underline;
@@ -800,9 +607,7 @@
             }
 
             .skip-link,
-            .version-banner,
-            .altmetrics-badge,
-            .interactive-container {
+            .version-banner {
                 display: none !important;
             }
 
@@ -826,8 +631,7 @@
             }
 
             .abstract-section,
-            .content figure,
-            .back-matter-section {
+            .content figure {
                 page-break-inside: avoid;
             }
 
@@ -841,217 +645,116 @@
             }
         }
     </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
-</head>
+$if(customCss)$    <style>$customCss$</style>
+$endif$</head>
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
-    <article itemscope itemtype="https://schema.org/ScholarlyArticle">
-        {{#if isPreprint}}
+    <article>
+$if(isPreprint)$
         <div class="version-banner" role="alert">
             <span class="badge">Preprint</span>
-            <span>This is a preprint and has not been peer reviewed.{{#if peerReviewedUrl}} <a href="{{peerReviewedUrl}}">View peer-reviewed version</a>{{/if}}</span>
+            <span>This is a preprint and has not been peer reviewed.$if(peerReviewedUrl)$ <a href="$peerReviewedUrl$">View peer-reviewed version</a>$endif$</span>
         </div>
-        {{/if}}
+$endif$
 
-        {{#if version}}
-        {{#unless isPreprint}}
+$if(version)$
         <div class="version-banner">
-            <span class="badge">Version {{version}}</span>
-            {{#if versionNote}}<span>{{versionNote}}</span>{{/if}}
+            <span class="badge">Version $version$</span>
+$if(versionNote)$            <span>$versionNote$</span>$endif$
         </div>
-        {{/unless}}
-        {{/if}}
+$endif$
 
         <header class="article-header">
             <div class="journal-info">
-                {{#if journalName}}<span itemprop="isPartOf" itemscope itemtype="https://schema.org/Periodical"><span itemprop="name">{{journalName}}</span></span>{{/if}}
-                {{#if articleType}}<span class="article-type">{{articleType}}</span>{{/if}}
+$if(journalName)$                <span>$journalName$</span>$endif$
+$if(articleType)$                <span class="article-type">$articleType$</span>$endif$
             </div>
 
-            <h1 class="article-title" itemprop="headline">{{title}}</h1>
+            <h1 class="article-title">$title$</h1>
 
-            {{#if authorList}}
+$if(authorList)$
             <section class="authors-section" aria-label="Authors">
                 <div class="author-list" role="list">
-                    {{#each authorList}}
-                    <div class="author-card" role="listitem" itemprop="author" itemscope itemtype="https://schema.org/Person">
+$for(authorList)$
+                    <div class="author-card" role="listitem">
                         <span class="author-name">
-                            <span itemprop="name">{{name}}</span>
-                            {{#if isCorresponding}}
+                            <span>$authorList.name$</span>
+$if(authorList.isCorresponding)$
                             <span title="Corresponding author" aria-label="Corresponding author">
                                 <svg class="corresponding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                                     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                                 </svg>
                             </span>
-                            {{/if}}
+$endif$
                         </span>
-                        {{#if affiliation}}<span class="author-affiliation" itemprop="affiliation">{{affiliation}}</span>{{/if}}
+$if(authorList.affiliation)$                        <span class="author-affiliation">$authorList.affiliation$</span>$endif$
                         <div class="author-meta">
-                            {{#if orcid}}
-                            <a href="https://orcid.org/{{orcid}}" class="orcid-link" target="_blank" rel="noopener" aria-label="ORCID profile for {{name}}">
+$if(authorList.orcid)$
+                            <a href="https://orcid.org/$authorList.orcid$" class="orcid-link" target="_blank" rel="noopener" aria-label="ORCID profile for $authorList.name$">
                                 <svg class="orcid-icon" viewBox="0 0 256 256" fill="#a6ce39">
                                     <path d="M256 128c0 70.7-57.3 128-128 128S0 198.7 0 128 57.3 0 128 0s128 57.3 128 128z"/>
                                     <path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zM78.6 56.8c-5.8 0-10.5 4.7-10.5 10.5s4.7 10.5 10.5 10.5 10.5-4.7 10.5-10.5-4.7-10.5-10.5-10.5z"/>
                                     <path fill="#fff" d="M108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/>
                                 </svg>
-                                {{orcid}}
+                                $authorList.orcid$
                             </a>
-                            {{/if}}
-                            {{#if roles}}
-                            <span class="author-roles">{{roles}}</span>
-                            {{/if}}
+$endif$
                         </div>
                     </div>
-                    {{/each}}
+$endfor$
                 </div>
-                {{#if correspondingAuthor}}
+$if(correspondingAuthor)$
                 <div class="corresponding-note">
-                    <sup>*</sup> Corresponding author{{#if correspondingAuthor.email}}: <a href="mailto:{{correspondingAuthor.email}}">{{correspondingAuthor.email}}</a>{{/if}}
+                    * Corresponding author$if(correspondingAuthor.email)$: <a href="mailto:$correspondingAuthor.email$">$correspondingAuthor.email$</a>$endif$
                 </div>
-                {{/if}}
+$endif$
             </section>
-            {{else}}
-            {{#if authors}}
+$else$
+$if(authors)$
             <div class="authors-section">
-                <span class="author-name" itemprop="author">{{authors}}</span>
+                <span class="author-name">$authors$</span>
             </div>
-            {{/if}}
-            {{/if}}
+$endif$
+$endif$
 
             <div class="article-meta">
-                {{#if submittedDate}}<span class="meta-item">Submitted: <time itemprop="dateCreated">{{submittedDate}}</time></span>{{/if}}
-                {{#if acceptedDate}}<span class="meta-item">Accepted: {{acceptedDate}}</span>{{/if}}
-                {{#if publishedDate}}<span class="meta-item">Published: <time itemprop="datePublished">{{publishedDate}}</time></span>{{/if}}
+$if(submittedDate)$                <span class="meta-item">Submitted: <time>$submittedDate$</time></span>$endif$
+$if(acceptedDate)$                <span class="meta-item">Accepted: $acceptedDate$</span>$endif$
+$if(publishedDate)$                <span class="meta-item">Published: <time>$publishedDate$</time></span>$endif$
             </div>
 
-            {{#if doi}}
+$if(doi)$
             <div class="article-meta">
-                <span class="meta-item">DOI: <a href="https://doi.org/{{doi}}" class="doi-link" target="_blank" rel="noopener" itemprop="identifier">{{doi}}</a></span>
+                <span class="meta-item">DOI: <a href="https://doi.org/$doi$" class="doi-link" target="_blank" rel="noopener">$doi$</a></span>
             </div>
-            {{/if}}
+$endif$
 
             <div class="article-meta">
-                {{#if license}}<span class="license-badge">{{license}}</span>{{/if}}
-                {{#if altmetricsId}}<div class="altmetrics-badge" data-doi="{{doi}}">Altmetrics: Loading...</div>{{/if}}
+$if(license)$                <span class="license-badge">$license$</span>$endif$
             </div>
         </header>
 
-        {{#if keywords}}
+$if(keywords)$
         <section class="keywords-section" aria-label="Keywords">
             <div class="keywords-label">Keywords</div>
             <div class="keywords-list">
-                {{#each keywordList}}
-                <span class="keyword">{{this}}</span>
-                {{else}}
-                <span class="keyword">{{keywords}}</span>
-                {{/each}}
+                <span class="keyword">$keywords$</span>
             </div>
         </section>
-        {{/if}}
+$endif$
 
-        {{#if abstract}}
+$if(abstract)$
         <section class="abstract-section" role="doc-abstract" aria-labelledby="abstract-heading">
             <h2 id="abstract-heading">Abstract</h2>
-            <p itemprop="abstract">{{abstract}}</p>
+            <p>$abstract$</p>
         </section>
-        {{/if}}
+$endif$
 
         <main id="main-content" class="content" role="main">
-            {{{content}}}
+$body$
         </main>
-
-        <!-- Back matter -->
-        <aside class="back-matter" role="doc-afterword">
-            {{#if dataAvailability}}
-            <section class="back-matter-section" aria-labelledby="data-availability-heading">
-                <h2 id="data-availability-heading">Data Availability</h2>
-                <p>{{dataAvailability.statement}}</p>
-                {{#if dataAvailability.url}}
-                <div class="availability-badges">
-                    <a href="{{dataAvailability.url}}" class="availability-badge" target="_blank" rel="noopener">
-                        <span class="badge-icon" aria-hidden="true">&#x1F4BE;</span>
-                        {{#if dataAvailability.repository}}{{dataAvailability.repository}}{{else}}Access Data{{/if}}
-                    </a>
-                </div>
-                {{/if}}
-            </section>
-            {{/if}}
-
-            {{#if codeAvailability}}
-            <section class="back-matter-section" aria-labelledby="code-availability-heading">
-                <h2 id="code-availability-heading">Code Availability</h2>
-                <p>{{codeAvailability.statement}}</p>
-                {{#if codeAvailability.url}}
-                <div class="availability-badges">
-                    <a href="{{codeAvailability.url}}" class="availability-badge" target="_blank" rel="noopener">
-                        <span class="badge-icon" aria-hidden="true">&#x1F4BB;</span>
-                        {{#if codeAvailability.repository}}{{codeAvailability.repository}}{{else}}View Code{{/if}}
-                    </a>
-                </div>
-                {{/if}}
-            </section>
-            {{/if}}
-
-            {{#if supplementaryMaterials}}
-            <section class="back-matter-section" aria-labelledby="supplementary-heading">
-                <h2 id="supplementary-heading">Supplementary Materials</h2>
-                <ul class="supplementary-list">
-                    {{#each supplementaryMaterials}}
-                    <li class="supplementary-item">
-                        <div>
-                            <a href="{{file}}">{{label}}</a>
-                            {{#if description}}<div class="supplementary-description">{{description}}</div>{{/if}}
-                        </div>
-                    </li>
-                    {{/each}}
-                </ul>
-            </section>
-            {{/if}}
-
-            {{#if authorContributions}}
-            <section class="back-matter-section" aria-labelledby="contributions-heading">
-                <h2 id="contributions-heading">Author Contributions</h2>
-                <p>{{authorContributions}}</p>
-            </section>
-            {{/if}}
-
-            {{#if funding}}
-            <section class="back-matter-section" aria-labelledby="funding-heading">
-                <h2 id="funding-heading">Funding</h2>
-                <ul>
-                    {{#each funding}}
-                    <li>{{funder}}{{#if grantNumber}} ({{grantNumber}}){{/if}}{{#if recipient}} to {{recipient}}{{/if}}</li>
-                    {{/each}}
-                </ul>
-            </section>
-            {{/if}}
-
-            {{#if acknowledgments}}
-            <section class="back-matter-section" aria-labelledby="acknowledgments-heading">
-                <h2 id="acknowledgments-heading">Acknowledgments</h2>
-                <p>{{acknowledgments}}</p>
-            </section>
-            {{/if}}
-
-            {{#if competingInterests}}
-            <section class="back-matter-section" aria-labelledby="coi-heading">
-                <h2 id="coi-heading">Competing Interests</h2>
-                <p>{{competingInterests}}</p>
-            </section>
-            {{/if}}
-
-            {{#if ethicsApproval}}
-            <section class="back-matter-section" aria-labelledby="ethics-heading">
-                <h2 id="ethics-heading">Ethics Statement</h2>
-                <p>{{ethicsApproval}}</p>
-            </section>
-            {{/if}}
-        </aside>
-
-        <!-- Bibliography will be inserted here by Pandoc -->
-        <section id="refs" class="references" role="doc-bibliography" aria-label="References"></section>
 
         <footer class="article-footer">
             <div class="footer-branding">

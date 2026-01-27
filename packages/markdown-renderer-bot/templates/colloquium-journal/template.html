@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}} | {{journalName}}</title>
+    <title>$title$ | $journalName$</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Source+Sans+Pro:wght@400;600;700&display=swap');
-        
+
         body {
             max-width: 850px;
             margin: 0 auto;
@@ -17,14 +17,14 @@
             color: #2d3748;
             background: #ffffff;
         }
-        
+
         .journal-header {
             text-align: center;
             border-bottom: 3px solid #2563eb;
             padding-bottom: 25px;
             margin-bottom: 40px;
         }
-        
+
         .journal-name {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 14px;
@@ -34,7 +34,7 @@
             letter-spacing: 1px;
             margin-bottom: 5px;
         }
-        
+
         .article-title {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 28px;
@@ -43,36 +43,36 @@
             margin: 20px 0;
             line-height: 1.3;
         }
-        
+
         .authors {
             font-size: 16px;
             color: #4a5568;
             margin-bottom: 15px;
         }
-        
+
         .author {
             margin-bottom: 12px;
             text-align: center;
         }
-        
+
         .author-name {
             font-weight: 600;
             font-size: 16px;
         }
-        
+
         .corresponding {
             color: #2563eb;
             font-weight: bold;
             margin-left: 2px;
         }
-        
+
         .affiliation {
             font-size: 14px;
             color: #718096;
             font-style: italic;
             margin-top: 4px;
         }
-        
+
         .orcid {
             font-size: 12px;
             margin-top: 4px;
@@ -113,21 +113,21 @@
             vertical-align: middle;
             color: #ea580c;
         }
-        
+
         .corresponding-note {
             font-size: 12px;
             color: #718096;
             margin-top: 15px;
             font-style: italic;
         }
-        
+
         .manuscript-meta {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 13px;
             color: #718096;
             margin-bottom: 25px;
         }
-        
+
         .abstract-section {
             background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
             border-left: 5px solid #2563eb;
@@ -135,7 +135,7 @@
             margin: 40px 0;
             border-radius: 0 8px 8px 0;
         }
-        
+
         .abstract-section h3 {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 16px;
@@ -146,18 +146,18 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .abstract-section p {
             margin: 0;
             text-align: justify;
             hyphens: auto;
         }
-        
+
         .content {
             text-align: justify;
             hyphens: auto;
         }
-        
+
         .content h1 {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 22px;
@@ -168,7 +168,7 @@
             padding-bottom: 10px;
             border-bottom: 2px solid #e2e8f0;
         }
-        
+
         .content h2 {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 20px;
@@ -177,7 +177,7 @@
             margin-top: 40px;
             margin-bottom: 15px;
         }
-        
+
         .content h3 {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 18px;
@@ -186,19 +186,19 @@
             margin-top: 30px;
             margin-bottom: 12px;
         }
-        
+
         .content p {
             margin-bottom: 16px;
             text-indent: 1.5em;
         }
-        
+
         .content p:first-child,
         .content h1 + p,
         .content h2 + p,
         .content h3 + p {
             text-indent: 0;
         }
-        
+
         .content img {
             max-width: 100%;
             height: auto;
@@ -207,12 +207,12 @@
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        
+
         .content figure {
             text-align: center;
             margin: 30px 0;
         }
-        
+
         .content figcaption {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 14px;
@@ -223,7 +223,7 @@
             margin-left: auto;
             margin-right: auto;
         }
-        
+
         .content blockquote {
             border-left: 4px solid #cbd5e0;
             margin: 25px 0;
@@ -233,28 +233,28 @@
             color: #4a5568;
             border-radius: 0 6px 6px 0;
         }
-        
+
         .content table {
             width: 100%;
             border-collapse: collapse;
             margin: 25px 0;
             font-size: 16px;
         }
-        
+
         .content th,
         .content td {
             text-align: left;
             padding: 12px 15px;
             border-bottom: 1px solid #e2e8f0;
         }
-        
+
         .content th {
             background: #f7fafc;
             font-family: 'Source Sans Pro', sans-serif;
             font-weight: 600;
             color: #2d3748;
         }
-        
+
         .content code {
             background: #f1f5f9;
             color: #475569;
@@ -263,7 +263,7 @@
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
             font-size: 16px;
         }
-        
+
         .content pre {
             background: #1e293b;
             color: #e2e8f0;
@@ -274,42 +274,64 @@
             font-size: 14px;
             line-height: 1.5;
         }
-        
+
         .content pre code {
             background: none;
             color: inherit;
             padding: 0;
         }
-        
+
         .content ol,
         .content ul {
             margin: 16px 0;
             padding-left: 30px;
         }
-        
+
         .content li {
             margin-bottom: 8px;
         }
-        
+
+        /* References styling */
+        #refs {
+            margin-top: 50px;
+            font-size: 16px;
+        }
+        #refs::before {
+            content: "References";
+            display: block;
+            font-family: 'Source Sans Pro', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a202c;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+        #refs > div {
+            margin-bottom: 12px;
+            text-indent: -24px;
+            padding-left: 24px;
+        }
+
         .manuscript-footer {
             margin-top: 60px;
             padding-top: 30px;
             border-top: 2px solid #e2e8f0;
             text-align: center;
         }
-        
+
         .footer-info {
             font-family: 'Source Sans Pro', sans-serif;
             font-size: 12px;
             color: #718096;
             line-height: 1.5;
         }
-        
+
         .footer-info .journal-branding {
             color: #2563eb;
             font-weight: 600;
         }
-        
+
         /* Print styles */
         @media print {
             body {
@@ -318,113 +340,114 @@
                 margin: 0.5in;
                 max-width: none;
             }
-            
+
             .journal-header {
                 border-bottom: 2pt solid #000;
             }
-            
+
             .article-title {
                 font-size: 16pt;
             }
-            
+
             .content h1 {
                 font-size: 14pt;
                 page-break-after: avoid;
             }
-            
+
             .content h2 {
                 font-size: 13pt;
                 page-break-after: avoid;
             }
-            
+
             .content h3 {
                 font-size: 12pt;
                 page-break-after: avoid;
             }
-            
+
             .abstract-section {
                 background: #f5f5f5 !important;
                 page-break-inside: avoid;
             }
-            
+
             .content img {
                 max-width: 100%;
                 page-break-inside: avoid;
             }
-            
+
             .manuscript-footer {
                 page-break-before: avoid;
             }
         }
     </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
-</head>
+$if(customCss)$    <style>$customCss$</style>
+$endif$</head>
 <body>
     <header class="journal-header">
-        <div class="journal-name">{{journalName}}</div>
-        <h1 class="article-title">{{title}}</h1>
-        
-        {{#if authorList}}
+        <div class="journal-name">$journalName$</div>
+        <h1 class="article-title">$title$</h1>
+
+$if(authorList)$
         <div class="authors">
-            {{#each authorList}}
+$for(authorList)$
             <div class="author">
-                <span class="author-name">{{name}}</span>
-                {{#if isCorresponding}}
+                <span class="author-name">$authorList.name$</span>
+$if(authorList.isCorresponding)$
                 <span title="Corresponding author" aria-label="Corresponding author">
                     <svg class="corresponding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                     </svg>
                 </span>
-                {{/if}}
-                {{#if affiliation}}<div class="affiliation">{{affiliation}}</div>{{/if}}
-                {{#if orcid}}
+$endif$
+$if(authorList.affiliation)$                <div class="affiliation">$authorList.affiliation$</div>
+$endif$
+$if(authorList.orcid)$
                 <div class="orcid">
-                    <a href="https://orcid.org/{{orcid}}" target="_blank" rel="noopener" aria-label="ORCID profile for {{name}}">
+                    <a href="https://orcid.org/$authorList.orcid$" target="_blank" rel="noopener" aria-label="ORCID profile for $authorList.name$">
                         <svg class="orcid-icon" viewBox="0 0 256 256" fill="#a6ce39">
                             <path d="M256 128c0 70.7-57.3 128-128 128S0 198.7 0 128 57.3 0 128 0s128 57.3 128 128z"/>
                             <path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zM78.6 56.8c-5.8 0-10.5 4.7-10.5 10.5s4.7 10.5 10.5 10.5 10.5-4.7 10.5-10.5-4.7-10.5-10.5-10.5z"/>
                             <path fill="#fff" d="M108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/>
                         </svg>
-                        {{orcid}}
+                        $authorList.orcid$
                     </a>
                 </div>
-                {{/if}}
+$endif$
             </div>
-            {{/each}}
-            {{#if correspondingAuthor}}
+$endfor$
+$if(correspondingAuthor)$
             <div class="corresponding-note">
                 <svg class="corresponding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline; vertical-align: text-bottom;">
                     <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                 </svg>
-                Corresponding author{{#if correspondingAuthor.email}}: {{correspondingAuthor.email}}{{/if}}
+                Corresponding author$if(correspondingAuthor.email)$: $correspondingAuthor.email$$endif$
             </div>
-            {{/if}}
+$endif$
         </div>
-        {{else}}
-        {{#if authors}}
+$else$
+$if(authors)$
         <div class="authors">
-            <span class="author-name">{{authors}}</span>
+            <span class="author-name">$authors$</span>
         </div>
-        {{/if}}
-        {{/if}}
-        
+$endif$
+$endif$
+
         <div class="manuscript-meta">
-            {{#if submittedDate}}Submitted: {{submittedDate}}{{/if}}
-            {{#if renderDate}}{{#if submittedDate}} • {{/if}}Rendered: {{renderDate}}{{/if}}
+$if(submittedDate)$            Submitted: $submittedDate$$endif$
+$if(renderDate)$$if(submittedDate)$ • $endif$Rendered: $renderDate$$endif$
         </div>
     </header>
 
-    {{#if abstract}}
+$if(abstract)$
     <section class="abstract-section">
         <h3>Abstract</h3>
-        <p>{{abstract}}</p>
+        <p>$abstract$</p>
     </section>
-    {{/if}}
+$endif$
 
     <main class="content">
-        {{{content}}}
+$body$
     </main>
 
     <footer class="manuscript-footer">

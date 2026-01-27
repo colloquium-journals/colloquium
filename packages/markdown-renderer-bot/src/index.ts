@@ -1031,34 +1031,59 @@ async function generatePandocPDF(
 }
 
 async function generatePandocHTML(
-  markdownContent: string, 
-  template: any, 
+  markdownContent: string,
+  template: any,
   templateVariables: any,
   bibliographyContent: string = '',
   manuscriptFiles: any[] = [],
   serviceToken: string = ''
 ): Promise<Buffer> {
   try {
-    console.log(`Converting markdown to HTML using Pandoc microservice with citation processing`);
-    
-    // First, process markdown through Pandoc to handle citations and bibliography
-    // We'll use a minimal approach to get the content with citations processed
+    console.log(`Converting markdown to HTML using Pandoc with native template support`);
+
     const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken);
     console.log(`DEBUG: Collected ${assetFiles.length} asset files for HTML generation`);
-    
+
+    // Use Pandoc's native template format - pass template directly
+    // Template uses $variable$ syntax and $body$ for content
+    const htmlTemplate = template.htmlTemplate || '';
+    console.log(`DEBUG generatePandocHTML: template keys: ${Object.keys(template)}, htmlTemplate length: ${htmlTemplate.length}`);
+
+    // Prepare metadata for Pandoc (complex objects like authorList)
+    const metadata: Record<string, any> = {
+      title: templateVariables.title || '',
+      authors: templateVariables.authors || '',
+      abstract: templateVariables.abstract || '',
+      journalName: templateVariables.journalName || '',
+      keywords: templateVariables.keywords || '',
+      doi: templateVariables.doi || '',
+      submittedDate: templateVariables.submittedDate || '',
+      renderDate: templateVariables.renderDate || '',
+    };
+
+    // Add complex metadata (arrays/objects)
+    if (templateVariables.authorList) {
+      metadata.authorList = templateVariables.authorList;
+    }
+    if (templateVariables.correspondingAuthor) {
+      metadata.correspondingAuthor = templateVariables.correspondingAuthor;
+    }
+
     const requestBody = {
       markdown: markdownContent,
       engine: 'html',
-      template: '', // No template for this step - just get the content
-      variables: {},
+      template: htmlTemplate,
+      variables: {}, // Simple variables (empty - using metadata instead)
+      metadata: metadata, // Complex metadata for Pandoc templates
       outputFormat: 'html',
       bibliography: bibliographyContent,
-      assets: assetFiles
+      assets: assetFiles,
+      selfContained: true
     };
-    
-    console.log(`Sending request to Pandoc service for citation processing: ${PANDOC_SERVICE_URL}/convert`);
-    
-    // Make HTTP request to the Pandoc microservice for citation processing
+
+    console.log(`Sending request to Pandoc service with native template: ${PANDOC_SERVICE_URL}/convert`);
+    console.log(`DEBUG: Template length: ${htmlTemplate.length}, Metadata keys: ${Object.keys(metadata)}`);
+
     const response = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
       method: 'POST',
       headers: {
@@ -1066,31 +1091,18 @@ async function generatePandocHTML(
       },
       body: JSON.stringify(requestBody)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(`Pandoc service error: ${errorData.error || response.statusText}`);
     }
-    
-    // Get the processed HTML content (with citations and bibliography)
-    let pandocHtml = await response.text();
-    console.log(`Pandoc HTML generated successfully, size: ${pandocHtml.length} characters`);
-    
-    // Extract just the body content from Pandoc's output
-    const bodyMatch = pandocHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const processedContent = bodyMatch ? bodyMatch[1] : pandocHtml;
-    
-    // Now render our template with the processed content
-    const finalTemplateVariables = {
-      ...templateVariables,
-      content: processedContent // Use Pandoc-processed content with citations
-    };
-    
-    const renderedHtml = await renderWithTemplate(template, finalTemplateVariables);
-    console.log(`Final HTML template rendered, size: ${renderedHtml.length} characters`);
-    
+
+    // Get the final HTML directly from Pandoc (already rendered with template)
+    const renderedHtml = await response.text();
+    console.log(`Pandoc HTML with template rendered, size: ${renderedHtml.length} characters`);
+
     return Buffer.from(renderedHtml, 'utf-8');
-    
+
   } catch (error) {
     console.error('Failed to generate HTML via microservice:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1438,12 +1450,60 @@ export async function renderMarkdown(
     };
   });
 
-  // Call Pandoc service
+  // Prepare metadata for Pandoc (complex objects like authorList)
+  const metadata: Record<string, any> = {
+    title: options.title || '',
+    authors: options.authors || (options.authorList ? options.authorList.map(a => a.name).join(', ') : ''),
+    abstract: options.abstract || '',
+    journalName: options.journalName || 'Colloquium Journal',
+    keywords: options.keywords || '',
+    doi: options.doi || '',
+    submittedDate: options.submittedDate || '',
+    acceptedDate: options.acceptedDate || '',
+    publishedDate: options.publishedDate || '',
+    renderDate: options.renderDate || new Date().toLocaleDateString(),
+    articleType: options.articleType || '',
+    license: options.license || '',
+    version: options.version || '',
+    versionNote: options.versionNote || '',
+    isPreprint: options.isPreprint || false,
+    peerReviewedUrl: options.peerReviewedUrl || '',
+    authorContributions: options.authorContributions || '',
+    acknowledgments: options.acknowledgments || '',
+    competingInterests: options.competingInterests || '',
+    ethicsApproval: options.ethicsApproval || '',
+  };
+
+  // Add complex metadata (arrays/objects)
+  if (options.authorList) {
+    metadata.authorList = options.authorList;
+  }
+  if (options.correspondingAuthor) {
+    metadata.correspondingAuthor = options.correspondingAuthor;
+  }
+  if (options.keywordList || options.keywords) {
+    metadata.keywordList = options.keywordList || (options.keywords ? options.keywords.split(',').map(k => k.trim()) : []);
+  }
+  if (options.dataAvailability) {
+    metadata.dataAvailability = options.dataAvailability;
+  }
+  if (options.codeAvailability) {
+    metadata.codeAvailability = options.codeAvailability;
+  }
+  if (options.supplementaryMaterials) {
+    metadata.supplementaryMaterials = options.supplementaryMaterials;
+  }
+  if (options.funding) {
+    metadata.funding = options.funding;
+  }
+
+  // Call Pandoc service with native template support
   const requestBody = {
     markdown: markdownContent,
     engine: 'html',
-    template: '',
-    variables: {},
+    template: template.htmlTemplate || '',
+    variables: {}, // Simple variables (empty - using metadata instead)
+    metadata: metadata, // Complex metadata for Pandoc templates
     outputFormat: 'html',
     bibliography: options.bibliography || '',
     assets: [],
@@ -1461,12 +1521,8 @@ export async function renderMarkdown(
     throw new Error(`Pandoc service error: ${errorData.error || response.statusText}. Is the Pandoc service running at ${PANDOC_SERVICE_URL}?`);
   }
 
-  // Get the processed HTML content (with citations and bibliography)
-  const pandocHtml = await response.text();
-
-  // Extract body content from Pandoc's output
-  const bodyMatch = pandocHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  let processedContent = bodyMatch ? bodyMatch[1] : pandocHtml;
+  // Get the rendered HTML directly from Pandoc (already processed with template)
+  let html = await response.text();
 
   // Replace image paths in the output HTML if mapping provided
   if (options.imagePathMap) {
@@ -1479,59 +1535,10 @@ export async function renderMarkdown(
         new RegExp(`src="/${cleanFilename}"`, 'g'),
       ];
       for (const pattern of patterns) {
-        processedContent = processedContent.replace(pattern, `src="${newPath}"`);
+        html = html.replace(pattern, `src="${newPath}"`);
       }
     }
   }
-
-  // Prepare template variables
-  const templateVariables = {
-    // Core metadata
-    title: options.title,
-    abstract: options.abstract || '',
-    authors: options.authors || (options.authorList ? options.authorList.map(a => a.name).join(', ') : ''),
-    authorList: options.authorList || [],
-    correspondingAuthor: options.correspondingAuthor,
-    authorCount: options.authorList?.length || 0,
-
-    // Dates
-    renderDate: options.renderDate || new Date().toLocaleDateString(),
-    submittedDate: options.submittedDate || '',
-    acceptedDate: options.acceptedDate || '',
-    publishedDate: options.publishedDate || '',
-
-    // Journal info
-    journalName: options.journalName || 'Colloquium Journal',
-
-    // Content
-    content: processedContent,
-    customCss: '',
-
-    // Extended metadata
-    doi: options.doi || '',
-    keywords: options.keywords || '',
-    keywordList: options.keywordList || (options.keywords ? options.keywords.split(',').map(k => k.trim()) : []),
-    articleType: options.articleType || '',
-    license: options.license || '',
-    version: options.version || '',
-    versionNote: options.versionNote || '',
-    isPreprint: options.isPreprint || false,
-    peerReviewedUrl: options.peerReviewedUrl || '',
-
-    // Back matter
-    dataAvailability: options.dataAvailability,
-    codeAvailability: options.codeAvailability,
-    supplementaryMaterials: options.supplementaryMaterials || [],
-    funding: options.funding || [],
-    authorContributions: options.authorContributions || '',
-    acknowledgments: options.acknowledgments || '',
-    competingInterests: options.competingInterests || '',
-    ethicsApproval: options.ethicsApproval || ''
-  };
-
-  // Render HTML template
-  const compiledTemplate = Handlebars.compile(template.htmlTemplate);
-  const html = compiledTemplate(templateVariables);
 
   const result: RenderResult = { html };
 
@@ -1628,7 +1635,7 @@ function getFallbackHtmlTemplate(): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>$title$</title>
     <style>
         body {
             max-width: 800px;
@@ -1664,17 +1671,17 @@ function getFallbackHtmlTemplate(): string {
 </head>
 <body>
     <div class="header">
-        <div class="title">{{title}}</div>
-        {{#if authors}}<div class="authors">{{authors}}</div>{{/if}}
-    </div>
-    {{#if abstract}}
+        <div class="title">$title$</div>
+$if(authors)$        <div class="authors">$authors$</div>
+$endif$    </div>
+$if(abstract)$
     <div class="abstract">
         <h3>Abstract</h3>
-        <p>{{abstract}}</p>
+        <p>$abstract$</p>
     </div>
-    {{/if}}
+$endif$
     <div class="content">
-        {{{content}}}
+$body$
     </div>
 </body>
 </html>`;

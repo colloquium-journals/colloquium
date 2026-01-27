@@ -3,65 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}{{#if journalName}} | {{journalName}}{{/if}}</title>
+    <title>$title$$if(journalName)$ | $journalName$$endif$</title>
 
     <!-- Dublin Core metadata -->
-    <meta name="DC.title" content="{{title}}">
-    {{#if doi}}<meta name="DC.identifier" content="{{doi}}">{{/if}}
-    {{#if authorList}}{{#each authorList}}<meta name="DC.creator" content="{{name}}">{{/each}}{{else}}{{#if authors}}<meta name="DC.creator" content="{{authors}}">{{/if}}{{/if}}
-    {{#if abstract}}<meta name="DC.description" content="{{abstract}}">{{/if}}
-    {{#if publishedDate}}<meta name="DC.date" content="{{publishedDate}}">{{/if}}
-    {{#if keywords}}<meta name="DC.subject" content="{{keywords}}">{{/if}}
-    {{#if license}}<meta name="DC.rights" content="{{license}}">{{/if}}
+    <meta name="DC.title" content="$title$">
+$if(doi)$    <meta name="DC.identifier" content="$doi$">
+$endif$
+$if(authors)$    <meta name="DC.creator" content="$authors$">
+$endif$
+$if(abstract)$    <meta name="DC.description" content="$abstract$">
+$endif$
+$if(keywords)$    <meta name="DC.subject" content="$keywords$">
+$endif$
 
     <!-- Citation metadata for Google Scholar -->
-    <meta name="citation_title" content="{{title}}">
-    {{#if authorList}}{{#each authorList}}<meta name="citation_author" content="{{name}}">{{/each}}{{else}}{{#if authors}}<meta name="citation_author" content="{{authors}}">{{/if}}{{/if}}
-    {{#if publishedDate}}<meta name="citation_publication_date" content="{{publishedDate}}">{{/if}}
-    {{#if journalName}}<meta name="citation_journal_title" content="{{journalName}}">{{/if}}
-    {{#if doi}}<meta name="citation_doi" content="{{doi}}">{{/if}}
-    {{#if abstract}}<meta name="citation_abstract" content="{{abstract}}">{{/if}}
-    {{#if keywords}}<meta name="citation_keywords" content="{{keywords}}">{{/if}}
-
-    <!-- Schema.org structured data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "ScholarlyArticle",
-        "headline": "{{title}}",
-        {{#if abstract}}"abstract": "{{abstract}}",{{/if}}
-        {{#if doi}}"identifier": {
-            "@type": "PropertyValue",
-            "propertyID": "DOI",
-            "value": "{{doi}}"
-        },{{/if}}
-        {{#if publishedDate}}"datePublished": "{{publishedDate}}",{{/if}}
-        {{#if submittedDate}}"dateCreated": "{{submittedDate}}",{{/if}}
-        {{#if journalName}}"isPartOf": {
-            "@type": "Periodical",
-            "name": "{{journalName}}"
-        },{{/if}}
-        {{#if keywords}}"keywords": "{{keywords}}",{{/if}}
-        {{#if license}}"license": "{{license}}",{{/if}}
-        {{#if authorList}}"author": [
-            {{#each authorList}}
-            {
-                "@type": "Person",
-                "name": "{{name}}"{{#if orcid}},
-                "identifier": {
-                    "@type": "PropertyValue",
-                    "propertyID": "ORCID",
-                    "value": "{{orcid}}"
-                }{{/if}}{{#if affiliation}},
-                "affiliation": {
-                    "@type": "Organization",
-                    "name": "{{affiliation}}"
-                }{{/if}}
-            }{{#unless @last}},{{/unless}}
-            {{/each}}
-        ]{{else}}{{#if authors}}"author": "{{authors}}"{{/if}}{{/if}}
-    }
-    </script>
+    <meta name="citation_title" content="$title$">
+$if(authors)$    <meta name="citation_author" content="$authors$">
+$endif$
+$if(journalName)$    <meta name="citation_journal_title" content="$journalName$">
+$endif$
+$if(doi)$    <meta name="citation_doi" content="$doi$">
+$endif$
 
     <style>
         body {
@@ -103,7 +65,7 @@
             line-height: 1.2;
         }
 
-        /* Structured author list */
+        /* Author styling */
         .author-list {
             margin: 1em 0;
         }
@@ -113,10 +75,6 @@
         }
         .author-name {
             font-size: 12pt;
-        }
-        .corresponding-marker {
-            color: #2c5aa0;
-            font-weight: bold;
         }
         .author-affiliation {
             font-size: 10pt;
@@ -313,10 +271,13 @@
         }
 
         /* Bibliography and References styling */
-        .references {
+        /* Pandoc generates: <div id="refs" class="references csl-bib-body"> */
+        #refs {
             margin-top: 36pt;
+            font-size: 12pt;
+            line-height: 1.54;
         }
-        .references::before {
+        #refs::before {
             content: "References";
             display: block;
             font-size: 14pt;
@@ -324,12 +285,10 @@
             color: #000;
             margin-bottom: 18pt;
         }
-        .references div[id^="ref-"] {
+        #refs > div {
             margin-bottom: 12pt;
             text-indent: -24pt;
             padding-left: 24pt;
-            font-size: 12pt;
-            line-height: 1.54;
         }
         .citation {
             color: #000;
@@ -338,13 +297,6 @@
         .citation:hover,
         .citation:focus {
             text-decoration: underline;
-        }
-        .footer {
-            margin-top: 2em;
-            font-size: 9pt;
-            color: #000;
-            font-style: italic;
-            text-align: center;
         }
 
         /* Focus styles for accessibility */
@@ -373,81 +325,83 @@
             -moz-osx-font-smoothing: grayscale;
         }
     </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
+$if(customCss)$    <style>$customCss$</style>
+$endif$
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
     <article>
         <header class="header">
-            <h1 class="title">{{title}}</h1>
+            <h1 class="title">$title$</h1>
 
-            {{#if authorList}}
+$if(authorList)$
             <div class="author-list" role="list" aria-label="Authors">
-                {{#each authorList}}
+$for(authorList)$
                 <div class="author-entry" role="listitem">
-                    <span class="author-name">{{name}}</span>
-                    {{#if isCorresponding}}
+                    <span class="author-name">$authorList.name$</span>
+$if(authorList.isCorresponding)$
                     <span title="Corresponding author" aria-label="Corresponding author">
                         <svg class="corresponding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                             <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                         </svg>
                     </span>
-                    {{/if}}
-                    {{#if affiliation}}<div class="author-affiliation">{{affiliation}}</div>{{/if}}
-                    {{#if orcid}}
+$endif$
+$if(authorList.affiliation)$                    <div class="author-affiliation">$authorList.affiliation$</div>
+$endif$
+$if(authorList.orcid)$
                     <div class="author-orcid">
-                        <a href="https://orcid.org/{{orcid}}" target="_blank" rel="noopener" aria-label="ORCID profile for {{name}}">
+                        <a href="https://orcid.org/$authorList.orcid$" target="_blank" rel="noopener" aria-label="ORCID profile for $authorList.name$">
                             <svg class="orcid-icon" viewBox="0 0 256 256" fill="#a6ce39">
                                 <path d="M256 128c0 70.7-57.3 128-128 128S0 198.7 0 128 57.3 0 128 0s128 57.3 128 128z"/>
                                 <path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zM78.6 56.8c-5.8 0-10.5 4.7-10.5 10.5s4.7 10.5 10.5 10.5 10.5-4.7 10.5-10.5-4.7-10.5-10.5-10.5z"/>
                                 <path fill="#fff" d="M108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/>
                             </svg>
-                            {{orcid}}
+                            $authorList.orcid$
                         </a>
                     </div>
-                    {{/if}}
+$endif$
                 </div>
-                {{/each}}
-                {{#if correspondingAuthor}}
+$endfor$
+$if(correspondingAuthor)$
                 <div class="corresponding-note">
                     <svg class="corresponding-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline; vertical-align: text-bottom;">
                         <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                     </svg>
-                    Corresponding author{{#if correspondingAuthor.email}}: <a href="mailto:{{correspondingAuthor.email}}">{{correspondingAuthor.email}}</a>{{/if}}
+                    Corresponding author$if(correspondingAuthor.email)$: <a href="mailto:$correspondingAuthor.email$">$correspondingAuthor.email$</a>$endif$
                 </div>
-                {{/if}}
+$endif$
             </div>
-            {{else}}
-            {{#if authors}}
-            <div class="authors">{{authors}}</div>
-            {{/if}}
-            {{/if}}
+$else$
+$if(authors)$
+            <div class="authors">$authors$</div>
+$endif$
+$endif$
 
-            {{#if doi}}
+$if(doi)$
             <div class="doi-link">
-                <a href="https://doi.org/{{doi}}" target="_blank" rel="noopener">https://doi.org/{{doi}}</a>
+                <a href="https://doi.org/$doi$" target="_blank" rel="noopener">https://doi.org/$doi$</a>
             </div>
-            {{/if}}
+$endif$
         </header>
 
-        {{#if keywords}}
+$if(keywords)$
         <div class="keywords">
-            <span class="keywords-label">Keywords:</span> {{keywords}}
+            <span class="keywords-label">Keywords:</span> $keywords$
         </div>
-        {{/if}}
+$endif$
 
-        {{#if abstract}}
+$if(abstract)$
         <section class="abstract" role="doc-abstract" aria-labelledby="abstract-heading">
             <h3 id="abstract-heading">Abstract</h3>
-            <p>{{abstract}}</p>
+            <p>$abstract$</p>
         </section>
-        {{/if}}
+$endif$
 
         <main id="main-content" class="content" role="main">
-            {{{content}}}
+$body$
         </main>
     </article>
 </body>

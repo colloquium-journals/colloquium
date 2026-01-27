@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>$title$</title>
     <style>
         body {
             max-width: 700px;
@@ -61,22 +61,41 @@
             border-radius: 8px;
             overflow-x: auto;
         }
+        /* References styling */
+        #refs {
+            margin-top: 40px;
+            font-size: 14px;
+        }
+        #refs::before {
+            content: "References";
+            display: block;
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+        }
+        #refs > div {
+            margin-bottom: 12px;
+            text-indent: -24px;
+            padding-left: 24px;
+        }
     </style>
-    {{#if customCss}}<style>{{customCss}}</style>{{/if}}
-</head>
+$if(customCss)$    <style>$customCss$</style>
+$endif$</head>
 <body>
-    <h1 class="title">{{title}}</h1>
-    {{#if authors}}<div class="authors">{{authors}}</div>{{/if}}
-    
-    {{#if abstract}}
+    <h1 class="title">$title$</h1>
+$if(authors)$    <div class="authors">$authors$</div>
+$endif$
+
+$if(abstract)$
     <div class="abstract">
         <h3>Abstract</h3>
-        <p>{{abstract}}</p>
+        <p>$abstract$</p>
     </div>
-    {{/if}}
+$endif$
 
     <div class="content">
-        {{{content}}}
+$body$
     </div>
 </body>
 </html>
