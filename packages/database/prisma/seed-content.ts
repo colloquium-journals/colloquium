@@ -354,6 +354,8 @@ We compiled a dataset of 15,000 manuscripts from participating publishers, inclu
 - 2,100 manuscripts from computer science
 - 1,400 manuscripts from humanities
 
+![Distribution of manuscripts across disciplines](dataset-distribution.png)
+
 Each manuscript was paired with its complete peer review history, including reviewer comments, editorial decisions, and revision tracking.
 
 ### 3.2 Model Architectures
@@ -412,13 +414,23 @@ Implementation of the AI-assisted system in a pilot study with three journals de
 - 23% decrease in desk rejection rate due to early issue identification
 - 15% improvement in reviewer-editor agreement on decisions
 
-### 4.3 Error Analysis
+![Review time reduction over 12-month pilot period](efficiency-timeline.png)
+
+### 4.3 Model Training Convergence
+
+The training dynamics across different architectures showed varying convergence patterns:
+
+![Training loss curves for each model architecture](training-curves.png)
+
+### 4.4 Error Analysis
 
 Common failure modes included:
 
 1. **Interdisciplinary manuscripts**: Models trained on discipline-specific data struggled with cross-domain work
 2. **Novel methodologies**: Innovative approaches were sometimes flagged as errors
 3. **Writing style variations**: Non-native English writing patterns affected predictions
+
+![Error rates by manuscript type and discipline](error-analysis.png)
 
 ## 5. Discussion
 
@@ -485,6 +497,29 @@ Wilson, R. (2022). Traditional peer review: Strengths and weaknesses. *European 
       {
         filename: 'performance-results.png',
         generator: () => createBarChart(800, 500, [87.3, 84.1, 79.5, 82.7, 81.2])
+      },
+      {
+        filename: 'dataset-distribution.png',
+        generator: () => createBarChart(700, 400, [4500, 3800, 3200, 2100, 1400])
+      },
+      {
+        filename: 'efficiency-timeline.png',
+        generator: () => createLineChart(750, 450, [
+          [95, 88, 82, 75, 70, 65, 62, 60, 58, 57, 56, 57],
+          [100, 100, 98, 95, 92, 90, 88, 87, 86, 85, 85, 85]
+        ])
+      },
+      {
+        filename: 'training-curves.png',
+        generator: () => createLineChart(700, 450, [
+          [2.8, 1.9, 1.4, 1.1, 0.9, 0.75, 0.65, 0.58, 0.52, 0.48],
+          [2.5, 1.7, 1.2, 0.95, 0.8, 0.7, 0.62, 0.56, 0.51, 0.47],
+          [3.1, 2.2, 1.6, 1.25, 1.0, 0.85, 0.72, 0.63, 0.55, 0.49]
+        ])
+      },
+      {
+        filename: 'error-analysis.png',
+        generator: () => createBarChart(750, 450, [18.5, 24.2, 15.8, 12.3, 8.7])
       }
     ],
     bibliography: {
@@ -925,6 +960,8 @@ The coupled model showed farmers adapting more rapidly to changing conditions th
 - Expansion of irrigation infrastructure
 - Diversification into new crops
 
+![Agricultural adaptation patterns over time](agricultural-trends.png)
+
 ### 4.2 Urban Heat Dynamics (Case Study B)
 
 Phoenix simulations demonstrated strong human-climate feedbacks:
@@ -944,7 +981,11 @@ Bangladesh projections showed non-linear migration responses:
 - 30-50 cm: Mixed response with gradual inland migration
 - Above 50 cm: Threshold crossing triggers rapid displacement
 
+![Coastal migration thresholds and response patterns](coastal-migration.png)
+
 The uncoupled model significantly underestimated near-term migration while overestimating long-term displacement.
+
+![Comparison of coupled vs uncoupled model projections](model-comparison.png)
 
 ## 5. Discussion
 
@@ -1003,6 +1044,26 @@ Additional references available in supplementary materials.
           {x: 50, y: 70}, {x: 55, y: 75}, {x: 60, y: 82}, {x: 65, y: 85},
           {x: 70, y: 88}, {x: 75, y: 90}, {x: 80, y: 92}, {x: 85, y: 94}
         ])
+      },
+      {
+        filename: 'agricultural-trends.png',
+        generator: () => createLineChart(750, 450, [
+          [100, 95, 88, 82, 78, 75, 72, 70, 68, 65],
+          [100, 105, 112, 118, 125, 132, 140, 148, 155, 162],
+          [100, 102, 98, 95, 90, 88, 85, 82, 80, 78]
+        ])
+      },
+      {
+        filename: 'coastal-migration.png',
+        generator: () => createScatterPlot(700, 450, [
+          {x: 5, y: 2}, {x: 10, y: 3}, {x: 15, y: 5}, {x: 20, y: 8},
+          {x: 25, y: 12}, {x: 30, y: 18}, {x: 35, y: 28}, {x: 40, y: 42},
+          {x: 45, y: 58}, {x: 50, y: 75}, {x: 55, y: 88}, {x: 60, y: 95}
+        ])
+      },
+      {
+        filename: 'model-comparison.png',
+        generator: () => createBarChart(700, 400, [45, 72, 38, 65, 52, 80])
       }
     ],
     bibliography: {
