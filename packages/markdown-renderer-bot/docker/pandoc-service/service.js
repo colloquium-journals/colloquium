@@ -205,6 +205,7 @@ app.post('/convert', upload.none(), async (req, res) => {
     if (bibliographyFile && !useTypstNativeBib) {
       args.push('--bibliography', `"${bibliographyFile}"`);
       args.push('--citeproc'); // Enable citation processing
+      args.push('--metadata', 'reference-section-title=References'); // Add proper heading for bibliography
     }
 
     // For Typst native bibliography, set the bibliography variable so template conditional works

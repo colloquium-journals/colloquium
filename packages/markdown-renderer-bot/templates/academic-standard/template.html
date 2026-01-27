@@ -271,19 +271,10 @@ $endif$
         }
 
         /* Bibliography and References styling */
-        /* Pandoc generates: <div id="refs" class="references csl-bib-body"> */
+        /* Pandoc generates a heading with --reference-section-title, then: <div id="refs" class="references csl-bib-body"> */
         #refs {
-            margin-top: 36pt;
             font-size: 12pt;
             line-height: 1.54;
-        }
-        #refs::before {
-            content: "References";
-            display: block;
-            font-size: 14pt;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 18pt;
         }
         #refs > div {
             margin-bottom: 12pt;
