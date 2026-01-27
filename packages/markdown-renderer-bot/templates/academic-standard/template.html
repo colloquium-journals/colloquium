@@ -316,12 +316,12 @@
         .references {
             margin-top: 36pt;
         }
-        .references h1, .references h2 {
-            font-size: 12pt;
+        .references::before {
+            content: "References";
+            display: block;
+            font-size: 14pt;
             font-weight: bold;
             color: #000;
-            border-bottom: 1px solid #000;
-            padding-bottom: 6pt;
             margin-bottom: 18pt;
         }
         .references div[id^="ref-"] {
@@ -449,11 +449,6 @@
         <main id="main-content" class="content" role="main">
             {{{content}}}
         </main>
-
-        <!-- Bibliography will be inserted here by Pandoc -->
-        <section id="refs" class="references" role="doc-bibliography" aria-label="References">
-            <h2>References</h2>
-        </section>
     </article>
 </body>
 </html>
