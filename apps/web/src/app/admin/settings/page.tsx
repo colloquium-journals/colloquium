@@ -2672,13 +2672,13 @@ export default function JournalSettingsPage() {
                           Custom Templates
                         </Text>
                         <Text size="xs" c="dimmed">
-                          You can upload custom templates using the "Files" tab above. Template files should follow the naming convention:
+                          You can upload custom templates using the "Files" tab above. Template files should follow the folder-based naming convention:
                         </Text>
                         <List size="xs" c="dimmed">
-                          <List.Item><code>template-name.html</code> for HTML templates</List.Item>
-                          <List.Item><code>template-name.tex</code> for LaTeX templates</List.Item>
-                          <List.Item><code>template-name.typ</code> for Typst templates</List.Item>
-                          <List.Item><code>template-name.json</code> for template metadata</List.Item>
+                          <List.Item><code>template-name/template.html</code> for HTML templates</List.Item>
+                          <List.Item><code>template-name/template.tex</code> for LaTeX templates</List.Item>
+                          <List.Item><code>template-name/template.typ</code> for Typst templates</List.Item>
+                          <List.Item><code>template-name/template.json</code> for template metadata</List.Item>
                         </List>
                       </Stack>
                     </Card>

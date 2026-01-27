@@ -8,10 +8,11 @@ Templates support three rendering engines: HTML, LaTeX, and Typst. Create engine
 
 ```
 templates/
-├── my-template.html     # HTML template (optional)
-├── my-template.tex      # LaTeX template (optional)  
-├── my-template.typ      # Typst template (optional)
-└── my-template.json     # Required metadata
+└── my-template/
+    ├── template.html     # HTML template (optional)
+    ├── template.tex      # LaTeX template (optional)
+    ├── template.typ      # Typst template (optional)
+    └── template.json     # Required metadata
 ```
 
 ## Metadata File (Required)
@@ -102,9 +103,10 @@ $body$
 
 ## Installation
 
-1. Create template files in `templates/` directory
-2. Restart bot to reload templates
-3. Configure journal to use new template via admin settings
+1. Create a template folder in `templates/` directory (e.g., `templates/my-template/`)
+2. Add `template.json` and at least one template file (`template.html`, `template.tex`, or `template.typ`)
+3. Restart bot to reload templates
+4. Configure journal to use new template via admin settings
 
 ## Testing
 

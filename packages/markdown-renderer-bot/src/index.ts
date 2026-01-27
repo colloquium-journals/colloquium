@@ -47,45 +47,43 @@ const botConfigSchema = z.object({
 async function loadBuiltInTemplates(): Promise<Record<string, any>> {
   const templatesDir = path.join(__dirname, '..', 'templates');
   const templates: Record<string, any> = {};
-  
+
   try {
-    const files = await fs.readdir(templatesDir);
-    const templateNames = new Set<string>();
-    
-    // Find all template JSON files to identify templates
-    files.forEach(file => {
-      if (file.endsWith('.json')) {
-        templateNames.add(file.replace('.json', ''));
-      }
-    });
-    
-    // Load each template with all its engine variants
-    for (const templateName of templateNames) {
+    const entries = await fs.readdir(templatesDir, { withFileTypes: true });
+
+    // Find all template directories
+    const templateDirs = entries.filter(entry => entry.isDirectory());
+
+    // Load each template from its directory
+    for (const dir of templateDirs) {
+      const templateName = dir.name;
+      const templateDir = path.join(templatesDir, templateName);
+
       try {
-        const jsonPath = path.join(templatesDir, `${templateName}.json`);
-        
+        const jsonPath = path.join(templateDir, 'template.json');
+
         if (await fs.pathExists(jsonPath)) {
           const metadata = await fs.readJson(jsonPath);
           const template: any = { ...metadata };
-          
+
           // Load HTML template if exists
-          const htmlPath = path.join(templatesDir, `${templateName}.html`);
+          const htmlPath = path.join(templateDir, 'template.html');
           if (await fs.pathExists(htmlPath)) {
             template.htmlTemplate = await fs.readFile(htmlPath, 'utf-8');
           }
-          
+
           // Load LaTeX template if exists
-          const texPath = path.join(templatesDir, `${templateName}.tex`);
+          const texPath = path.join(templateDir, 'template.tex');
           if (await fs.pathExists(texPath)) {
             template.latexTemplate = await fs.readFile(texPath, 'utf-8');
           }
-          
+
           // Load Typst template if exists
-          const typPath = path.join(templatesDir, `${templateName}.typ`);
+          const typPath = path.join(templateDir, 'template.typ');
           if (await fs.pathExists(typPath)) {
             template.typstTemplate = await fs.readFile(typPath, 'utf-8');
           }
-          
+
           templates[templateName] = template;
         }
       } catch (error) {
@@ -95,7 +93,7 @@ async function loadBuiltInTemplates(): Promise<Record<string, any>> {
   } catch (error) {
     console.warn('Failed to load built-in templates:', error);
   }
-  
+
   return templates;
 }
 
@@ -1156,14 +1154,16 @@ function getMimeType(filename: string): string {
 
 function getFileDescription(filename: string): string {
   const ext = path.extname(filename).toLowerCase();
-  const baseName = path.basename(filename, ext);
-  
+  // Extract template name from folder-based path (e.g., "academic-standard/template.html")
+  const parts = filename.split('/');
+  const templateName = parts.length > 1 ? parts[0] : path.basename(filename, ext);
+
   switch (ext) {
-    case '.html': return `HTML template for ${baseName} format`;
-    case '.tex': return `LaTeX template for ${baseName} format`;
-    case '.typ': return `Typst template for ${baseName} format`;
-    case '.json': return `Metadata configuration for ${baseName} template`;
-    case '.css': return `Styling for ${baseName} template`;
+    case '.html': return `HTML template for ${templateName}`;
+    case '.tex': return `LaTeX template for ${templateName}`;
+    case '.typ': return `Typst template for ${templateName}`;
+    case '.json': return `Metadata configuration for ${templateName}`;
+    case '.css': return `Styling for ${templateName}`;
     default: return `Template file: ${filename}`;
   }
 }
@@ -1183,43 +1183,35 @@ export const markdownRendererBot: CommandBot = {
   // Upload built-in templates and create configuration when the bot is installed
   onInstall: async (context: BotInstallationContext) => {
     console.log(`📂 Installing built-in templates for ${context.botId}...`);
-    
+
     try {
       // Find templates directory
       const templatesDir = path.join(__dirname, '..', 'templates');
-      
+
       if (!await fs.pathExists(templatesDir)) {
         console.log(`⚠️ Templates directory not found: ${templatesDir}`);
         return;
       }
-      
-      // Get all files and group by template name
-      const files = await fs.readdir(templatesDir);
-      const templateFileGroups: Record<string, string[]> = {};
-      
-      files.forEach(file => {
-        if (file.endsWith('.html') || file.endsWith('.tex') || file.endsWith('.typ') || 
-            file.endsWith('.json') || file.endsWith('.css')) {
-          const baseName = file.replace(/\.(html|tex|typ|json|css)$/, '');
-          if (!templateFileGroups[baseName]) {
-            templateFileGroups[baseName] = [];
-          }
-          templateFileGroups[baseName].push(file);
-        }
-      });
-      
-      console.log(`📁 Found ${Object.keys(templateFileGroups).length} template groups with ${files.length} total files`);
-      
+
+      // Get all template directories
+      const entries = await fs.readdir(templatesDir, { withFileTypes: true });
+      const templateDirs = entries.filter(entry => entry.isDirectory());
+
+      console.log(`📁 Found ${templateDirs.length} template directories`);
+
       // Upload files and build configuration
       const templates: Record<string, any> = {};
       let uploadedCount = 0;
-      
-      for (const [templateName, templateFiles] of Object.entries(templateFileGroups)) {
+
+      for (const dir of templateDirs) {
+        const templateName = dir.name;
+        const templateDir = path.join(templatesDir, templateName);
+
         console.log(`📄 Processing template: ${templateName}`);
-        
+
         const templateDef: any = {
           name: templateName,
-          title: templateName.split('-').map(word => 
+          title: templateName.split('-').map(word =>
             word.charAt(0).toUpperCase() + word.slice(1)
           ).join(' '),
           description: `Template for ${templateName} format`,
@@ -1227,57 +1219,64 @@ export const markdownRendererBot: CommandBot = {
           files: [],
           metadata: {}
         };
-        
-        // Upload files and collect their IDs
+
+        // Read files from the template directory
+        const templateFiles = await fs.readdir(templateDir);
+
+        // First, load metadata from template.json if it exists
+        const jsonPath = path.join(templateDir, 'template.json');
+        if (await fs.pathExists(jsonPath)) {
+          try {
+            const metadataContent = await fs.readFile(jsonPath, 'utf-8');
+            const metadata = JSON.parse(metadataContent);
+            templateDef.title = metadata.title || templateDef.title;
+            templateDef.description = metadata.description || templateDef.description;
+            templateDef.defaultEngine = metadata.defaultEngine || templateDef.defaultEngine;
+            templateDef.metadata = { ...templateDef.metadata, ...metadata.metadata };
+          } catch (e) {
+            console.warn(`⚠️ Failed to parse metadata for ${templateName}/template.json`);
+          }
+        }
+
+        // Upload template files and collect their IDs
         for (const filename of templateFiles) {
           try {
-            const filePath = path.join(templatesDir, filename);
+            const filePath = path.join(templateDir, filename);
             const content = await fs.readFile(filePath);
             const mimetype = getMimeType(filename);
-            const description = getFileDescription(filename);
-            
-            const uploadResult = await context.uploadFile(filename, content, mimetype, description);
-            
+            // Use template-name/filename format for reference
+            const uploadFilename = `${templateName}/${filename}`;
+            const description = getFileDescription(uploadFilename);
+
+            const uploadResult = await context.uploadFile(uploadFilename, content, mimetype, description);
+
             // Determine engine based on file extension
             let engine: 'html' | 'latex' | 'typst';
             if (filename.endsWith('.html')) engine = 'html';
             else if (filename.endsWith('.tex')) engine = 'latex';
             else if (filename.endsWith('.typ')) engine = 'typst';
             else continue; // Skip non-template files like .json and .css for now
-            
+
             templateDef.files.push({
               fileId: uploadResult.id,
-              filename: filename,
+              filename: uploadFilename,
               engine: engine,
               metadata: {
                 uploadedAt: new Date().toISOString(),
                 source: 'built-in'
               }
             });
-            
+
             uploadedCount++;
-            console.log(`✅ Uploaded ${filename} -> ${uploadResult.id}`);
-            
-            // Load metadata from JSON file if it exists
-            if (filename.endsWith('.json')) {
-              try {
-                const metadata = JSON.parse(content.toString());
-                templateDef.title = metadata.title || templateDef.title;
-                templateDef.description = metadata.description || templateDef.description;
-                templateDef.defaultEngine = metadata.defaultEngine || templateDef.defaultEngine;
-                templateDef.metadata = { ...templateDef.metadata, ...metadata.metadata };
-              } catch (e) {
-                console.warn(`⚠️ Failed to parse metadata for ${filename}`);
-              }
-            }
+            console.log(`✅ Uploaded ${uploadFilename} -> ${uploadResult.id}`);
           } catch (error) {
-            console.warn(`⚠️ Failed to upload template ${filename}:`, error);
+            console.warn(`⚠️ Failed to upload template ${templateName}/${filename}:`, error);
           }
         }
-        
+
         templates[templateName] = templateDef;
       }
-      
+
       // Update bot configuration with the new template mappings
       const newConfig = {
         templateName: 'academic-standard',
@@ -1287,10 +1286,10 @@ export const markdownRendererBot: CommandBot = {
         _installedAt: new Date().toISOString(),
         _version: '1.0.0'
       };
-      
+
       // Store updated configuration in context (this will update the bot's config)
       Object.assign(context.config, newConfig);
-      
+
       console.log(`🎉 Successfully uploaded ${uploadedCount} template files and configured ${Object.keys(templates).length} templates`);
       console.log(`📋 Available templates: ${Object.keys(templates).join(', ')}`);
     } catch (error) {

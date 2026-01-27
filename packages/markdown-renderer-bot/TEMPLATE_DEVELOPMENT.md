@@ -4,25 +4,28 @@ This document explains how to create and manage templates for the Markdown Rende
 
 ## Template Structure
 
-Templates are stored as separate files in the `/templates/` directory, making them easy to create, modify, and distribute.
+Templates are stored in folders in the `/templates/` directory, making them easy to create, modify, and distribute.
 
 ### File Structure
 
 ```
 templates/
-├── template-name.html    # HTML template with Handlebars syntax
-└── template-name.json    # Metadata and configuration
+└── template-name/
+    ├── template.html    # HTML template with Handlebars syntax
+    ├── template.tex     # LaTeX template (optional)
+    ├── template.typ     # Typst template (optional)
+    └── template.json    # Metadata and configuration
 ```
 
 ### Template Files
 
-#### HTML Template (`template-name.html`)
+#### HTML Template (`template.html`)
 - Standard HTML file with Handlebars templating syntax
 - Use `{{variable}}` for text variables
 - Use `{{{variable}}}` for HTML content (like `{{{content}}}`)
 - Use conditional blocks: `{{#if variable}}...{{/if}}`
 
-#### Metadata File (`template-name.json`)
+#### Metadata File (`template.json`)
 ```json
 {
   "name": "template-name",
@@ -96,13 +99,16 @@ Templates have access to these variables:
 
 ## Creating New Templates
 
-### 1. Create Template Files
-Create both `.html` and `.json` files in the `/templates/` directory:
+### 1. Create Template Folder
+Create a folder with your template files in the `/templates/` directory:
 
 ```bash
 templates/
-├── my-journal.html
-└── my-journal.json
+└── my-journal/
+    ├── template.html
+    ├── template.tex     # optional
+    ├── template.typ     # optional
+    └── template.json
 ```
 
 ### 2. Template HTML Structure
@@ -175,9 +181,9 @@ Templates are automatically loaded when the bot starts. Use these commands to te
 
 ## Template Loading Process
 
-1. **Startup**: Bot scans `/templates/` directory for `.html` files
-2. **Pairing**: For each `.html` file, looks for matching `.json` file
-3. **Validation**: Loads and validates template structure
+1. **Startup**: Bot scans `/templates/` directory for subdirectories
+2. **Loading**: For each directory, loads `template.json`, `template.html`, `template.tex`, `template.typ`
+3. **Validation**: Validates template structure and metadata
 4. **Caching**: Templates are cached in memory for performance
 5. **Usage**: Templates are available via `@markdown-renderer render template="name"`
 
