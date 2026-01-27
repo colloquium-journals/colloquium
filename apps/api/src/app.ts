@@ -78,7 +78,16 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Serve published assets statically (no authentication required)
-app.use('/static/published', express.static(path.join(process.cwd(), 'static', 'published'), {
+// Add explicit CORS and CORP headers to allow cross-origin image loading
+app.use('/static/published', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+}, express.static(path.join(process.cwd(), 'static', 'published'), {
   maxAge: '1y', // Long cache for published content (immutable)
   immutable: true,
   setHeaders: (res, filePath) => {
@@ -86,9 +95,6 @@ app.use('/static/published', express.static(path.join(process.cwd(), 'static', '
     if (filePath.match(/\.(png|jpg|jpeg|gif|svg|webp)$/i)) {
       res.setHeader('Content-Disposition', 'inline');
     }
-    // Set CORS headers for cross-origin access
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
   }
 }));
 
