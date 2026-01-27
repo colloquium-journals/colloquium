@@ -232,10 +232,11 @@ export default function ArticleDetailPage() {
 
   // Function to rewrite image paths to use absolute API URLs
   const rewriteImagePaths = (html: string): string => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     // Rewrite /static/published/ paths to absolute API URLs
     return html.replace(
       /src="\/static\/published\//g,
-      'src="http://localhost:4000/static/published/'
+      `src="${apiUrl}/static/published/`
     );
   };
 
