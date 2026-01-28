@@ -7,8 +7,12 @@ High-level roadmap of unimplemented features and planned work.
 - [x] PDF generation via Pandoc (see [markdown-renderer-pandoc-implementation-plan.md](markdown-renderer-pandoc-implementation-plan.md))
 - [x] Multi-engine template system: HTML, LaTeX, Typst (see [document-rendering-templating-plan.md](document-rendering-templating-plan.md))
 - [x] Journal-configurable typesetting engine selection (see [robust-typesetting-publishing-plan.md](robust-typesetting-publishing-plan.md))
-- [ ] DOI assignment / CrossRef integration
-- [ ] Metadata submission to indexing services (PubMed, etc.)
+- [ ] DOI assignment and indexing services (see [doi-crossref-indexing-plan.md](doi-crossref-indexing-plan.md))
+  - [ ] Phase 1: Core Crossref integration (journal settings, DOI minting, XML deposit)
+  - [ ] Phase 2: Enhanced metadata (structured affiliations, CRediT roles, funding)
+  - [ ] Phase 3: Full JATS compliance (JATS XML export, PMC compatibility)
+  - [ ] Google Scholar meta tag generation
+  - [ ] DOAJ integration
 - [ ] Publication preview system for authors/editors
 
 ## Bot Ecosystem
@@ -35,6 +39,7 @@ High-level roadmap of unimplemented features and planned work.
 ## Authentication & Identity
 
 - [x] ORCID OAuth verification (see [orcid-oauth-plan.md](orcid-oauth-plan.md))
+- [ ] Passkey authentication for frequent users (see [passkey-authentication-plan.md](passkey-authentication-plan.md))
 - [ ] Institutional SSO support
 - [ ] Expertise tags for reviewer matching
 
