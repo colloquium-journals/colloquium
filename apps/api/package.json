@@ -22,7 +22,7 @@
     "@colloquium/database": "*",
     "@colloquium/bot-editorial": "*",
     "@colloquium/bot-markdown-renderer": "*",
-    "@colloquium/bot-reference": "*",
+    "@colloquium/bot-reference-check": "*",
     "@colloquium/bot-reviewer-checklist": "*",
     "@colloquium/types": "*",
     "@google-cloud/storage": "^7.7.0",

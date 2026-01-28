@@ -36,8 +36,8 @@ const mockBotInstallations = [
     supportsFileUploads: true
   },
   {
-    id: 'bot-reference-1',
-    botId: 'bot-reference',
+    id: 'bot-reference-check-1',
+    botId: 'bot-reference-check',
     name: 'Reference Bot',
     version: '1.0.0',
     description: 'Reference management bot',
@@ -47,7 +47,7 @@ const mockBotInstallations = [
     isRequired: false,
     installedAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    packageName: '@colloquium/bot-reference',
+    packageName: '@colloquium/bot-reference-check',
     supportsFileUploads: false
   },
   {

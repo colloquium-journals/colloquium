@@ -34,7 +34,7 @@ packages/
 ├── config/                 # Shared ESLint config
 ├── bot-editorial/          # Editorial workflow bot
 ├── bot-markdown-renderer/  # Markdown to HTML rendering
-├── bot-reference/          # Reference/citation processing
+├── bot-reference-check/    # DOI validation and reference checking
 ├── bot-reviewer-checklist/ # Reviewer checklist automation
 ├── create-colloquium-bot/  # npx template for new bots
 └── create-colloquium-journal/ # npx template for new journals

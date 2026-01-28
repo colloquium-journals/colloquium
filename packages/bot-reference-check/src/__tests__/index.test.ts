@@ -1,31 +1,31 @@
-import { referenceBot } from '../index';
+import { referenceCheckBot } from '../index';
 
-describe('Reference Bot', () => {
+describe('Reference Check Bot', () => {
   it('should have correct bot metadata', () => {
-    expect(referenceBot.id).toBe('bot-reference');
-    expect(referenceBot.name).toBe('Reference Bot');
-    expect(referenceBot.description).toBe('Validates references and checks DOI availability and correctness');
-    expect(referenceBot.version).toBe('1.0.0');
+    expect(referenceCheckBot.id).toBe('bot-reference-check');
+    expect(referenceCheckBot.name).toBe('Reference Check Bot');
+    expect(referenceCheckBot.description).toBe('Validates DOIs resolve to real papers and flags references missing DOIs');
+    expect(referenceCheckBot.version).toBe('1.0.0');
   });
 
   it('should have the expected commands (before help injection)', () => {
-    expect(referenceBot.commands).toHaveLength(1);
+    expect(referenceCheckBot.commands).toHaveLength(1);
     
-    const commandNames = referenceBot.commands.map(cmd => cmd.name);
+    const commandNames = referenceCheckBot.commands.map(cmd => cmd.name);
     expect(commandNames).toContain('check-doi');
     expect(commandNames).not.toContain('help'); // Help command will be injected by the framework
   });
 
   it('should have the expected keywords', () => {
-    expect(referenceBot.keywords).toEqual(['references', 'doi', 'citation', 'bibliography']);
+    expect(referenceCheckBot.keywords).toEqual(['references', 'doi', 'citation', 'bibliography', 'validation']);
   });
 
   it('should have the expected permissions', () => {
-    expect(referenceBot.permissions).toEqual(['read_manuscript']);
+    expect(referenceCheckBot.permissions).toEqual(['read_manuscript']);
   });
 
   describe('check-doi command', () => {
-    const checkDoiCommand = referenceBot.commands.find(cmd => cmd.name === 'check-doi');
+    const checkDoiCommand = referenceCheckBot.commands.find(cmd => cmd.name === 'check-doi');
 
     it('should exist and have correct metadata', () => {
       expect(checkDoiCommand).toBeDefined();
@@ -124,11 +124,11 @@ describe('Reference Bot', () => {
   });
 
   it('should have proper help metadata for framework injection', () => {
-    expect(referenceBot.help).toBeDefined();
-    expect(referenceBot.help!.overview).toBeDefined();
-    expect(referenceBot.help!.quickStart).toBeDefined();
-    expect(referenceBot.help!.examples).toBeDefined();
-    expect(referenceBot.customHelpSections).toBeDefined();
-    expect(referenceBot.customHelpSections!.length).toBeGreaterThan(0);
+    expect(referenceCheckBot.help).toBeDefined();
+    expect(referenceCheckBot.help!.overview).toBeDefined();
+    expect(referenceCheckBot.help!.quickStart).toBeDefined();
+    expect(referenceCheckBot.help!.examples).toBeDefined();
+    expect(referenceCheckBot.customHelpSections).toBeDefined();
+    expect(referenceCheckBot.customHelpSections!.length).toBeGreaterThan(0);
   });
 });

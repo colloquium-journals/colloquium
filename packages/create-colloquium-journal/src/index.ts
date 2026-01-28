@@ -31,9 +31,9 @@ const OPTIONAL_BOTS: AvailableBot[] = [
     isDefault: true,
   },
   {
-    id: 'bot-reference',
-    name: 'Reference Bot',
-    description: 'Validates and formats citations',
+    id: 'bot-reference-check',
+    name: 'Reference Check Bot',
+    description: 'Validates DOIs resolve and flags missing DOIs',
     category: 'quality',
     isDefault: false,
   },

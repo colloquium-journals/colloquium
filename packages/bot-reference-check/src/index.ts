@@ -210,7 +210,7 @@ async function analyzeReferences(content: string): Promise<ReferenceAnalysis> {
 const checkDoiCommand: BotCommand = {
   name: 'check-doi',
   description: 'Check all references in the manuscript for DOI presence and validity',
-  usage: '@bot-reference check-doi [detailed=false] [timeout=30]',
+  usage: '@bot-reference-check check-doi [detailed=false] [timeout=30]',
   help: `Performs comprehensive analysis of all references in your manuscript to ensure proper DOI formatting and availability.
 
 **What this command does:**
@@ -233,9 +233,9 @@ const checkDoiCommand: BotCommand = {
 - JSON report attachment for detailed analysis
 
 **Examples:**
-- \`@bot-reference check-doi\` - Basic analysis
-- \`@bot-reference check-doi detailed=true\` - Include paper titles and authors
-- \`@bot-reference check-doi timeout=60 detailed=true\` - Extended timeout with full details`,
+- \`@bot-reference-check check-doi\` - Basic analysis
+- \`@bot-reference-check check-doi detailed=true\` - Include paper titles and authors
+- \`@bot-reference-check check-doi timeout=60 detailed=true\` - Extended timeout with full details`,
   parameters: [
     {
       name: 'detailed',
@@ -256,9 +256,9 @@ const checkDoiCommand: BotCommand = {
     }
   ],
   examples: [
-    '@bot-reference check-doi',
-    '@bot-reference check-doi detailed=true',
-    '@bot-reference check-doi timeout=45 detailed=true'
+    '@bot-reference-check check-doi',
+    '@bot-reference-check check-doi detailed=true',
+    '@bot-reference-check check-doi timeout=45 detailed=true'
   ],
   permissions: ['read_manuscript'],
   async execute(params, context) {
@@ -427,21 +427,21 @@ Our findings are consistent with previous work.
 
 // Remove the manual help command - it will be auto-injected by the framework
 
-export const referenceBot: CommandBot = {
-  id: 'bot-reference',
-  name: 'Reference Bot',
-  description: 'Validates references and checks DOI availability and correctness',
+export const referenceCheckBot: CommandBot = {
+  id: 'bot-reference-check',
+  name: 'Reference Check Bot',
+  description: 'Validates DOIs resolve to real papers and flags references missing DOIs',
   version: '1.0.0',
   commands: [checkDoiCommand],
-  keywords: ['references', 'doi', 'citation', 'bibliography'],
+  keywords: ['references', 'doi', 'citation', 'bibliography', 'validation'],
   triggers: ['MANUSCRIPT_SUBMITTED'],
   permissions: ['read_manuscript'],
   help: {
-    overview: 'Analyzes manuscript references to ensure all citations have valid, resolving DOIs.',
-    quickStart: 'Use @bot-reference check-doi to analyze all references in your manuscript.',
+    overview: 'Analyzes manuscript references to ensure all citations have valid, resolving DOIs and flags any references without DOIs.',
+    quickStart: 'Use @bot-reference-check check-doi to analyze all references in your manuscript.',
     examples: [
-      '@bot-reference check-doi',
-      '@bot-reference check-doi detailed=true timeout=60'
+      '@bot-reference-check check-doi',
+      '@bot-reference-check check-doi detailed=true timeout=60'
     ]
   },
   customHelpSections: [
@@ -464,4 +464,4 @@ export const referenceBot: CommandBot = {
 };
 
 // Export the bot for npm package compatibility
-export default referenceBot;
+export default referenceCheckBot;

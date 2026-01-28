@@ -1,7 +1,7 @@
 {
-  "name": "@colloquium/bot-reference",
+  "name": "@colloquium/bot-reference-check",
   "version": "1.0.0",
-  "description": "Reference and citation management bot for Colloquium journals",
+  "description": "DOI validation and reference checking bot for Colloquium journals",
   "main": "plugin.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -45,7 +45,7 @@
     "access": "public"
   },
   "colloquium": {
-    "botId": "bot-reference",
+    "botId": "bot-reference-check",
     "apiVersion": "1.0.0",
     "permissions": [
       "read_manuscript_files",

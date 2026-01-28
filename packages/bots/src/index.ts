@@ -44,7 +44,7 @@ export { DatabaseBotManager } from './framework/botManager';
 
 // All core bots have been moved to standalone packages:
 // - @colloquium/bot-editorial
-// - @colloquium/bot-reference
+// - @colloquium/bot-reference-check
 // - @colloquium/bot-markdown-renderer
 // - @colloquium/bot-reviewer-checklist
 

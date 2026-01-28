@@ -450,7 +450,7 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../../bot-reference"),
+              path: path.resolve(__dirname, "../../../bot-reference-check"),
             },
             // No config - will use default-config.yaml
           },
@@ -480,7 +480,7 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "npm" as const,
-              packageName: "@colloquium/bot-reference",
+              packageName: "@colloquium/bot-reference-check",
             },
             // No config - will use default-config.yaml from npm package
           },
