@@ -32,10 +32,10 @@ packages/
 ├── auth/                   # Authentication utilities
 ├── ui/                     # Shared React components
 ├── config/                 # Shared ESLint config
-├── editorial-bot/          # Editorial workflow bot
-├── markdown-renderer-bot/  # Markdown to HTML rendering
-├── reference-bot/          # Reference/citation processing
-├── reviewer-checklist-bot/ # Reviewer checklist automation
+├── bot-editorial/          # Editorial workflow bot
+├── bot-markdown-renderer/  # Markdown to HTML rendering
+├── bot-reference/          # Reference/citation processing
+├── bot-reviewer-checklist/ # Reviewer checklist automation
 ├── create-colloquium-bot/  # npx template for new bots
 └── create-colloquium-journal/ # npx template for new journals
 ```
@@ -177,7 +177,7 @@ Automated reminder system for review deadlines.
 
 ### Bot Naming Convention
 - **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference`, `bot-reviewer-checklist`)
-- **Package folders**: Use `-bot` suffix (e.g., `editorial-bot/`, `reference-bot/`)
+- **Package folders**: Use `bot-` prefix (e.g., `bot-editorial/`, `bot-reference/`) - package names match bot IDs
 - **Reserved prefix**: The `bot-` username prefix is reserved for system bots - non-bot accounts cannot use usernames starting with `bot-`
 
 ## Environment Setup

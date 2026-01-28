@@ -6,7 +6,7 @@ console.log('=== TESTING PLUGIN LOADING ===');
 // Test editorial bot plugin loading
 try {
   console.log('\n1. Loading editorial bot plugin...');
-  const editorialPlugin = require('./packages/editorial-bot/plugin.js');
+  const editorialPlugin = require('./packages/bot-editorial/plugin.js');
   console.log('Editorial plugin loaded:', {
     manifestBotId: editorialPlugin.manifest.colloquium.botId,
     botId: editorialPlugin.bot.id,
@@ -19,7 +19,7 @@ try {
 // Test reviewer checklist bot plugin loading
 try {
   console.log('\n2. Loading reviewer checklist bot plugin...');
-  const reviewerPlugin = require('./packages/reviewer-checklist-bot/plugin.js');
+  const reviewerPlugin = require('./packages/bot-reviewer-checklist/plugin.js');
   console.log('Reviewer plugin loaded:', {
     manifestBotId: reviewerPlugin.manifest.colloquium.botId,
     botId: reviewerPlugin.bot.id,
@@ -35,8 +35,8 @@ try {
   const { CommandParser } = require('./packages/bots/dist/framework/commands.js');
   const parser = new CommandParser();
   
-  const editorialPlugin = require('./packages/editorial-bot/plugin.js');
-  const reviewerPlugin = require('./packages/reviewer-checklist-bot/plugin.js');
+  const editorialPlugin = require('./packages/bot-editorial/plugin.js');
+  const reviewerPlugin = require('./packages/bot-reviewer-checklist/plugin.js');
   
   console.log('Registering bots...');
   parser.registerBot(editorialPlugin.bot);

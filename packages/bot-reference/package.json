@@ -1,5 +1,5 @@
 {
-  "name": "@colloquium/reference-bot",
+  "name": "@colloquium/bot-reference",
   "version": "1.0.0",
   "description": "Reference and citation management bot for Colloquium journals",
   "main": "plugin.js",

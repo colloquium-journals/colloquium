@@ -1,7 +1,7 @@
 // Quick test to debug the bot help issue
 const { CommandParser } = require('./packages/bots/dist/framework/commands.js');
-const { editorialBot } = require('./packages/editorial-bot/dist/index.js');
-const { reviewerChecklistBot } = require('./packages/reviewer-checklist-bot/dist/index.js');
+const { editorialBot } = require('./packages/bot-editorial/dist/index.js');
+const { reviewerChecklistBot } = require('./packages/bot-reviewer-checklist/dist/index.js');
 
 const parser = new CommandParser();
 

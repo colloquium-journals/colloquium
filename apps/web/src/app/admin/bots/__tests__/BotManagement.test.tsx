@@ -54,7 +54,7 @@ const mockBot = {
   isRequired: false,
   installedAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
-  packageName: '@colloquium/markdown-renderer-bot'
+  packageName: '@colloquium/bot-markdown-renderer'
 };
 
 const mockBotFile = {

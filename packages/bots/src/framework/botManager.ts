@@ -443,28 +443,28 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../../editorial-bot"),
+              path: path.resolve(__dirname, "../../../bot-editorial"),
             },
             // No config - will use default-config.yaml
           },
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../../reference-bot"),
+              path: path.resolve(__dirname, "../../../bot-reference"),
             },
             // No config - will use default-config.yaml
           },
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../../markdown-renderer-bot"),
+              path: path.resolve(__dirname, "../../../bot-markdown-renderer"),
             },
             // No config - will use default-config.yaml
           },
           {
             source: {
               type: "local" as const,
-              path: path.resolve(__dirname, "../../../reviewer-checklist-bot"),
+              path: path.resolve(__dirname, "../../../bot-reviewer-checklist"),
             },
             // No config - will use default-config.yaml
           },
@@ -473,28 +473,28 @@ export class DatabaseBotManager implements BotManager {
           {
             source: {
               type: "npm" as const,
-              packageName: "@colloquium/editorial-bot",
+              packageName: "@colloquium/bot-editorial",
             },
             // No config - will use default-config.yaml from npm package
           },
           {
             source: {
               type: "npm" as const,
-              packageName: "@colloquium/reference-bot",
+              packageName: "@colloquium/bot-reference",
             },
             // No config - will use default-config.yaml from npm package
           },
           {
             source: {
               type: "npm" as const,
-              packageName: "@colloquium/markdown-renderer-bot",
+              packageName: "@colloquium/bot-markdown-renderer",
             },
             // No config - will use default-config.yaml from npm package
           },
           {
             source: {
               type: "npm" as const,
-              packageName: "@colloquium/reviewer-checklist-bot",
+              packageName: "@colloquium/bot-reviewer-checklist",
             },
             // No config - will use default-config.yaml from npm package
           },
@@ -557,12 +557,9 @@ export class DatabaseBotManager implements BotManager {
       case "npm":
         return this.extractBotIdFromPackageName(source.packageName);
       case "local": {
-        // Folder names like "editorial-bot" become bot ID "bot-editorial"
+        // Folder names like "bot-editorial" are now the bot ID directly
         const folderName = path.basename(source.path);
-        if (folderName.endsWith('-bot')) {
-          return 'bot-' + folderName.slice(0, -4);
-        }
-        return 'bot-' + folderName;
+        return folderName;
       }
       case "git":
         return path.basename(source.url, ".git");
@@ -589,20 +586,13 @@ export class DatabaseBotManager implements BotManager {
   }
 
   private extractBotIdFromPackageName(packageName: string): string {
-    // Convert @colloquium/editorial-bot to bot-editorial
+    // Convert @colloquium/bot-editorial to bot-editorial
     const stripped = packageName.replace("@colloquium/", "");
-    // Package names like "editorial-bot" become bot ID "bot-editorial"
-    if (stripped.endsWith('-bot')) {
-      return 'bot-' + stripped.slice(0, -4);
-    }
-    return 'bot-' + stripped;
+    return stripped;
   }
 
   private constructPackageNameFromBotId(botId: string): string {
-    // Convert bot-editorial to @colloquium/editorial-bot
-    if (botId.startsWith('bot-')) {
-      return `@colloquium/${botId.slice(4)}-bot`;
-    }
+    // Convert bot-editorial to @colloquium/bot-editorial
     return `@colloquium/${botId}`;
   }
 
@@ -659,10 +649,10 @@ export class DatabaseBotManager implements BotManager {
       let source: BotInstallationSource;
       
       if (isDevelopment) {
-        const folderName = botId.startsWith('bot-') ? `${botId.slice(4)}-bot` : botId;
+        // Folder names now match bot IDs directly (e.g., bot-editorial)
         source = {
           type: "local",
-          path: path.resolve(__dirname, `../../../${folderName}`)
+          path: path.resolve(__dirname, `../../../${botId}`)
         };
       } else {
         source = {
@@ -706,11 +696,10 @@ export class DatabaseBotManager implements BotManager {
         let source: BotInstallationSource;
         
         if (isDevelopment) {
-          // In development, use local paths - correct the botId to match folder names
-          const folderName = botId.startsWith('bot-') ? `${botId.slice(4)}-bot` : botId;
+          // In development, use local paths - folder names now match bot IDs directly
           source = {
             type: "local",
-            path: path.resolve(__dirname, `../../../${folderName}`)
+            path: path.resolve(__dirname, `../../../${botId}`)
           };
         } else {
           // In production, use npm packages

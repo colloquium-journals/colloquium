@@ -44,7 +44,7 @@ Bots that require external tools, languages, or complex processing environments.
 
 **Architecture:**
 ```
-packages/markdown-renderer-bot/
+packages/bot-markdown-renderer/
 ├── src/
 │   └── index.ts           # Bot implementation
 ├── docker/

@@ -703,8 +703,8 @@ For open continuous workflow, everyone sees the same conversation without phase 
 | `apps/api/src/services/workflowParticipation.ts` | New: participation logic |
 | `apps/api/src/routes/conversations.ts` | Apply visibility/participation |
 | `apps/api/src/routes/journal-settings.ts` | Handle workflow config |
-| `packages/editorial-bot/src/commands/release.ts` | New: release command |
-| `packages/editorial-bot/src/commands/revise.ts` | New: revise command |
+| `packages/bot-editorial/src/commands/release.ts` | New: release command |
+| `packages/bot-editorial/src/commands/revise.ts` | New: revise command |
 | `apps/web/src/app/admin/settings/workflow/page.tsx` | New: config UI |
 | `apps/web/src/components/workflow/TemplateSelector.tsx` | New: template picker |
 | `apps/web/src/components/workflow/ConfigDisplay.tsx` | New: config display |

@@ -43,10 +43,10 @@ export { NodeBotPluginLoader } from './framework/pluginLoader';
 export { DatabaseBotManager } from './framework/botManager';
 
 // All core bots have been moved to standalone packages:
-// - @colloquium/editorial-bot
-// - @colloquium/reference-bot
-// - @colloquium/markdown-renderer-bot
-// - @colloquium/reviewer-checklist-bot
+// - @colloquium/bot-editorial
+// - @colloquium/bot-reference
+// - @colloquium/bot-markdown-renderer
+// - @colloquium/bot-reviewer-checklist
 
 // No legacy core bots remain
 

@@ -17,7 +17,7 @@ const mockBotInstallations = [
     isRequired: true,
     installedAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    packageName: '@colloquium/editorial-bot',
+    packageName: '@colloquium/bot-editorial',
     supportsFileUploads: false
   },
   {
@@ -32,7 +32,7 @@ const mockBotInstallations = [
     isRequired: false,
     installedAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    packageName: '@colloquium/markdown-renderer-bot',
+    packageName: '@colloquium/bot-markdown-renderer',
     supportsFileUploads: true
   },
   {
@@ -47,7 +47,7 @@ const mockBotInstallations = [
     isRequired: false,
     installedAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    packageName: '@colloquium/reference-bot',
+    packageName: '@colloquium/bot-reference',
     supportsFileUploads: false
   },
   {
@@ -62,7 +62,7 @@ const mockBotInstallations = [
     isRequired: false,
     installedAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
-    packageName: '@colloquium/reviewer-checklist-bot',
+    packageName: '@colloquium/bot-reviewer-checklist',
     supportsFileUploads: false
   }
 ];

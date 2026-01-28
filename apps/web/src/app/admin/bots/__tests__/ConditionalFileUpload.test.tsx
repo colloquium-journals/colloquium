@@ -41,7 +41,7 @@ const mockRendererBot = {
   isRequired: false,
   installedAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
-  packageName: '@colloquium/markdown-renderer-bot',
+  packageName: '@colloquium/bot-markdown-renderer',
   supportsFileUploads: true
 };
 
@@ -57,7 +57,7 @@ const mockRegularBot = {
   isRequired: true,
   installedAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
-  packageName: '@colloquium/editorial-bot',
+  packageName: '@colloquium/bot-editorial',
   supportsFileUploads: false
 };
 

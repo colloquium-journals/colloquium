@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { papers, createSeedFiles } from './seed-content';
-import { renderMarkdown } from '@colloquium/markdown-renderer-bot';
+import { renderMarkdown } from '@colloquium/bot-markdown-renderer';
 
 // Traditional double-blind workflow config (defined inline to avoid import issues with tsx)
 const traditionalBlindWorkflowConfig = {

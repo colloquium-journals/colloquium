@@ -1,7 +1,7 @@
 {
-  "name": "@colloquium/editorial-bot",
+  "name": "@colloquium/bot-reviewer-checklist",
   "version": "1.0.0",
-  "description": "Editorial workflow management bot for Colloquium journals",
+  "description": "Interactive reviewer checklist bot for systematic manuscript evaluation",
   "main": "plugin.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -21,10 +21,11 @@
   "keywords": [
     "colloquium",
     "bot",
-    "editorial",
+    "reviewer",
+    "checklist",
+    "evaluation",
     "manuscript",
-    "workflow",
-    "publishing"
+    "review"
   ],
   "author": "Colloquium Team",
   "license": "MIT",
@@ -44,12 +45,11 @@
     "access": "public"
   },
   "colloquium": {
-    "botId": "bot-editorial",
+    "botId": "bot-reviewer-checklist",
     "apiVersion": "1.0.0",
     "permissions": [
-      "update_manuscript",
-      "assign_reviewers",
-      "send_notifications"
+      "read_manuscript",
+      "send_messages"
     ],
     "isDefault": true
   }

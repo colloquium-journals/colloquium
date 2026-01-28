@@ -1,5 +1,5 @@
 {
-  "name": "@colloquium/markdown-renderer-bot",
+  "name": "@colloquium/bot-markdown-renderer",
   "version": "1.0.0",
   "description": "Markdown manuscript renderer with configurable journal templates for Colloquium",
   "main": "plugin.js",
