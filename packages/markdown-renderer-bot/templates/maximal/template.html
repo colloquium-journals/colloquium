@@ -111,27 +111,6 @@ $endif$
             -moz-osx-font-smoothing: grayscale;
         }
 
-        /* Skip link for accessibility */
-        .skip-link {
-            position: absolute;
-            top: -50px;
-            left: 16px;
-            background: var(--color-accent);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 0 0 8px 8px;
-            z-index: 1000;
-            text-decoration: none;
-            font-family: 'Inter', sans-serif;
-            font-size: 14px;
-            font-weight: 500;
-            transition: top 0.2s;
-        }
-        .skip-link:focus {
-            top: 0;
-            outline: none;
-        }
-
         /* Version/Preprint banner */
         .version-banner {
             background: var(--color-warning-bg);
@@ -596,7 +575,6 @@ $endif$
                 padding: 0;
             }
 
-            .skip-link,
             .version-banner {
                 display: none !important;
             }
@@ -638,8 +616,6 @@ $endif$
 $if(customCss)$    <style>$customCss$</style>
 $endif$</head>
 <body>
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-
     <article>
 $if(isPreprint)$
         <div class="version-banner" role="alert">
