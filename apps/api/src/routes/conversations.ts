@@ -21,6 +21,8 @@ import {
   handleAuthorResponse,
   getParticipationStatus
 } from '../services/workflowParticipation';
+import { getJournalSettings } from './settings';
+import { getUserInvolvedManuscriptIds } from '../services/userInvolvement';
 
 const router = Router();
 
@@ -116,7 +118,7 @@ function getDefaultPrivacyLevel(userRole: string | undefined): string {
 // GET /api/conversations - List conversations
 router.get('/', optionalAuth, async (req, res, next) => {
   try {
-    const { 
+    const {
       manuscriptId,
       search,
       manuscriptStatus,
@@ -128,13 +130,56 @@ router.get('/', optionalAuth, async (req, res, next) => {
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
+    // Check publicSubmissionsVisible setting
+    const journalSettings = await getJournalSettings();
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
     // Build where clause
     const where: any = {};
     if (manuscriptId) where.manuscriptId = manuscriptId as string;
-    
+
+    // Apply involvement filter if publicSubmissionsVisible is false
+    if (!journalSettings.publicSubmissionsVisible) {
+      // ADMIN and EDITOR_IN_CHIEF see all
+      if (userRole !== 'ADMIN' && userRole !== 'EDITOR_IN_CHIEF') {
+        if (!userId) {
+          // Non-authenticated users see nothing
+          return res.json({
+            conversations: [],
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: 0,
+              pages: 0
+            }
+          });
+        }
+
+        // Get manuscripts where user is involved
+        const involvedManuscriptIds = await getUserInvolvedManuscriptIds(userId);
+
+        if (involvedManuscriptIds.length === 0) {
+          // User has no involvement, return empty list
+          return res.json({
+            conversations: [],
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: 0,
+              pages: 0
+            }
+          });
+        }
+
+        // Filter to only involved manuscripts
+        where.manuscriptId = { in: involvedManuscriptIds };
+      }
+    }
+
     // Initialize manuscript filter object
     let manuscriptFilter: any = {};
-    
+
     // Filter by manuscript status
     if (manuscriptStatus === 'active') {
       // Show only manuscripts in review process
@@ -147,7 +192,7 @@ router.get('/', optionalAuth, async (req, res, next) => {
         in: ['PUBLISHED', 'REJECTED', 'RETRACTED']
       };
     }
-    
+
     // Add search functionality
     if (search && typeof search === 'string' && search.trim()) {
       const searchTerm = search.trim();

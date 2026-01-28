@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  Title, 
-  Grid, 
-  Card, 
-  Text, 
-  Badge, 
-  Group, 
-  Stack, 
-  Loader, 
+import {
+  Title,
+  Grid,
+  Card,
+  Text,
+  Badge,
+  Group,
+  Stack,
+  Loader,
   Alert,
   TextInput,
   Select,
@@ -20,18 +20,20 @@ import {
   Divider,
   Paper
 } from '@mantine/core';
-import { 
-  IconSearch, 
-  IconAlertCircle, 
-  IconMessage, 
-  IconUsers, 
+import {
+  IconSearch,
+  IconAlertCircle,
+  IconMessage,
+  IconUsers,
   IconClock,
   IconPlus,
-  IconRobot
+  IconRobot,
+  IconLock
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
+import { useUserAccess } from '@/hooks/useUserAccess';
 interface Submission {
   id: string;
   title: string;
@@ -70,6 +72,7 @@ interface SubmissionsResponse {
 
 export default function SubmissionsPage() {
   const router = useRouter();
+  const { canSeeSubmissions, reason, loading: accessLoading } = useUserAccess();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -164,6 +167,39 @@ export default function SubmissionsPage() {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
+
+  // Show loading while checking access
+  if (accessLoading) {
+    return (
+      <Stack align="center" gap="md" py="xl">
+        <Loader size="lg" />
+        <Text>Loading...</Text>
+      </Stack>
+    );
+  }
+
+  // Show access denied message if user cannot see submissions
+  if (!canSeeSubmissions) {
+    return (
+      <Stack py="xl">
+        <Breadcrumbs items={[{ title: 'Submissions' }]} />
+        <Paper p="xl" radius="md" withBorder>
+          <Stack align="center" gap="md">
+            <IconLock size={48} color="gray" />
+            <Title order={2}>Access Restricted</Title>
+            <Text c="dimmed" ta="center" maw={500}>
+              The submissions list is only visible to users who are involved with manuscripts
+              as authors, reviewers, or editors. If you believe you should have access,
+              please contact the journal administrators.
+            </Text>
+            <Button component={Link} href="/" variant="light">
+              Return to Home
+            </Button>
+          </Stack>
+        </Paper>
+      </Stack>
+    );
+  }
 
   if (loading && submissions.length === 0) {
     return (

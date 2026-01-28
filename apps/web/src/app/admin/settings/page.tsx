@@ -154,6 +154,9 @@ interface JournalSettings {
   allowPublicReviews: boolean;
   requireReviewerRegistration: boolean;
 
+  // Visibility Settings
+  publicSubmissionsVisible: boolean;
+
   // Workflow Settings
   workflowTemplateId?: string;
   workflowConfig?: {
@@ -253,6 +256,7 @@ export default function JournalSettingsPage() {
     defaultReviewPeriod: 30,
     allowPublicReviews: true,
     requireReviewerRegistration: true,
+    publicSubmissionsVisible: true,
     licenseType: 'CC BY 4.0',
     copyrightHolder: '',
     enableEmailNotifications: true,
@@ -1305,6 +1309,13 @@ export default function JournalSettingsPage() {
                   description="Allow new manuscript submissions"
                   checked={settings.submissionsOpen}
                   onChange={(e) => setSettings({ ...settings, submissionsOpen: e.currentTarget.checked })}
+                />
+
+                <Switch
+                  label="Public Submissions Visibility"
+                  description="When enabled, the Submissions tab is visible to everyone. When disabled, only users involved with manuscripts (authors, reviewers, editors) can see it."
+                  checked={settings.publicSubmissionsVisible}
+                  onChange={(e) => setSettings({ ...settings, publicSubmissionsVisible: e.currentTarget.checked })}
                 />
 
                 <NumberInput

@@ -20,6 +20,7 @@ import { IconUser, IconLogout, IconLogin, IconSettings, IconRobot, IconSun, Icon
 import { useAuth } from '@/contexts/AuthContext';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useUserAccess } from '@/hooks/useUserAccess';
 import { Footer } from './Footer';
 
 interface AppShellLayoutProps {
@@ -34,6 +35,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
   const { user, logout, isAuthenticated } = useAuth();
   const { settings, loading } = useJournalSettings();
   const { colorScheme, themeMode, setThemeMode, isDarkModeEnabled } = useTheme();
+  const { canSeeSubmissions } = useUserAccess();
   
   const toggleNav = () => setNavOpened(!navOpened);
   const closeNav = () => setNavOpened(false);
@@ -57,21 +59,22 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
 
   // Filter navigation items based on user role and authentication
   const staticNavigationItems = [
-    { 
-      label: 'Home', 
-      href: '/', 
+    {
+      label: 'Home',
+      href: '/',
       requiresAuth: false // Public access
     },
-    { 
-      label: 'Articles', 
-      href: '/articles', 
+    {
+      label: 'Articles',
+      href: '/articles',
       requiresAuth: false // Public access
     },
-    { 
-      label: 'Submissions', 
-      href: '/submissions', 
-      requiresAuth: false // Public access (filtered by API)
-    }
+    // Only include Submissions if user has access
+    ...(canSeeSubmissions ? [{
+      label: 'Submissions',
+      href: '/submissions',
+      requiresAuth: false // Access controlled by useUserAccess hook
+    }] : [])
   ];
 
   // Add dynamic section navigation items

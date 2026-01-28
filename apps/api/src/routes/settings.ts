@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate } from '../middleware/auth';
+import { authenticate, optionalAuth } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { prisma } from '@colloquium/database';
 import { WorkflowConfigSchema } from '@colloquium/types';
+import { userHasSubmissionsAccess } from '../services/userInvolvement';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -100,6 +101,9 @@ const JournalSettingsSchema = z.object({
   allowPublicReviews: z.boolean().default(true),
   requireReviewerRegistration: z.boolean().default(true),
 
+  // Visibility Settings
+  publicSubmissionsVisible: z.boolean().default(true),
+
   // Workflow Settings
   workflowTemplateId: z.string().optional(),
   workflowConfig: WorkflowConfigSchema.optional(),
@@ -188,6 +192,7 @@ const defaultSettings = {
   defaultReviewPeriod: 30,
   allowPublicReviews: true,
   requireReviewerRegistration: true,
+  publicSubmissionsVisible: true,
   workflowTemplateId: undefined as string | undefined,
   workflowConfig: undefined as any,
   issn: undefined as string | undefined,
@@ -324,6 +329,7 @@ router.get('/', async (req, res, next) => {
       requireOrcid: journalSettings.requireOrcid,
       allowPublicReviews: journalSettings.allowPublicReviews,
       requireReviewerRegistration: journalSettings.requireReviewerRegistration,
+      publicSubmissionsVisible: journalSettings.publicSubmissionsVisible,
       licenseType: journalSettings.licenseType,
       copyrightHolder: journalSettings.copyrightHolder,
       customFooter: journalSettings.customFooter,
@@ -426,10 +432,47 @@ router.post('/logo',
 router.get('/maintenance', async (req, res, next) => {
   try {
     const journalSettings = await getJournalSettings();
-    
-    res.json({ 
+
+    res.json({
       maintenanceMode: journalSettings.maintenanceMode,
       message: journalSettings.maintenanceMode ? 'The journal is currently under maintenance' : null
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/settings/user-access - Check user's access to submissions
+router.get('/user-access', optionalAuth, async (req, res, next) => {
+  try {
+    const journalSettings = await getJournalSettings();
+
+    // If public submissions are visible, everyone can see them
+    if (journalSettings.publicSubmissionsVisible) {
+      return res.json({
+        canSeeSubmissions: true,
+        reason: 'public'
+      });
+    }
+
+    // If setting is false, check user involvement
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    // ADMIN and EDITOR_IN_CHIEF always have access
+    if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF') {
+      return res.json({
+        canSeeSubmissions: true,
+        reason: 'admin'
+      });
+    }
+
+    // Check if user is involved with any manuscript
+    const hasAccess = await userHasSubmissionsAccess(userId, userRole);
+
+    return res.json({
+      canSeeSubmissions: hasAccess,
+      reason: hasAccess ? 'involved' : 'no_involvement'
     });
   } catch (error) {
     next(error);
