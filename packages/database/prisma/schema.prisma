@@ -216,6 +216,8 @@ model manuscripts {
   crossrefStatus       String?              // pending, success, failed
   crossrefError        String?
   crossrefRegisteredAt DateTime?
+  // Subject classification for PMC/JATS
+  subjects             String[]   @default([])
   action_editors       action_editors?
   conversations        conversations[]
   manuscript_authors   manuscript_authors[]

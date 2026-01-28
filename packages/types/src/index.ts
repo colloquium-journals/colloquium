@@ -351,3 +351,6 @@ export * from './workflowTemplates';
 
 // Re-export CRediT roles
 export * from './creditRoles';
+
+// Re-export JATS types for PMC compliance
+export * from './jatsTypes';

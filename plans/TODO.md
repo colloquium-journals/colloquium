@@ -7,10 +7,10 @@ High-level roadmap of unimplemented features and planned work.
 - [x] PDF generation via Pandoc (see [markdown-renderer-pandoc-implementation-plan.md](markdown-renderer-pandoc-implementation-plan.md))
 - [x] Multi-engine template system: HTML, LaTeX, Typst (see [document-rendering-templating-plan.md](document-rendering-templating-plan.md))
 - [x] Journal-configurable typesetting engine selection (see [robust-typesetting-publishing-plan.md](robust-typesetting-publishing-plan.md))
-- [ ] DOI assignment and indexing services (see [doi-crossref-indexing-plan.md](doi-crossref-indexing-plan.md))
+- [x] DOI assignment and indexing services (see [doi-crossref-indexing-plan.md](doi-crossref-indexing-plan.md))
   - [x] Phase 1: Core Crossref integration (journal settings, DOI minting, XML deposit)
   - [x] Phase 2: Enhanced metadata (structured affiliations, CRediT roles, funding)
-  - [ ] Phase 3: Full JATS compliance (JATS XML export, PMC compatibility)
+  - [x] Phase 3: Full JATS compliance (JATS XML export, PMC compatibility)
   - [x] Google Scholar meta tag generation
   - [x] DOAJ integration
 - [ ] Publication preview system for authors/editors

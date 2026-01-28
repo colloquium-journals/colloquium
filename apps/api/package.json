@@ -27,6 +27,8 @@
     "@colloquium/types": "*",
     "@google-cloud/storage": "^7.7.0",
     "axios": "^1.9.0",
+    "@citation-js/core": "^0.7.14",
+    "@citation-js/plugin-bibtex": "^0.7.14",
     "bcrypt": "^5.1.1",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",

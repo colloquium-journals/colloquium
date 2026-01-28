@@ -2149,8 +2149,187 @@ router.get('/:id/reviewers/:reviewerId', authenticateWithBots, async (req, res, 
   }
 });
 
-// NOTE: Manual conversation creation has been removed. 
+// NOTE: Manual conversation creation has been removed.
 // Conversations are now automatically created when manuscripts are submitted.
 // This ensures all discussions are tied to specific manuscript submissions.
+
+// ===========================================
+// JATS XML Export Endpoints
+// ===========================================
+
+import { jatsService } from '../services/jatsService';
+
+// GET /api/articles/:id/export/jats - Generate and return JATS XML for a published manuscript
+router.get('/:id/export/jats', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Verify manuscript exists and is published
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id },
+      select: { status: true, title: true }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: 'Manuscript not found',
+        message: `No manuscript found with ID: ${id}`
+      });
+    }
+
+    if (manuscript.status !== 'PUBLISHED') {
+      return res.status(400).json({
+        error: 'Not published',
+        message: 'Only published manuscripts can export JATS XML'
+      });
+    }
+
+    const result = await jatsService.generateJatsXml(id);
+
+    if (!result.success) {
+      return res.status(500).json({
+        error: 'JATS generation failed',
+        message: result.error
+      });
+    }
+
+    // Set headers for XML download
+    const safeTitle = manuscript.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
+    res.set('Content-Type', 'application/xml');
+    res.set('Content-Disposition', `attachment; filename="${safeTitle}.jats.xml"`);
+    res.send(result.xml);
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/articles/:id/export/jats/validate - Validate JATS XML against PMC requirements
+router.post('/:id/export/jats/validate', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Verify manuscript exists
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id },
+      select: { status: true }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: 'Manuscript not found',
+        message: `No manuscript found with ID: ${id}`
+      });
+    }
+
+    if (manuscript.status !== 'PUBLISHED') {
+      return res.status(400).json({
+        error: 'Not published',
+        message: 'Only published manuscripts can validate JATS XML'
+      });
+    }
+
+    // Generate JATS XML
+    const result = await jatsService.generateJatsXml(id);
+
+    if (!result.success) {
+      return res.status(500).json({
+        error: 'JATS generation failed',
+        message: result.error
+      });
+    }
+
+    // Validate the generated XML
+    const validation = jatsService.validateForPmc(result.xml!);
+
+    res.json({
+      manuscriptId: id,
+      validation: validation,
+      xmlPreview: result.xml!.substring(0, 500) + '...',
+      externalValidators: {
+        pmcStyleChecker: 'https://pmc.ncbi.nlm.nih.gov/pub/validation/',
+        jats4rValidator: 'https://jats4r.niso.org/jats4r-validator/',
+        pmcArticlePreviewer: 'https://pmc.ncbi.nlm.nih.gov/tools/article-previewer-intro/'
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/articles/:id/subjects - Update subject classifications
+router.put('/:id/subjects', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { subjects } = req.body;
+
+    // Validate input
+    if (!Array.isArray(subjects)) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'subjects must be an array of strings'
+      });
+    }
+
+    // Validate each subject is a string
+    if (!subjects.every(s => typeof s === 'string')) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'All subjects must be strings'
+      });
+    }
+
+    // Check if manuscript exists
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id },
+      include: {
+        manuscript_authors: true,
+        action_editors: true
+      }
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({
+        error: 'Manuscript not found',
+        message: `No manuscript found with ID: ${id}`
+      });
+    }
+
+    // Check permissions - authors, action editors, and admins can update subjects
+    const isAuthor = manuscript.manuscript_authors.some((ma: any) => ma.userId === req.user!.id);
+    const isActionEditor = manuscript.action_editors?.editorId === req.user!.id;
+    const isAdmin = req.user!.role === GlobalRole.ADMIN || req.user!.role === GlobalRole.EDITOR_IN_CHIEF;
+
+    if (!isAuthor && !isActionEditor && !isAdmin) {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'You do not have permission to update subject classifications'
+      });
+    }
+
+    // Update subjects
+    const updatedManuscript = await prisma.manuscripts.update({
+      where: { id },
+      data: {
+        subjects: subjects.map(s => s.trim()).filter(Boolean),
+        updatedAt: new Date()
+      },
+      select: {
+        id: true,
+        subjects: true,
+        updatedAt: true
+      }
+    });
+
+    res.json({
+      message: 'Subject classifications updated successfully',
+      manuscript: updatedManuscript
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

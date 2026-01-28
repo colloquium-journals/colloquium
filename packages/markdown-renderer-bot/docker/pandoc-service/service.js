@@ -170,6 +170,15 @@ app.post('/convert', upload.none(), async (req, res) => {
       if (selfContained) {
         args.push('--self-contained'); // Include images and CSS inline
       }
+    } else if (outputFormat === 'jats') {
+      // JATS XML output for PMC/PubMed Central compliance
+      args.push('--to', 'jats_publishing');
+      args.push('--standalone');
+      // Include citations if bibliography provided
+      if (bibliographyFile) {
+        args.push('--bibliography', `"${bibliographyFile}"`);
+        args.push('--citeproc');
+      }
     }
 
     // Add template if provided
@@ -264,7 +273,15 @@ app.post('/convert', upload.none(), async (req, res) => {
         console.log(`Conversion successful. Output size: ${stats.size} bytes`);
         
         // Set appropriate headers
-        res.setHeader('Content-Type', outputFormat === 'pdf' ? 'application/pdf' : 'application/octet-stream');
+        let contentType = 'application/octet-stream';
+        if (outputFormat === 'pdf') {
+          contentType = 'application/pdf';
+        } else if (outputFormat === 'html') {
+          contentType = 'text/html';
+        } else if (outputFormat === 'jats') {
+          contentType = 'application/xml';
+        }
+        res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Length', stats.size);
         res.setHeader('X-Conversion-Engine', engine);
         res.setHeader('X-Output-Format', outputFormat);
