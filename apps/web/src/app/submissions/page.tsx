@@ -287,72 +287,88 @@ export default function SubmissionsPage() {
         <Paper radius="md" withBorder>
           {submissions.map((submission, index) => (
             <div key={submission.id}>
-              <Group gap="md" p="md" align="flex-start">
-                {/* Main content */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <Stack gap="xs">
-                    <Anchor
-                      component={Link}
-                      href={`/submissions/${submission.id}`}
-                      fw={600}
-                      lineClamp={1}
+              <Stack gap="xs" p="md">
+                {/* Title and stats row */}
+                <Group gap="md" align="flex-start" wrap="nowrap">
+                  <Anchor
+                    component={Link}
+                    href={`/submissions/${submission.id}`}
+                    fw={600}
+                    lineClamp={1}
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    {submission.manuscript.title}
+                  </Anchor>
+
+                  {/* Stats - visible on larger screens */}
+                  <Group gap="xs" visibleFrom="sm" style={{ flexShrink: 0 }}>
+                    <Badge
+                      size="xs"
+                      variant="light"
+                      color={getStatusColor(submission.manuscript.status)}
                     >
-                      {submission.manuscript.title}
-                    </Anchor>
-                    
-                    <Text size="sm" c="dimmed" lineClamp={1}>
-                      {submission.manuscript.authors.join(', ')}
-                    </Text>
+                      {submission.manuscript.status.replace('_', ' ')}
+                    </Badge>
+                    <Group gap={4}>
+                      <IconMessage size={14} />
+                      <Text size="sm" c="dimmed">{submission.messageCount}</Text>
+                    </Group>
+                    <Group gap={4}>
+                      <IconUsers size={14} />
+                      <Text size="sm" c="dimmed">{submission.participantCount}</Text>
+                    </Group>
+                  </Group>
+                </Group>
 
-                    {/* Last activity */}
-                    {submission.lastMessage && (
-                      <Group gap="xs" align="center">
-                        <Avatar size={16} color={submission.lastMessage.isBot ? 'blue' : 'gray'}>
-                          {submission.lastMessage.isBot ? (
-                            <IconRobot size={10} />
-                          ) : (
-                            submission.lastMessage.author.name.charAt(0)
-                          )}
-                        </Avatar>
-                        <Text size="xs" c="dimmed">
-                          {submission.lastMessage.author.name}
-                        </Text>
-                        {submission.lastMessage.isBot && (
-                          <Badge size="xs" variant="light" color="blue">
-                            Bot
-                          </Badge>
+                {/* Authors */}
+                <Text size="sm" c="dimmed" lineClamp={1}>
+                  {submission.manuscript.authors.join(', ')}
+                </Text>
+
+                {/* Footer row: last activity + status on mobile */}
+                <Group gap="xs" justify="space-between" align="center">
+                  {/* Last activity */}
+                  {submission.lastMessage ? (
+                    <Group gap="xs" align="center" style={{ minWidth: 0 }}>
+                      <Avatar size={16} color={submission.lastMessage.isBot ? 'blue' : 'gray'}>
+                        {submission.lastMessage.isBot ? (
+                          <IconRobot size={10} />
+                        ) : (
+                          submission.lastMessage.author.name.charAt(0)
                         )}
-                        <Text size="xs" c="dimmed">•</Text>
-                        <Text size="xs" c="dimmed">
-                          {formatTimeAgo(submission.updatedAt)}
-                        </Text>
-                      </Group>
-                    )}
-                  </Stack>
-                </div>
+                      </Avatar>
+                      <Text size="xs" c="dimmed" truncate>
+                        {submission.lastMessage.author.name}
+                      </Text>
+                      {submission.lastMessage.isBot && (
+                        <Badge size="xs" variant="light" color="blue">
+                          Bot
+                        </Badge>
+                      )}
+                      <Text size="xs" c="dimmed">•</Text>
+                      <Text size="xs" c="dimmed">
+                        {formatTimeAgo(submission.updatedAt)}
+                      </Text>
+                    </Group>
+                  ) : (
+                    <Text size="xs" c="dimmed">
+                      {formatTimeAgo(submission.updatedAt)}
+                    </Text>
+                  )}
 
-                {/* Stats and Status */}
-                <Group gap="md" style={{ flexShrink: 0 }}>
-                  {/* Status Badge */}
-                  <Badge 
-                    size="sm" 
-                    variant="light" 
+                  {/* Status badge - visible on mobile only */}
+                  <Badge
+                    size="xs"
+                    variant="light"
                     color={getStatusColor(submission.manuscript.status)}
+                    hiddenFrom="sm"
+                    style={{ flexShrink: 0 }}
                   >
                     {submission.manuscript.status.replace('_', ' ')}
                   </Badge>
-
-                  <Group gap={4}>
-                    <IconMessage size={14} />
-                    <Text size="sm" c="dimmed">{submission.messageCount}</Text>
-                  </Group>
-                  <Group gap={4}>
-                    <IconUsers size={14} />
-                    <Text size="sm" c="dimmed">{submission.participantCount}</Text>
-                  </Group>
                 </Group>
-              </Group>
-              
+              </Stack>
+
               {index < submissions.length - 1 && <Divider />}
             </div>
           ))}

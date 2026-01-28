@@ -172,41 +172,45 @@ export default function HomePage() {
         </Stack>
 
         {/* Main Content - Two Column Layout */}
-        <Group align="flex-start" gap="xl">
+        <Grid gutter="xl" align="flex-start">
           {/* Recent Publications - Left Column */}
-          <Stack gap="md" style={{ flex: 2 }}>
-            <Group justify="space-between" align="center">
-              <Title order={2} size="h3">
-                Recent Publications
-              </Title>
-              <Anchor component={Link} href="/articles" size="sm">
-                View all articles →
-              </Anchor>
-            </Group>
-            
-            <Suspense fallback={<RecentArticlesSkeleton />}>
-              <RecentArticles />
-            </Suspense>
-          </Stack>
-          
-          {/* About Section - Right Column */}
-          <Card shadow="sm" padding="xl" radius="md" style={{ flex: 1, minWidth: 300 }}>
+          <Grid.Col span={{ base: 12, lg: 8 }}>
             <Stack gap="md">
-              <Title order={2} size="h3">
-                About the Journal
-              </Title>
-              <Text>
-                {journalSettings.description || 'This journal is committed to advancing scientific knowledge through open, transparent, and collaborative research practices.'}
-              </Text>
-              {journalSettings.publisherName && (
-                <Text size="sm" c="dimmed">
-                  Published by {journalSettings.publisherName}
-                  {journalSettings.publisherLocation && ` • ${journalSettings.publisherLocation}`}
-                </Text>
-              )}
+              <Group justify="space-between" align="center">
+                <Title order={2} size="h3">
+                  Recent Publications
+                </Title>
+                <Anchor component={Link} href="/articles" size="sm">
+                  View all articles →
+                </Anchor>
+              </Group>
+
+              <Suspense fallback={<RecentArticlesSkeleton />}>
+                <RecentArticles />
+              </Suspense>
             </Stack>
-          </Card>
-        </Group>
+          </Grid.Col>
+
+          {/* About Section - Right Column */}
+          <Grid.Col span={{ base: 12, lg: 4 }}>
+            <Card shadow="sm" padding="xl" radius="md">
+              <Stack gap="md">
+                <Title order={2} size="h3">
+                  About the Journal
+                </Title>
+                <Text>
+                  {journalSettings.description || 'This journal is committed to advancing scientific knowledge through open, transparent, and collaborative research practices.'}
+                </Text>
+                {journalSettings.publisherName && (
+                  <Text size="sm" c="dimmed">
+                    Published by {journalSettings.publisherName}
+                    {journalSettings.publisherLocation && ` • ${journalSettings.publisherLocation}`}
+                  </Text>
+                )}
+              </Stack>
+            </Card>
+          </Grid.Col>
+        </Grid>
       </Stack>
     </Container>
   );

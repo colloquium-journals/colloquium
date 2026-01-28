@@ -840,30 +840,32 @@ export default function SubmitArticlePage() {
                       <Text size="sm" fw={500}>
                         Preview ({importedAuthors.length} author{importedAuthors.length !== 1 ? 's' : ''} found):
                       </Text>
-                      <Table striped withTableBorder>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Email</Table.Th>
-                            <Table.Th>Name</Table.Th>
-                            <Table.Th>Affiliation</Table.Th>
-                            <Table.Th>Corresponding</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {importedAuthors.map((author, index) => (
-                            <Table.Tr key={index}>
-                              <Table.Td>{author.email}</Table.Td>
-                              <Table.Td>{author.name}</Table.Td>
-                              <Table.Td>{author.affiliation || '—'}</Table.Td>
-                              <Table.Td>
-                                {author.isCorresponding ? (
-                                  <Badge color="blue" size="sm">Yes</Badge>
-                                ) : '—'}
-                              </Table.Td>
+                      <Table.ScrollContainer minWidth={500}>
+                        <Table striped withTableBorder>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Email</Table.Th>
+                              <Table.Th>Name</Table.Th>
+                              <Table.Th>Affiliation</Table.Th>
+                              <Table.Th>Corresponding</Table.Th>
                             </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {importedAuthors.map((author, index) => (
+                              <Table.Tr key={index}>
+                                <Table.Td>{author.email}</Table.Td>
+                                <Table.Td>{author.name}</Table.Td>
+                                <Table.Td>{author.affiliation || '—'}</Table.Td>
+                                <Table.Td>
+                                  {author.isCorresponding ? (
+                                    <Badge color="blue" size="sm">Yes</Badge>
+                                  ) : '—'}
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </Table.ScrollContainer>
                       <Group justify="flex-end">
                         <Button
                           variant="outline"
@@ -902,57 +904,63 @@ export default function SubmitArticlePage() {
                         backgroundColor: 'var(--mantine-color-gray-0)'
                       }}>
                         <Stack gap="sm">
-                          <Group align="flex-start" gap="sm">
-                            <Stack gap="xs" style={{ flex: 1 }}>
-                              <TextInput
-                                label={`Author ${index + 1} Email`}
-                                placeholder="Enter email address"
-                                value={author.email}
-                                onChange={(e) => updateAuthor(index, 'email', e.target.value)}
-                                onBlur={(e) => lookupUserByEmail(e.target.value, index)}
-                                required
-                                rightSection={authorLookupLoading[index] ? <Loader size="xs" /> : null}
-                              />
-                              {author.isExistingUser && (
-                                <Text size="xs" c="green">
-                                  ✓ Existing user found
-                                </Text>
-                              )}
-                              {!author.isExistingUser && author.email && (
-                                <Text size="xs" c="orange">
-                                  New user - will create account
-                                </Text>
-                              )}
-                            </Stack>
-                            
-                            <Stack gap="xs" style={{ flex: 1 }}>
-                              <TextInput
-                                label="Full Name"
-                                placeholder="Enter full name"
-                                value={author.name}
-                                onChange={(e) => updateAuthor(index, 'name', e.target.value)}
-                                required
-                                disabled={author.isExistingUser}
-                              />
-                              {author.isExistingUser && author.name && (
-                                <Text size="xs" c="green">
-                                  ✓ From existing account profile
-                                </Text>
-                              )}
-                            </Stack>
-                            
+                          <Grid gutter="sm" align="flex-start">
+                            <Grid.Col span={{ base: 12, sm: 6 }}>
+                              <Stack gap="xs">
+                                <TextInput
+                                  label={`Author ${index + 1} Email`}
+                                  placeholder="Enter email address"
+                                  value={author.email}
+                                  onChange={(e) => updateAuthor(index, 'email', e.target.value)}
+                                  onBlur={(e) => lookupUserByEmail(e.target.value, index)}
+                                  required
+                                  rightSection={authorLookupLoading[index] ? <Loader size="xs" /> : null}
+                                />
+                                {author.isExistingUser && (
+                                  <Text size="xs" c="green">
+                                    ✓ Existing user found
+                                  </Text>
+                                )}
+                                {!author.isExistingUser && author.email && (
+                                  <Text size="xs" c="orange">
+                                    New user - will create account
+                                  </Text>
+                                )}
+                              </Stack>
+                            </Grid.Col>
+
+                            <Grid.Col span={{ base: form.values.authors.length > 1 ? 11 : 12, sm: form.values.authors.length > 1 ? 5 : 6 }}>
+                              <Stack gap="xs">
+                                <TextInput
+                                  label="Full Name"
+                                  placeholder="Enter full name"
+                                  value={author.name}
+                                  onChange={(e) => updateAuthor(index, 'name', e.target.value)}
+                                  required
+                                  disabled={author.isExistingUser}
+                                />
+                                {author.isExistingUser && author.name && (
+                                  <Text size="xs" c="green">
+                                    ✓ From existing account profile
+                                  </Text>
+                                )}
+                              </Stack>
+                            </Grid.Col>
+
                             {form.values.authors.length > 1 && (
-                              <ActionIcon 
-                                variant="outline" 
-                                color="red" 
-                                size="lg"
-                                onClick={() => removeAuthor(index)}
-                                mt="xl"
-                              >
-                                <IconX size={14} />
-                              </ActionIcon>
+                              <Grid.Col span={{ base: 1, sm: 1 }} style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 4 }}>
+                                <ActionIcon
+                                  variant="outline"
+                                  color="red"
+                                  size="lg"
+                                  onClick={() => removeAuthor(index)}
+                                  mt="xl"
+                                >
+                                  <IconX size={14} />
+                                </ActionIcon>
+                              </Grid.Col>
                             )}
-                          </Group>
+                          </Grid>
                           
                           <TextInput
                             label="Affiliation (Optional)"
@@ -1042,21 +1050,25 @@ export default function SubmitArticlePage() {
                         </ActionIcon>
                       </Group>
 
-                      <Group grow>
-                        <TextInput
-                          label="Funder DOI (Optional)"
-                          placeholder="e.g., 10.13039/100000001"
-                          value={fund.funderDoi}
-                          onChange={(e) => updateFunding(index, 'funderDoi', e.target.value)}
-                          description="Crossref Funder Registry DOI"
-                        />
-                        <TextInput
-                          label="Award/Grant ID (Optional)"
-                          placeholder="e.g., BCS-1234567"
-                          value={fund.awardId}
-                          onChange={(e) => updateFunding(index, 'awardId', e.target.value)}
-                        />
-                      </Group>
+                      <Grid gutter="sm">
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label="Funder DOI (Optional)"
+                            placeholder="e.g., 10.13039/100000001"
+                            value={fund.funderDoi}
+                            onChange={(e) => updateFunding(index, 'funderDoi', e.target.value)}
+                            description="Crossref Funder Registry DOI"
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label="Award/Grant ID (Optional)"
+                            placeholder="e.g., BCS-1234567"
+                            value={fund.awardId}
+                            onChange={(e) => updateFunding(index, 'awardId', e.target.value)}
+                          />
+                        </Grid.Col>
+                      </Grid>
 
                       <TextInput
                         label="Award Title (Optional)"

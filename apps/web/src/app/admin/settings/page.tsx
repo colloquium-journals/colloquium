@@ -30,7 +30,8 @@ import {
   ThemeIcon,
   Box,
   Progress,
-  PasswordInput
+  PasswordInput,
+  Grid
 } from '@mantine/core';
 import {
   IconSettings,
@@ -139,6 +140,8 @@ interface JournalSettings {
   // Appearance
   primaryColor: string;
   secondaryColor: string;
+  darkPrimaryColor?: string;
+  darkSecondaryColor?: string;
   customCss?: string;
   
   // Submission Settings
@@ -1171,37 +1174,45 @@ export default function JournalSettingsPage() {
                   minRows={3}
                 />
 
-                <Group grow>
-                  <TextInput
-                    label="Contact Email"
-                    placeholder="contact@journal.com"
-                    value={settings.contactEmail}
-                    onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
-                    type="email"
-                  />
-                  <TextInput
-                    label="Editor Email"
-                    placeholder="editor@journal.com"
-                    value={settings.editorEmail}
-                    onChange={(e) => setSettings({ ...settings, editorEmail: e.target.value })}
-                    type="email"
-                  />
-                </Group>
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      label="Contact Email"
+                      placeholder="contact@journal.com"
+                      value={settings.contactEmail}
+                      onChange={(e) => setSettings({ ...settings, contactEmail: e.target.value })}
+                      type="email"
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      label="Editor Email"
+                      placeholder="editor@journal.com"
+                      value={settings.editorEmail}
+                      onChange={(e) => setSettings({ ...settings, editorEmail: e.target.value })}
+                      type="email"
+                    />
+                  </Grid.Col>
+                </Grid>
 
-                <Group grow>
-                  <TextInput
-                    label="Publisher Name"
-                    placeholder="University Press"
-                    value={settings.publisherName}
-                    onChange={(e) => setSettings({ ...settings, publisherName: e.target.value })}
-                  />
-                  <TextInput
-                    label="Publisher Location"
-                    placeholder="City, Country"
-                    value={settings.publisherLocation}
-                    onChange={(e) => setSettings({ ...settings, publisherLocation: e.target.value })}
-                  />
-                </Group>
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      label="Publisher Name"
+                      placeholder="University Press"
+                      value={settings.publisherName}
+                      onChange={(e) => setSettings({ ...settings, publisherName: e.target.value })}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      label="Publisher Location"
+                      placeholder="City, Country"
+                      value={settings.publisherLocation}
+                      onChange={(e) => setSettings({ ...settings, publisherLocation: e.target.value })}
+                    />
+                  </Grid.Col>
+                </Grid>
 
                 <Stack gap="xs">
                   <Text size="sm" fw={500}>Logo</Text>
@@ -1243,18 +1254,49 @@ export default function JournalSettingsPage() {
               <Stack gap="md">
                 <Title order={3}>Appearance</Title>
                 
-                <Group grow>
-                  <ColorInput
-                    label="Primary Color"
-                    value={settings.primaryColor}
-                    onChange={(value) => setSettings({ ...settings, primaryColor: value })}
-                  />
-                  <ColorInput
-                    label="Secondary Color"
-                    value={settings.secondaryColor}
-                    onChange={(value) => setSettings({ ...settings, secondaryColor: value })}
-                  />
-                </Group>
+                <Divider label="Light Mode Colors" />
+
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <ColorInput
+                      label="Primary Color"
+                      description="Main accent color for light mode"
+                      value={settings.primaryColor}
+                      onChange={(value) => setSettings({ ...settings, primaryColor: value })}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <ColorInput
+                      label="Secondary Color"
+                      description="Secondary accent for light mode"
+                      value={settings.secondaryColor}
+                      onChange={(value) => setSettings({ ...settings, secondaryColor: value })}
+                    />
+                  </Grid.Col>
+                </Grid>
+
+                <Divider label="Dark Mode Colors" />
+
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <ColorInput
+                      label="Primary Color (Dark)"
+                      description="Main accent color for dark mode"
+                      value={settings.darkPrimaryColor || '#90caf9'}
+                      onChange={(value) => setSettings({ ...settings, darkPrimaryColor: value })}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <ColorInput
+                      label="Secondary Color (Dark)"
+                      description="Secondary accent for dark mode"
+                      value={settings.darkSecondaryColor || '#b0b0b0'}
+                      onChange={(value) => setSettings({ ...settings, darkSecondaryColor: value })}
+                    />
+                  </Grid.Col>
+                </Grid>
+
+                <Divider label="Custom Styling" />
 
                 <Textarea
                   label="Custom CSS"
@@ -1683,48 +1725,52 @@ export default function JournalSettingsPage() {
                             />
 
                             {settings.reminderSettings?.reviewReminders?.overdueReminders?.enabled && (
-                              <Group grow>
-                                <NumberInput
-                                  label="Reminder Interval"
-                                  description="Days between overdue reminders"
-                                  min={1}
-                                  max={14}
-                                  value={settings.reminderSettings?.reviewReminders?.overdueReminders?.intervalDays ?? 3}
-                                  onChange={(value) => setSettings({
-                                    ...settings,
-                                    reminderSettings: {
-                                      ...settings.reminderSettings,
-                                      reviewReminders: {
-                                        ...settings.reminderSettings?.reviewReminders,
-                                        overdueReminders: {
-                                          ...settings.reminderSettings?.reviewReminders?.overdueReminders,
-                                          intervalDays: typeof value === 'number' ? value : 3
+                              <Grid gutter="md">
+                                <Grid.Col span={{ base: 12, sm: 6 }}>
+                                  <NumberInput
+                                    label="Reminder Interval"
+                                    description="Days between overdue reminders"
+                                    min={1}
+                                    max={14}
+                                    value={settings.reminderSettings?.reviewReminders?.overdueReminders?.intervalDays ?? 3}
+                                    onChange={(value) => setSettings({
+                                      ...settings,
+                                      reminderSettings: {
+                                        ...settings.reminderSettings,
+                                        reviewReminders: {
+                                          ...settings.reminderSettings?.reviewReminders,
+                                          overdueReminders: {
+                                            ...settings.reminderSettings?.reviewReminders?.overdueReminders,
+                                            intervalDays: typeof value === 'number' ? value : 3
+                                          }
                                         }
                                       }
-                                    }
-                                  })}
-                                />
-                                <NumberInput
-                                  label="Maximum Reminders"
-                                  description="Stop after this many overdue reminders"
-                                  min={1}
-                                  max={10}
-                                  value={settings.reminderSettings?.reviewReminders?.overdueReminders?.maxReminders ?? 3}
-                                  onChange={(value) => setSettings({
-                                    ...settings,
-                                    reminderSettings: {
-                                      ...settings.reminderSettings,
-                                      reviewReminders: {
-                                        ...settings.reminderSettings?.reviewReminders,
-                                        overdueReminders: {
-                                          ...settings.reminderSettings?.reviewReminders?.overdueReminders,
-                                          maxReminders: typeof value === 'number' ? value : 3
+                                    })}
+                                  />
+                                </Grid.Col>
+                                <Grid.Col span={{ base: 12, sm: 6 }}>
+                                  <NumberInput
+                                    label="Maximum Reminders"
+                                    description="Stop after this many overdue reminders"
+                                    min={1}
+                                    max={10}
+                                    value={settings.reminderSettings?.reviewReminders?.overdueReminders?.maxReminders ?? 3}
+                                    onChange={(value) => setSettings({
+                                      ...settings,
+                                      reminderSettings: {
+                                        ...settings.reminderSettings,
+                                        reviewReminders: {
+                                          ...settings.reminderSettings?.reviewReminders,
+                                          overdueReminders: {
+                                            ...settings.reminderSettings?.reviewReminders?.overdueReminders,
+                                            maxReminders: typeof value === 'number' ? value : 3
+                                          }
                                         }
                                       }
-                                    }
-                                  })}
-                                />
-                              </Group>
+                                    })}
+                                  />
+                                </Grid.Col>
+                              </Grid>
                             )}
                           </Stack>
                         </Card>
@@ -1749,20 +1795,24 @@ export default function JournalSettingsPage() {
               <Stack gap="md">
                 <Title order={3}>Publication Settings</Title>
                 
-                <Group grow>
-                  <TextInput
-                    label="ISSN"
-                    placeholder="0000-0000"
-                    value={settings.issn || ''}
-                    onChange={(e) => setSettings({ ...settings, issn: e.target.value })}
-                  />
-                  <TextInput
-                    label="DOI Prefix"
-                    placeholder="10.1000"
-                    value={settings.doi || ''}
-                    onChange={(e) => setSettings({ ...settings, doi: e.target.value })}
-                  />
-                </Group>
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      label="ISSN"
+                      placeholder="0000-0000"
+                      value={settings.issn || ''}
+                      onChange={(e) => setSettings({ ...settings, issn: e.target.value })}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      label="DOI Prefix"
+                      placeholder="10.1000"
+                      value={settings.doi || ''}
+                      onChange={(e) => setSettings({ ...settings, doi: e.target.value })}
+                    />
+                  </Grid.Col>
+                </Grid>
 
                 <Select
                   label="Default License"
@@ -1797,20 +1847,24 @@ export default function JournalSettingsPage() {
 
                 {settings.crossrefEnabled && (
                   <Stack gap="sm">
-                    <Group grow>
-                      <TextInput
-                        label="Crossref Username"
-                        placeholder="Your Crossref username"
-                        value={settings.crossrefUsername || ''}
-                        onChange={(e) => setSettings({ ...settings, crossrefUsername: e.target.value })}
-                      />
-                      <PasswordInput
-                        label="Crossref Password"
-                        placeholder="Your Crossref password"
-                        value={settings.crossrefPassword === '***hidden***' ? '' : (settings.crossrefPassword || '')}
-                        onChange={(e) => setSettings({ ...settings, crossrefPassword: e.target.value })}
-                      />
-                    </Group>
+                    <Grid gutter="md">
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <TextInput
+                          label="Crossref Username"
+                          placeholder="Your Crossref username"
+                          value={settings.crossrefUsername || ''}
+                          onChange={(e) => setSettings({ ...settings, crossrefUsername: e.target.value })}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <PasswordInput
+                          label="Crossref Password"
+                          placeholder="Your Crossref password"
+                          value={settings.crossrefPassword === '***hidden***' ? '' : (settings.crossrefPassword || '')}
+                          onChange={(e) => setSettings({ ...settings, crossrefPassword: e.target.value })}
+                        />
+                      </Grid.Col>
+                    </Grid>
 
                     <Switch
                       label="Test Mode"
@@ -1901,36 +1955,44 @@ export default function JournalSettingsPage() {
                   <>
                     <Divider label="SMTP Settings" />
                     
-                    <Group grow>
-                      <TextInput
-                        label="SMTP Host"
-                        placeholder="smtp.gmail.com"
-                        value={settings.smtpHost || ''}
-                        onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
-                      />
-                      <NumberInput
-                        label="SMTP Port"
-                        placeholder="587"
-                        value={settings.smtpPort || 587}
-                        onChange={(value) => setSettings({ ...settings, smtpPort: Number(value) || 587 })}
-                      />
-                    </Group>
+                    <Grid gutter="md">
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <TextInput
+                          label="SMTP Host"
+                          placeholder="smtp.gmail.com"
+                          value={settings.smtpHost || ''}
+                          onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <NumberInput
+                          label="SMTP Port"
+                          placeholder="587"
+                          value={settings.smtpPort || 587}
+                          onChange={(value) => setSettings({ ...settings, smtpPort: Number(value) || 587 })}
+                        />
+                      </Grid.Col>
+                    </Grid>
 
-                    <Group grow>
-                      <TextInput
-                        label="SMTP Username"
-                        placeholder="your-email@domain.com"
-                        value={settings.smtpUsername || ''}
-                        onChange={(e) => setSettings({ ...settings, smtpUsername: e.target.value })}
-                      />
-                      <TextInput
-                        label="SMTP Password"
-                        placeholder="Your email password"
-                        type="password"
-                        value={settings.smtpPassword || ''}
-                        onChange={(e) => setSettings({ ...settings, smtpPassword: e.target.value })}
-                      />
-                    </Group>
+                    <Grid gutter="md">
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <TextInput
+                          label="SMTP Username"
+                          placeholder="your-email@domain.com"
+                          value={settings.smtpUsername || ''}
+                          onChange={(e) => setSettings({ ...settings, smtpUsername: e.target.value })}
+                        />
+                      </Grid.Col>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <TextInput
+                          label="SMTP Password"
+                          placeholder="Your email password"
+                          type="password"
+                          value={settings.smtpPassword || ''}
+                          onChange={(e) => setSettings({ ...settings, smtpPassword: e.target.value })}
+                        />
+                      </Grid.Col>
+                    </Grid>
                   </>
                 )}
               </Stack>
@@ -2085,16 +2147,17 @@ export default function JournalSettingsPage() {
                       </Button>
                     </Stack>
                   ) : (
-                    <Table>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Bot</Table.Th>
-                          <Table.Th>Version</Table.Th>
-                          <Table.Th>Status</Table.Th>
-                          <Table.Th>Installed</Table.Th>
-                          <Table.Th style={{width: 100}}>Actions</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
+                    <Table.ScrollContainer minWidth={600}>
+                      <Table>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Bot</Table.Th>
+                            <Table.Th>Version</Table.Th>
+                            <Table.Th>Status</Table.Th>
+                            <Table.Th>Installed</Table.Th>
+                            <Table.Th style={{width: 100}}>Actions</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
                       <Table.Tbody>
                         {bots.map((bot) => (
                           <Table.Tr key={bot.id}>
@@ -2182,8 +2245,9 @@ export default function JournalSettingsPage() {
                             </Table.Td>
                           </Table.Tr>
                         ))}
-                      </Table.Tbody>
-                    </Table>
+                        </Table.Tbody>
+                      </Table>
+                    </Table.ScrollContainer>
                   )}
                 </Stack>
               </Stack>
@@ -2266,16 +2330,17 @@ export default function JournalSettingsPage() {
                       </Text>
                     </Stack>
                   ) : (
-                    <Table>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>User</Table.Th>
-                          <Table.Th>Role</Table.Th>
-                          <Table.Th>Manuscripts</Table.Th>
-                          <Table.Th>Reviews</Table.Th>
-                          <Table.Th style={{width: 100}}>Actions</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
+                    <Table.ScrollContainer minWidth={600}>
+                      <Table>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>User</Table.Th>
+                            <Table.Th>Role</Table.Th>
+                            <Table.Th>Manuscripts</Table.Th>
+                            <Table.Th>Reviews</Table.Th>
+                            <Table.Th style={{width: 100}}>Actions</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
                       <Table.Tbody>
                         {users.map((usr) => (
                           <Table.Tr key={usr.id}>
@@ -2358,8 +2423,9 @@ export default function JournalSettingsPage() {
                             </Table.Td>
                           </Table.Tr>
                         ))}
-                      </Table.Tbody>
-                    </Table>
+                        </Table.Tbody>
+                      </Table>
+                    </Table.ScrollContainer>
                   )}
                 </Stack>
               </Stack>

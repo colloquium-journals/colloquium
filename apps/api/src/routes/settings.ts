@@ -86,6 +86,8 @@ const JournalSettingsSchema = z.object({
   // Appearance
   primaryColor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
   secondaryColor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
+  darkPrimaryColor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
+  darkSecondaryColor: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format').optional(),
   customCss: z.string().optional(),
   
   // Submission Settings
@@ -182,6 +184,8 @@ const defaultSettings = {
   publisherLocation: 'Digital',
   primaryColor: '#1976d2',
   secondaryColor: '#424242',
+  darkPrimaryColor: '#90caf9',
+  darkSecondaryColor: '#b0b0b0',
   customCss: undefined as string | undefined,
   submissionsOpen: true,
   maxFileSize: 50,
@@ -322,6 +326,8 @@ router.get('/', async (req, res, next) => {
       faviconUrl: journalSettings.faviconUrl,
       primaryColor: journalSettings.primaryColor,
       secondaryColor: journalSettings.secondaryColor,
+      darkPrimaryColor: journalSettings.darkPrimaryColor,
+      darkSecondaryColor: journalSettings.darkSecondaryColor,
       submissionsOpen: journalSettings.submissionsOpen,
       maxFileSize: journalSettings.maxFileSize,
       maxSupplementalFiles: journalSettings.maxSupplementalFiles,

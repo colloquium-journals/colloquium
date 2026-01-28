@@ -367,7 +367,7 @@ export default function ArticleDetailPage() {
 
         <Grid>
           {/* Sidebar - Metadata */}
-          <Grid.Col span={3}>
+          <Grid.Col span={{ base: 12, md: 3 }} order={{ base: 2, md: 1 }}>
             <Stack gap="lg">
               <Card shadow="sm" padding="lg" radius="md" style={{ position: 'sticky', top: '20px' }}>
                 <Stack gap="md">
@@ -596,7 +596,7 @@ export default function ArticleDetailPage() {
           </Grid.Col>
 
           {/* Main Content Area */}
-          <Grid.Col span={9}>
+          <Grid.Col span={{ base: 12, md: 9 }} order={{ base: 1, md: 2 }}>
             {/* Rendered Content - Title, authors, and metadata are handled by the template */}
             {getRenderedContent() ? (
               <Stack gap="md">

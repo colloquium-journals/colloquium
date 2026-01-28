@@ -119,22 +119,22 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
       header={{ height: 60 }}
       navbar={{
         width: 300,
-        breakpoint: 'sm',
+        breakpoint: 'md',
         collapsed: { desktop: true, mobile: !navOpened }
       }}
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           {/* Left Section */}
-          <Group>
-            <Burger opened={navOpened} onClick={toggleNav} hiddenFrom="sm" size="sm" />
-            
+          <Group wrap="nowrap">
+            <Burger opened={navOpened} onClick={toggleNav} hiddenFrom="md" size="sm" />
+
             {/* Logo */}
             <Link href="/" style={{ textDecoration: 'none' }}>
-              <Group gap="xs" align="center">
+              <Group gap="xs" align="center" wrap="nowrap">
                 {settings.logoUrl && (
-                  <Image 
+                  <Image
                     src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `http://localhost:4000${settings.logoUrl}`}
                     alt={`${settings.name} logo`}
                     h={32}
@@ -142,12 +142,13 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                     fit="contain"
                   />
                 )}
-                <Title 
-                  order={3} 
+                <Title
+                  order={3}
                   className="journal-primary"
-                  style={{ 
+                  style={{
                     cursor: 'pointer'
                   }}
+                  visibleFrom="xs"
                 >
                   {loading ? 'Colloquium' : settings.name}
                 </Title>
@@ -155,7 +156,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <Group gap="xs" ml="xl" visibleFrom="sm">
+            <Group gap="xs" ml="xl" visibleFrom="md" wrap="nowrap">
               {navigationItems.map((item) => (
                 <Button
                   key={item.href}
@@ -163,9 +164,9 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                   href={item.href}
                   variant={isActivePage(item.href) ? 'filled' : 'subtle'}
                   color={isActivePage(item.href) ? 'blue' : 'gray'}
-                  style={isActivePage(item.href) ? { 
+                  style={isActivePage(item.href) ? {
                     backgroundColor: settings.primaryColor,
-                    borderColor: settings.primaryColor 
+                    borderColor: settings.primaryColor
                   } : undefined}
                   size="sm"
                 >
@@ -176,7 +177,33 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
           </Group>
 
           {/* Right Section */}
-          <Group gap="md">
+          <Group gap="sm" wrap="nowrap">
+            {isAuthenticated && user && !user.name && (
+              <Button
+                component={Link}
+                href="/profile/complete"
+                size="sm"
+                visibleFrom="md"
+                variant="filled"
+                color="orange"
+              >
+                Complete Profile
+              </Button>
+            )}
+
+            {isAuthenticated && user && user.name && (
+              <Button
+                component={Link}
+                href="/articles/submit"
+                size="sm"
+                visibleFrom="md"
+                variant="gradient"
+                gradient={{ from: 'blue', to: 'cyan' }}
+              >
+                Submit Article
+              </Button>
+            )}
+
             {/* Theme Selector */}
             {isDarkModeEnabled && (
               <Menu shadow="md" width={160}>
@@ -215,42 +242,16 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
                 </Menu.Dropdown>
               </Menu>
             )}
-
-            {isAuthenticated && user && !user.name && (
-              <Button
-                component={Link}
-                href="/profile/complete"
-                size="sm"
-                visibleFrom="md"
-                variant="filled"
-                color="orange"
-              >
-                Complete Profile
-              </Button>
-            )}
-            
-            {isAuthenticated && user && user.name && (
-              <Button
-                component={Link}
-                href="/articles/submit"
-                size="sm"
-                visibleFrom="md"
-                variant="gradient"
-                gradient={{ from: 'blue', to: 'cyan' }}
-              >
-                Submit Article
-              </Button>
-            )}
             
             {isAuthenticated && user ? (
               <Menu shadow="md" width={200}>
                 <Menu.Target>
-                  <Button variant="subtle" p="xs">
+                  <Button variant="default" size="sm" px="xs">
                     <Group gap="xs">
                       <Avatar size="sm" color="blue">
                         {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
                       </Avatar>
-                      <Text size="sm" visibleFrom="sm">
+                      <Text size="sm" visibleFrom="lg">
                         {user.name || user.email}
                       </Text>
                     </Group>
@@ -317,9 +318,9 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
               href={item.href}
               variant={isActivePage(item.href) ? 'filled' : 'subtle'}
               color={isActivePage(item.href) ? 'blue' : 'gray'}
-              style={isActivePage(item.href) ? { 
+              style={isActivePage(item.href) ? {
                 backgroundColor: settings.primaryColor,
-                borderColor: settings.primaryColor 
+                borderColor: settings.primaryColor
               } : undefined}
               fullWidth
               onClick={closeNav}
@@ -327,6 +328,40 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
               {item.label}
             </Button>
           ))}
+
+          {/* Submit Article button for authenticated users */}
+          {isAuthenticated && user && user.name && (
+            <>
+              <Divider my="sm" />
+              <Button
+                component={Link}
+                href="/articles/submit"
+                variant="gradient"
+                gradient={{ from: 'blue', to: 'cyan' }}
+                fullWidth
+                onClick={closeNav}
+              >
+                Submit Article
+              </Button>
+            </>
+          )}
+
+          {/* Complete Profile button for users without name */}
+          {isAuthenticated && user && !user.name && (
+            <>
+              <Divider my="sm" />
+              <Button
+                component={Link}
+                href="/profile/complete"
+                variant="filled"
+                color="orange"
+                fullWidth
+                onClick={closeNav}
+              >
+                Complete Profile
+              </Button>
+            </>
+          )}
         </Stack>
       </AppShell.Navbar>
       

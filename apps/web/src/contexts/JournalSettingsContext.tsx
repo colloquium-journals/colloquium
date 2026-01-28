@@ -8,6 +8,8 @@ interface JournalSettings {
   logoUrl?: string;
   primaryColor: string;
   secondaryColor: string;
+  darkPrimaryColor: string;
+  darkSecondaryColor: string;
   contactEmail?: string;
   publisherName?: string;
   publisherLocation?: string;
@@ -31,6 +33,8 @@ const defaultSettings: JournalSettings = {
   name: 'Colloquium',
   primaryColor: '#1976d2',
   secondaryColor: '#424242',
+  darkPrimaryColor: '#90caf9',
+  darkSecondaryColor: '#b0b0b0',
   submissionsOpen: true,
   maintenanceMode: false,
   enableDarkMode: false,
@@ -114,47 +118,47 @@ export function JournalSettingsProvider({ children }: JournalSettingsProviderPro
         --mantine-color-blue-filled: ${settings.primaryColor};
         --mantine-color-blue-filled-hover: ${settings.primaryColor}dd;
       }
-      
+
       [data-mantine-color-scheme="dark"] {
-        --journal-primary-color: ${settings.primaryColor};
-        --journal-secondary-color: ${settings.secondaryColor};
-        --mantine-color-primary-6: ${settings.primaryColor};
-        --mantine-color-blue-6: ${settings.primaryColor};
-        --mantine-color-blue-filled: ${settings.primaryColor};
-        --mantine-color-blue-filled-hover: ${settings.primaryColor}dd;
+        --journal-primary-color: ${settings.darkPrimaryColor};
+        --journal-secondary-color: ${settings.darkSecondaryColor};
+        --mantine-color-primary-6: ${settings.darkPrimaryColor};
+        --mantine-color-blue-6: ${settings.darkPrimaryColor};
+        --mantine-color-blue-filled: ${settings.darkPrimaryColor};
+        --mantine-color-blue-filled-hover: ${settings.darkPrimaryColor}dd;
       }
-      
+
       .journal-primary {
-        color: ${settings.primaryColor} !important;
+        color: var(--journal-primary-color) !important;
       }
-      
+
       .journal-primary-bg {
-        background-color: ${settings.primaryColor} !important;
+        background-color: var(--journal-primary-color) !important;
       }
-      
+
       .journal-secondary {
-        color: ${settings.secondaryColor} !important;
+        color: var(--journal-secondary-color) !important;
       }
-      
+
       .journal-secondary-bg {
-        background-color: ${settings.secondaryColor} !important;
+        background-color: var(--journal-secondary-color) !important;
       }
-      
+
       .journal-footer {
         border-top: 1px solid var(--mantine-color-gray-3);
         background-color: var(--mantine-color-gray-0);
       }
-      
+
       [data-mantine-color-scheme="dark"] .journal-footer {
         border-top-color: var(--mantine-color-dark-4);
         background-color: var(--mantine-color-dark-7);
       }
-      
+
       ${settings.customCss || ''}
     `;
-    
+
     styleElement.textContent = css;
-  }, [settings.primaryColor, settings.secondaryColor, settings.customCss]);
+  }, [settings.primaryColor, settings.secondaryColor, settings.darkPrimaryColor, settings.darkSecondaryColor, settings.customCss]);
 
   return (
     <JournalSettingsContext.Provider 
