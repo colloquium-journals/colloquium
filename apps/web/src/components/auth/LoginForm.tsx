@@ -134,9 +134,10 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
           <Stack gap="xs" align="center">
-            <Title order={2}>Sign in to Colloquium</Title>
+            <Title order={2}>Sign in or create an account</Title>
             <Text size="sm" c="dimmed" ta="center">
-              Enter your email address and we'll send you a magic link to sign in
+              Enter your email address and we'll send you a magic link.
+              If you don't have an account, one will be created automatically.
             </Text>
           </Stack>
 
