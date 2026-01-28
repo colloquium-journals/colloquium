@@ -12,6 +12,7 @@ Crossref is a DOI registration agency that provides persistent identifiers for s
 - **Test Mode Support**: Test with Crossref's sandbox before going to production
 - **Structured Author Names**: Supports both parsed names and explicit givenNames/surname fields
 - **ORCID Integration**: Author ORCID iDs are included in metadata
+- **Funding Information**: FundRef program element with funder DOIs and grant numbers
 - **Google Scholar Compatibility**: Rendered HTML includes proper citation meta tags
 
 ## Configuration
@@ -147,6 +148,7 @@ Colloquium generates Crossref XML following schema version 5.4.0. The XML includ
 - Contributors (authors with names, ORCID, affiliations)
 - Publication dates (accepted, published)
 - Resource URL (link to article)
+- Funding information (FundRef program element)
 
 Example structure:
 
@@ -196,6 +198,65 @@ Example structure:
   </body>
 </doi_batch>
 ```
+
+## Funding Information (FundRef)
+
+Colloquium supports including funding information in Crossref deposits using the FundRef program element. This enables funders to track the publications resulting from their grants.
+
+### Database Model
+
+Funding is stored in the `manuscript_funding` table:
+
+```prisma
+model manuscript_funding {
+  id           String      @id @default(cuid())
+  manuscriptId String
+  funderName   String      // e.g., "National Science Foundation"
+  funderDoi    String?     // Crossref Funder Registry DOI, e.g., "10.13039/100000001"
+  funderRor    String?     // ROR ID
+  awardId      String?     // Grant number, e.g., "BCS-1234567"
+  awardTitle   String?     // Grant title
+  createdAt    DateTime    @default(now())
+  manuscripts  manuscripts @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+}
+```
+
+### XML Format
+
+When funding information is present, the Crossref XML includes a FundRef `<fr:program>` element:
+
+```xml
+<fr:program xmlns:fr="http://www.crossref.org/fundref.xsd">
+  <fr:assertion name="fundgroup">
+    <fr:assertion name="funder_name">
+      National Science Foundation
+      <fr:assertion name="funder_identifier">https://doi.org/10.13039/100000001</fr:assertion>
+    </fr:assertion>
+    <fr:assertion name="award_number">BCS-1234567</fr:assertion>
+  </fr:assertion>
+</fr:program>
+```
+
+### Funder Registry DOIs
+
+The `funderDoi` field should contain a Crossref Funder Registry DOI. Common examples:
+
+| Funder | DOI |
+|--------|-----|
+| National Science Foundation | `10.13039/100000001` |
+| National Institutes of Health | `10.13039/100000002` |
+| European Research Council | `10.13039/501100000781` |
+| Wellcome Trust | `10.13039/100004440` |
+
+You can look up funder DOIs at: https://www.crossref.org/services/funder-registry/
+
+### Adding Funding During Submission
+
+Authors add funding information during manuscript submission. The submission form collects:
+- Funder name (required)
+- Funder DOI (optional, from Crossref Funder Registry)
+- Award/grant ID (optional)
+- Award title (optional)
 
 ## API Reference
 
@@ -276,3 +337,4 @@ cd apps/api && npx jest tests/schemas/crossref-settings.test.ts
 - [ ] DOI metadata updates (for corrections)
 - [ ] Reference DOI linking
 - [ ] Crossref Event Data integration
+- [ ] CRediT roles in Crossref XML (when fully supported by Crossref schema)

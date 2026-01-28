@@ -348,3 +348,6 @@ export type LoginData = z.infer<typeof loginSchema>;
 
 // Re-export workflow templates (after WorkflowConfig is defined to avoid circular dependency)
 export * from './workflowTemplates';
+
+// Re-export CRediT roles
+export * from './creditRoles';

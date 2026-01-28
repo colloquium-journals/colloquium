@@ -90,13 +90,20 @@ const manuscriptSubmissionSchema = z.object({
   authors: z.array(z.object({
     email: z.string().email('Valid email address is required'),
     name: z.string().min(1, 'Author name is required'),
-    isCorresponding: z.boolean().default(false)
+    isCorresponding: z.boolean().default(false),
+    creditRoles: z.array(z.string()).default([])
   })).min(1, 'At least one author is required')
     .refine(authors => {
       const correspondingCount = authors.filter(author => author.isCorresponding).length;
       return correspondingCount === 1;
     }, 'Exactly one corresponding author is required'),
   keywords: z.array(z.string()).default([]),
+  funding: z.array(z.object({
+    funderName: z.string().min(1, 'Funder name is required'),
+    funderDoi: z.string().optional(),
+    awardId: z.string().optional(),
+    awardTitle: z.string().optional()
+  })).default([]),
   metadata: z.record(z.any()).default({})
 });
 
@@ -258,13 +265,24 @@ router.post('/', authenticate, (req, res, next) => {
       }
     }
     
+    // Parse funding data
+    let fundingData: Array<{ funderName: string; funderDoi?: string; awardId?: string; awardTitle?: string }> = [];
+    if (req.body.funding) {
+      try {
+        fundingData = typeof req.body.funding === 'string' ? JSON.parse(req.body.funding) : req.body.funding;
+      } catch (error) {
+        console.error('Failed to parse funding JSON:', error);
+      }
+    }
+
     const manuscriptData = manuscriptSubmissionSchema.parse({
       title: req.body.title,
       abstract: req.body.abstract,
       content: req.body.content,
       authors: authorsData,
-      keywords: Array.isArray(req.body.keywords) ? req.body.keywords : 
+      keywords: Array.isArray(req.body.keywords) ? req.body.keywords :
                 typeof req.body.keywords === 'string' ? req.body.keywords.split(',').map((k: string) => k.trim()) : [],
+      funding: fundingData,
       metadata: req.body.metadata ? JSON.parse(req.body.metadata) : {}
     });
 
@@ -331,7 +349,8 @@ router.post('/', authenticate, (req, res, next) => {
           name: authorData.name,
           email: authorData.email,
           order: i,
-          isCorresponding: authorData.isCorresponding
+          isCorresponding: authorData.isCorresponding,
+          creditRoles: authorData.creditRoles || []
         });
       }
       
@@ -363,9 +382,25 @@ router.post('/', authenticate, (req, res, next) => {
             manuscriptId: manuscript.id,
             userId: author.userId,
             order: author.order,
-            isCorresponding: author.isCorresponding
+            isCorresponding: author.isCorresponding,
+            creditRoles: author.creditRoles
           }
         });
+      }
+
+      // Create funding records
+      if (manuscriptData.funding && manuscriptData.funding.length > 0) {
+        for (const funding of manuscriptData.funding) {
+          await tx.manuscript_funding.create({
+            data: {
+              manuscriptId: manuscript.id,
+              funderName: funding.funderName,
+              funderDoi: funding.funderDoi || null,
+              awardId: funding.awardId || null,
+              awardTitle: funding.awardTitle || null
+            }
+          });
+        }
       }
 
       // Process uploaded files with enhanced metadata

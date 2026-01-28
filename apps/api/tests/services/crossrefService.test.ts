@@ -434,4 +434,180 @@ describe('CrossrefService', () => {
       expect(crossrefService).toBeInstanceOf(CrossrefService);
     });
   });
+
+  describe('generateCrossrefXML with funding', () => {
+    const mockSettings = {
+      name: 'Test Journal',
+      issn: '1234-5678',
+      eissn: '8765-4321',
+      doiPrefix: '10.12345',
+      publisherName: 'Test Publisher',
+      contactEmail: 'test@example.com'
+    };
+
+    const mockManuscriptWithFunding = {
+      id: 'manuscript-funding-test',
+      title: 'Funded Research Article',
+      abstract: 'Research supported by multiple funding sources.',
+      volume: '5',
+      issue: '2',
+      publishedAt: new Date('2024-06-15'),
+      articleType: 'research-article',
+      manuscript_authors: [
+        {
+          isCorresponding: true,
+          order: 1,
+          creditRoles: ['conceptualization', 'writing-original-draft'],
+          users: {
+            name: 'John Smith',
+            givenNames: 'John',
+            surname: 'Smith',
+            orcidId: null,
+            affiliation: 'Test University'
+          }
+        }
+      ],
+      manuscript_funding: [
+        {
+          funderName: 'National Science Foundation',
+          funderDoi: '10.13039/100000001',
+          awardId: 'BCS-1234567',
+          awardTitle: 'Understanding Human Cognition'
+        },
+        {
+          funderName: 'National Institutes of Health',
+          funderDoi: '10.13039/100000002',
+          awardId: 'R01-MH123456',
+          awardTitle: null
+        },
+        {
+          funderName: 'Private Foundation',
+          funderDoi: null,
+          awardId: null,
+          awardTitle: null
+        }
+      ]
+    };
+
+    beforeEach(() => {
+      getJournalSettings.mockResolvedValue(mockSettings);
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscriptWithFunding);
+    });
+
+    it('should include FundRef program element when funding exists', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-funding-test');
+
+      expect(xml).toContain('xmlns:fr="http://www.crossref.org/fundref.xsd"');
+      expect(xml).toContain('<fr:program');
+      expect(xml).toContain('name="fundref"');
+    });
+
+    it('should include funder names in funding XML', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-funding-test');
+
+      expect(xml).toContain('National Science Foundation');
+      expect(xml).toContain('National Institutes of Health');
+      expect(xml).toContain('Private Foundation');
+    });
+
+    it('should include funder DOIs as funder_identifier', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-funding-test');
+
+      expect(xml).toContain('<fr:assertion name="funder_identifier">https://doi.org/10.13039/100000001</fr:assertion>');
+      expect(xml).toContain('<fr:assertion name="funder_identifier">https://doi.org/10.13039/100000002</fr:assertion>');
+    });
+
+    it('should include award numbers', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-funding-test');
+
+      expect(xml).toContain('<fr:assertion name="award_number">BCS-1234567</fr:assertion>');
+      expect(xml).toContain('<fr:assertion name="award_number">R01-MH123456</fr:assertion>');
+    });
+
+    it('should handle funders without DOI', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-funding-test');
+
+      // Private Foundation should appear without funder_identifier
+      expect(xml).toContain('Private Foundation');
+      // But the XML should still be valid
+      expect(xml).toContain('<fr:assertion name="fundgroup">');
+    });
+
+    it('should not include FundRef when no funding exists', async () => {
+      prisma.manuscripts.findUnique.mockResolvedValue({
+        ...mockManuscriptWithFunding,
+        manuscript_funding: []
+      });
+
+      const xml = await service.generateCrossrefXML('manuscript-funding-test');
+
+      expect(xml).not.toContain('<fr:program');
+      expect(xml).not.toContain('fundref.xsd');
+    });
+  });
+
+  describe('generateCrossrefXML with CRediT roles', () => {
+    const mockSettings = {
+      name: 'Test Journal',
+      doiPrefix: '10.12345',
+      publisherName: 'Test Publisher',
+      contactEmail: 'test@example.com'
+    };
+
+    const mockManuscriptWithRoles = {
+      id: 'manuscript-credit-test',
+      title: 'Article with CRediT Roles',
+      abstract: 'Testing CRediT roles integration.',
+      publishedAt: new Date('2024-06-15'),
+      manuscript_authors: [
+        {
+          isCorresponding: true,
+          order: 1,
+          creditRoles: ['conceptualization', 'writing-original-draft', 'supervision'],
+          users: {
+            name: 'Principal Investigator',
+            givenNames: 'Principal',
+            surname: 'Investigator',
+            orcidId: null,
+            affiliation: 'Lead University'
+          }
+        },
+        {
+          isCorresponding: false,
+          order: 2,
+          creditRoles: ['methodology', 'software', 'formal-analysis'],
+          users: {
+            name: 'Technical Lead',
+            givenNames: 'Technical',
+            surname: 'Lead',
+            orcidId: null,
+            affiliation: 'Research Lab'
+          }
+        }
+      ],
+      manuscript_funding: []
+    };
+
+    beforeEach(() => {
+      getJournalSettings.mockResolvedValue(mockSettings);
+      prisma.manuscripts.findUnique.mockResolvedValue(mockManuscriptWithRoles);
+    });
+
+    it('should still generate valid contributors even with CRediT roles', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-credit-test');
+
+      expect(xml).toContain('<contributors>');
+      expect(xml).toContain('<person_name');
+      expect(xml).toContain('contributor_role="author"');
+    });
+
+    it('should include author names with CRediT roles', async () => {
+      const xml = await service.generateCrossrefXML('manuscript-credit-test');
+
+      expect(xml).toContain('<given_name>Principal</given_name>');
+      expect(xml).toContain('<surname>Investigator</surname>');
+      expect(xml).toContain('<given_name>Technical</given_name>');
+      expect(xml).toContain('<surname>Lead</surname>');
+    });
+  });
 });

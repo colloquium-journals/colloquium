@@ -17,6 +17,11 @@ import {
   Anchor,
   Loader,
   Badge,
+  Modal,
+  ActionIcon,
+  Table,
+  Checkbox,
+  Select,
 } from '@mantine/core';
 import {
   IconCheck,
@@ -26,8 +31,14 @@ import {
   IconWorld,
   IconBuilding,
   IconAt,
+  IconPlus,
+  IconPencil,
+  IconTrash,
+  IconStar,
 } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
+import { useDisclosure } from '@mantine/hooks';
+import { COUNTRY_OPTIONS } from '@/lib/countries';
 
 interface ProfileFormData {
   name: string;
@@ -35,6 +46,29 @@ interface ProfileFormData {
   bio: string;
   affiliation: string;
   website: string;
+}
+
+interface Affiliation {
+  id: string;
+  institution: string;
+  department?: string;
+  city?: string;
+  state?: string;
+  country: string;
+  countryCode?: string;
+  ror?: string;
+  isPrimary: boolean;
+}
+
+interface AffiliationFormData {
+  institution: string;
+  department: string;
+  city: string;
+  state: string;
+  country: string;
+  countryCode: string;
+  ror: string;
+  isPrimary: boolean;
 }
 
 
@@ -51,6 +85,10 @@ export default function EditProfilePage() {
   const [unlinking, setUnlinking] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [originalUsername, setOriginalUsername] = useState('');
+  const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
+  const [affiliationModalOpened, { open: openAffiliationModal, close: closeAffiliationModal }] = useDisclosure(false);
+  const [editingAffiliation, setEditingAffiliation] = useState<Affiliation | null>(null);
+  const [savingAffiliation, setSavingAffiliation] = useState(false);
 
   const form = useForm<ProfileFormData>({
     initialValues: {
@@ -81,6 +119,32 @@ export default function EditProfilePage() {
           return null;
         } catch {
           return 'Please enter a valid URL (including http:// or https://)';
+        }
+      }
+    }
+  });
+
+  const affiliationForm = useForm<AffiliationFormData>({
+    initialValues: {
+      institution: '',
+      department: '',
+      city: '',
+      state: '',
+      country: '',
+      countryCode: '',
+      ror: '',
+      isPrimary: false
+    },
+    validate: {
+      institution: (value) => value.trim().length === 0 ? 'Institution is required' : null,
+      country: (value) => value.trim().length === 0 ? 'Country is required' : null,
+      ror: (value) => {
+        if (!value) return null;
+        try {
+          new URL(value);
+          return null;
+        } catch {
+          return 'ROR must be a valid URL';
         }
       }
     }
@@ -125,6 +189,7 @@ export default function EditProfilePage() {
         setOrcidId(profile.orcidId || null);
         setOrcidVerified(profile.orcidVerified || false);
         setOriginalUsername(profile.username || '');
+        setAffiliations(profile.affiliations || []);
 
         form.setValues({
           name: profile.name || '',
@@ -181,6 +246,102 @@ export default function EditProfilePage() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
+
+  const handleOpenAffiliationModal = (affiliation?: Affiliation) => {
+    if (affiliation) {
+      setEditingAffiliation(affiliation);
+      affiliationForm.setValues({
+        institution: affiliation.institution,
+        department: affiliation.department || '',
+        city: affiliation.city || '',
+        state: affiliation.state || '',
+        country: affiliation.country,
+        countryCode: affiliation.countryCode || '',
+        ror: affiliation.ror || '',
+        isPrimary: affiliation.isPrimary
+      });
+    } else {
+      setEditingAffiliation(null);
+      affiliationForm.reset();
+    }
+    openAffiliationModal();
+  };
+
+  const handleSaveAffiliation = async (values: AffiliationFormData) => {
+    try {
+      setSavingAffiliation(true);
+      setError(null);
+
+      const countryOption = COUNTRY_OPTIONS.find(c => c.value === values.countryCode || c.label === values.country);
+      const payload = {
+        institution: values.institution.trim(),
+        department: values.department.trim() || undefined,
+        city: values.city.trim() || undefined,
+        state: values.state.trim() || undefined,
+        country: countryOption?.label || values.country.trim(),
+        countryCode: countryOption?.value || values.countryCode || undefined,
+        ror: values.ror.trim() || undefined,
+        isPrimary: values.isPrimary
+      };
+
+      const url = editingAffiliation
+        ? `http://localhost:4000/api/users/me/affiliations/${editingAffiliation.id}`
+        : 'http://localhost:4000/api/users/me/affiliations';
+
+      const response = await fetch(url, {
+        method: editingAffiliation ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to save affiliation');
+      }
+
+      // Refresh affiliations list
+      const affiliationsResponse = await fetch('http://localhost:4000/api/users/me/affiliations', {
+        credentials: 'include'
+      });
+      if (affiliationsResponse.ok) {
+        const affiliationsData = await affiliationsResponse.json();
+        setAffiliations(affiliationsData.affiliations);
+      }
+
+      closeAffiliationModal();
+      setSuccess(editingAffiliation ? 'Affiliation updated successfully!' : 'Affiliation added successfully!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save affiliation');
+    } finally {
+      setSavingAffiliation(false);
+    }
+  };
+
+  const handleDeleteAffiliation = async (affiliationId: string) => {
+    if (!window.confirm('Are you sure you want to remove this affiliation?')) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await fetch(`http://localhost:4000/api/users/me/affiliations/${affiliationId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to remove affiliation');
+      }
+
+      setAffiliations(affiliations.filter(a => a.id !== affiliationId));
+      setSuccess('Affiliation removed successfully!');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove affiliation');
+    }
+  };
 
   const handleCancel = useCallback(() => {
     if (form.isDirty()) {
@@ -434,11 +595,95 @@ export default function EditProfilePage() {
                 </Stack>
 
                 <TextInput
-                  label="Affiliation"
+                  label="Primary Affiliation (Simple)"
                   placeholder="Your institution, university, or organization"
                   leftSection={<IconBuilding size={16} />}
                   {...form.getInputProps('affiliation')}
+                  description="Quick text field. Use structured affiliations below for detailed info."
                 />
+
+                {/* Structured Affiliations Section */}
+                <Stack gap="xs">
+                  <Group justify="space-between">
+                    <Text fw={500} size="sm">Structured Affiliations</Text>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      leftSection={<IconPlus size={14} />}
+                      onClick={() => handleOpenAffiliationModal()}
+                    >
+                      Add Affiliation
+                    </Button>
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    Add detailed affiliations with institution, department, and ROR identifiers for improved metadata.
+                  </Text>
+                  {affiliations.length > 0 ? (
+                    <Table highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Institution</Table.Th>
+                          <Table.Th>Location</Table.Th>
+                          <Table.Th style={{ width: 100 }}>Actions</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {affiliations.map((aff) => (
+                          <Table.Tr key={aff.id}>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                <Group gap="xs">
+                                  <Text size="sm">{aff.institution}</Text>
+                                  {aff.isPrimary && (
+                                    <Badge size="xs" color="blue" variant="light" leftSection={<IconStar size={10} />}>
+                                      Primary
+                                    </Badge>
+                                  )}
+                                </Group>
+                                {aff.department && (
+                                  <Text size="xs" c="dimmed">{aff.department}</Text>
+                                )}
+                                {aff.ror && (
+                                  <Anchor href={aff.ror} target="_blank" size="xs">
+                                    ROR <IconExternalLink size={10} />
+                                  </Anchor>
+                                )}
+                              </Stack>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                {[aff.city, aff.state, aff.country].filter(Boolean).join(', ')}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs">
+                                <ActionIcon
+                                  variant="subtle"
+                                  size="sm"
+                                  onClick={() => handleOpenAffiliationModal(aff)}
+                                >
+                                  <IconPencil size={14} />
+                                </ActionIcon>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  size="sm"
+                                  onClick={() => handleDeleteAffiliation(aff.id)}
+                                >
+                                  <IconTrash size={14} />
+                                </ActionIcon>
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  ) : (
+                    <Text size="sm" c="dimmed" ta="center" py="md">
+                      No structured affiliations added yet.
+                    </Text>
+                  )}
+                </Stack>
 
                 <TextInput
                   label="Website"
@@ -470,6 +715,80 @@ export default function EditProfilePage() {
         </Card>
 
       </Stack>
+
+      {/* Affiliation Modal */}
+      <Modal
+        opened={affiliationModalOpened}
+        onClose={closeAffiliationModal}
+        title={editingAffiliation ? 'Edit Affiliation' : 'Add Affiliation'}
+        size="lg"
+      >
+        <form onSubmit={affiliationForm.onSubmit(handleSaveAffiliation)}>
+          <Stack gap="md">
+            <TextInput
+              label="Institution"
+              placeholder="e.g., Stanford University"
+              required
+              {...affiliationForm.getInputProps('institution')}
+            />
+
+            <TextInput
+              label="Department"
+              placeholder="e.g., Department of Psychology"
+              {...affiliationForm.getInputProps('department')}
+            />
+
+            <Group grow>
+              <TextInput
+                label="City"
+                placeholder="e.g., Stanford"
+                {...affiliationForm.getInputProps('city')}
+              />
+              <TextInput
+                label="State/Province"
+                placeholder="e.g., CA"
+                {...affiliationForm.getInputProps('state')}
+              />
+            </Group>
+
+            <Select
+              label="Country"
+              placeholder="Select a country"
+              data={COUNTRY_OPTIONS}
+              searchable
+              required
+              value={affiliationForm.values.countryCode}
+              onChange={(value) => {
+                affiliationForm.setFieldValue('countryCode', value || '');
+                const country = COUNTRY_OPTIONS.find(c => c.value === value);
+                affiliationForm.setFieldValue('country', country?.label || '');
+              }}
+              error={affiliationForm.errors.country}
+            />
+
+            <TextInput
+              label="ROR ID"
+              placeholder="e.g., https://ror.org/00f54p054"
+              description="Research Organization Registry identifier (optional)"
+              {...affiliationForm.getInputProps('ror')}
+            />
+
+            <Checkbox
+              label="Set as primary affiliation"
+              {...affiliationForm.getInputProps('isPrimary', { type: 'checkbox' })}
+            />
+
+            <Group justify="flex-end" gap="md">
+              <Button variant="outline" onClick={closeAffiliationModal}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={savingAffiliation}>
+                {editingAffiliation ? 'Update' : 'Add'} Affiliation
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
 
     </Container>
   );

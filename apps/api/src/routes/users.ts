@@ -24,6 +24,17 @@ const updateProfileSchema = z.object({
   website: z.string().url().optional()
 });
 
+const affiliationSchema = z.object({
+  institution: z.string().min(1, 'Institution is required'),
+  department: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().min(1, 'Country is required'),
+  countryCode: z.string().length(2, 'Country code must be 2 characters').optional(),
+  ror: z.string().url('ROR must be a valid URL').optional(),
+  isPrimary: z.boolean().default(false)
+});
+
 
 // GET /api/users - List users (for admin or bot service tokens)
 router.get('/', authenticateWithBots, (req: any, res, next) => {
@@ -171,6 +182,12 @@ router.get('/me', authenticate, async (req, res, next) => {
     const user = await prisma.users.findUnique({
       where: { id: req.user!.id },
       include: {
+        affiliations: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' }
+          ]
+        },
         manuscript_authors: {
           include: {
             manuscripts: {
@@ -298,6 +315,7 @@ router.get('/me', authenticate, async (req, res, next) => {
       orcidVerified: user.orcidVerified,
       bio: user.bio,
       affiliation: user.affiliation,
+      affiliations: user.affiliations,
       website: user.website,
       role: user.role,
       createdAt: user.createdAt,
@@ -314,6 +332,156 @@ router.get('/me', authenticate, async (req, res, next) => {
     };
 
     res.json(profile);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/users/me/affiliations - List user's affiliations
+router.get('/me/affiliations', authenticate, async (req, res, next) => {
+  try {
+    const affiliations = await prisma.affiliations.findMany({
+      where: { userId: req.user!.id },
+      orderBy: [
+        { isPrimary: 'desc' },
+        { createdAt: 'asc' }
+      ]
+    });
+
+    res.json({ affiliations });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/users/me/affiliations - Add affiliation
+router.post('/me/affiliations', authenticate, async (req, res, next) => {
+  try {
+    const validation = affiliationSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Please check your input',
+        details: validation.error.issues
+      });
+    }
+
+    const { institution, department, city, state, country, countryCode, ror, isPrimary } = validation.data;
+
+    // If this is set as primary, unset other primary affiliations
+    if (isPrimary) {
+      await prisma.affiliations.updateMany({
+        where: { userId: req.user!.id, isPrimary: true },
+        data: { isPrimary: false }
+      });
+    }
+
+    const affiliation = await prisma.affiliations.create({
+      data: {
+        userId: req.user!.id,
+        institution,
+        department,
+        city,
+        state,
+        country,
+        countryCode,
+        ror,
+        isPrimary
+      }
+    });
+
+    res.status(201).json({
+      message: 'Affiliation added successfully',
+      affiliation
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/users/me/affiliations/:id - Update affiliation
+router.put('/me/affiliations/:id', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Verify affiliation belongs to user
+    const existing = await prisma.affiliations.findFirst({
+      where: { id, userId: req.user!.id }
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        error: 'Affiliation Not Found',
+        message: 'Affiliation not found or does not belong to you'
+      });
+    }
+
+    const validation = affiliationSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Please check your input',
+        details: validation.error.issues
+      });
+    }
+
+    const { institution, department, city, state, country, countryCode, ror, isPrimary } = validation.data;
+
+    // If this is set as primary, unset other primary affiliations
+    if (isPrimary && !existing.isPrimary) {
+      await prisma.affiliations.updateMany({
+        where: { userId: req.user!.id, isPrimary: true },
+        data: { isPrimary: false }
+      });
+    }
+
+    const affiliation = await prisma.affiliations.update({
+      where: { id },
+      data: {
+        institution,
+        department,
+        city,
+        state,
+        country,
+        countryCode,
+        ror,
+        isPrimary
+      }
+    });
+
+    res.json({
+      message: 'Affiliation updated successfully',
+      affiliation
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/users/me/affiliations/:id - Remove affiliation
+router.delete('/me/affiliations/:id', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Verify affiliation belongs to user
+    const existing = await prisma.affiliations.findFirst({
+      where: { id, userId: req.user!.id }
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        error: 'Affiliation Not Found',
+        message: 'Affiliation not found or does not belong to you'
+      });
+    }
+
+    await prisma.affiliations.delete({
+      where: { id }
+    });
+
+    res.json({
+      message: 'Affiliation removed successfully'
+    });
   } catch (error) {
     next(error);
   }

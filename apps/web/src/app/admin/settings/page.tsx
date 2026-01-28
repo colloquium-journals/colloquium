@@ -188,7 +188,13 @@ interface JournalSettings {
   doiPrefix?: string;
   eissn?: string;
   abbrevTitle?: string;
-  
+  licenseUrl?: string;
+
+  // DOAJ Integration
+  doajEnabled?: boolean;
+  doajApiKey?: string;
+  doajAutoSubmit?: boolean;
+
   // Email Settings
   enableEmailNotifications: boolean;
   smtpHost?: string;
@@ -1824,6 +1830,42 @@ export default function JournalSettingsPage() {
                       placeholder="J. Exp. Psychol."
                       value={settings.abbrevTitle || ''}
                       onChange={(e) => setSettings({ ...settings, abbrevTitle: e.target.value })}
+                    />
+
+                    <TextInput
+                      label="License URL"
+                      description="URL to the license for published articles"
+                      placeholder="https://creativecommons.org/licenses/by/4.0/"
+                      value={settings.licenseUrl || ''}
+                      onChange={(e) => setSettings({ ...settings, licenseUrl: e.target.value })}
+                    />
+                  </Stack>
+                )}
+
+                <Divider label="DOAJ Integration" labelPosition="center" my="md" />
+
+                <Switch
+                  label="Enable DOAJ Integration"
+                  description="Submit published articles to the Directory of Open Access Journals"
+                  checked={settings.doajEnabled || false}
+                  onChange={(e) => setSettings({ ...settings, doajEnabled: e.currentTarget.checked })}
+                />
+
+                {settings.doajEnabled && (
+                  <Stack gap="sm">
+                    <PasswordInput
+                      label="DOAJ API Key"
+                      placeholder="Your DOAJ API key"
+                      value={settings.doajApiKey === '***hidden***' ? '' : (settings.doajApiKey || '')}
+                      onChange={(e) => setSettings({ ...settings, doajApiKey: e.target.value })}
+                      description="Get your API key from your DOAJ publisher dashboard"
+                    />
+
+                    <Switch
+                      label="Auto-Submit on Publish"
+                      description="Automatically submit articles to DOAJ when they are published"
+                      checked={settings.doajAutoSubmit || false}
+                      onChange={(e) => setSettings({ ...settings, doajAutoSubmit: e.currentTarget.checked })}
                     />
                   </Stack>
                 )}

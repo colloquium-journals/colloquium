@@ -118,6 +118,12 @@ const JournalSettingsSchema = z.object({
   doiPrefix: z.string().optional(),        // e.g., "10.12345"
   eissn: z.string().optional(),            // Electronic ISSN
   abbrevTitle: z.string().optional(),      // e.g., "J. Exp. Psychol."
+  licenseUrl: z.string().url().optional(), // e.g., "https://creativecommons.org/licenses/by/4.0/"
+
+  // DOAJ Integration
+  doajEnabled: z.boolean().default(false),
+  doajApiKey: z.string().optional(),
+  doajAutoSubmit: z.boolean().default(false),
   
   // Email Settings
   enableEmailNotifications: z.boolean().default(true),
@@ -196,6 +202,11 @@ const defaultSettings = {
   doiPrefix: undefined as string | undefined,
   eissn: undefined as string | undefined,
   abbrevTitle: undefined as string | undefined,
+  licenseUrl: undefined as string | undefined,
+  // DOAJ Integration
+  doajEnabled: false,
+  doajApiKey: undefined as string | undefined,
+  doajAutoSubmit: false,
   enableEmailNotifications: true,
   smtpHost: undefined as string | undefined,
   smtpPort: undefined as number | undefined,
@@ -342,6 +353,9 @@ router.get('/admin', authenticate, requireAdmin, async (req, res, next) => {
     }
     if (adminSettings.crossrefPassword) {
       adminSettings.crossrefPassword = '***hidden***';
+    }
+    if (adminSettings.doajApiKey) {
+      adminSettings.doajApiKey = '***hidden***';
     }
 
     res.json(adminSettings);

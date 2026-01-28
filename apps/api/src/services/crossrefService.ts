@@ -85,7 +85,8 @@ export class CrossrefService {
               }
             }
           }
-        }
+        },
+        manuscript_funding: true
       }
     });
 
@@ -116,6 +117,13 @@ export class CrossrefService {
             <year>${d.getFullYear()}</year>`;
     };
 
+    // Map CRediT role codes to Crossref contributor roles where possible
+    const creditToContributorRole = (creditRoles: string[]): string => {
+      // Crossref supports: author, editor, chair, translator, contributor
+      // For now, we default to 'author' since most CRediT roles map to author
+      return 'author';
+    };
+
     const buildAuthorXml = (author: typeof manuscript.manuscript_authors[0], index: number): string => {
       const user = author.users;
       let givenNames = user.givenNames;
@@ -128,7 +136,7 @@ export class CrossrefService {
       }
 
       const sequence = index === 0 ? 'first' : 'additional';
-      const contributorRole = author.isCorresponding ? 'author' : 'author';
+      const contributorRole = creditToContributorRole(author.creditRoles || []);
 
       let orcidXml = '';
       if (user.orcidId) {
@@ -155,6 +163,40 @@ export class CrossrefService {
           </person_name>`;
     };
 
+    // Build funding XML (FundRef)
+    const buildFundingXml = (): string => {
+      if (!manuscript.manuscript_funding || manuscript.manuscript_funding.length === 0) {
+        return '';
+      }
+
+      const fundingGroups = manuscript.manuscript_funding.map(funding => {
+        let funderIdXml = '';
+        if (funding.funderDoi) {
+          const doiUrl = funding.funderDoi.startsWith('http')
+            ? funding.funderDoi
+            : `https://doi.org/${funding.funderDoi}`;
+          funderIdXml = `
+            <fr:assertion name="funder_identifier">${escapeXml(doiUrl)}</fr:assertion>`;
+        }
+
+        let awardXml = '';
+        if (funding.awardId) {
+          awardXml = `
+          <fr:assertion name="award_number">${escapeXml(funding.awardId)}</fr:assertion>`;
+        }
+
+        return `<fr:assertion name="fundgroup">
+          <fr:assertion name="funder_name">
+            ${escapeXml(funding.funderName)}${funderIdXml}
+          </fr:assertion>${awardXml}
+        </fr:assertion>`;
+      }).join('\n        ');
+
+      return `<fr:program xmlns:fr="http://www.crossref.org/fundref.xsd" name="fundref">
+        ${fundingGroups}
+      </fr:program>`;
+    };
+
     const authorsXml = manuscript.manuscript_authors.length > 0
       ? `<contributors>
           ${manuscript.manuscript_authors.map((a, i) => buildAuthorXml(a, i)).join('\n          ')}
@@ -172,6 +214,8 @@ export class CrossrefService {
           ${formatDate(manuscript.acceptedDate)}
         </acceptance_date>`
       : '';
+
+    const fundingXml = buildFundingXml();
 
     const articleUrl = `${process.env.FRONTEND_URL || 'https://journal.example.com'}/articles/${manuscriptId}`;
 
@@ -211,6 +255,7 @@ export class CrossrefService {
         ${manuscript.abstract ? `<jats:abstract xmlns:jats="http://www.ncbi.nlm.nih.gov/JATS1">
           <jats:p>${escapeXml(manuscript.abstract)}</jats:p>
         </jats:abstract>` : ''}
+        ${fundingXml}
         <doi_data>
           <doi>${escapeXml(doi)}</doi>
           <resource>${escapeXml(articleUrl)}</resource>

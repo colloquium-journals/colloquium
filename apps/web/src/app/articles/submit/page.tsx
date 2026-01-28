@@ -24,7 +24,8 @@ import {
   Box,
   Modal,
   Table,
-  Badge
+  Badge,
+  MultiSelect
 } from '@mantine/core';
 import FileDropzone from '@/components/files/FileDropzone';
 import {
@@ -40,7 +41,10 @@ import {
   IconExternalLink,
   IconFileSpreadsheet,
   IconDownload,
-  IconFileTypeCsv
+  IconFileTypeCsv,
+  IconCoin,
+  IconPlus,
+  IconTrash
 } from '@tabler/icons-react';
 import { downloadTemplate, parseAuthorFile, ImportedAuthor, ParseResult } from '@/utils/authorImport';
 import { useForm } from '@mantine/form';
@@ -48,12 +52,21 @@ import { notifications } from '@mantine/notifications';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { RequireProfileCompletion } from '@/components/auth/RequireProfileCompletion';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
+import { CREDIT_ROLES, CreditRoleCode } from '@colloquium/types';
+
+interface FundingInput {
+  funderName: string;
+  funderDoi: string;
+  awardId: string;
+  awardTitle: string;
+}
 
 interface SubmissionData {
   title: string;
   abstract: string;
   authors: AuthorInput[];
   keywords: string[];
+  funding: FundingInput[];
   sourceFiles: File[];
   bibliographyFiles: File[];
   assetFiles: File[];
@@ -66,6 +79,7 @@ interface AuthorInput {
   affiliation: string;
   isExistingUser: boolean;
   isCorresponding: boolean;
+  creditRoles: string[];
 }
 
 interface FormatInfo {
@@ -173,9 +187,11 @@ export default function SubmitArticlePage() {
         name: user?.name || '',
         affiliation: user?.affiliation || '',
         isExistingUser: !!user,
-        isCorresponding: true
+        isCorresponding: true,
+        creditRoles: []
       }],
       keywords: [],
+      funding: [],
       sourceFiles: [],
       bibliographyFiles: [],
       assetFiles: [],
@@ -245,7 +261,8 @@ export default function SubmitArticlePage() {
           name: user.name || '',
           affiliation: user.affiliation || '',
           isExistingUser: true,
-          isCorresponding: true
+          isCorresponding: true,
+          creditRoles: updatedAuthors[0].creditRoles || []
         };
         form.setFieldValue('authors', updatedAuthors);
       }
@@ -268,8 +285,19 @@ export default function SubmitArticlePage() {
         email: author.email,
         name: author.name,
         affiliation: author.affiliation || '',
-        isCorresponding: author.isCorresponding
+        isCorresponding: author.isCorresponding,
+        creditRoles: author.creditRoles || []
       }))));
+
+      // Add funding array
+      if (values.funding.length > 0) {
+        formData.append('funding', JSON.stringify(values.funding.filter(f => f.funderName.trim()).map(f => ({
+          funderName: f.funderName.trim(),
+          funderDoi: f.funderDoi.trim() || undefined,
+          awardId: f.awardId.trim() || undefined,
+          awardTitle: f.awardTitle.trim() || undefined
+        }))));
+      }
       
       // Add keywords array
       values.keywords.forEach(keyword => {
@@ -351,8 +379,29 @@ export default function SubmitArticlePage() {
       name: '',
       affiliation: '',
       isExistingUser: false,
-      isCorresponding: false
+      isCorresponding: false,
+      creditRoles: []
     }]);
+  };
+
+  const addFunding = () => {
+    form.setFieldValue('funding', [...form.values.funding, {
+      funderName: '',
+      funderDoi: '',
+      awardId: '',
+      awardTitle: ''
+    }]);
+  };
+
+  const removeFunding = (index: number) => {
+    const newFunding = form.values.funding.filter((_, i) => i !== index);
+    form.setFieldValue('funding', newFunding);
+  };
+
+  const updateFunding = (index: number, field: keyof FundingInput, value: string) => {
+    const newFunding = [...form.values.funding];
+    newFunding[index] = { ...newFunding[index], [field]: value };
+    form.setFieldValue('funding', newFunding);
   };
 
   const removeAuthor = (index: number) => {
@@ -412,9 +461,9 @@ export default function SubmitArticlePage() {
     }
   };
 
-  const updateAuthor = (index: number, field: keyof AuthorInput, value: string | boolean) => {
+  const updateAuthor = (index: number, field: keyof AuthorInput, value: string | boolean | string[]) => {
     const newAuthors = [...form.values.authors];
-    
+
     // If setting someone as corresponding author, uncheck all others
     if (field === 'isCorresponding' && value === true) {
       newAuthors.forEach((author, i) => {
@@ -423,7 +472,7 @@ export default function SubmitArticlePage() {
         }
       });
     }
-    
+
     newAuthors[index] = { ...newAuthors[index], [field]: value };
     form.setFieldValue('authors', newAuthors);
   };
@@ -551,7 +600,8 @@ export default function SubmitArticlePage() {
       affiliation: imported.affiliation,
       isExistingUser: false,
       // Only set as corresponding if no existing corresponding and this is the first imported one marked
-      isCorresponding: !hasExistingCorresponding && imported.isCorresponding
+      isCorresponding: !hasExistingCorresponding && imported.isCorresponding,
+      creditRoles: []
     }));
 
     // If multiple imported authors are marked as corresponding, only keep the first
@@ -922,7 +972,18 @@ export default function SubmitArticlePage() {
                               </Text>
                             </Stack>
                           )}
-                          
+
+                          <MultiSelect
+                            label="CRediT Roles (Optional)"
+                            placeholder="Select contributor roles"
+                            data={CREDIT_ROLES.map(role => ({ value: role.code, label: role.label }))}
+                            value={author.creditRoles}
+                            onChange={(value) => updateAuthor(index, 'creditRoles', value)}
+                            searchable
+                            clearable
+                            description="Contributor Roles Taxonomy (CRediT) roles for this author"
+                          />
+
                           <Checkbox
                             label="Corresponding author (only one allowed)"
                             checked={author.isCorresponding}
@@ -939,6 +1000,83 @@ export default function SubmitArticlePage() {
                     <Text size="sm" c="red" mt="xs">{form.errors.authors}</Text>
                   )}
                 </div>
+            </Stack>
+
+            <Divider />
+
+            {/* Funding */}
+            <Stack gap="lg">
+              <Group gap="xs" align="center">
+                <IconCoin size={20} />
+                <Title order={3}>Funding (Optional)</Title>
+              </Group>
+              <Text size="sm" c="dimmed">
+                Add information about grants or funding sources that supported this research.
+              </Text>
+
+              <Stack gap="sm">
+                {form.values.funding.map((fund, index) => (
+                  <Box key={index} p="md" style={{
+                    border: '1px solid var(--mantine-color-gray-3)',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--mantine-color-gray-0)'
+                  }}>
+                    <Stack gap="sm">
+                      <Group align="flex-start" gap="sm">
+                        <TextInput
+                          label="Funder Name"
+                          placeholder="e.g., National Science Foundation"
+                          value={fund.funderName}
+                          onChange={(e) => updateFunding(index, 'funderName', e.target.value)}
+                          style={{ flex: 1 }}
+                          required
+                        />
+                        <ActionIcon
+                          variant="outline"
+                          color="red"
+                          size="lg"
+                          onClick={() => removeFunding(index)}
+                          mt="xl"
+                        >
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Group>
+
+                      <Group grow>
+                        <TextInput
+                          label="Funder DOI (Optional)"
+                          placeholder="e.g., 10.13039/100000001"
+                          value={fund.funderDoi}
+                          onChange={(e) => updateFunding(index, 'funderDoi', e.target.value)}
+                          description="Crossref Funder Registry DOI"
+                        />
+                        <TextInput
+                          label="Award/Grant ID (Optional)"
+                          placeholder="e.g., BCS-1234567"
+                          value={fund.awardId}
+                          onChange={(e) => updateFunding(index, 'awardId', e.target.value)}
+                        />
+                      </Group>
+
+                      <TextInput
+                        label="Award Title (Optional)"
+                        placeholder="Grant title or project name"
+                        value={fund.awardTitle}
+                        onChange={(e) => updateFunding(index, 'awardTitle', e.target.value)}
+                      />
+                    </Stack>
+                  </Box>
+                ))}
+                <Button
+                  variant="light"
+                  onClick={addFunding}
+                  size="sm"
+                  leftSection={<IconPlus size={14} />}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  Add Funding Source
+                </Button>
+              </Stack>
             </Stack>
 
             <Divider />
