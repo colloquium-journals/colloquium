@@ -109,6 +109,15 @@ const JournalSettingsSchema = z.object({
   doi: z.string().optional(),
   licenseType: z.string().default('CC BY 4.0'),
   copyrightHolder: z.string().optional(),
+
+  // Crossref Integration
+  crossrefEnabled: z.boolean().default(false),
+  crossrefUsername: z.string().optional(),
+  crossrefPassword: z.string().optional(),
+  crossrefTestMode: z.boolean().default(true),
+  doiPrefix: z.string().optional(),        // e.g., "10.12345"
+  eissn: z.string().optional(),            // Electronic ISSN
+  abbrevTitle: z.string().optional(),      // e.g., "J. Exp. Psychol."
   
   // Email Settings
   enableEmailNotifications: z.boolean().default(true),
@@ -179,6 +188,14 @@ const defaultSettings = {
   doi: undefined as string | undefined,
   licenseType: 'CC BY 4.0',
   copyrightHolder: 'Colloquium Journal',
+  // Crossref Integration
+  crossrefEnabled: false,
+  crossrefUsername: undefined as string | undefined,
+  crossrefPassword: undefined as string | undefined,
+  crossrefTestMode: true,
+  doiPrefix: undefined as string | undefined,
+  eissn: undefined as string | undefined,
+  abbrevTitle: undefined as string | undefined,
   enableEmailNotifications: true,
   smtpHost: undefined as string | undefined,
   smtpPort: undefined as number | undefined,
@@ -323,7 +340,10 @@ router.get('/admin', authenticate, requireAdmin, async (req, res, next) => {
     if (adminSettings.smtpPassword) {
       adminSettings.smtpPassword = '***hidden***';
     }
-    
+    if (adminSettings.crossrefPassword) {
+      adminSettings.crossrefPassword = '***hidden***';
+    }
+
     res.json(adminSettings);
   } catch (error) {
     next(error);

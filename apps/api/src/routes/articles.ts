@@ -345,6 +345,7 @@ router.post('/', authenticate, (req, res, next) => {
           authors: processedAuthors.map(author => author.name),
           keywords: manuscriptData.keywords.map(keyword => keyword.trim()).filter(Boolean),
           status: 'SUBMITTED',
+          receivedDate: new Date(),
           updatedAt: new Date(),
           metadata: {
             ...manuscriptData.metadata,

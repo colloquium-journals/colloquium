@@ -571,8 +571,8 @@ Decline: ${invitationUrl}?action=decline
       data: {
         status,
         updatedAt: new Date(),
-        // Set publishedAt if accepted
-        ...(status === 'ACCEPTED' && { publishedAt: new Date() })
+        // Set acceptedDate if accepted
+        ...(status === 'ACCEPTED' && { acceptedDate: new Date() })
       }
     });
 
@@ -1109,11 +1109,30 @@ View manuscript: ${process.env.FRONTEND_URL}/manuscripts/${manuscriptId}
   }
 
   private async generateDOI(manuscriptId: string): Promise<string> {
-    // Generate a DOI-like identifier for the manuscript
-    // In a real implementation, this would integrate with a DOI service like CrossRef
-    const timestamp = Date.now();
-    const shortId = manuscriptId.substring(0, 8);
-    return `10.1000/colloquium.${timestamp}.${shortId}`;
+    const { crossrefService } = await import('./crossrefService');
+    const { getJournalSettings } = await import('../routes/settings');
+
+    const settings = await getJournalSettings();
+
+    // If Crossref is configured, register with Crossref
+    if (settings.crossrefEnabled && settings.doiPrefix && settings.crossrefUsername) {
+      const result = await crossrefService.registerManuscript(manuscriptId);
+
+      if (result.success && result.doi) {
+        return result.doi;
+      }
+
+      // Log error but continue - don't block publication
+      console.error(`Crossref registration failed: ${result.error}`);
+    }
+
+    // Fallback: Generate local DOI (not registered)
+    if (settings.doiPrefix) {
+      return `${settings.doiPrefix}/${new Date().getFullYear()}.${manuscriptId.substring(0, 8)}`;
+    }
+
+    // No prefix configured - return placeholder
+    return `10.1000/colloquium.${Date.now()}.${manuscriptId.substring(0, 8)}`;
   }
 
   private async sendPublicationEmail(email: string, manuscript: any, doi: string, conversationId: string): Promise<void> {

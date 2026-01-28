@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>$title$ | $journalName$</title>
+    <!-- Google Scholar / Citation metadata -->
+    <meta name="citation_title" content="$title$">
+$for(authorList)$
+    <meta name="citation_author" content="$authorList.surname$, $authorList.givenNames$">
+$endfor$
+$if(doi)$    <meta name="citation_doi" content="$doi$">$endif$
+$if(publishedDate)$    <meta name="citation_publication_date" content="$publishedDate$">$endif$
+$if(journalName)$    <meta name="citation_journal_title" content="$journalName$">$endif$
+$if(volume)$    <meta name="citation_volume" content="$volume$">$endif$
+$if(issue)$    <meta name="citation_issue" content="$issue$">$endif$
+$if(elocationId)$    <meta name="citation_firstpage" content="$elocationId$">$endif$
+$if(issn)$    <meta name="citation_issn" content="$issn$">$endif$
+$if(pdfUrl)$    <meta name="citation_pdf_url" content="$pdfUrl$">$endif$
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Source+Sans+Pro:wght@400;600;700&display=swap');
 

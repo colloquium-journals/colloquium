@@ -246,6 +246,9 @@ const renderCommand: BotCommand = {
       const baseFilename = markdownFile.originalName.replace(/\.(md|markdown)$/i, '');
       const uploadResults = [];
       
+      // Get journal settings for additional metadata
+      const journalSettings = context.journal?.settings || {};
+
       // Prepare template variables
       const templateVariables = {
         title: metadata.title || 'Untitled Manuscript',
@@ -257,7 +260,15 @@ const renderCommand: BotCommand = {
         content: processedContent.html,
         submittedDate: metadata.submittedAt ? new Date(metadata.submittedAt).toLocaleDateString() : '',
         renderDate: new Date().toLocaleDateString(),
-        journalName: context.journal?.settings?.name || 'Colloquium Journal'
+        journalName: journalSettings.name || 'Colloquium Journal',
+        // Publication metadata for Google Scholar/Crossref
+        doi: metadata.doi || '',
+        publishedDate: metadata.publishedAt ? new Date(metadata.publishedAt).toISOString().split('T')[0] : '',
+        volume: metadata.volume || '',
+        issue: metadata.issue || '',
+        elocationId: metadata.elocationId || '',
+        issn: journalSettings.issn || journalSettings.eissn || '',
+        pdfUrl: '' // Will be set if PDF rendered file exists
       };
       
       // Generate outputs based on configuration
@@ -779,6 +790,39 @@ async function getManuscriptMetadata(manuscriptId: string, serviceToken: string)
   return await response.json();
 }
 
+/**
+ * Parse a full name into given names and surname.
+ * Handles common name formats like "John Smith", "John A. Smith", "Smith, John"
+ */
+function parseNameParts(fullName: string): { givenNames: string; surname: string } {
+  if (!fullName || fullName.trim() === '') {
+    return { givenNames: '', surname: '' };
+  }
+
+  const trimmedName = fullName.trim();
+
+  // Check for "Surname, Given Names" format
+  if (trimmedName.includes(',')) {
+    const parts = trimmedName.split(',').map(p => p.trim());
+    return {
+      surname: parts[0] || '',
+      givenNames: parts.slice(1).join(' ').trim() || ''
+    };
+  }
+
+  // Otherwise assume "Given Names Surname" format (last word is surname)
+  const words = trimmedName.split(/\s+/);
+  if (words.length === 1) {
+    // Single name - treat as surname
+    return { givenNames: '', surname: words[0] };
+  }
+
+  return {
+    givenNames: words.slice(0, -1).join(' '),
+    surname: words[words.length - 1]
+  };
+}
+
 async function prepareAuthorData(metadata: any): Promise<{
   authorsString: string;
   authorList: any[];
@@ -788,20 +832,35 @@ async function prepareAuthorData(metadata: any): Promise<{
   // Initialize with empty/default values
   let authorList: any[] = [];
   let correspondingAuthor: any | null = null;
-  
+
   try {
     // Check if we have detailed author relations
     if (metadata.authorRelations && Array.isArray(metadata.authorRelations)) {
       // Sort authors by order field
       const sortedAuthors = metadata.authorRelations.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-      
+
       authorList = sortedAuthors.map((authorRel: any) => {
         const author = authorRel.user || {};
+        const fullName = author.name || 'Unknown Author';
+
+        // Use structured names if available, otherwise parse from full name
+        let givenNames = author.givenNames || '';
+        let surname = author.surname || '';
+
+        if (!givenNames && !surname) {
+          const parsed = parseNameParts(fullName);
+          givenNames = parsed.givenNames;
+          surname = parsed.surname;
+        }
+
         return {
           id: author.id || null,
-          name: author.name || 'Unknown Author',
+          name: fullName,
+          givenNames,
+          surname,
           email: author.email || null,
-          orcidId: author.orcidId || null,
+          orcid: author.orcidId || null, // Use 'orcid' for template compatibility
+          orcidId: author.orcidId || null, // Keep for backwards compatibility
           affiliation: author.affiliation || null,
           bio: author.bio || null,
           website: author.website || null,
@@ -810,36 +869,44 @@ async function prepareAuthorData(metadata: any): Promise<{
           isRegistered: !!author.id
         };
       });
-      
+
       // Find corresponding author
       correspondingAuthor = authorList.find(author => author.isCorresponding) || null;
     }
     // Fallback to simple author array if no detailed relations
     else if (metadata.authors && Array.isArray(metadata.authors)) {
-      authorList = metadata.authors.map((name: string, index: number) => ({
-        id: null,
-        name: name.trim(),
-        email: null,
-        orcidId: null,
-        affiliation: null,
-        bio: null,
-        website: null,
-        isCorresponding: index === 0, // Assume first author is corresponding
-        order: index,
-        isRegistered: false
-      }));
-      
+      authorList = metadata.authors.map((name: string, index: number) => {
+        const trimmedName = name.trim();
+        const parsed = parseNameParts(trimmedName);
+
+        return {
+          id: null,
+          name: trimmedName,
+          givenNames: parsed.givenNames,
+          surname: parsed.surname,
+          email: null,
+          orcid: null,
+          orcidId: null,
+          affiliation: null,
+          bio: null,
+          website: null,
+          isCorresponding: index === 0, // Assume first author is corresponding
+          order: index,
+          isRegistered: false
+        };
+      });
+
       correspondingAuthor = authorList[0] || null;
     }
   } catch (error) {
     console.warn('Error processing author data:', error);
   }
-  
+
   // Generate backward-compatible authors string
-  const authorsString = authorList.length > 0 
+  const authorsString = authorList.length > 0
     ? authorList.map(author => author.name).join(', ')
     : '';
-  
+
   return {
     authorsString,
     authorList,
@@ -1080,6 +1147,13 @@ async function generatePandocHTML(
       doi: templateVariables.doi || '',
       submittedDate: templateVariables.submittedDate || '',
       renderDate: templateVariables.renderDate || '',
+      // Publication metadata for Google Scholar/Crossref
+      publishedDate: templateVariables.publishedDate || '',
+      volume: templateVariables.volume || '',
+      issue: templateVariables.issue || '',
+      elocationId: templateVariables.elocationId || '',
+      issn: templateVariables.issn || '',
+      pdfUrl: templateVariables.pdfUrl || '',
       citationHover: citationHover?.enabled ?? false,
       citationHoverLinks: JSON.stringify(citationHover?.links ?? []).replace(/"/g, "'"),
       citationHoverCustomLinks: JSON.stringify(citationHover?.customLinks ?? {}).replace(/"/g, "'"),
@@ -1372,6 +1446,8 @@ export interface RenderOptions {
   authors?: string;
   authorList?: Array<{
     name: string;
+    givenNames?: string;
+    surname?: string;
     affiliation?: string;
     orcid?: string;
     email?: string;
@@ -1396,9 +1472,21 @@ export interface RenderOptions {
   /** PDF engine to use (default: 'typst') */
   pdfEngine?: 'typst' | 'latex' | 'html';
 
-  // Extended metadata for maximal template
+  // Publication metadata for Google Scholar/Crossref
   /** Digital Object Identifier */
   doi?: string;
+  /** Volume number */
+  volume?: string;
+  /** Issue number */
+  issue?: string;
+  /** E-location ID for online-only articles */
+  elocationId?: string;
+  /** ISSN (print or electronic) */
+  issn?: string;
+  /** URL to PDF version */
+  pdfUrl?: string;
+
+  // Extended metadata for maximal template
   /** Keywords (comma-separated or as array via keywordList) */
   keywords?: string;
   keywordList?: string[];
@@ -1498,6 +1586,13 @@ export async function renderMarkdown(
     acceptedDate: options.acceptedDate || '',
     publishedDate: options.publishedDate || '',
     renderDate: options.renderDate || new Date().toLocaleDateString(),
+    // Publication metadata for Google Scholar/Crossref
+    volume: options.volume || '',
+    issue: options.issue || '',
+    elocationId: options.elocationId || '',
+    issn: options.issn || '',
+    pdfUrl: options.pdfUrl || '',
+    // Extended metadata
     articleType: options.articleType || '',
     license: options.license || '',
     version: options.version || '',

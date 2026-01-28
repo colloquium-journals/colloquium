@@ -517,4 +517,227 @@ describe('Markdown Renderer Bot', () => {
       expect(result.messages[0].content).toContain('{{content}}');
     });
   });
+
+  describe('author data processing', () => {
+    const renderCommand = markdownRendererBot.commands.find(cmd => cmd.name === 'render');
+
+    beforeEach(() => {
+      global.FormData = jest.fn().mockImplementation(() => ({
+        append: jest.fn(),
+      }));
+
+      global.Blob = jest.fn().mockImplementation(() => ({
+        size: 1024,
+      }));
+    });
+
+    it('should process authorRelations with structured names (givenNames/surname)', async () => {
+      const mockContext = {
+        manuscriptId: 'test-manuscript-123',
+        conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
+        triggeredBy: {
+          messageId: 'test-message-789',
+          userId: 'test-user-001',
+          userRole: 'USER',
+          trigger: 'MENTION' as const
+        },
+        journal: { id: 'test-journal', settings: { name: 'Test Journal' } },
+        config: {}
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url.includes('localhost:8080/convert')) {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mock-pdf').buffer)
+          });
+        }
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ id: 'f1', filename: 'manuscript.pdf', downloadUrl: '/download/f1', size: 512 }]
+            })
+          });
+        }
+        if (url.includes('/files')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ originalName: 'manuscript.md', fileType: 'SOURCE', mimetype: 'text/markdown', downloadUrl: '/download/md' }]
+            })
+          });
+        }
+        if (url.includes('/download')) {
+          return Promise.resolve({ ok: true, text: () => Promise.resolve('# Title\n\nBody') });
+        }
+        // Manuscript metadata with authorRelations
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            title: 'Test Article',
+            abstract: 'Test abstract',
+            authorRelations: [
+              {
+                order: 1,
+                isCorresponding: true,
+                user: {
+                  id: 'user-1',
+                  name: 'John Adam Smith',
+                  givenNames: 'John Adam',
+                  surname: 'Smith',
+                  email: 'john@example.com',
+                  orcidId: '0000-0001-2345-6789',
+                  affiliation: 'Test University'
+                }
+              },
+              {
+                order: 2,
+                isCorresponding: false,
+                user: {
+                  id: 'user-2',
+                  name: 'Jane Doe',
+                  givenNames: null,
+                  surname: null,
+                  email: 'jane@example.com'
+                }
+              }
+            ]
+          })
+        });
+      });
+
+      const result = await renderCommand!.execute({}, mockContext);
+
+      // The render should complete successfully
+      expect(result.messages[0].content).toContain('Markdown Rendered Successfully');
+    });
+
+    it('should process simple authors array and parse names', async () => {
+      const mockContext = {
+        manuscriptId: 'test-manuscript-123',
+        conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
+        triggeredBy: {
+          messageId: 'test-message-789',
+          userId: 'test-user-001',
+          userRole: 'USER',
+          trigger: 'MENTION' as const
+        },
+        journal: { id: 'test-journal', settings: { name: 'Test Journal' } },
+        config: {}
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url.includes('localhost:8080/convert')) {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mock-pdf').buffer)
+          });
+        }
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ id: 'f1', filename: 'manuscript.pdf', downloadUrl: '/download/f1', size: 512 }]
+            })
+          });
+        }
+        if (url.includes('/files')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ originalName: 'manuscript.md', fileType: 'SOURCE', mimetype: 'text/markdown', downloadUrl: '/download/md' }]
+            })
+          });
+        }
+        if (url.includes('/download')) {
+          return Promise.resolve({ ok: true, text: () => Promise.resolve('# Title\n\nBody') });
+        }
+        // Manuscript metadata with simple authors array
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            title: 'Test Article',
+            abstract: 'Test abstract',
+            authors: ['John Smith', 'Jane A. Doe', 'Smith, Robert']
+          })
+        });
+      });
+
+      const result = await renderCommand!.execute({}, mockContext);
+
+      expect(result.messages[0].content).toContain('Markdown Rendered Successfully');
+    });
+
+    it('should include publication metadata in template variables', async () => {
+      const mockContext = {
+        manuscriptId: 'test-manuscript-123',
+        conversationId: 'test-conversation-456',
+        serviceToken: 'test-bot-token',
+        triggeredBy: {
+          messageId: 'test-message-789',
+          userId: 'test-user-001',
+          userRole: 'USER',
+          trigger: 'MENTION' as const
+        },
+        journal: {
+          id: 'test-journal',
+          settings: {
+            name: 'Test Journal',
+            issn: '1234-5678',
+            eissn: '8765-4321'
+          }
+        },
+        config: {}
+      };
+
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url.includes('localhost:8080/convert')) {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mock-pdf').buffer)
+          });
+        }
+        if (options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ id: 'f1', filename: 'manuscript.pdf', downloadUrl: '/download/f1', size: 512 }]
+            })
+          });
+        }
+        if (url.includes('/files')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              files: [{ originalName: 'manuscript.md', fileType: 'SOURCE', mimetype: 'text/markdown', downloadUrl: '/download/md' }]
+            })
+          });
+        }
+        if (url.includes('/download')) {
+          return Promise.resolve({ ok: true, text: () => Promise.resolve('# Title\n\nBody') });
+        }
+        // Manuscript metadata with publication fields
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            title: 'Test Article',
+            abstract: 'Test abstract',
+            authors: ['John Smith'],
+            doi: '10.12345/2024.test',
+            publishedAt: '2024-06-15T00:00:00.000Z',
+            volume: '5',
+            issue: '2',
+            elocationId: 'e123'
+          })
+        });
+      });
+
+      const result = await renderCommand!.execute({}, mockContext);
+
+      expect(result.messages[0].content).toContain('Markdown Rendered Successfully');
+    });
+  });
 });

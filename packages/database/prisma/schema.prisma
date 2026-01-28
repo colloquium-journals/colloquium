@@ -185,28 +185,41 @@ model manuscript_files {
 }
 
 model manuscripts {
-  id                 String               @id
-  title              String
-  abstract           String?
-  content            String?
-  status             ManuscriptStatus     @default(SUBMITTED)
-  submittedAt        DateTime             @default(now())
-  updatedAt          DateTime
-  authors            String[]
-  fileUrl            String?
-  keywords           String[]             @default([])
-  metadata           Json?
-  publishedAt        DateTime?
-  doi                String?
-  workflowPhase      WorkflowPhase        @default(REVIEW)
-  workflowRound      Int                  @default(1)
-  releasedAt         DateTime?
-  action_editors     action_editors?
-  conversations      conversations[]
-  manuscript_authors manuscript_authors[]
-  manuscript_files   manuscript_files[]
-  review_assignments review_assignments[]
-  workflow_releases  workflow_releases[]
+  id                   String               @id
+  title                String
+  abstract             String?
+  content              String?
+  status               ManuscriptStatus     @default(SUBMITTED)
+  submittedAt          DateTime             @default(now())
+  updatedAt            DateTime
+  authors              String[]
+  fileUrl              String?
+  keywords             String[]             @default([])
+  metadata             Json?
+  publishedAt          DateTime?
+  doi                  String?
+  workflowPhase        WorkflowPhase        @default(REVIEW)
+  workflowRound        Int                  @default(1)
+  releasedAt           DateTime?
+  // Publication metadata
+  volume               String?
+  issue                String?
+  elocationId          String?              // For online-only articles
+  articleType          String?              // research-article, review-article, etc.
+  // Key dates for Crossref
+  receivedDate         DateTime?            // Auto-set on submission
+  acceptedDate         DateTime?            // Set when accepted
+  // Crossref registration tracking
+  crossrefDepositId    String?
+  crossrefStatus       String?              // pending, success, failed
+  crossrefError        String?
+  crossrefRegisteredAt DateTime?
+  action_editors       action_editors?
+  conversations        conversations[]
+  manuscript_authors   manuscript_authors[]
+  manuscript_files     manuscript_files[]
+  review_assignments   review_assignments[]
+  workflow_releases    workflow_releases[]
 }
 
 model messages {
@@ -283,6 +296,10 @@ model users {
   email                                           String                      @unique
   username                                        String                      @unique
   name                                            String?
+  // Structured name for Crossref/JATS
+  givenNames                                      String?
+  surname                                         String?
+  nameSuffix                                      String?
   orcidId                                         String?                     @unique
   orcidVerified                                   Boolean                     @default(false)
   createdAt                                       DateTime                    @default(now())

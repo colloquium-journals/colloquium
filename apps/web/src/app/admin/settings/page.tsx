@@ -29,7 +29,8 @@ import {
   List,
   ThemeIcon,
   Box,
-  Progress
+  Progress,
+  PasswordInput
 } from '@mantine/core';
 import {
   IconSettings,
@@ -178,6 +179,15 @@ interface JournalSettings {
   doi?: string;
   licenseType: string;
   copyrightHolder: string;
+
+  // Crossref Integration
+  crossrefEnabled?: boolean;
+  crossrefUsername?: string;
+  crossrefPassword?: string;
+  crossrefTestMode?: boolean;
+  doiPrefix?: string;
+  eissn?: string;
+  abbrevTitle?: string;
   
   // Email Settings
   enableEmailNotifications: boolean;
@@ -1758,6 +1768,65 @@ export default function JournalSettingsPage() {
                   value={settings.copyrightHolder}
                   onChange={(e) => setSettings({ ...settings, copyrightHolder: e.target.value })}
                 />
+
+                <Divider label="Crossref Integration" labelPosition="center" my="md" />
+
+                <Switch
+                  label="Enable Crossref DOI Registration"
+                  description="Automatically register DOIs with Crossref when manuscripts are published"
+                  checked={settings.crossrefEnabled || false}
+                  onChange={(e) => setSettings({ ...settings, crossrefEnabled: e.currentTarget.checked })}
+                />
+
+                {settings.crossrefEnabled && (
+                  <Stack gap="sm">
+                    <Group grow>
+                      <TextInput
+                        label="Crossref Username"
+                        placeholder="Your Crossref username"
+                        value={settings.crossrefUsername || ''}
+                        onChange={(e) => setSettings({ ...settings, crossrefUsername: e.target.value })}
+                      />
+                      <PasswordInput
+                        label="Crossref Password"
+                        placeholder="Your Crossref password"
+                        value={settings.crossrefPassword === '***hidden***' ? '' : (settings.crossrefPassword || '')}
+                        onChange={(e) => setSettings({ ...settings, crossrefPassword: e.target.value })}
+                      />
+                    </Group>
+
+                    <Switch
+                      label="Test Mode"
+                      description="Use test.crossref.org instead of production (recommended for testing)"
+                      checked={settings.crossrefTestMode !== false}
+                      onChange={(e) => setSettings({ ...settings, crossrefTestMode: e.currentTarget.checked })}
+                    />
+
+                    <TextInput
+                      label="DOI Prefix"
+                      description="Your registered DOI prefix from Crossref"
+                      placeholder="10.12345"
+                      value={settings.doiPrefix || ''}
+                      onChange={(e) => setSettings({ ...settings, doiPrefix: e.target.value })}
+                    />
+
+                    <TextInput
+                      label="Electronic ISSN"
+                      description="ISSN for the electronic/online version of your journal"
+                      placeholder="0000-0000"
+                      value={settings.eissn || ''}
+                      onChange={(e) => setSettings({ ...settings, eissn: e.target.value })}
+                    />
+
+                    <TextInput
+                      label="Abbreviated Title"
+                      description="Short form of journal name for citations"
+                      placeholder="J. Exp. Psychol."
+                      value={settings.abbrevTitle || ''}
+                      onChange={(e) => setSettings({ ...settings, abbrevTitle: e.target.value })}
+                    />
+                  </Stack>
+                )}
               </Stack>
             </Card>
           </Tabs.Panel>
