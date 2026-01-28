@@ -145,7 +145,8 @@ app.post('/convert', upload.none(), async (req, res) => {
     // Build Pandoc command
     const args = [
       `"${inputFile}"`,
-      '-o', `"${outputFile}"`
+      '-o', `"${outputFile}"`,
+      '--from=markdown-smart'  // Disable smart quote conversion
     ];
 
     // Add engine-specific options

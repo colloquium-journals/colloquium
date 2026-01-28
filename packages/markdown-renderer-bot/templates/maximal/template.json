@@ -26,7 +26,11 @@
       "authorContributions": true,
       "competingInterests": true,
       "supplementaryMaterials": true,
-      "versionInfo": true
+      "versionInfo": true,
+      "citationHover": {
+        "enabled": true,
+        "links": ["doi", "googleScholar"]
+      }
     }
   }
 }

@@ -21,6 +21,15 @@ const templateFileSchema = z.object({
   metadata: z.record(z.any()).optional().describe('Additional metadata about this file')
 });
 
+const citationHoverConfigSchema = z.object({
+  enabled: z.boolean(),
+  links: z.array(z.string()).optional(),
+  customLinks: z.record(z.object({
+    label: z.string(),
+    urlPattern: z.string()
+  })).optional()
+});
+
 const templateDefinitionSchema = z.object({
   name: z.string().describe('Template identifier'),
   title: z.string().describe('Display name for the template'),
@@ -31,7 +40,7 @@ const templateDefinitionSchema = z.object({
     type: z.string().optional(),
     responsive: z.boolean().optional(),
     printOptimized: z.boolean().optional(),
-    features: z.record(z.boolean()).optional()
+    features: z.record(z.union([z.boolean(), citationHoverConfigSchema])).optional()
   }).optional().describe('Template metadata and features')
 });
 
@@ -1049,6 +1058,18 @@ async function generatePandocHTML(
     const htmlTemplate = template.htmlTemplate || '';
     console.log(`DEBUG generatePandocHTML: template keys: ${Object.keys(template)}, htmlTemplate length: ${htmlTemplate.length}`);
 
+    // Normalize citationHover config (support both boolean shorthand and object form)
+    const citationHoverConfig = template.metadata?.features?.citationHover;
+    const citationHover = citationHoverConfig
+      ? (typeof citationHoverConfig === 'boolean'
+          ? { enabled: true, links: ['doi', 'googleScholar'], customLinks: {} }
+          : {
+              enabled: citationHoverConfig.enabled ?? false,
+              links: citationHoverConfig.links ?? ['doi', 'googleScholar'],
+              customLinks: citationHoverConfig.customLinks ?? {}
+            })
+      : null;
+
     // Prepare metadata for Pandoc (complex objects like authorList)
     const metadata: Record<string, any> = {
       title: templateVariables.title || '',
@@ -1059,6 +1080,9 @@ async function generatePandocHTML(
       doi: templateVariables.doi || '',
       submittedDate: templateVariables.submittedDate || '',
       renderDate: templateVariables.renderDate || '',
+      citationHover: citationHover?.enabled ?? false,
+      citationHoverLinks: JSON.stringify(citationHover?.links ?? []).replace(/"/g, "'"),
+      citationHoverCustomLinks: JSON.stringify(citationHover?.customLinks ?? {}).replace(/"/g, "'"),
     };
 
     // Add complex metadata (arrays/objects)
@@ -1450,6 +1474,18 @@ export async function renderMarkdown(
     };
   });
 
+  // Normalize citationHover config from template (support both boolean shorthand and object form)
+  const citationHoverConfig = template.metadata?.features?.citationHover;
+  const citationHover = citationHoverConfig
+    ? (typeof citationHoverConfig === 'boolean'
+        ? { enabled: true, links: ['doi', 'googleScholar'], customLinks: {} }
+        : {
+            enabled: citationHoverConfig.enabled ?? false,
+            links: citationHoverConfig.links ?? ['doi', 'googleScholar'],
+            customLinks: citationHoverConfig.customLinks ?? {}
+          })
+    : null;
+
   // Prepare metadata for Pandoc (complex objects like authorList)
   const metadata: Record<string, any> = {
     title: options.title || '',
@@ -1472,6 +1508,9 @@ export async function renderMarkdown(
     acknowledgments: options.acknowledgments || '',
     competingInterests: options.competingInterests || '',
     ethicsApproval: options.ethicsApproval || '',
+    citationHover: citationHover?.enabled ?? false,
+    citationHoverLinks: JSON.stringify(citationHover?.links ?? []).replace(/"/g, "'"),
+    citationHoverCustomLinks: JSON.stringify(citationHover?.customLinks ?? {}).replace(/"/g, "'"),
   };
 
   // Add complex metadata (arrays/objects)

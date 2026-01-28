@@ -752,5 +752,264 @@ $body$
             </div>
         </footer>
     </article>
+$if(citationHover)$
+<style>
+.citation-tooltip {
+    position: absolute;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 420px;
+    box-shadow: var(--shadow-md);
+    z-index: 1000;
+    font-family: 'Merriweather', Georgia, serif;
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: left;
+    text-indent: 0;
+    color: var(--color-text);
+}
+.citation-tooltip-text {
+    margin-bottom: 12px;
+    color: var(--color-text-secondary);
+}
+.citation-tooltip-links {
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.citation-tooltip-links a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.citation-tooltip-links a:hover,
+.citation-tooltip-links a:focus {
+    text-decoration: underline;
+}
+.citation[data-citation-hover] {
+    cursor: pointer;
+}
+@media print {
+    .citation-tooltip {
+        display: none !important;
+    }
+}
+</style>
+<script>
+(function() {
+    var enabledLinks = $citationHoverLinks$;
+    var customLinks = $citationHoverCustomLinks$;
+
+    var linkGenerators = {
+        doi: function(citation) {
+            var doi = extractDOI(citation.text);
+            return doi ? { label: 'DOI', url: 'https://doi.org/' + doi } : null;
+        },
+        googleScholar: function(citation) {
+            return {
+                label: 'Google Scholar',
+                url: 'https://scholar.google.com/scholar?q=' + encodeURIComponent(citation.title || citation.text.substring(0, 100))
+            };
+        },
+        pubmed: function(citation) {
+            return {
+                label: 'PubMed',
+                url: 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(citation.title || citation.text.substring(0, 100))
+            };
+        },
+        semanticScholar: function(citation) {
+            return {
+                label: 'Semantic Scholar',
+                url: 'https://www.semanticscholar.org/search?q=' + encodeURIComponent(citation.title || citation.text.substring(0, 100))
+            };
+        }
+    };
+
+    function extractDOI(text) {
+        var match = text.match(/10\.\d{4,}\/[^\s<>\[\]"']+/);
+        return match ? match[0].replace(/[.,;:)\]}]+$$/, '') : null;
+    }
+
+    function extractTitle(text) {
+        var match = text.match(/[""]([^""]+)[""]/);
+        if (match) return match[1];
+        var periodMatch = text.match(/\.\s*([A-Z][^.]+\.)/);
+        if (periodMatch) return periodMatch[1].replace(/\.$$/, '');
+        return text.substring(0, 100);
+    }
+
+    function extractYear(text) {
+        var match = text.match(/\((\d{4})\)|\b(19|20)\d{2}\b/);
+        return match ? (match[1] || match[0]) : '';
+    }
+
+    function extractAuthors(text) {
+        var match = text.match(/^([^(]+)\s*\(/);
+        return match ? match[1].trim() : '';
+    }
+
+    function generateLinks(citation) {
+        var links = [];
+        enabledLinks.forEach(function(linkType) {
+            var link = null;
+            if (customLinks && customLinks[linkType]) {
+                var custom = customLinks[linkType];
+                var url = custom.urlPattern
+                    .replace(/\{title\}/g, encodeURIComponent(citation.title || ''))
+                    .replace(/\{doi\}/g, encodeURIComponent(citation.doi || ''))
+                    .replace(/\{text\}/g, encodeURIComponent(citation.text || ''))
+                    .replace(/\{authors\}/g, encodeURIComponent(citation.authors || ''))
+                    .replace(/\{year\}/g, encodeURIComponent(citation.year || ''));
+                link = { label: custom.label, url: url };
+            } else if (linkGenerators[linkType]) {
+                link = linkGenerators[linkType](citation);
+            }
+            if (link) links.push(link);
+        });
+        return links;
+    }
+
+    function createTooltip(citation, links) {
+        var tooltip = document.createElement('div');
+        tooltip.className = 'citation-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.id = 'citation-tooltip-' + citation.key;
+
+        var textDiv = document.createElement('div');
+        textDiv.className = 'citation-tooltip-text';
+        textDiv.textContent = citation.text;
+        tooltip.appendChild(textDiv);
+
+        if (links.length > 0) {
+            var linksDiv = document.createElement('div');
+            linksDiv.className = 'citation-tooltip-links';
+            links.forEach(function(link) {
+                var a = document.createElement('a');
+                a.href = link.url;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = link.label;
+                linksDiv.appendChild(a);
+            });
+            tooltip.appendChild(linksDiv);
+        }
+
+        return tooltip;
+    }
+
+    function positionTooltip(tooltip, element) {
+        document.body.appendChild(tooltip);
+        var rect = element.getBoundingClientRect();
+        var tooltipRect = tooltip.getBoundingClientRect();
+        var scrollY = window.scrollY || window.pageYOffset;
+        var scrollX = window.scrollX || window.pageXOffset;
+
+        var top = rect.top + scrollY - tooltipRect.height - 8;
+        if (top < scrollY) {
+            top = rect.bottom + scrollY + 8;
+        }
+
+        var left = rect.left + scrollX + (rect.width / 2) - (tooltipRect.width / 2);
+        if (left < 8) left = 8;
+        if (left + tooltipRect.width > window.innerWidth - 8) {
+            left = window.innerWidth - tooltipRect.width - 8;
+        }
+
+        tooltip.style.top = top + 'px';
+        tooltip.style.left = left + 'px';
+    }
+
+    function initCitationHover() {
+        var citations = document.querySelectorAll('.citation[data-cites]');
+        citations.forEach(function(el) {
+            var citeKeys = el.getAttribute('data-cites').split(/\s+/);
+            var firstKey = citeKeys[0];
+            var refEl = document.getElementById('ref-' + firstKey);
+            if (!refEl) return;
+
+            var citationText = refEl.textContent.trim();
+            var citation = {
+                key: firstKey,
+                text: citationText,
+                title: extractTitle(citationText),
+                doi: extractDOI(citationText),
+                year: extractYear(citationText),
+                authors: extractAuthors(citationText)
+            };
+
+            var links = generateLinks(citation);
+            var tooltip = null;
+
+            el.setAttribute('data-citation-hover', 'true');
+            el.setAttribute('tabindex', '0');
+            el.setAttribute('aria-describedby', 'citation-tooltip-' + firstKey);
+
+            var hideTimeout = null;
+            var isOverTooltip = false;
+
+            function showTooltip() {
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                    hideTimeout = null;
+                }
+                if (tooltip) return;
+                tooltip = createTooltip(citation, links);
+                positionTooltip(tooltip, el);
+
+                tooltip.addEventListener('mouseenter', function() {
+                    isOverTooltip = true;
+                    if (hideTimeout) {
+                        clearTimeout(hideTimeout);
+                        hideTimeout = null;
+                    }
+                });
+                tooltip.addEventListener('mouseleave', function() {
+                    isOverTooltip = false;
+                    scheduleHide();
+                });
+            }
+
+            function scheduleHide() {
+                if (hideTimeout) return;
+                hideTimeout = setTimeout(function() {
+                    if (!isOverTooltip) {
+                        hideTooltip();
+                    }
+                    hideTimeout = null;
+                }, 100);
+            }
+
+            function hideTooltip() {
+                if (tooltip) {
+                    tooltip.remove();
+                    tooltip = null;
+                }
+                isOverTooltip = false;
+            }
+
+            el.addEventListener('mouseenter', showTooltip);
+            el.addEventListener('mouseleave', scheduleHide);
+            el.addEventListener('focus', showTooltip);
+            el.addEventListener('blur', hideTooltip);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initCitationHover);
+    } else {
+        initCitationHover();
+    }
+})();
+</script>
+$endif$
 </body>
 </html>

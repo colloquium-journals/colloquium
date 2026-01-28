@@ -16,7 +16,11 @@
       "figureSupport": true,
       "structuredAuthors": true,
       "schemaOrg": true,
-      "accessibility": true
+      "accessibility": true,
+      "citationHover": {
+        "enabled": true,
+        "links": ["doi", "googleScholar"]
+      }
     }
   }
 }

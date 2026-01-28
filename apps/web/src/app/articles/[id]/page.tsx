@@ -309,8 +309,8 @@ export default function ArticleDetailPage() {
       
       const htmlText = await response.text();
       const rewrittenHTML = rewriteImagePaths(htmlText);
-      const scopedHTML = scopeHTMLContent(rewrittenHTML);
-      setHtmlContent(scopedHTML);
+      // Skip CSS scoping since iframe provides natural isolation
+      setHtmlContent(rewrittenHTML);
     } catch (error) {
       console.error('Error fetching HTML content:', error);
       setHtmlContent('');
@@ -601,11 +601,23 @@ export default function ArticleDetailPage() {
             {getRenderedContent() ? (
               <Stack gap="md">
                 {getRenderedHTML() && htmlContent ? (
-                  // Display HTML content inline seamlessly
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
+                  // Display HTML content in iframe to allow scripts to run (e.g., citation hover)
+                  <iframe
+                    srcDoc={htmlContent}
                     style={{
-                      width: '100%'
+                      width: '100%',
+                      minHeight: '800px',
+                      border: 'none'
+                    }}
+                    title="Article content"
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    onLoad={(e) => {
+                      // Auto-resize iframe to fit content
+                      const iframe = e.target as HTMLIFrameElement;
+                      if (iframe.contentDocument) {
+                        const height = iframe.contentDocument.documentElement.scrollHeight;
+                        iframe.style.height = `${height + 50}px`;
+                      }
                     }}
                   />
                 ) : getRenderedHTML() && loadingHTML ? (
