@@ -1,8 +1,105 @@
 import { z } from 'zod';
 import { CommandBot, BotCommand } from '@colloquium/types';
 
+// API base URL - configurable for different environments
+const API_BASE_URL = process.env.API_URL || 'http://localhost:4000';
+
 // DOI validation regex - matches standard DOI format
 const DOI_REGEX = /10\.\d{4,}\/[^\s]+/g;
+
+// Interface for manuscript file from API
+interface ManuscriptFile {
+  id: string;
+  filename: string;
+  originalName: string;
+  fileType: 'SOURCE' | 'ASSET' | 'RENDERED' | 'BIBLIOGRAPHY';
+  mimetype: string;
+  size: number;
+  downloadUrl: string;
+  detectedFormat?: string;
+}
+
+/**
+ * Fetch list of files for a manuscript
+ */
+async function getManuscriptFiles(manuscriptId: string, serviceToken: string): Promise<ManuscriptFile[]> {
+  const url = `${API_BASE_URL}/api/articles/${manuscriptId}/files`;
+
+  const response = await fetch(url, {
+    headers: {
+      'x-bot-token': serviceToken,
+      'content-type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch manuscript files: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.files || [];
+}
+
+/**
+ * Download file content as text
+ */
+async function downloadFileContent(downloadUrl: string, serviceToken: string): Promise<string> {
+  const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${API_BASE_URL}${downloadUrl}`;
+
+  const response = await fetch(fullUrl, {
+    headers: {
+      'x-bot-token': serviceToken
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.text();
+}
+
+/**
+ * Find the best file for reference analysis (markdown or text source files)
+ */
+function findSourceFile(files: ManuscriptFile[]): ManuscriptFile | null {
+  // Priority 1: SOURCE markdown files
+  let sourceFile = files.find(file =>
+    file.fileType === 'SOURCE' &&
+    (file.mimetype?.includes('markdown') ||
+     file.originalName.match(/\.(md|markdown)$/i) ||
+     file.detectedFormat === 'markdown')
+  );
+
+  // Priority 2: Any SOURCE text file
+  if (!sourceFile) {
+    sourceFile = files.find(file =>
+      file.fileType === 'SOURCE' &&
+      (file.mimetype?.includes('text') ||
+       file.originalName.match(/\.(txt|tex|rst)$/i))
+    );
+  }
+
+  // Priority 3: Any markdown file
+  if (!sourceFile) {
+    sourceFile = files.find(file =>
+      file.mimetype?.includes('markdown') ||
+      file.originalName.match(/\.(md|markdown)$/i)
+    );
+  }
+
+  return sourceFile || null;
+}
+
+/**
+ * Find bibliography file if present
+ */
+function findBibliographyFile(files: ManuscriptFile[]): ManuscriptFile | null {
+  return files.find(file =>
+    file.fileType === 'BIBLIOGRAPHY' ||
+    file.originalName.match(/\.(bib|bibtex)$/i)
+  ) || null;
+}
 
 // Interface for DOI resolution result
 interface DOIResult {
@@ -260,48 +357,80 @@ const checkDoiCommand: BotCommand = {
     '@bot-reference-check check-doi detailed=true',
     '@bot-reference-check check-doi timeout=45 detailed=true'
   ],
-  permissions: ['read_manuscript'],
+  permissions: ['read_manuscript', 'read_manuscript_files'],
   async execute(params, context) {
     const { detailed, timeout } = params;
-    const { manuscriptId } = context;
+    const { manuscriptId, serviceToken } = context;
 
     try {
-      // In a real implementation, you'd fetch the manuscript content from the database
-      // For now, we'll simulate with placeholder content
-      const manuscriptContent = `
-# Sample Manuscript
-
-## Introduction
-This is a sample manuscript with references.
-
-## Methods
-We used various techniques as described in the literature.
-
-## Results
-Our findings are consistent with previous work.
-
-## References
-
-1. Smith, J., & Jones, M. (2023). Advanced machine learning techniques. Nature Methods, 15(3), 123-130. https://doi.org/10.1038/s41592-023-12345
-
-2. Brown, A. et al. (2022). Data analysis in computational biology. Cell, 180(4), 567-580. DOI: 10.1016/j.cell.2022.01.020
-
-3. Wilson, K. (2021). Statistical methods for biological research. Invalid DOI: 10.1234/invalid-doi
-
-4. Thompson, L. A comprehensive review of recent advances. Journal of Science, 45(2), 234-250.
-
-5. Davis, R. & Miller, S. (2020). Experimental protocols. Science, 365(6789), 123-125. https://doi.org/10.1126/science.abc1234
-      `;
+      // Validate we have a service token for API access
+      if (!serviceToken) {
+        return {
+          messages: [{
+            content: `❌ **Authentication Error**\n\nNo service token available. The bot cannot access manuscript files without proper authentication.`
+          }]
+        };
+      }
 
       let message = `🔍 **DOI Reference Check**\n\n`;
       message += `**Manuscript ID:** ${manuscriptId}\n`;
+
+      // Fetch manuscript files
+      const files = await getManuscriptFiles(manuscriptId, serviceToken);
+
+      if (files.length === 0) {
+        return {
+          messages: [{
+            content: `${message}\n❌ **No files found**\n\nThis manuscript has no uploaded files to analyze.`
+          }]
+        };
+      }
+
+      // Find source file for analysis
+      const sourceFile = findSourceFile(files);
+
+      if (!sourceFile) {
+        const fileList = files.map(f => `- ${f.originalName} (${f.fileType})`).join('\n');
+        return {
+          messages: [{
+            content: `${message}\n❌ **No suitable source file found**\n\nCould not find a markdown or text file to analyze. Available files:\n${fileList}\n\nPlease ensure your manuscript is uploaded as a .md, .markdown, or .txt file.`
+          }]
+        };
+      }
+
+      message += `**Source file:** ${sourceFile.originalName}\n`;
+
+      // Check for bibliography file
+      const bibFile = findBibliographyFile(files);
+      if (bibFile) {
+        message += `**Bibliography file:** ${bibFile.originalName}\n`;
+      }
+
       message += `**Analysis Settings:**\n`;
       message += `- Detailed metadata: ${detailed ? 'Yes' : 'No'}\n`;
       message += `- Timeout: ${timeout} seconds\n\n`;
       message += `⏳ Analyzing references and resolving DOIs...\n\n`;
 
+      // Download the source file content
+      const manuscriptContent = await downloadFileContent(sourceFile.downloadUrl, serviceToken);
+
+      // Also try to get bibliography content if available
+      let bibliographyContent = '';
+      if (bibFile) {
+        try {
+          bibliographyContent = await downloadFileContent(bibFile.downloadUrl, serviceToken);
+        } catch (e) {
+          // Bibliography file is optional, continue without it
+        }
+      }
+
+      // Combine content for analysis (manuscript + bibliography)
+      const fullContent = bibliographyContent
+        ? `${manuscriptContent}\n\n## Bibliography Content\n${bibliographyContent}`
+        : manuscriptContent;
+
       // Perform the analysis with timeout
-      const analysisPromise = analyzeReferences(manuscriptContent);
+      const analysisPromise = analyzeReferences(fullContent);
       const timeoutPromise = new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('Analysis timeout')), timeout * 1000)
       );
@@ -435,7 +564,7 @@ export const referenceCheckBot: CommandBot = {
   commands: [checkDoiCommand],
   keywords: ['references', 'doi', 'citation', 'bibliography', 'validation'],
   triggers: ['MANUSCRIPT_SUBMITTED'],
-  permissions: ['read_manuscript'],
+  permissions: ['read_manuscript', 'read_manuscript_files'],
   help: {
     overview: 'Analyzes manuscript references to ensure all citations have valid, resolving DOIs and flags any references without DOIs.',
     quickStart: 'Use @bot-reference-check check-doi to analyze all references in your manuscript.',
