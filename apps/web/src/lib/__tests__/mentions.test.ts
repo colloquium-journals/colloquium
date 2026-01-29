@@ -41,7 +41,7 @@ describe('Mention Parsing', () => {
   });
 
   it('should identify known bots', () => {
-    const content = '@bot-editorial @bot-plagiarism-checker @bot-reference @bot-reviewer-checklist';
+    const content = '@bot-editorial @bot-plagiarism-checker @bot-reference-check @bot-reviewer-checklist';
     const mentions = parseMentions(content);
 
     expect(mentions).toHaveLength(4);

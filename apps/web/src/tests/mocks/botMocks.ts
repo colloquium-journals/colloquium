@@ -39,9 +39,9 @@ export const mockBots: MockBot[] = [
     color: 'green'
   },
   {
-    id: 'bot-reference',
-    name: 'Reference Bot',
-    description: 'Validates references and citations',
+    id: 'bot-reference-check',
+    name: 'Reference Check Bot',
+    description: 'Validates DOIs resolve to real papers and flags references missing DOIs',
     isInstalled: true,
     isEnabled: true,
     color: 'red'

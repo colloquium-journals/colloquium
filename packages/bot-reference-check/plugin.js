@@ -1,4 +1,4 @@
-const { referenceBot } = require('./dist/index');
+const { referenceCheckBot } = require('./dist/index');
 const packageJson = require('./package.json');
 
 // Create manifest from package.json
@@ -22,5 +22,5 @@ const manifest = {
 // Export plugin format
 module.exports = {
   manifest,
-  bot: referenceBot
+  bot: referenceCheckBot
 };

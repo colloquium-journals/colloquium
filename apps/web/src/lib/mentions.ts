@@ -22,9 +22,9 @@ export const BOT_INFO: Record<string, { displayName: string; description: string
     description: 'Advanced plagiarism detection using multiple academic databases and AI algorithms',
     role: 'Content Reviewer'
   },
-  'bot-reference': {
-    displayName: 'Reference Bot',
-    description: 'Validates references and checks DOI availability and correctness',
+  'bot-reference-check': {
+    displayName: 'Reference Check',
+    description: 'Validates DOIs resolve to real papers and flags references missing DOIs',
     role: 'Reference Validator'
   },
   'bot-reviewer-checklist': {

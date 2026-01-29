@@ -13,7 +13,7 @@ const MENTION_REGEX = /(?<!\w)@([a-z][a-z0-9-]{2,29})(?=\s|$|[.,!?;:])/g;
 const KNOWN_BOT_IDS = [
   'bot-editorial',
   'bot-plagiarism-checker',
-  'bot-reference',
+  'bot-reference-check',
   'bot-reviewer-checklist'
 ];
 

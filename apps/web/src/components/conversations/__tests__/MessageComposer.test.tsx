@@ -180,8 +180,8 @@ describe('MessageComposer Bot Mention Functionality', () => {
           isEnabled: true
         }),
         expect.objectContaining({
-          id: 'bot-reference',
-          name: 'Reference Bot',
+          id: 'bot-reference-check',
+          name: 'Reference Check Bot',
           isInstalled: true,
           isEnabled: true
         })
@@ -490,7 +490,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
     
     // Should only include enabled and installed bots
     expect(filteredBots).toHaveLength(3);
-    expect(filteredBots.map(bot => bot.id)).toEqual(['bot-editorial', 'bot-plagiarism-checker', 'bot-reference']);
+    expect(filteredBots.map(bot => bot.id)).toEqual(['bot-editorial', 'bot-plagiarism-checker', 'bot-reference-check']);
     
     // Should not include disabled or uninstalled bots
     expect(filteredBots.find(bot => bot.id === 'disabled-bot')).toBeUndefined();
