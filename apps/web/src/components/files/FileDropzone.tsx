@@ -1,17 +1,18 @@
 'use client';
 
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { 
-  Stack, 
-  Group, 
-  Text, 
+import {
+  Stack,
+  Group,
+  Text,
   Button,
   Box,
   rem,
   Paper,
   Badge,
   ActionIcon,
-  Tooltip
+  Tooltip,
+  useComputedColorScheme
 } from '@mantine/core';
 import { 
   IconUpload,
@@ -50,6 +51,8 @@ export function FileDropzone({
 }: FileDropzoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
+  const colorScheme = useComputedColorScheme('light');
+  const dark = colorScheme === 'dark';
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -188,7 +191,7 @@ export function FileDropzone({
 
       {/* Show uploaded files prominently when they exist */}
       {hasFiles ? (
-        <Paper p="md" withBorder style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+        <Paper p="md" withBorder style={{ backgroundColor: dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)' }}>
           <Stack gap="md">
             {/* Success header */}
             <Group justify="space-between" align="center">
@@ -239,10 +242,12 @@ export function FileDropzone({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               style={{
-                border: `1px dashed ${isDragOver ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-4)'}`,
+                border: `1px dashed ${isDragOver ? 'var(--mantine-color-blue-5)' : (dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-4)')}`,
                 borderRadius: rem(4),
                 padding: rem(12),
-                backgroundColor: isDragOver ? 'var(--mantine-color-blue-0)' : 'var(--mantine-color-gray-0)',
+                backgroundColor: isDragOver
+                  ? (dark ? 'var(--mantine-color-dark-5)' : 'var(--mantine-color-blue-0)')
+                  : (dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)'),
                 cursor: 'pointer',
                 transition: 'all 0.2s ease'
               }}
@@ -264,10 +269,12 @@ export function FileDropzone({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           style={{
-            border: `2px dashed ${isDragOver ? 'var(--mantine-color-blue-5)' : 'var(--mantine-color-gray-4)'}`,
+            border: `2px dashed ${isDragOver ? 'var(--mantine-color-blue-5)' : (dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-4)')}`,
             borderRadius: rem(8),
             padding: rem(20),
-            backgroundColor: isDragOver ? 'var(--mantine-color-blue-0)' : 'var(--mantine-color-gray-0)',
+            backgroundColor: isDragOver
+              ? (dark ? 'var(--mantine-color-dark-5)' : 'var(--mantine-color-blue-0)')
+              : (dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)'),
             cursor: 'pointer',
             transition: 'all 0.2s ease'
           }}

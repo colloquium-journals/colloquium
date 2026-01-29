@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Paper, 
-  Title, 
-  Text, 
-  Group, 
-  Badge, 
-  Stack, 
+import {
+  Paper,
+  Title,
+  Text,
+  Group,
+  Badge,
+  Stack,
   Avatar,
   Divider,
   Box,
@@ -18,7 +18,8 @@ import {
   Collapse,
   TextInput,
   Textarea,
-  TagsInput
+  TagsInput,
+  useComputedColorScheme
 } from '@mantine/core';
 import { 
   IconCalendar, 
@@ -93,6 +94,8 @@ interface SubmissionHeaderProps {
 
 export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const colorScheme = useComputedColorScheme('light');
+  const dark = colorScheme === 'dark';
   const [submission, setSubmission] = useState<SubmissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -620,7 +623,10 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   }
 
   return (
-    <Paper shadow="md" p="xl" radius="lg" style={{ background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-indigo-0) 100%)' }}>
+    <Paper shadow="md" p="xl" radius="lg" style={{ background: dark
+      ? 'linear-gradient(135deg, var(--mantine-color-dark-7) 0%, var(--mantine-color-dark-6) 100%)'
+      : 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-indigo-0) 100%)'
+    }}>
       <Stack gap="lg">
         {/* Title, Status, and Actions Row */}
         <Group justify="space-between" align="flex-start">
@@ -914,15 +920,15 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                       return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
                     })
                     .map((file, index) => (
-                      <Group key={file.id} justify="space-between" p="xs" 
-                             style={{ 
-                               backgroundColor: index === 0 && file.fileType === 'RENDERED' 
-                                 ? 'var(--mantine-color-blue-0)' 
-                                 : 'var(--mantine-color-gray-0)', 
+                      <Group key={file.id} justify="space-between" p="xs"
+                             style={{
+                               backgroundColor: index === 0 && file.fileType === 'RENDERED'
+                                 ? (dark ? 'var(--mantine-color-dark-5)' : 'var(--mantine-color-blue-0)')
+                                 : (dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)'),
                                borderRadius: 'var(--mantine-radius-sm)',
                                border: index === 0 && file.fileType === 'RENDERED'
                                  ? '1px solid var(--mantine-color-blue-4)'
-                                 : '1px solid var(--mantine-color-gray-3)'
+                                 : `1px solid ${dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)'}`
                              }}>
                         <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
                           {getFileIcon(file.fileType, file.mimetype)}
@@ -987,8 +993,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             withBorder
             style={{
               maxHeight: '80vh',
-              overflow: 'auto',
-              backgroundColor: 'white'
+              overflow: 'auto'
             }}
           >
             <div 

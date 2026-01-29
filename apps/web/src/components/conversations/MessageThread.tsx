@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Stack, Group, Text, Button, Paper, Badge, Switch } from '@mantine/core';
+import { Stack, Group, Text, Button, Paper, Badge, Switch, useComputedColorScheme } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconEyeOff, IconRobot } from '@tabler/icons-react';
 import { MessageCard } from './MessageCard';
 import { MessageComposer, MessageComposerRef } from './MessageComposer';
@@ -68,6 +68,8 @@ export function MessageThread({
   });
   const composerRef = useRef<MessageComposerRef>(null);
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const colorScheme = useComputedColorScheme('light');
+  const dark = colorScheme === 'dark';
 
   // Persist bot filter preference
   useEffect(() => {
@@ -179,8 +181,8 @@ export function MessageThread({
         px="md"
         py="xs"
         style={{
-          border: '1px dashed var(--mantine-color-gray-4)',
-          backgroundColor: 'var(--mantine-color-gray-0)',
+          border: `1px dashed ${dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-4)'}`,
+          backgroundColor: dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)',
           maxWidth: '300px'
         }}
       >
@@ -303,9 +305,8 @@ export function MessageThread({
             shadow="sm"
             radius="md"
             p="md"
+            withBorder
             style={{
-              border: '1px solid var(--mantine-color-gray-3)',
-              backgroundColor: 'white',
               maxWidth: '400px'
             }}
           >
@@ -330,9 +331,8 @@ export function MessageThread({
             shadow="sm"
             radius="md"
             p="md"
+            withBorder
             style={{
-              border: '1px solid var(--mantine-color-gray-3)',
-              backgroundColor: 'white',
               maxWidth: '400px'
             }}
           >

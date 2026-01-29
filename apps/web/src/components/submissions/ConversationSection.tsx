@@ -1,13 +1,14 @@
 'use client';
 
-import { 
-  Title, 
-  Text, 
-  Group, 
-  Badge, 
+import {
+  Title,
+  Text,
+  Group,
+  Badge,
   Stack,
   Divider,
-  Box
+  Box,
+  useComputedColorScheme
 } from '@mantine/core';
 import { 
   IconMessageCircle, 
@@ -29,11 +30,13 @@ export function ConversationSection({
   description = "Manuscript review and discussion",
   variant = 'default'
 }: ConversationSectionProps) {
+  const colorScheme = useComputedColorScheme('light');
+  const dark = colorScheme === 'dark';
 
   if (variant === 'compact') {
     return (
-      <Box style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 'var(--mantine-radius-md)' }}>
-        <Box p="lg" style={{ backgroundColor: 'var(--mantine-color-gray-0)', borderTopLeftRadius: 'var(--mantine-radius-md)', borderTopRightRadius: 'var(--mantine-radius-md)' }}>
+      <Box style={{ border: `1px solid ${dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)'}`, borderRadius: 'var(--mantine-radius-md)' }}>
+        <Box p="lg" style={{ backgroundColor: dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)', borderTopLeftRadius: 'var(--mantine-radius-md)', borderTopRightRadius: 'var(--mantine-radius-md)' }}>
           <Group gap="sm">
             <IconMessageCircle size={20} color="var(--mantine-color-blue-6)" />
             <Box>

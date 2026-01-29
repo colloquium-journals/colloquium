@@ -9,7 +9,7 @@ export default function SubmissionPage() {
   const submissionId = params.id as string;
 
   return (
-    <Box style={{ backgroundColor: 'var(--mantine-color-gray-0)', minHeight: '100vh' }}>
+    <Box style={{ backgroundColor: 'var(--mantine-color-body)', minHeight: '100vh' }}>
       <Container size="lg" py="xl">
         <Stack gap="xl">
           {/* Detailed Submission Header */}

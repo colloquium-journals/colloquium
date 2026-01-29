@@ -13,7 +13,8 @@ import {
   Modal,
   TextInput,
   Textarea,
-  Button
+  Button,
+  useComputedColorScheme
 } from '@mantine/core';
 import {
   IconDots,
@@ -84,6 +85,8 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [currentPrivacy, setCurrentPrivacy] = useState(message.privacy);
   const { user } = useAuth();
+  const colorScheme = useComputedColorScheme('light');
+  const dark = colorScheme === 'dark';
 
   const copyMessageLink = () => {
     const messageUrl = `${window.location.href.split('#')[0]}#message-${message.id}`;
@@ -277,12 +280,14 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
   return (
     <div
       id={`message-${message.id}`}
-      style={{ 
-        border: '1px solid var(--mantine-color-gray-3)',
-        borderLeft: isReply ? '4px solid var(--mantine-color-blue-4)' : '1px solid var(--mantine-color-gray-3)',
+      style={{
+        border: `1px solid ${dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)'}`,
+        borderLeft: isReply ? '4px solid var(--mantine-color-blue-4)' : `1px solid ${dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)'}`,
         borderRadius: 'var(--mantine-radius-md)',
         padding: 'var(--mantine-spacing-lg)',
-        backgroundColor: isReply ? 'var(--mantine-color-gray-0)' : 'white',
+        backgroundColor: isReply
+          ? (dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)')
+          : (dark ? 'var(--mantine-color-dark-7)' : 'white'),
         scrollMarginTop: '2rem'
       }}
     >
