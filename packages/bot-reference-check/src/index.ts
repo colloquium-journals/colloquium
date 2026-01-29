@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.API_URL || 'http://localhost:4000';
 
 // DOI validation regex - matches standard DOI format
 const DOI_REGEX = /10\.\d{4,}\/[^\s]+/g;
+const DOI_REGEX_SINGLE = /10\.\d{4,}\/[^\s]+/;
 
 // Interface for manuscript file from API
 interface ManuscriptFile {
@@ -101,29 +102,35 @@ function findBibliographyFile(files: ManuscriptFile[]): ManuscriptFile | null {
   ) || null;
 }
 
-// Interface for DOI resolution result
-interface DOIResult {
-  doi: string;
-  isValid: boolean;
-  resolves: boolean;
+// Unified result for a single reference
+interface ReferenceResult {
+  label: string;        // citation key (bibtex) or "ref-N" (markdown)
   title?: string;
+  doi?: string;
+  status: 'ok' | 'no-doi' | 'not-found';
+  error?: string;
+  // metadata (populated when detailed=true)
   authors?: string[];
   publicationYear?: number;
   journal?: string;
-  error?: string;
-  httpStatus?: number;
+}
+
+// Interface for a parsed BibTeX entry
+interface BibEntry {
+  citationKey: string;
+  entryType: string;
+  author?: string;
+  title?: string;
+  year?: string;
+  journal?: string;
+  doi?: string;
+  [key: string]: string | undefined;
 }
 
 // Interface for reference analysis
 interface ReferenceAnalysis {
-  totalReferences: number;
-  referencesWithDOI: number;
-  validDOIs: number;
-  resolvingDOIs: number;
-  missingDOIs: string[];
-  invalidDOIs: string[];
-  nonResolvingDOIs: string[];
-  detailedResults: DOIResult[];
+  references: ReferenceResult[];
+  source: 'bibtex' | 'markdown';
 }
 
 /**
@@ -139,85 +146,193 @@ function extractDOIs(text: string): string[] {
  * Validate DOI format
  */
 function isValidDOI(doi: string): boolean {
-  return DOI_REGEX.test(doi);
+  return DOI_REGEX_SINGLE.test(doi);
 }
 
 /**
- * Resolve DOI and get metadata
+ * Parse BibTeX content into structured entries
  */
-async function resolveDOI(doi: string): Promise<DOIResult> {
-  try {
-    // Clean the DOI
-    const cleanDOI = doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
-    
-    if (!isValidDOI(`10.${cleanDOI.split('.').slice(1).join('.')}`)) {
-      return {
-        doi: cleanDOI,
-        isValid: false,
-        resolves: false,
-        error: 'Invalid DOI format'
-      };
+function parseBibTeX(content: string): BibEntry[] {
+  const entries: BibEntry[] = [];
+  // Match @type{key, ... } blocks. Uses a simple brace-depth counter to find the closing brace.
+  const entryStartRegex = /@(\w+)\s*\{\s*([^,\s]*)\s*,/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = entryStartRegex.exec(content)) !== null) {
+    const entryType = match[1].toLowerCase();
+    const citationKey = match[2];
+
+    // Skip non-reference entries like @string, @preamble, @comment
+    if (['string', 'preamble', 'comment'].includes(entryType)) continue;
+
+    // Find the body of this entry by counting braces
+    let depth = 1;
+    let pos = match.index + match[0].length;
+    const start = pos;
+    while (pos < content.length && depth > 0) {
+      if (content[pos] === '{') depth++;
+      else if (content[pos] === '}') depth--;
+      pos++;
+    }
+    const body = content.slice(start, pos - 1);
+
+    // Parse field = {value} or field = "value" pairs
+    const fieldRegex = /(\w+)\s*=\s*(?:\{([^}]*(?:\{[^}]*\}[^}]*)*)\}|"([^"]*)")/g;
+    const entry: BibEntry = { citationKey, entryType };
+    let fieldMatch: RegExpExecArray | null;
+
+    while ((fieldMatch = fieldRegex.exec(body)) !== null) {
+      const fieldName = fieldMatch[1].toLowerCase();
+      const fieldValue = (fieldMatch[2] ?? fieldMatch[3] ?? '').trim();
+      entry[fieldName] = fieldValue;
     }
 
-    // Try to resolve the DOI using CrossRef API
-    const crossRefUrl = `https://api.crossref.org/works/${encodeURIComponent(cleanDOI)}`;
-    
-    // Create a timeout controller
+    entries.push(entry);
+  }
+
+  return entries;
+}
+
+/**
+ * Analyze references from BibTeX content
+ */
+async function analyzeBibReferences(bibContent: string, detailed: boolean = false): Promise<ReferenceAnalysis> {
+  const entries = parseBibTeX(bibContent);
+  const references: ReferenceResult[] = [];
+
+  for (const entry of entries) {
+    if (entry.doi) {
+      const check = await checkDOIResolves(entry.doi);
+      const ref: ReferenceResult = {
+        label: entry.citationKey,
+        title: entry.title,
+        doi: check.doi,
+        status: check.status,
+        error: check.error
+      };
+      if (detailed && check.status === 'ok') {
+        await fetchDOIMetadata(ref);
+      }
+      references.push(ref);
+    } else {
+      references.push({
+        label: entry.citationKey,
+        title: entry.title,
+        status: 'no-doi'
+      });
+    }
+  }
+
+  return { references, source: 'bibtex' };
+}
+
+/**
+ * Check if a DOI resolves via doi.org (covers all registrars).
+ * Returns 'ok' or 'not-found' status with the cleaned DOI.
+ */
+async function checkDOIResolves(doi: string): Promise<{ doi: string; status: 'ok' | 'not-found'; error?: string }> {
+  try {
+    const cleanDOI = doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
+
+    if (!isValidDOI(`10.${cleanDOI.split('.').slice(1).join('.')}`)) {
+      return { doi: cleanDOI, status: 'not-found', error: 'invalid DOI format' };
+    }
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const response = await fetch(crossRefUrl, {
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(`https://doi.org/${encodeURIComponent(cleanDOI)}`, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Colloquium-Reference-Bot/1.0 (mailto:support@colloquium.org)'
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    return {
+      doi: cleanDOI,
+      status: response.ok ? 'ok' : 'not-found',
+      error: response.ok ? undefined : 'does not resolve'
+    };
+  } catch (error) {
+    let errorMessage = 'unknown error';
+    if (error instanceof Error) {
+      errorMessage = error.name === 'AbortError' ? 'request timeout' : error.message;
+    }
+    return { doi, status: 'not-found', error: errorMessage };
+  }
+}
+
+/**
+ * Fetch metadata for a DOI from CrossRef, falling back to DataCite.
+ * Mutates the result object in place to add metadata fields.
+ */
+async function fetchDOIMetadata(result: ReferenceResult): Promise<void> {
+  const doi = result.doi!;
+
+  try {
+    // Try CrossRef first
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
       headers: {
         'Accept': 'application/json',
         'User-Agent': 'Colloquium-Reference-Bot/1.0 (mailto:support@colloquium.org)'
       },
       signal: controller.signal
     });
-    
-    clearTimeout(timeoutId);
 
-    const result: DOIResult = {
-      doi: cleanDOI,
-      isValid: true,
-      resolves: response.ok,
-      httpStatus: response.status
-    };
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await response.json();
       const work = data.message;
-      
       result.title = work.title?.[0] || 'Unknown title';
-      result.authors = work.author?.map((author: any) => 
+      result.authors = work.author?.map((author: any) =>
         `${author.given || ''} ${author.family || ''}`.trim()
       ) || [];
-      result.publicationYear = work.published?.['date-parts']?.[0]?.[0] || 
+      result.publicationYear = work.published?.['date-parts']?.[0]?.[0] ||
                               work.created?.['date-parts']?.[0]?.[0];
       result.journal = work['container-title']?.[0] || work.publisher || 'Unknown journal';
-    } else if (response.status === 404) {
-      result.error = 'DOI not found in CrossRef database';
-    } else {
-      result.error = `HTTP ${response.status}: ${response.statusText}`;
+      return;
     }
+  } catch {
+    // CrossRef failed, try DataCite
+  }
 
-    return result;
-  } catch (error) {
-    let errorMessage = 'Unknown error occurred';
-    
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        errorMessage = 'Request timeout (10 seconds)';
-      } else {
-        errorMessage = error.message;
+  try {
+    // Fallback to DataCite
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(`https://api.datacite.org/dois/${encodeURIComponent(doi)}`, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Colloquium-Reference-Bot/1.0 (mailto:support@colloquium.org)'
+      },
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      const data = await response.json();
+      const attrs = data.data?.attributes;
+      if (attrs) {
+        result.title = attrs.titles?.[0]?.title || 'Unknown title';
+        result.authors = attrs.creators?.map((c: any) =>
+          `${c.givenName || ''} ${c.familyName || c.name || ''}`.trim()
+        ) || [];
+        result.publicationYear = attrs.publicationYear ? Number(attrs.publicationYear) : undefined;
+        result.journal = attrs.container?.title || attrs.publisher || 'Unknown publisher';
       }
     }
-    
-    return {
-      doi,
-      isValid: isValidDOI(doi),
-      resolves: false,
-      error: errorMessage
-    };
+  } catch {
+    // Metadata unavailable — not critical
   }
 }
 
@@ -234,14 +349,14 @@ function extractReferences(content: string): string[] {
   for (const line of lines) {
     const trimmedLine = line.trim();
     
-    // Detect start of references section
-    if (/^(references|bibliography|works?\s+cited|literature\s+cited)$/i.test(trimmedLine)) {
+    // Detect start of references section (supports markdown headings like ## References)
+    if (/^#{0,6}\s*(references|bibliography|works?\s+cited|literature\s+cited)\s*$/i.test(trimmedLine)) {
       inReferencesSection = true;
       continue;
     }
-    
-    // Detect end of references (start of appendix, etc.)
-    if (inReferencesSection && /^(appendix|supplementary|figures?|tables?)$/i.test(trimmedLine)) {
+
+    // Detect end of references (any new heading means references section is over)
+    if (inReferencesSection && /^#{1,6}\s+\S/.test(trimmedLine)) {
       break;
     }
     
@@ -260,48 +375,37 @@ function extractReferences(content: string): string[] {
 /**
  * Analyze references for DOI presence and validity
  */
-async function analyzeReferences(content: string): Promise<ReferenceAnalysis> {
-  const references = extractReferences(content);
-  const allDOIs: string[] = [];
-  const detailedResults: DOIResult[] = [];
-  
-  // Extract DOIs from each reference
-  for (const reference of references) {
-    const dois = extractDOIs(reference);
-    allDOIs.push(...dois);
+async function analyzeReferences(content: string, detailed: boolean = false): Promise<ReferenceAnalysis> {
+  const rawReferences = extractReferences(content);
+  const references: ReferenceResult[] = [];
+
+  for (let i = 0; i < rawReferences.length; i++) {
+    const refText = rawReferences[i];
+    const dois = extractDOIs(refText);
+
+    if (dois.length > 0) {
+      const check = await checkDOIResolves(dois[0]);
+      const ref: ReferenceResult = {
+        label: `ref-${i + 1}`,
+        title: refText.substring(0, 150),
+        doi: check.doi,
+        status: check.status,
+        error: check.error
+      };
+      if (detailed && check.status === 'ok') {
+        await fetchDOIMetadata(ref);
+      }
+      references.push(ref);
+    } else {
+      references.push({
+        label: `ref-${i + 1}`,
+        title: refText.substring(0, 150),
+        status: 'no-doi'
+      });
+    }
   }
-  
-  // Remove duplicates
-  const uniqueDOIs = [...new Set(allDOIs)];
-  
-  // Resolve each DOI
-  for (const doi of uniqueDOIs) {
-    const result = await resolveDOI(doi);
-    detailedResults.push(result);
-  }
-  
-  // Analyze results
-  const validDOIs = detailedResults.filter(r => r.isValid);
-  const resolvingDOIs = detailedResults.filter(r => r.resolves);
-  const invalidDOIs = detailedResults.filter(r => !r.isValid).map(r => r.doi);
-  const nonResolvingDOIs = detailedResults.filter(r => r.isValid && !r.resolves).map(r => r.doi);
-  
-  // Find references without DOIs
-  const referencesWithoutDOI = references.filter(ref => {
-    const dois = extractDOIs(ref);
-    return dois.length === 0;
-  });
-  
-  return {
-    totalReferences: references.length,
-    referencesWithDOI: references.length - referencesWithoutDOI.length,
-    validDOIs: validDOIs.length,
-    resolvingDOIs: resolvingDOIs.length,
-    missingDOIs: referencesWithoutDOI.slice(0, 10), // Limit to first 10 for readability
-    invalidDOIs,
-    nonResolvingDOIs,
-    detailedResults
-  };
+
+  return { references, source: 'markdown' as const };
 }
 
 const checkDoiCommand: BotCommand = {
@@ -386,150 +490,89 @@ const checkDoiCommand: BotCommand = {
         };
       }
 
-      // Find source file for analysis
+      // Check for bibliography file (preferred source)
+      const bibFile = findBibliographyFile(files);
+      // Find source file as fallback
       const sourceFile = findSourceFile(files);
 
-      if (!sourceFile) {
+      if (!bibFile && !sourceFile) {
         const fileList = files.map(f => `- ${f.originalName} (${f.fileType})`).join('\n');
         return {
           messages: [{
-            content: `${message}\n❌ **No suitable source file found**\n\nCould not find a markdown or text file to analyze. Available files:\n${fileList}\n\nPlease ensure your manuscript is uploaded as a .md, .markdown, or .txt file.`
+            content: `${message}\n❌ **No suitable file found**\n\nCould not find a .bib bibliography file or a markdown/text source file to analyze. Available files:\n${fileList}\n\nPlease ensure your manuscript includes a .bib file or a .md/.txt file with a References section.`
           }]
         };
       }
 
-      message += `**Source file:** ${sourceFile.originalName}\n`;
-
-      // Check for bibliography file
-      const bibFile = findBibliographyFile(files);
       if (bibFile) {
-        message += `**Bibliography file:** ${bibFile.originalName}\n`;
+        message += `**Reference source:** ${bibFile.originalName} (BibTeX)\n`;
+      } else {
+        message += `**Reference source:** ${sourceFile!.originalName} (markdown fallback)\n`;
       }
 
       message += `**Analysis Settings:**\n`;
       message += `- Detailed metadata: ${detailed ? 'Yes' : 'No'}\n`;
       message += `- Timeout: ${timeout} seconds\n\n`;
-      message += `⏳ Analyzing references and resolving DOIs...\n\n`;
 
-      // Download the source file content
-      const manuscriptContent = await downloadFileContent(sourceFile.downloadUrl, serviceToken);
+      // Perform analysis: prioritize .bib file, fall back to markdown
+      let analysisPromise: Promise<ReferenceAnalysis>;
 
-      // Also try to get bibliography content if available
-      let bibliographyContent = '';
       if (bibFile) {
-        try {
-          bibliographyContent = await downloadFileContent(bibFile.downloadUrl, serviceToken);
-        } catch (e) {
-          // Bibliography file is optional, continue without it
-        }
+        const bibContent = await downloadFileContent(bibFile.downloadUrl, serviceToken);
+        analysisPromise = analyzeBibReferences(bibContent, detailed);
+      } else {
+        const manuscriptContent = await downloadFileContent(sourceFile!.downloadUrl, serviceToken);
+        analysisPromise = analyzeReferences(manuscriptContent, detailed);
       }
 
-      // Combine content for analysis (manuscript + bibliography)
-      const fullContent = bibliographyContent
-        ? `${manuscriptContent}\n\n## Bibliography Content\n${bibliographyContent}`
-        : manuscriptContent;
-
-      // Perform the analysis with timeout
-      const analysisPromise = analyzeReferences(fullContent);
-      const timeoutPromise = new Promise<never>((_, reject) => 
+      const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Analysis timeout')), timeout * 1000)
       );
 
       const analysis = await Promise.race([analysisPromise, timeoutPromise]);
 
-      // Build summary
-      message += `📊 **Summary:**\n`;
-      message += `- Total references: ${analysis.totalReferences}\n`;
-      message += `- References with DOI: ${analysis.referencesWithDOI}/${analysis.totalReferences} (${Math.round(analysis.referencesWithDOI / analysis.totalReferences * 100)}%)\n`;
-      message += `- Valid DOI format: ${analysis.validDOIs}/${analysis.detailedResults.length}\n`;
-      message += `- Successfully resolving: ${analysis.resolvingDOIs}/${analysis.validDOIs}\n\n`;
-
-      // Issues section
-      let hasIssues = false;
-      
-      if (analysis.missingDOIs.length > 0) {
-        hasIssues = true;
-        message += `❌ **Missing DOIs (${analysis.missingDOIs.length}):**\n`;
-        analysis.missingDOIs.forEach((ref, i) => {
-          message += `${i + 1}. ${ref.substring(0, 100)}${ref.length > 100 ? '...' : ''}\n`;
-        });
-        message += '\n';
-      }
-
-      if (analysis.invalidDOIs.length > 0) {
-        hasIssues = true;
-        message += `⚠️ **Invalid DOI Format (${analysis.invalidDOIs.length}):**\n`;
-        analysis.invalidDOIs.forEach((doi, i) => {
-          message += `${i + 1}. ${doi}\n`;
-        });
-        message += '\n';
-      }
-
-      if (analysis.nonResolvingDOIs.length > 0) {
-        hasIssues = true;
-        message += `🚨 **Non-resolving DOIs (${analysis.nonResolvingDOIs.length}):**\n`;
-        analysis.nonResolvingDOIs.forEach((doi, i) => {
-          const result = analysis.detailedResults.find(r => r.doi === doi);
-          message += `${i + 1}. ${doi}`;
-          if (result?.error) {
-            message += ` - ${result.error}`;
+      // Build unified reference list
+      for (let i = 0; i < analysis.references.length; i++) {
+        const ref = analysis.references[i];
+        const icon = ref.status === 'ok' ? '✅' : '❌';
+        const titlePart = ref.title ? `: ${ref.title.substring(0, 100)}${ref.title.length > 100 ? '...' : ''}` : '';
+        let doiPart = '';
+        if (ref.doi) {
+          doiPart = ` — \`${ref.doi}\``;
+          if (ref.status === 'not-found' && ref.error) {
+            doiPart += ` (${ref.error})`;
           }
-          message += '\n';
-        });
-        message += '\n';
-      }
+        } else {
+          doiPart = ' — no DOI';
+        }
+        message += `${i + 1}. ${icon} **${ref.label}**${titlePart}${doiPart}\n`;
 
-      if (!hasIssues) {
-        message += `✅ **All Good!** All references have valid, resolving DOIs.\n\n`;
-      }
-
-      // Detailed results if requested
-      if (detailed && analysis.resolvingDOIs > 0) {
-        message += `📚 **Resolved DOI Details:**\n`;
-        const resolving = analysis.detailedResults.filter(r => r.resolves);
-        resolving.forEach((result, i) => {
-          message += `${i + 1}. **${result.doi}**\n`;
-          if (result.title) message += `   Title: ${result.title}\n`;
-          if (result.authors && result.authors.length > 0) {
-            message += `   Authors: ${result.authors.slice(0, 3).join(', ')}${result.authors.length > 3 ? ' et al.' : ''}\n`;
+        // Detailed metadata sub-lines for resolving DOIs
+        if (detailed && ref.status === 'ok') {
+          if (ref.authors && ref.authors.length > 0) {
+            message += `   Authors: ${ref.authors.slice(0, 3).join(', ')}${ref.authors.length > 3 ? ' et al.' : ''}\n`;
           }
-          if (result.journal) message += `   Journal: ${result.journal}\n`;
-          if (result.publicationYear) message += `   Year: ${result.publicationYear}\n`;
-          message += '\n';
-        });
+          if (ref.journal) message += `   Journal: ${ref.journal}\n`;
+          if (ref.publicationYear) message += `   Year: ${ref.publicationYear}\n`;
+        }
       }
 
-      // Recommendations
-      message += `💡 **Recommendations:**\n`;
-      if (analysis.missingDOIs.length > 0) {
-        message += `- Add DOIs to ${analysis.missingDOIs.length} references without them\n`;
-      }
-      if (analysis.invalidDOIs.length > 0) {
-        message += `- Fix ${analysis.invalidDOIs.length} invalid DOI formats\n`;
-      }
-      if (analysis.nonResolvingDOIs.length > 0) {
-        message += `- Verify ${analysis.nonResolvingDOIs.length} non-resolving DOIs\n`;
-      }
-      if (!hasIssues) {
-        message += `- Great work! Your references are well-formatted with valid DOIs\n`;
-      }
+      const totalRefs = analysis.references.length;
+      const okCount = analysis.references.filter(r => r.status === 'ok').length;
+      const noDOICount = analysis.references.filter(r => r.status === 'no-doi').length;
+      const notFoundCount = analysis.references.filter(r => r.status === 'not-found').length;
 
       const reportData = {
         manuscriptId,
         timestamp: new Date().toISOString(),
         summary: {
-          totalReferences: analysis.totalReferences,
-          referencesWithDOI: analysis.referencesWithDOI,
-          validDOIs: analysis.validDOIs,
-          resolvingDOIs: analysis.resolvingDOIs,
-          completenessScore: Math.round(analysis.resolvingDOIs / analysis.totalReferences * 100)
+          totalReferences: totalRefs,
+          referencesWithDOI: totalRefs - noDOICount,
+          resolvingDOIs: okCount,
+          nonResolvingDOIs: notFoundCount,
+          missingDOIs: noDOICount
         },
-        issues: {
-          missingDOIs: analysis.missingDOIs.length,
-          invalidDOIs: analysis.invalidDOIs.length,
-          nonResolvingDOIs: analysis.nonResolvingDOIs.length
-        },
-        detailedResults: analysis.detailedResults
+        references: analysis.references
       };
 
       return {
