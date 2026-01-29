@@ -460,6 +460,34 @@ Future work should focus on developing more interpretable models that can explai
 ## Acknowledgments
 
 We thank the participating publishers and the thousands of reviewers whose work made this research possible. This research was supported by the National Science Foundation grant #2024-12345.
+
+## References
+
+1. Vaswani, A., Shazeer, N., Parmar, N., et al. (2017). Attention is all you need. *Advances in Neural Information Processing Systems*, 30, 5998-6008. https://doi.org/10.48550/arXiv.1706.03762
+
+2. Devlin, J., Chang, M.W., Lee, K., & Toutanova, K. (2019). BERT: Pre-training of deep bidirectional transformers for language understanding. *Proceedings of NAACL-HLT*, 4171-4186. https://doi.org/10.18653/v1/N19-1423
+
+3. Smith, T. (2023). The growth of scientific literature: Trends and implications. *Scientometrics*, 128, 2341-2360. https://doi.org/10.1007/s11192-023-04567-8
+
+4. Jones, A. (2024). Peer review in the age of information overload. *Science*, 383(6680), 234-236. https://doi.org/10.1126/science.adf1234
+
+5. Brown, M., Davis, S., & Wilson, R. (2023). The state of peer review: A comprehensive survey. *Nature Human Behaviour*, 7, 1123-1135. https://doi.org/10.1038/s41562-023-99999-9
+
+6. Garcia, R., & Martinez, S. (2024). Automation in academic publishing: Opportunities and challenges. *Learned Publishing*, 37(1), 45-58.
+
+7. Wilson, R. (2022). Traditional peer review: Strengths and weaknesses. *European Science Editing*, 48, e85632. https://doi.org/10.3897/ese.2022.e99999
+
+8. Lee, J. (2023). Computational approaches to research integrity. *Research Ethics*, 19(3), 301-320.
+
+9. Chen, L., Wang, H., & Zhang, Y. (2022). Deep learning approaches to plagiarism detection. *IEEE Transactions on Learning Technologies*, 15(4), 456-470. https://doi.org/10.1109/TLT.2022.9999999
+
+10. Williams, S., & Park, J. (2023). Statistical error detection in published research. *PLOS ONE*, 18(5), e0285432.
+
+11. Kumar, P., Singh, R., & Patel, N. (2023). Intelligent reviewer matching using semantic similarity. *Expert Systems with Applications*, 215, 119-134. https://doi.org/10.1016/j.eswa.2022.119456
+
+12. Anderson, K. (2024). Automated citation verification in scholarly manuscripts. *Journal of Information Science*, 50(2), 234-251.
+
+13. Taylor, E., & Roberts, D. (2024). Limitations of automated peer review systems. *Journal of Scholarly Publishing*, 55(2), 112-128. https://doi.org/10.3138/jsp-2023-fake-0045
 `,
     images: [
       {
@@ -492,7 +520,44 @@ We thank the participating publishers and the thousands of reviewers whose work 
     ],
     bibliography: {
       filename: 'references.bib',
-      content: `@article{smith2023growth,
+      content: `% ============================================================================
+% VALID DOIs - These should resolve correctly via CrossRef
+% ============================================================================
+
+@article{vaswani2017attention,
+  author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and others},
+  title = {Attention is all you need},
+  journal = {Advances in Neural Information Processing Systems},
+  year = {2017},
+  volume = {30},
+  pages = {5998--6008},
+  doi = {10.48550/arXiv.1706.03762}
+}
+
+@article{devlin2019bert,
+  author = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  title = {BERT: Pre-training of deep bidirectional transformers for language understanding},
+  journal = {Proceedings of NAACL-HLT},
+  year = {2019},
+  pages = {4171--4186},
+  doi = {10.18653/v1/N19-1423}
+}
+
+@article{kumar2023reviewer,
+  author = {Kumar, Priya and Singh, Raj and Patel, Neha},
+  title = {Intelligent reviewer matching using semantic similarity},
+  journal = {Expert Systems with Applications},
+  year = {2023},
+  volume = {215},
+  pages = {119--134},
+  doi = {10.1016/j.eswa.2022.119456}
+}
+
+% ============================================================================
+% FAKE/INVALID DOIs - These will NOT resolve (for testing error detection)
+% ============================================================================
+
+@article{smith2023growth,
   author = {Smith, Thomas},
   title = {The growth of scientific literature: Trends and implications},
   journal = {Scientometrics},
@@ -520,18 +585,7 @@ We thank the participating publishers and the thousands of reviewers whose work 
   year = {2023},
   volume = {7},
   pages = {1123--1135},
-  doi = {10.1038/s41562-023-01567-9}
-}
-
-@article{garcia2024automation,
-  author = {Garcia, Ricardo and Martinez, Sofia},
-  title = {Automation in academic publishing: Opportunities and challenges},
-  journal = {Learned Publishing},
-  year = {2024},
-  volume = {37},
-  number = {1},
-  pages = {45--58},
-  doi = {10.1002/leap.1567}
+  doi = {10.1038/s41562-023-99999-9}
 }
 
 @article{wilson2022traditional,
@@ -541,29 +595,7 @@ We thank the participating publishers and the thousands of reviewers whose work 
   year = {2022},
   volume = {48},
   pages = {e85632},
-  doi = {10.3897/ese.2022.e85632}
-}
-
-@article{lee2023computational,
-  author = {Lee, Jennifer},
-  title = {Computational approaches to research integrity},
-  journal = {Research Ethics},
-  year = {2023},
-  volume = {19},
-  number = {3},
-  pages = {301--320},
-  doi = {10.1177/17470161231156789}
-}
-
-@article{taylor2024limitations,
-  author = {Taylor, Elizabeth and Roberts, David},
-  title = {Limitations of automated peer review systems},
-  journal = {Journal of Scholarly Publishing},
-  year = {2024},
-  volume = {55},
-  number = {2},
-  pages = {112--128},
-  doi = {10.3138/jsp-2023-0045}
+  doi = {10.3897/ese.2022.e99999}
 }
 
 @article{chen2022plagiarism,
@@ -574,7 +606,42 @@ We thank the participating publishers and the thousands of reviewers whose work 
   volume = {15},
   number = {4},
   pages = {456--470},
-  doi = {10.1109/TLT.2022.3145678}
+  doi = {10.1109/TLT.2022.9999999}
+}
+
+@article{taylor2024limitations,
+  author = {Taylor, Elizabeth and Roberts, David},
+  title = {Limitations of automated peer review systems},
+  journal = {Journal of Scholarly Publishing},
+  year = {2024},
+  volume = {55},
+  number = {2},
+  pages = {112--128},
+  doi = {10.3138/jsp-2023-fake-0045}
+}
+
+% ============================================================================
+% MISSING DOIs - These have no DOI field (for testing missing DOI detection)
+% ============================================================================
+
+@article{garcia2024automation,
+  author = {Garcia, Ricardo and Martinez, Sofia},
+  title = {Automation in academic publishing: Opportunities and challenges},
+  journal = {Learned Publishing},
+  year = {2024},
+  volume = {37},
+  number = {1},
+  pages = {45--58}
+}
+
+@article{lee2023computational,
+  author = {Lee, Jennifer},
+  title = {Computational approaches to research integrity},
+  journal = {Research Ethics},
+  year = {2023},
+  volume = {19},
+  number = {3},
+  pages = {301--320}
 }
 
 @article{williams2023statistical,
@@ -584,18 +651,7 @@ We thank the participating publishers and the thousands of reviewers whose work 
   year = {2023},
   volume = {18},
   number = {5},
-  pages = {e0285432},
-  doi = {10.1371/journal.pone.0285432}
-}
-
-@article{kumar2023reviewer,
-  author = {Kumar, Priya and Singh, Raj and Patel, Neha},
-  title = {Intelligent reviewer matching using semantic similarity},
-  journal = {Expert Systems with Applications},
-  year = {2023},
-  volume = {215},
-  pages = {119--134},
-  doi = {10.1016/j.eswa.2022.119456}
+  pages = {e0285432}
 }
 
 @article{anderson2024citation,
@@ -605,8 +661,7 @@ We thank the participating publishers and the thousands of reviewers whose work 
   year = {2024},
   volume = {50},
   number = {2},
-  pages = {234--251},
-  doi = {10.1177/01655515231234567}
+  pages = {234--251}
 }
 `
     }
