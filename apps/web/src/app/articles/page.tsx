@@ -23,6 +23,7 @@ import {
 import { IconSearch, IconAlertCircle, IconCalendar, IconUsers, IconTag, IconUpload, IconPencil, IconCornerDownLeft, IconX, IconAlertTriangle } from '@tabler/icons-react';
 import Link from 'next/link';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
+import { API_URL } from '@/lib/api';
 
 interface Author {
   id: string;
@@ -88,7 +89,7 @@ export default function ArticlesPage() {
         params.append('tag', tagFilter);
       }
 
-      const response = await fetch(`http://localhost:4000/api/articles?${params}`, {
+      const response = await fetch(`${API_URL}/api/articles?${params}`, {
         credentials: 'include' // Include auth cookies for access control
       });
       

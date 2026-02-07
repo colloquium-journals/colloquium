@@ -33,6 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MessageContent } from './MessageContent';
 import { MessageActions } from './MessageActions';
 import { UserProfileHover } from '../shared';
+import { API_URL } from '@/lib/api';
 
 interface EffectiveVisibility {
   level: 'everyone' | 'participants' | 'reviewers_editors' | 'editors_only' | 'admins_only';
@@ -143,7 +144,7 @@ export function MessageCard({ message, onReply, onEdit, onPrivacyChange, isReply
     if (newPrivacy === currentPrivacy) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/messages/${message.id}/privacy`, {
+      const response = await fetch(`${API_URL}/api/messages/${message.id}/privacy`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+import { API_URL } from '@/lib/api';
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +10,7 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const action = searchParams.get('action');
     
-    let url = `${API_BASE}/api/reviewers/invitations/${id}/public`;
+    let url = `${API_URL}/api/reviewers/invitations/${id}/public`;
     if (action) {
       url += `?action=${action}`;
     }
@@ -47,7 +46,7 @@ export async function POST(
     const { id } = params;
     const body = await request.json();
     
-    const response = await fetch(`${API_BASE}/api/reviewers/invitations/${id}/respond-public`, {
+    const response = await fetch(`${API_URL}/api/reviewers/invitations/${id}/respond-public`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { notifications } from '@mantine/notifications';
 import { IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { API_URL } from '@/lib/api';
 
 interface BotConfigFile {
   id: string;
@@ -26,7 +27,7 @@ export const useBotFileUpload = () => {
 
   const fetchFiles = useCallback(async (botId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${botId}/files`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${botId}/files`, {
         credentials: 'include'
       });
 
@@ -62,7 +63,7 @@ export const useBotFileUpload = () => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 100);
 
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${botId}/files`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${botId}/files`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -100,7 +101,7 @@ export const useBotFileUpload = () => {
 
   const deleteFile = useCallback(async (botId: string, fileId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${fileId}`, {
         method: 'DELETE',
         credentials: 'include'
       });

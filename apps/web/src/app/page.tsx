@@ -5,6 +5,7 @@ import { IconPencil, IconCalendar, IconUsers, IconTag } from '@tabler/icons-reac
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
+import { API_URL } from '@/lib/api';
 
 async function fetchRecentArticles() {
   try {
@@ -16,7 +17,7 @@ async function fetchRecentArticles() {
       status: 'PUBLISHED'
     });
     
-    const url = `http://localhost:4000/api/articles?${params}`;
+    const url = `${API_URL}/api/articles?${params}`;
     console.log('Fetching articles from:', url);
     
     const response = await fetch(url, {
@@ -137,7 +138,7 @@ export default function HomePage() {
         <Stack align="center" gap="md" ta="center">
           {journalSettings.logoUrl && (
             <img 
-              src={journalSettings.logoUrl.startsWith('http') ? journalSettings.logoUrl : `http://localhost:4000${journalSettings.logoUrl}`}
+              src={journalSettings.logoUrl.startsWith('http') ? journalSettings.logoUrl : `${API_URL}${journalSettings.logoUrl}`}
               alt={`${journalSettings.name} logo`}
               style={{ height: 80, objectFit: 'contain', marginBottom: '1rem' }}
             />

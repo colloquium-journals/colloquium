@@ -38,6 +38,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { API_URL } from '@/lib/api';
 
 interface UserProfile {
   id: string;
@@ -109,7 +110,7 @@ export default function ProfilePage() {
       }
 
       try {
-        const response = await fetch('http://localhost:4000/api/users/me', {
+        const response = await fetch(`${API_URL}/api/users/me`, {
           credentials: 'include'
         });
 

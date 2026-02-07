@@ -7,6 +7,8 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 // Service URL for the Pandoc microservice
 const PANDOC_SERVICE_URL = process.env.PANDOC_SERVICE_URL || 'http://localhost:8080';
+// Default API base URL fallback (prefer context.config.apiUrl at runtime)
+const DEFAULT_API_URL = process.env.API_BASE_URL || 'http://localhost:4000';
 import { CommandBot, BotCommand, BotInstallationContext } from '@colloquium/types';
 
 // Create DOMPurify instance
@@ -107,9 +109,9 @@ async function loadBuiltInTemplates(): Promise<Record<string, any>> {
 }
 
 // Fetch template content by file ID
-async function fetchTemplateContentById(fileId: string): Promise<string> {
+async function fetchTemplateContentById(fileId: string, apiUrl: string = DEFAULT_API_URL): Promise<string> {
   try {
-    const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}/content`);
+    const response = await fetch(`${apiUrl}/api/bot-config-files/${fileId}/content`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch template content: ${response.statusText}`);
@@ -168,7 +170,8 @@ const renderCommand: BotCommand = {
   permissions: ['read_manuscript_files', 'upload_files'],
   async execute(params, context) {
     const { manuscriptId, config, serviceToken } = context;
-    
+    const apiUrl = config?.apiUrl || DEFAULT_API_URL;
+
     // Extract configuration from parameters (override journal settings)
     const pdfEngine = params.engine || config.pdfEngine || 'typst';
     const templateName = params.template || config.templateName || 'academic-standard';
@@ -187,7 +190,7 @@ const renderCommand: BotCommand = {
     try {
       // Step 1: Access manuscript files
       console.log(`DEBUG: Fetching files for manuscript: ${manuscriptId}`);
-      const manuscriptFiles = await getManuscriptFiles(manuscriptId, serviceToken);
+      const manuscriptFiles = await getManuscriptFiles(manuscriptId, serviceToken, apiUrl);
       console.log(`DEBUG: Found ${manuscriptFiles.length} files`);
       console.log(`DEBUG: Files:`, manuscriptFiles.map(f => ({
         originalName: f.originalName,
@@ -207,10 +210,10 @@ const renderCommand: BotCommand = {
       }
 
       // Step 2: Get template
-      const templateData = await getTemplate(templateName, pdfEngine, config);
+      const templateData = await getTemplate(templateName, pdfEngine, config, apiUrl);
       
       // Step 3: Process Markdown content
-      const markdownContent = await downloadFile(markdownFile.downloadUrl, serviceToken);
+      const markdownContent = await downloadFile(markdownFile.downloadUrl, serviceToken, apiUrl);
       const processedContent = await processMarkdownContent(
         markdownContent, 
         manuscriptFiles, 
@@ -231,13 +234,13 @@ const renderCommand: BotCommand = {
       let bibliographyContent = '';
       if (bibliographyFile) {
         console.log(`DEBUG: Found bibliography file: ${bibliographyFile.originalName}`);
-        bibliographyContent = await downloadFile(bibliographyFile.downloadUrl, serviceToken);
+        bibliographyContent = await downloadFile(bibliographyFile.downloadUrl, serviceToken, apiUrl);
         console.log(`DEBUG: Bibliography content length: ${bibliographyContent.length} chars`);
         console.log(`DEBUG: First 200 chars of bibliography:`, bibliographyContent.substring(0, 200));
       }
 
       // Step 5: Get manuscript metadata
-      const metadata = await getManuscriptMetadata(manuscriptId, serviceToken);
+      const metadata = await getManuscriptMetadata(manuscriptId, serviceToken, apiUrl);
 
       // Step 6: Prepare author data for templates
       const authorData = await prepareAuthorData(metadata);
@@ -275,17 +278,17 @@ const renderCommand: BotCommand = {
       for (const format of outputFormats) {
         if (format === 'html') {
           // For HTML, use Pandoc to process citations and bibliography
-          const htmlTemplateData = await getTemplate(templateName, 'html', config);
-          const htmlBuffer = await generatePandocHTML(markdownContent, htmlTemplateData, templateVariables, bibliographyContent, manuscriptFiles, serviceToken);
+          const htmlTemplateData = await getTemplate(templateName, 'html', config, apiUrl);
+          const htmlBuffer = await generatePandocHTML(markdownContent, htmlTemplateData, templateVariables, bibliographyContent, manuscriptFiles, serviceToken, apiUrl);
           const htmlFilename = `${baseFilename}.html`;
-          const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, htmlBuffer, 'text/html', serviceToken);
+          const htmlResult = await uploadRenderedFile(manuscriptId, htmlFilename, htmlBuffer, 'text/html', serviceToken, apiUrl);
           uploadResults.push({ type: 'HTML', ...htmlResult });
         } else if (format === 'pdf') {
           // For PDF generation, use Typst/LaTeX engine with appropriate template
-          const pdfTemplateData = await getTemplate(templateName, pdfEngine, config);
-          const pdfBuffer = await generatePandocPDF(markdownContent, pdfTemplateData, pdfEngine, templateVariables, bibliographyContent, manuscriptFiles, serviceToken);
+          const pdfTemplateData = await getTemplate(templateName, pdfEngine, config, apiUrl);
+          const pdfBuffer = await generatePandocPDF(markdownContent, pdfTemplateData, pdfEngine, templateVariables, bibliographyContent, manuscriptFiles, serviceToken, apiUrl);
           const pdfFilename = `${baseFilename}.pdf`;
-          const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf', serviceToken);
+          const pdfResult = await uploadRenderedFile(manuscriptId, pdfFilename, pdfBuffer, 'application/pdf', serviceToken, apiUrl);
           uploadResults.push({ type: 'PDF', ...pdfResult });
         }
       }
@@ -485,8 +488,8 @@ const listTemplatesCommand: BotCommand = {
 // Remove the manual help command - it will be auto-injected by the framework
 
 // Helper functions
-async function getManuscriptFiles(manuscriptId: string, serviceToken: string): Promise<any[]> {
-  const url = `http://localhost:4000/api/articles/${manuscriptId}/files`;
+async function getManuscriptFiles(manuscriptId: string, serviceToken: string, apiUrl: string = DEFAULT_API_URL): Promise<any[]> {
+  const url = `${apiUrl}/api/articles/${manuscriptId}/files`;
   console.log(`DEBUG: Fetching files from: ${url}`);
   console.log(`DEBUG: Service token present: ${!!serviceToken}`);
   
@@ -538,10 +541,9 @@ function findMarkdownFile(files: any[]): any | null {
   return markdownFile;
 }
 
-async function downloadFile(downloadUrl: string, serviceToken: string): Promise<string> {
+async function downloadFile(downloadUrl: string, serviceToken: string, apiUrl: string = DEFAULT_API_URL): Promise<string> {
   // Convert relative URL to absolute URL for internal API calls
-  const baseUrl = 'http://localhost:4000';
-  const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${baseUrl}${downloadUrl}`;
+  const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${apiUrl}${downloadUrl}`;
   
   console.log(`DEBUG: Downloading file from: ${fullUrl}`);
   console.log(`DEBUG: Using service token: ${serviceToken ? 'present' : 'missing'}`);
@@ -634,7 +636,7 @@ function findBibliographyFile(files: any[]): any | null {
   );
 }
 
-async function getTemplate(templateName: string, pdfEngine: string, config: any): Promise<any> {
+async function getTemplate(templateName: string, pdfEngine: string, config: any, apiUrl: string = DEFAULT_API_URL): Promise<any> {
   // First check the new file ID-based templates in config
   if (config.templates && config.templates[templateName]) {
     const templateDef = config.templates[templateName];
@@ -645,7 +647,7 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
     if (templateFile) {
       try {
         // Fetch the template content using the file ID
-        const templateContent = await fetchTemplateContentById(templateFile.fileId);
+        const templateContent = await fetchTemplateContentById(templateFile.fileId, apiUrl);
         
         return {
           name: templateDef.name,
@@ -678,7 +680,7 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
   // Check for file-based custom templates (legacy)
   if (templateName.startsWith('file:')) {
     const fileName = templateName.replace('file:', '');
-    return await getFileBasedTemplate(fileName);
+    return await getFileBasedTemplate(fileName, apiUrl);
   }
 
   // Check custom templates from config (legacy support)
@@ -700,10 +702,10 @@ async function getTemplate(templateName: string, pdfEngine: string, config: any)
   };
 }
 
-async function getFileBasedTemplate(fileName: string): Promise<any> {
+async function getFileBasedTemplate(fileName: string, apiUrl: string = DEFAULT_API_URL): Promise<any> {
   try {
     // Fetch template file from bot config files API
-    const response = await fetch('http://localhost:4000/api/bot-config-files/markdown-renderer/files?category=template');
+    const response = await fetch(`${apiUrl}/api/bot-config-files/markdown-renderer/files?category=template`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch template files: ${response.statusText}`);
@@ -719,7 +721,7 @@ async function getFileBasedTemplate(fileName: string): Promise<any> {
     }
     
     // Get template content
-    const contentResponse = await fetch(`http://localhost:4000/api/bot-config-files/${templateFile.id}/content`);
+    const contentResponse = await fetch(`${apiUrl}/api/bot-config-files/${templateFile.id}/content`);
     
     if (!contentResponse.ok) {
       throw new Error(`Failed to fetch template content: ${contentResponse.statusText}`);
@@ -735,7 +737,7 @@ async function getFileBasedTemplate(fileName: string): Promise<any> {
     );
     
     if (cssFile) {
-      const cssResponse = await fetch(`http://localhost:4000/api/bot-config-files/${cssFile.id}/content`);
+      const cssResponse = await fetch(`${apiUrl}/api/bot-config-files/${cssFile.id}/content`);
       if (cssResponse.ok) {
         const cssData = await cssResponse.json();
         cssContent = cssData.file.content;
@@ -775,8 +777,8 @@ async function renderWithTemplate(template: any, data: any): Promise<string> {
   return compiledTemplate(data);
 }
 
-async function getManuscriptMetadata(manuscriptId: string, serviceToken: string): Promise<any> {
-  const response = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+async function getManuscriptMetadata(manuscriptId: string, serviceToken: string, apiUrl: string = DEFAULT_API_URL): Promise<any> {
+  const response = await fetch(`${apiUrl}/api/articles/${manuscriptId}`, {
     headers: {
       'x-bot-token': serviceToken,
       'content-type': 'application/json'
@@ -918,7 +920,8 @@ async function prepareAuthorData(metadata: any): Promise<{
 async function collectAssetFiles(
   markdownContent: string,
   manuscriptFiles: any[],
-  serviceToken: string
+  serviceToken: string,
+  apiUrl: string = DEFAULT_API_URL
 ): Promise<Array<{filename: string; content: string; encoding: string}>> {
   const assetFiles: Array<{filename: string; content: string; encoding: string}> = [];
 
@@ -964,7 +967,7 @@ async function collectAssetFiles(
           // Download the asset file
           const downloadUrl = assetFile.downloadUrl.startsWith('http') ?
             assetFile.downloadUrl :
-            `http://localhost:4000${assetFile.downloadUrl}`;
+            `${apiUrl}${assetFile.downloadUrl}`;
           console.log(`DEBUG collectAssetFiles: Full download URL: ${downloadUrl}`);
 
           const response = await fetch(downloadUrl, {
@@ -1012,13 +1015,14 @@ async function collectAssetFiles(
 }
 
 async function generatePandocPDF(
-  markdownContent: string, 
-  template: any, 
-  pdfEngine: string, 
+  markdownContent: string,
+  template: any,
+  pdfEngine: string,
   templateVariables: any,
   bibliographyContent: string = '',
   manuscriptFiles: any[] = [],
-  serviceToken: string = ''
+  serviceToken: string = '',
+  apiUrl: string = DEFAULT_API_URL
 ): Promise<Buffer> {
   try {
     console.log(`Converting markdown to PDF using ${pdfEngine} engine via microservice`);
@@ -1064,7 +1068,7 @@ async function generatePandocPDF(
     }
     
     // Collect asset files referenced in the markdown
-    const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken);
+    const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken, apiUrl);
     console.log(`DEBUG: Collected ${assetFiles.length} asset files for PDF generation`);
     
     const requestBody = {
@@ -1112,12 +1116,13 @@ async function generatePandocHTML(
   templateVariables: any,
   bibliographyContent: string = '',
   manuscriptFiles: any[] = [],
-  serviceToken: string = ''
+  serviceToken: string = '',
+  apiUrl: string = DEFAULT_API_URL
 ): Promise<Buffer> {
   try {
     console.log(`Converting markdown to HTML using Pandoc with native template support`);
 
-    const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken);
+    const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken, apiUrl);
     console.log(`DEBUG: Collected ${assetFiles.length} asset files for HTML generation`);
 
     // Use Pandoc's native template format - pass template directly
@@ -1209,43 +1214,43 @@ async function generatePandocHTML(
 }
 
 async function uploadRenderedFile(
-  manuscriptId: string, 
-  filename: string, 
-  content: string | Buffer, 
+  manuscriptId: string,
+  filename: string,
+  content: string | Buffer,
   mimeType: string = 'text/html',
-  serviceToken: string
+  serviceToken: string,
+  apiUrl: string = DEFAULT_API_URL
 ): Promise<any> {
   const formData = new FormData();
-  
-  const blob = typeof content === 'string' 
+
+  const blob = typeof content === 'string'
     ? new Blob([content], { type: mimeType })
     : new Blob([content], { type: mimeType });
-    
+
   formData.append('files', blob, filename);
   formData.append('fileType', 'RENDERED');
   formData.append('renderedBy', 'bot-markdown-renderer');
-  
-  const response = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/files`, {
+
+  const response = await fetch(`${apiUrl}/api/articles/${manuscriptId}/files`, {
     method: 'POST',
     headers: {
       'x-bot-token': serviceToken
     },
     body: formData
   });
-  
+
   if (!response.ok) {
     throw new Error(`Failed to upload rendered file: ${response.statusText}`);
   }
-  
+
   const result = await response.json();
-  
+
   // Add size information for tracking and fix download URL
   const fileResult = result.files[0];
-  const baseUrl = process.env.API_BASE_URL || 'http://localhost:4000';
   return {
     ...fileResult,
     size: typeof content === 'string' ? content.length : content.length,
-    downloadUrl: `${baseUrl}${fileResult.downloadUrl}` // Make URL absolute with environment-aware base
+    downloadUrl: `${apiUrl}${fileResult.downloadUrl}`
   };
 }
 

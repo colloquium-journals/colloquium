@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { API_URL } from '@/lib/api';
 
 interface PublicProfile {
   id: string;
@@ -64,7 +65,7 @@ export default function PublicProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch(`http://localhost:4000/api/users/${userId}`);
+        const response = await fetch(`${API_URL}/api/users/${userId}`);
 
         if (!response.ok) {
           if (response.status === 404) {

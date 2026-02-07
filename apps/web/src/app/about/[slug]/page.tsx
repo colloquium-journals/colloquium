@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { API_URL } from '@/lib/api';
 
 interface ContentPage {
   section: string;
@@ -85,7 +86,7 @@ export default function AboutPageDetail() {
       try {
         if (slug === 'editorial-board') {
           // Special handling for editorial board
-          const response = await fetch('http://localhost:4000/api/content/editorial-board');
+          const response = await fetch(`${API_URL}/api/content/editorial-board`);
           if (!response.ok) {
             throw new Error('Failed to fetch editorial board');
           }
@@ -93,7 +94,7 @@ export default function AboutPageDetail() {
           setEditorialData(data);
         } else {
           // Regular content page
-          const response = await fetch(`http://localhost:4000/api/content/about/${slug}`);
+          const response = await fetch(`${API_URL}/api/content/about/${slug}`);
           if (!response.ok) {
             if (response.status === 404) {
               throw new Error('Page not found');

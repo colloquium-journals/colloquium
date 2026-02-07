@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconAlertCircle, IconUsers } from '@tabler/icons-react';
+import { API_URL } from '@/lib/api';
 
 interface Manuscript {
   id: string;
@@ -69,7 +70,7 @@ export function CreateConversationModal({
   const fetchManuscripts = async () => {
     try {
       setLoadingManuscripts(true);
-      const response = await fetch('http://localhost:4000/api/manuscripts?status=ALL&limit=50', {
+      const response = await fetch(`${API_URL}/api/manuscripts?status=ALL&limit=50`, {
         credentials: 'include'
       });
       
@@ -95,7 +96,7 @@ export function CreateConversationModal({
       const fetchSingleManuscript = async () => {
         try {
           setLoadingManuscripts(true);
-          const response = await fetch(`http://localhost:4000/api/manuscripts/${manuscriptId}`, {
+          const response = await fetch(`${API_URL}/api/manuscripts/${manuscriptId}`, {
             credentials: 'include'
           });
           
@@ -125,7 +126,7 @@ export function CreateConversationModal({
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:4000/api/conversations', {
+      const response = await fetch(`${API_URL}/api/conversations`, {
         method: 'POST',
         credentials: 'include',
         headers: {

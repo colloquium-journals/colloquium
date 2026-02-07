@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Container, Paper, Title, Text, Button, Group, Alert, Loader, Center, Stack } from '@mantine/core';
 import { IconCheck, IconX, IconMail, IconCalendar } from '@tabler/icons-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 
 interface InvitationData {
   id: string;
@@ -52,8 +53,7 @@ export default function ReviewResponsePage() {
   const loadInvitationAndProcess = async () => {
     try {
       setLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public`, {
+      const response = await fetch(`${API_URL}/api/reviewers/invitations/${invitationId}/public`, {
         credentials: 'include'
       });
 
@@ -92,9 +92,8 @@ export default function ReviewResponsePage() {
 
   const handleDirectResponse = async (responseAction: string) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
-      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/public?action=${responseAction}${tokenParam}`, {
+      const response = await fetch(`${API_URL}/api/reviewers/invitations/${invitationId}/public?action=${responseAction}${tokenParam}`, {
         credentials: 'include'
       });
 
@@ -117,8 +116,7 @@ export default function ReviewResponsePage() {
     
     try {
       setSubmitting(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const response = await fetch(`${apiUrl}/api/reviewers/invitations/${invitationId}/respond-public`, {
+      const response = await fetch(`${API_URL}/api/reviewers/invitations/${invitationId}/respond-public`, {
         method: 'POST',
         credentials: 'include',
         headers: {

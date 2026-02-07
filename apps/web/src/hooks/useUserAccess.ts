@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 
 interface UserAccessResponse {
   canSeeSubmissions: boolean;
@@ -22,7 +23,7 @@ export function useUserAccess(): UseUserAccessResult {
     const fetchUserAccess = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:4000/api/settings/user-access', {
+        const response = await fetch(`${API_URL}/api/settings/user-access`, {
           credentials: 'include'
         });
 

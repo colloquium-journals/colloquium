@@ -24,6 +24,7 @@ import { ParameterHints } from '@/components/shared/ParameterHints';
 import { useMentionSuggestions } from '@/hooks/useMentionSuggestions';
 import { useMentionInput } from '@/hooks/useMentionInput';
 import { useCommandInput } from '@/hooks/useCommandInput';
+import { API_URL } from '@/lib/api';
 
 interface Bot {
   id: string;
@@ -208,7 +209,7 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
     const fetchBots = async () => {
       try {
         setLoadingBots(true);
-        const response = await fetch('http://localhost:4000/api/bots', {
+        const response = await fetch(`${API_URL}/api/bots`, {
           credentials: 'include'
         });
 

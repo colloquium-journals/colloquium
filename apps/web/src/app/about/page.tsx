@@ -44,12 +44,13 @@ import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { marked } from 'marked';
+import { API_URL } from '@/lib/api';
 
 async function fetchContent() {
   try {
     const [sectionsResponse, aboutPagesResponse] = await Promise.all([
-      fetch('http://localhost:4000/api/content', { cache: 'no-store' }),
-      fetch('http://localhost:4000/api/content/about', { cache: 'no-store' })
+      fetch(`${API_URL}/api/content`, { cache: 'no-store' }),
+      fetch(`${API_URL}/api/content/about`, { cache: 'no-store' })
     ]);
 
     const sectionsData = sectionsResponse.ok ? await sectionsResponse.json() : { sections: [] };
@@ -70,7 +71,7 @@ async function fetchContent() {
 
 async function fetchPageContent(slug: string) {
   try {
-    const response = await fetch(`http://localhost:4000/api/content/about/${slug}`, { cache: 'no-store' });
+    const response = await fetch(`${API_URL}/api/content/about/${slug}`, { cache: 'no-store' });
     return response.ok ? await response.json() : null;
   } catch (err) {
     console.error('Error fetching page content:', err);

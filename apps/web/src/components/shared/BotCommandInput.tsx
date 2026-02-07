@@ -5,6 +5,7 @@ import { TextInput } from '@mantine/core';
 import { MentionSuggest, MentionSuggestion } from './MentionSuggest';
 import { CommandSuggest } from './CommandSuggest';
 import { CommandSuggestion } from '@/hooks/useCommandInput';
+import { API_URL } from '@/lib/api';
 
 interface BotCommandInputProps {
   value: string;
@@ -67,7 +68,7 @@ export function BotCommandInput({ value, onChange, placeholder, bots }: BotComma
     if (parsed.mode === 'command' && parsed.botId && parsed.botId !== lastFetchedBotId) {
       setLastFetchedBotId(parsed.botId);
       setLoadingCommands(true);
-      fetch(`http://localhost:4000/api/bots/${parsed.botId}`, { credentials: 'include' })
+      fetch(`${API_URL}/api/bots/${parsed.botId}`, { credentials: 'include' })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data?.commands) {
@@ -129,7 +130,7 @@ export function BotCommandInput({ value, onChange, placeholder, bots }: BotComma
       if (botId !== lastFetchedBotId) {
         setLastFetchedBotId(botId);
         setLoadingCommands(true);
-        fetch(`http://localhost:4000/api/bots/${botId}`, { credentials: 'include' })
+        fetch(`${API_URL}/api/bots/${botId}`, { credentials: 'include' })
           .then(res => res.ok ? res.json() : null)
           .then(data => {
             if (data?.commands) {

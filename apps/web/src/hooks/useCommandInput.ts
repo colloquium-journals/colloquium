@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { API_URL } from '@/lib/api';
 
 export interface BotCommand {
   name: string;
@@ -81,7 +82,7 @@ export function useCommandInput({ textareaRef, containerRef, value, onChange }: 
     setLoadingCommands(prev => ({ ...prev, [botId]: true }));
     
     try {
-      const response = await fetch(`http://localhost:4000/api/bots/${botId}`, {
+      const response = await fetch(`${API_URL}/api/bots/${botId}`, {
         credentials: 'include'
       });
 

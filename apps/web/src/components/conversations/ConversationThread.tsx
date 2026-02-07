@@ -6,6 +6,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { MessageThread } from './MessageThread';
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 
 interface WorkflowInfo {
   phase: string;
@@ -154,7 +155,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
       try {
         setLoading(true);
         
-        const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}`, {
+        const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
           credentials: 'include' // Include auth cookies
         });
         
@@ -198,7 +199,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
 
     try {
       
-      const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -247,7 +248,7 @@ export function ConversationThread({ conversationId }: ConversationThreadProps) 
     try {
       console.log('Editing message:', { messageId, content, reason }); // Debug log
       
-      const response = await fetch(`http://localhost:4000/api/messages/${messageId}`, {
+      const response = await fetch(`${API_URL}/api/messages/${messageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

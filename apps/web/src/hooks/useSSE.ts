@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 
 interface UseSSEOptions {
   enabled?: boolean;
@@ -59,11 +60,9 @@ export function useSSE(conversationId: string, options: UseSSEOptions = {}) {
       return;
     }
 
-    // Use 127.0.0.1 instead of localhost to avoid potential DNS issues
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
-    const sseUrl = token 
-      ? `${baseUrl}/api/events/conversations/${conversationId}?token=${encodeURIComponent(token)}`
-      : `${baseUrl}/api/events/conversations/${conversationId}`;
+    const sseUrl = token
+      ? `${API_URL}/api/events/conversations/${conversationId}?token=${encodeURIComponent(token)}`
+      : `${API_URL}/api/events/conversations/${conversationId}`;
     setConnectionStatus('connecting');
 
     // Add a small delay to avoid React Strict Mode double execution issues

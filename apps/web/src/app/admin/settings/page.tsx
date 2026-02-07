@@ -70,6 +70,7 @@ import { MentionSuggestion } from '@/components/shared/MentionSuggest';
 import { parseMarkdown } from '@/lib/markdown';
 import { WorkflowConfigPanel } from '@/components/admin/WorkflowConfigPanel';
 import yaml from 'js-yaml';
+import { API_URL } from '@/lib/api';
 
 interface BotInstallation {
   id: string;
@@ -339,7 +340,7 @@ export default function JournalSettingsPage() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:4000/api/settings/admin', {
+      const response = await fetch(`${API_URL}/api/settings/admin`, {
         credentials: 'include'
       });
 
@@ -369,7 +370,7 @@ export default function JournalSettingsPage() {
   const fetchBots = async () => {
     try {
       setBotsLoading(true);
-      const response = await fetch('http://localhost:4000/api/bot-management', {
+      const response = await fetch(`${API_URL}/api/bot-management`, {
         credentials: 'include'
       });
 
@@ -394,7 +395,7 @@ export default function JournalSettingsPage() {
   const fetchExecutorStatus = async () => {
     try {
       setExecutorStatusLoading(true);
-      const response = await fetch('http://localhost:4000/api/bot-management/status/executor', {
+      const response = await fetch(`${API_URL}/api/bot-management/status/executor`, {
         credentials: 'include'
       });
 
@@ -416,7 +417,7 @@ export default function JournalSettingsPage() {
   const handleReloadBots = async () => {
     try {
       setReloadingBots(true);
-      const response = await fetch('http://localhost:4000/api/bot-management/reload', {
+      const response = await fetch(`${API_URL}/api/bot-management/reload`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -480,7 +481,7 @@ export default function JournalSettingsPage() {
         params.set('search', searchTerm.trim());
       }
       
-      const response = await fetch(`http://localhost:4000/api/users?${params.toString()}`, {
+      const response = await fetch(`${API_URL}/api/users?${params.toString()}`, {
         credentials: 'include'
       });
 
@@ -519,7 +520,7 @@ export default function JournalSettingsPage() {
       const formData = new FormData();
       formData.append('logo', logoFile);
 
-      const response = await fetch('http://localhost:4000/api/settings/logo', {
+      const response = await fetch(`${API_URL}/api/settings/logo`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -558,7 +559,7 @@ export default function JournalSettingsPage() {
   const handleSaveSettings = async () => {
     try {
       setSaving(true);
-      const response = await fetch('http://localhost:4000/api/settings', {
+      const response = await fetch(`${API_URL}/api/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -608,7 +609,7 @@ export default function JournalSettingsPage() {
         source.path = installForm.path;
       }
 
-      const response = await fetch('http://localhost:4000/api/bot-management/install', {
+      const response = await fetch(`${API_URL}/api/bot-management/install`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -661,7 +662,7 @@ export default function JournalSettingsPage() {
 
     try {
       const endpoint = enable ? 'enable' : 'disable';
-      const response = await fetch(`http://localhost:4000/api/bot-management/${botId}/${endpoint}`, {
+      const response = await fetch(`${API_URL}/api/bot-management/${botId}/${endpoint}`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -703,7 +704,7 @@ export default function JournalSettingsPage() {
     if (!confirm('Are you sure you want to uninstall this bot?')) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-management/${botId}`, {
+      const response = await fetch(`${API_URL}/api/bot-management/${botId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -733,7 +734,7 @@ export default function JournalSettingsPage() {
   // Fetch bot files
   const fetchBotFiles = async (botId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${botId}/files`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${botId}/files`, {
         credentials: 'include'
       });
 
@@ -768,7 +769,7 @@ export default function JournalSettingsPage() {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 100);
 
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${selectedBot.botId}/files`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${selectedBot.botId}/files`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -813,7 +814,7 @@ export default function JournalSettingsPage() {
     if (!selectedBot || !newFilename.trim()) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${fileId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -853,7 +854,7 @@ export default function JournalSettingsPage() {
     if (!confirm('Are you sure you want to delete this file?')) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-config-files/${fileId}`, {
+      const response = await fetch(`${API_URL}/api/bot-config-files/${fileId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -886,7 +887,7 @@ export default function JournalSettingsPage() {
   // Fetch bot configuration
   const fetchBotConfig = async (botId: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/bot-management/${botId}`, {
+      const response = await fetch(`${API_URL}/api/bot-management/${botId}`, {
         credentials: 'include'
       });
 
@@ -922,7 +923,7 @@ export default function JournalSettingsPage() {
 
     try {
       // Send the raw config string to preserve comments
-      const response = await fetch(`http://localhost:4000/api/bot-management/${selectedBot.botId}/config`, {
+      const response = await fetch(`${API_URL}/api/bot-management/${selectedBot.botId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -959,7 +960,7 @@ export default function JournalSettingsPage() {
       setBotHelpContent('Loading help content...');
       openHelpModal();
 
-      const response = await fetch(`http://localhost:4000/api/bot-management/${bot.botId}/help`, {
+      const response = await fetch(`${API_URL}/api/bot-management/${bot.botId}/help`, {
         credentials: 'include'
       });
 
@@ -983,7 +984,7 @@ export default function JournalSettingsPage() {
   // Install default bots
   const handleInstallDefaults = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/bot-management/install-defaults', {
+      const response = await fetch(`${API_URL}/api/bot-management/install-defaults`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -1020,7 +1021,7 @@ export default function JournalSettingsPage() {
         'USER': 'USER'
       };
       
-      const response = await fetch(`http://localhost:4000/api/users/${userId}/role`, {
+      const response = await fetch(`${API_URL}/api/users/${userId}/role`, {
         method: 'POST', // The API uses POST, not PUT
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1219,7 +1220,7 @@ export default function JournalSettingsPage() {
                   {settings.logoUrl && (
                     <Group gap="md">
                       <img 
-                        src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `http://localhost:4000${settings.logoUrl}`} 
+                        src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `${API_URL}${settings.logoUrl}`} 
                         alt="Current logo" 
                         style={{ height: 48, objectFit: 'contain' }}
                       />
@@ -1463,7 +1464,7 @@ export default function JournalSettingsPage() {
                   setSettings(newSettings);
                   // handleSaveSettings will use the current state, but we need to save these specific settings
                   try {
-                    const response = await fetch('http://localhost:4000/api/settings', {
+                    const response = await fetch(`${API_URL}/api/settings`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json' },
                       credentials: 'include',
@@ -2739,7 +2740,7 @@ export default function JournalSettingsPage() {
                                     size="xs"
                                     variant="subtle"
                                     component="a"
-                                    href={`http://localhost:4000${file.downloadUrl}`}
+                                    href={`${API_URL}${file.downloadUrl}`}
                                     target="_blank"
                                     leftSection={<IconDownload size={12} />}
                                   >

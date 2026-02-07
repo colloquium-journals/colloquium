@@ -37,6 +37,7 @@ import {
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import FileList, { FileItem } from '@/components/submissions/FileList';
+import { API_URL } from '@/lib/api';
 
 // ORCID Icon Component
 const OrcidIcon = ({ size = 16 }: { size?: number }) => (
@@ -152,10 +153,10 @@ export default function ArticleDetailPage() {
         
         // Fetch article and settings in parallel
         const [articleResponse, settingsResponse] = await Promise.all([
-          fetch(`http://localhost:4000/api/articles/${articleId}`, {
+          fetch(`${API_URL}/api/articles/${articleId}`, {
             credentials: 'include'
           }),
-          fetch(`http://localhost:4000/api/settings`)
+          fetch(`${API_URL}/api/settings`)
         ]);
         
         if (!articleResponse.ok) {
@@ -233,11 +234,10 @@ export default function ArticleDetailPage() {
 
   // Function to rewrite image paths to use absolute API URLs
   const rewriteImagePaths = (html: string): string => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     // Rewrite /static/published/ paths to absolute API URLs
     return html.replace(
       /src="\/static\/published\//g,
-      `src="${apiUrl}/static/published/`
+      `src="${API_URL}/static/published/`
     );
   };
 
@@ -299,7 +299,7 @@ export default function ArticleDetailPage() {
 
     setLoadingHTML(true);
     try {
-      const response = await fetch(`http://localhost:4000/api/articles/${article.id}/files/${htmlFile.id}/download?inline=true`, {
+      const response = await fetch(`${API_URL}/api/articles/${article.id}/files/${htmlFile.id}/download?inline=true`, {
         credentials: 'include'
       });
       
@@ -561,7 +561,7 @@ export default function ArticleDetailPage() {
                         size="sm"
                         leftSection={<IconDownload size={14} />}
                         component="a"
-                        href={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download`}
+                        href={`${API_URL}/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download`}
                         download
                         fullWidth
                       >
@@ -637,7 +637,7 @@ export default function ArticleDetailPage() {
                   // Display PDF content in iframe (PDFs need iframe)
                   <Box style={{ height: 'calc(100vh - 140px)' }}>
                     <iframe
-                      src={`http://localhost:4000/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download?inline=true`}
+                      src={`${API_URL}/api/articles/${article.id}/files/${getRenderedPDF()?.id}/download?inline=true`}
                       style={{
                         width: '100%',
                         height: '100%',

@@ -14,6 +14,7 @@ import {
   Center
 } from '@mantine/core';
 import { IconCheck, IconAlertCircle, IconX } from '@tabler/icons-react';
+import { API_URL } from '@/lib/api';
 
 interface User {
   id: string;
@@ -49,7 +50,7 @@ export function MagicLinkVerification({ onSuccess }: MagicLinkVerificationProps)
 
       try {
         const response = await fetch(
-          `http://localhost:4000/api/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`,
+          `${API_URL}/api/auth/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`,
           {
             method: 'GET',
             credentials: 'include' // Include cookies

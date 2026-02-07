@@ -44,6 +44,7 @@ import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../contexts/AuthContext';
 import FileDropzone from '../files/FileDropzone';
 import { hasManuscriptPermission, ManuscriptPermission, GlobalRole } from '@colloquium/auth';
+import { API_URL } from '@/lib/api';
 
 interface SubmissionData {
   id: string;
@@ -220,7 +221,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         
         
         // First, fetch the conversation to get the manuscript ID
-        const conversationResponse = await fetch(`http://localhost:4000/api/conversations/${submissionId}`, {
+        const conversationResponse = await fetch(`${API_URL}/api/conversations/${submissionId}`, {
           credentials: 'include'
         });
         
@@ -236,7 +237,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         }
 
         // Fetch full manuscript details including action editors
-        const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscript.id}`, {
+        const manuscriptResponse = await fetch(`${API_URL}/api/articles/${manuscript.id}`, {
           credentials: 'include'
         });
 
@@ -382,7 +383,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       };
       formData.append('metadata', JSON.stringify(metadata));
       
-      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}/files`, {
+      const response = await fetch(`${API_URL}/api/articles/${submission.id}/files`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -418,7 +419,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     setSavingEdits(true);
     
     try {
-      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}`, {
+      const response = await fetch(`${API_URL}/api/articles/${submission.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -543,7 +544,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
 
     setLoadingHTML(true);
     try {
-      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}/files/${htmlFile.id}/download?inline=true`, {
+      const response = await fetch(`${API_URL}/api/articles/${submission.id}/files/${htmlFile.id}/download?inline=true`, {
         credentials: 'include'
       });
       
@@ -578,7 +579,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     
     try {
       console.log(`Downloading file: ${fileToDownload.originalName} (${fileToDownload.fileType})`);
-      const response = await fetch(`http://localhost:4000/api/articles/${submission.id}/files/${fileToDownload.id}/download`, {
+      const response = await fetch(`${API_URL}/api/articles/${submission.id}/files/${fileToDownload.id}/download`, {
         credentials: 'include'
       });
       

@@ -2,6 +2,7 @@ import { Tooltip, Avatar, Group, Text, Stack, Badge, Loader } from '@mantine/cor
 import { IconRobot, IconUser } from '@tabler/icons-react';
 import { useState, useEffect } from 'react';
 import { Mention, BOT_INFO } from '../../lib/mentions';
+import { API_URL } from '@/lib/api';
 
 interface UserProfile {
   id: string;
@@ -45,7 +46,7 @@ export function MentionTooltip({ mention, children, conversationId }: MentionToo
     
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/users/profile/${mention.id}`,
+        `${API_URL}/api/users/profile/${mention.id}`,
         { credentials: 'include' }
       );
       

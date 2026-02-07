@@ -14,6 +14,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMail, IconCheck, IconAlertCircle } from '@tabler/icons-react';
+import { API_URL } from '@/lib/api';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -47,7 +48,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:4000/api/auth/login', {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

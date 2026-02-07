@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { API_URL } from '@/lib/api';
 
 interface User {
   id: string;
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUser = async () => {
     try {
-      const response = await fetch('http://localhost:4000/api/auth/me', {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
         credentials: 'include'
       });
 
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const login = async (email: string, redirectUrl?: string) => {
-    const response = await fetch('http://localhost:4000/api/auth/login', {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -78,7 +79,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await fetch('http://localhost:4000/api/auth/logout', {
+      await fetch(`${API_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include'
       });

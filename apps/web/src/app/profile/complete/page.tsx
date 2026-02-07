@@ -21,6 +21,7 @@ import {
   IconAlertCircle
 } from '@tabler/icons-react';
 import { useForm } from '@mantine/form';
+import { API_URL } from '@/lib/api';
 
 function ProfileCompleteContent() {
   const router = useRouter();
@@ -70,7 +71,7 @@ function ProfileCompleteContent() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:4000/api/users/me', {
+      const response = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

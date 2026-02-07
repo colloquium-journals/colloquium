@@ -39,6 +39,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { COUNTRY_OPTIONS } from '@/lib/countries';
+import { API_URL } from '@/lib/api';
 
 interface ProfileFormData {
   name: string;
@@ -178,7 +179,7 @@ export default function EditProfilePage() {
       }
 
       try {
-        const profileResponse = await fetch('http://localhost:4000/api/users/me', { credentials: 'include' });
+        const profileResponse = await fetch(`${API_URL}/api/users/me`, { credentials: 'include' });
 
         if (!profileResponse.ok) {
           throw new Error('Failed to fetch profile');
@@ -285,8 +286,8 @@ export default function EditProfilePage() {
       };
 
       const url = editingAffiliation
-        ? `http://localhost:4000/api/users/me/affiliations/${editingAffiliation.id}`
-        : 'http://localhost:4000/api/users/me/affiliations';
+        ? `${API_URL}/api/users/me/affiliations/${editingAffiliation.id}`
+        : `${API_URL}/api/users/me/affiliations`;
 
       const response = await fetch(url, {
         method: editingAffiliation ? 'PUT' : 'POST',
@@ -302,7 +303,7 @@ export default function EditProfilePage() {
       }
 
       // Refresh affiliations list
-      const affiliationsResponse = await fetch('http://localhost:4000/api/users/me/affiliations', {
+      const affiliationsResponse = await fetch(`${API_URL}/api/users/me/affiliations`, {
         credentials: 'include'
       });
       if (affiliationsResponse.ok) {
@@ -326,7 +327,7 @@ export default function EditProfilePage() {
 
     try {
       setError(null);
-      const response = await fetch(`http://localhost:4000/api/users/me/affiliations/${affiliationId}`, {
+      const response = await fetch(`${API_URL}/api/users/me/affiliations/${affiliationId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -370,7 +371,7 @@ export default function EditProfilePage() {
         }
       });
 
-      const response = await fetch('http://localhost:4000/api/users/me', {
+      const response = await fetch(`${API_URL}/api/users/me`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -404,7 +405,7 @@ export default function EditProfilePage() {
   const handleUnlinkOrcid = async () => {
     try {
       setUnlinking(true);
-      const response = await fetch('http://localhost:4000/api/auth/orcid', {
+      const response = await fetch(`${API_URL}/api/auth/orcid`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -438,7 +439,7 @@ export default function EditProfilePage() {
     }
     setUsernameStatus('checking');
     try {
-      const response = await fetch(`http://localhost:4000/api/users/check-username/${username}`, {
+      const response = await fetch(`${API_URL}/api/users/check-username/${username}`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -582,7 +583,7 @@ export default function EditProfilePage() {
                       <Button
                         variant="light"
                         component="a"
-                        href="http://localhost:4000/api/auth/orcid"
+                        href={`${API_URL}/api/auth/orcid`}
                         leftSection={<IconExternalLink size={16} />}
                       >
                         Link ORCID

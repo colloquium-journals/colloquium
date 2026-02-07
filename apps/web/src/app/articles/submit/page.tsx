@@ -53,6 +53,7 @@ import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { RequireProfileCompletion } from '@/components/auth/RequireProfileCompletion';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { CREDIT_ROLES, CreditRoleCode } from '@colloquium/types';
+import { API_URL } from '@/lib/api';
 
 interface FundingInput {
   funderName: string;
@@ -112,7 +113,7 @@ export default function SubmitArticlePage() {
     const loadSupportedFormats = async () => {
       try {
         console.log('Loading supported formats...');
-        const response = await fetch('http://localhost:4000/api/formats');
+        const response = await fetch(`${API_URL}/api/formats`);
         console.log('Formats API response:', response.status);
         if (response.ok) {
           const data = await response.json();
@@ -327,7 +328,7 @@ export default function SubmitArticlePage() {
         formData.append('files', file);
       });
 
-      const response = await fetch('http://localhost:4000/api/articles', {
+      const response = await fetch(`${API_URL}/api/articles`, {
         method: 'POST',
         credentials: 'include', // Include auth cookies
         body: formData // Don't set Content-Type header for FormData
@@ -415,7 +416,7 @@ export default function SubmitArticlePage() {
     setAuthorLookupLoading(prev => ({ ...prev, [authorIndex]: true }));
     
     try {
-      const response = await fetch(`http://localhost:4000/api/users/lookup?email=${encodeURIComponent(email)}`, {
+      const response = await fetch(`${API_URL}/api/users/lookup?email=${encodeURIComponent(email)}`, {
         credentials: 'include'
       });
       

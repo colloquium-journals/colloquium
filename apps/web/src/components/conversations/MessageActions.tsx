@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Group, Button, Modal, Text, Stack } from '@mantine/core';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 
 interface BotMessageAction {
   id: string;
@@ -40,7 +41,7 @@ export function MessageActions({ messageId, actions, onActionTriggered }: Messag
     setPendingAction(null);
 
     try {
-      const response = await fetch(`http://localhost:4000/api/messages/${messageId}/actions/${action.id}`, {
+      const response = await fetch(`${API_URL}/api/messages/${messageId}/actions/${action.id}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }

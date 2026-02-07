@@ -41,6 +41,7 @@ import {
 import { format } from 'date-fns';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { marked } from 'marked';
+import { API_URL } from '@/lib/api';
 
 interface ContentPage {
   slug: string;
@@ -90,7 +91,7 @@ const ICON_MAP = {
 
 async function fetchSectionConfig(): Promise<SectionConfig[]> {
   try {
-    const response = await fetch('http://localhost:4000/api/content/sections', { cache: 'no-store' });
+    const response = await fetch(`${API_URL}/api/content/sections`, { cache: 'no-store' });
     if (response.ok) {
       const data = await response.json();
       return data.sections || [];
@@ -104,7 +105,7 @@ async function fetchSectionConfig(): Promise<SectionConfig[]> {
 
 async function fetchSectionContent(sectionId: string) {
   try {
-    const response = await fetch(`http://localhost:4000/api/content/${sectionId}`, { cache: 'no-store' });
+    const response = await fetch(`${API_URL}/api/content/${sectionId}`, { cache: 'no-store' });
     return response.ok ? await response.json() : { pages: [] };
   } catch (error) {
     console.error('Error fetching section content:', error);
@@ -114,7 +115,7 @@ async function fetchSectionContent(sectionId: string) {
 
 async function fetchPageContent(sectionId: string, slug: string) {
   try {
-    const response = await fetch(`http://localhost:4000/api/content/${sectionId}/${slug}`, { cache: 'no-store' });
+    const response = await fetch(`${API_URL}/api/content/${sectionId}/${slug}`, { cache: 'no-store' });
     return response.ok ? await response.json() : null;
   } catch (error) {
     console.error('Error fetching page content:', error);

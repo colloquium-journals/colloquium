@@ -103,7 +103,8 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
     const username = mention.replace('@', '');
 
     // Find user by name using search endpoint
-    const userSearchResponse = await fetch(`http://localhost:4000/api/users?search=${encodeURIComponent(username)}`, {
+    const apiUrl = context.config?.apiUrl || 'http://localhost:4000';
+    const userSearchResponse = await fetch(`${apiUrl}/api/users?search=${encodeURIComponent(username)}`, {
       headers: {
         'X-Bot-Token': serviceToken,
         'Content-Type': 'application/json'
@@ -137,7 +138,7 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
     }
 
     // Get manuscript data to check for existing assignment and conflicts
-    const manuscriptResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}`, {
+    const manuscriptResponse = await fetch(`${apiUrl}/api/articles/${manuscriptId}`, {
       headers: {
         'X-Bot-Token': serviceToken,
         'Content-Type': 'application/json'
@@ -566,7 +567,7 @@ const inviteReviewerCommand: BotCommand = {
 
         // Create invitation (pending review assignment) via API
         const { serviceToken } = context;
-        const createResponse = await fetch(`http://localhost:4000/api/articles/${manuscriptId}/reviewers`, {
+        const createResponse = await fetch(`${context.config?.apiUrl || 'http://localhost:4000'}/api/articles/${manuscriptId}/reviewers`, {
           method: 'POST',
           headers: {
             'X-Bot-Token': serviceToken,

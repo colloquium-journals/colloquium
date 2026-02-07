@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MentionSuggestion } from '@/components/shared/MentionSuggest';
+import { API_URL } from '@/lib/api';
 
 interface UseMentionSuggestionsProps {
   conversationId: string;
@@ -37,7 +38,7 @@ export function useMentionSuggestions({ conversationId, availableBots }: UseMent
     const fetchParticipants = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:4000/api/conversations/${conversationId}`, {
+        const response = await fetch(`${API_URL}/api/conversations/${conversationId}`, {
           credentials: 'include'
         });
 

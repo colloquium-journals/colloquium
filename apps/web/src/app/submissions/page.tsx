@@ -34,6 +34,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Breadcrumbs } from '@/components/navigation/Breadcrumbs';
 import { useUserAccess } from '@/hooks/useUserAccess';
+import { API_URL } from '@/lib/api';
+
 interface Submission {
   id: string;
   title: string;
@@ -95,7 +97,7 @@ export default function SubmissionsPage() {
       }
 
 
-      const response = await fetch(`http://localhost:4000/api/conversations?${params}`, {
+      const response = await fetch(`${API_URL}/api/conversations?${params}`, {
         credentials: 'include'
       });
       

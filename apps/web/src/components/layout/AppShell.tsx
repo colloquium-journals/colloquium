@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useUserAccess } from '@/hooks/useUserAccess';
+import { API_URL } from '@/lib/api';
 import { Footer } from './Footer';
 
 interface AppShellLayoutProps {
@@ -44,7 +45,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
   useEffect(() => {
     const loadSections = async () => {
       try {
-        const response = await fetch('http://localhost:4000/api/content/sections', { cache: 'no-store' });
+        const response = await fetch(`${API_URL}/api/content/sections`, { cache: 'no-store' });
         if (response.ok) {
           const data = await response.json();
           setSections(data.sections || []);
@@ -135,7 +136,7 @@ export function AppShellLayout({ children }: AppShellLayoutProps) {
               <Group gap="xs" align="center" wrap="nowrap">
                 {settings.logoUrl && (
                   <Image
-                    src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `http://localhost:4000${settings.logoUrl}`}
+                    src={settings.logoUrl.startsWith('http') ? settings.logoUrl : `${API_URL}${settings.logoUrl}`}
                     alt={`${settings.name} logo`}
                     h={32}
                     w="auto"

@@ -54,7 +54,7 @@ export const processBotJob = async (payload: BotProcessingJob) => {
         id: 'default', // TODO: Get actual journal ID
         settings: {}
       },
-      config: {},
+      config: { apiUrl: process.env.API_URL || 'http://localhost:4000' },
       serviceToken
     });
 

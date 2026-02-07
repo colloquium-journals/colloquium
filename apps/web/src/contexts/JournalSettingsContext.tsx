@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { API_URL } from '@/lib/api';
 
 interface JournalSettings {
   name: string;
@@ -70,7 +71,7 @@ export function JournalSettingsProvider({ children }: JournalSettingsProviderPro
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:4000/api/settings', {
+      const response = await fetch(`${API_URL}/api/settings`, {
         cache: 'no-store'
       });
       
