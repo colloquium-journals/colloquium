@@ -35,7 +35,7 @@
     "@colloquium/types": "*",
     "cors": "^2.8.5",
     "dompurify": "^3.0.8",
-    "express": "^5.1.0",
+    "express": "^4.18.2",
     "fs-extra": "^11.1.1",
     "handlebars": "^4.7.8",
     "jsdom": "^22.1.0",
