@@ -46,49 +46,6 @@ export function generateSecureToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export function generateMagicLinkToken(): string {
-  const secret = process.env.MAGIC_LINK_SECRET || 'default-secret';
-  const timestamp = Date.now().toString();
-  const randomBytes = crypto.randomBytes(16).toString('hex');
-  
-  const hmac = crypto.createHmac('sha256', secret);
-  hmac.update(timestamp + randomBytes);
-  
-  return hmac.digest('hex') + '.' + timestamp + '.' + randomBytes;
-}
-
-export function verifyMagicLinkToken(token: string): boolean {
-  try {
-    const secret = process.env.MAGIC_LINK_SECRET || 'default-secret';
-    const [hash, timestamp, randomBytes] = token.split('.');
-    
-    if (!hash || !timestamp || !randomBytes) {
-      return false;
-    }
-
-    // Check if token is expired (15 minutes)
-    const tokenTime = parseInt(timestamp);
-    const now = Date.now();
-    const fifteenMinutes = 15 * 60 * 1000;
-    
-    if (now - tokenTime > fifteenMinutes) {
-      return false;
-    }
-
-    // Verify hash
-    const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(timestamp + randomBytes);
-    const expectedHash = hmac.digest('hex');
-
-    return crypto.timingSafeEqual(
-      Buffer.from(hash, 'hex'),
-      Buffer.from(expectedHash, 'hex')
-    );
-  } catch (error) {
-    return false;
-  }
-}
-
 // Password utilities (for future use)
 export async function hashPassword(password: string): Promise<string> {
   const bcrypt = await import('bcrypt');

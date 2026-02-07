@@ -6,8 +6,6 @@ import { errorHandler } from '../../src/middleware/errorHandler';
 
 // Mock the auth utilities
 jest.mock('@colloquium/auth', () => ({
-  generateMagicLinkToken: jest.fn(),
-  verifyMagicLinkToken: jest.fn(),
   generateJWT: jest.fn(),
   verifyJWT: jest.fn().mockImplementation(() => {
     throw new Error('Invalid token');
@@ -53,8 +51,6 @@ describe('Auth Routes', () => {
     
     // Mock the dynamic import used in /me endpoint
     jest.doMock('@colloquium/auth', () => ({
-      generateMagicLinkToken: jest.fn(),
-      verifyMagicLinkToken: jest.fn(),
       generateJWT: jest.fn(),
       verifyJWT: jest.fn().mockImplementation(() => {
         throw new Error('Invalid token');
