@@ -6,6 +6,8 @@
 
 import { MockFile } from './mockFiles';
 
+const DEFAULT_API_URL = process.env.API_URL || 'http://localhost:4000';
+
 export interface MockRequest {
   url: string;
   method: string;
@@ -172,7 +174,7 @@ export class MockApiServer {
             id: `uploaded-file-${Date.now()}`,
             filename: 'uploaded-file.html',
             originalName: 'uploaded-file.html',
-            downloadUrl: 'http://localhost:4000/api/articles/test/files/uploaded/download',
+            downloadUrl: `${DEFAULT_API_URL}/api/articles/test/files/uploaded/download`,
             size: 1024
           }]
         })

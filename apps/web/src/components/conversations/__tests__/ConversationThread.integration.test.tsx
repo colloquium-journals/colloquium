@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { MantineProvider } from '@mantine/core';
 import { AuthProvider } from '../../../contexts/AuthContext';
 import { ConversationThread } from '../ConversationThread';
+import { API_URL } from '@/lib/api';
 
 // Mock SSE hook
 const mockSSEHook = {
@@ -208,7 +209,7 @@ describe('ConversationThread Real-time Message Flow', () => {
 
     // Verify the API was called correctly
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/conversations/conversation-123/messages',
+      `${API_URL}/api/conversations/conversation-123/messages`,
       expect.objectContaining({
         method: 'POST',
         headers: {
@@ -429,7 +430,7 @@ describe('ConversationThread Real-time Message Flow', () => {
 
     // Verify the correct API call was made
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/conversations/conversation-123/messages',
+      `${API_URL}/api/conversations/conversation-123/messages`,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({

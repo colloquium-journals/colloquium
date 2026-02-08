@@ -8,7 +8,7 @@ Items marked ~~strikethrough~~ have been resolved.
 
 | Category | Critical | High | Medium | Low |
 |----------|----------|------|--------|-----|
-| Hardcoded URLs & Config | 1 | - | - | - |
+| Hardcoded URLs & Config | ~~1~~ | - | - | - |
 | Security | ~~1~~ | ~~1~~ | 1 | - |
 | Data Fetching & Performance | - | ~~3~~ | 3 | - |
 | Code Quality & Duplication | - | ~~2~~ | 4 | 2 |
@@ -18,25 +18,15 @@ Items marked ~~strikethrough~~ have been resolved.
 | Bot Developer Experience | - | ~~2~~ | 2 | 1 |
 | Deployment Readiness | - | ~~1~~ | 2 | - |
 | Testing | - | 1 | 2 | - |
-| **Remaining** | **1** | **1** | **16** | **5** |
-
-**Note:** C1 was partially addressed (178 → 85 occurrences) but is not yet resolved.
+| **Remaining** | **0** | **1** | **16** | **5** |
 
 ---
 
 ## Critical
 
-### C1. Hardcoded `localhost:4000` Throughout Codebase
+### ~~C1. Hardcoded `localhost:4000` Throughout Codebase~~ (RESOLVED)
 
-Originally 178 occurrences across 69 files, now reduced to **85 occurrences across 41 files**. Frontend components and main API routes have been fixed, but bot packages, tests, docs, and config files still have hardcoded URLs.
-
-**Remaining breakdown:**
-- **Production code** (15 in 11 `.ts` files): `apps/web/src/lib/api.ts`, `apps/api/src/jobs/botProcessor.ts`, `packages/bot-editorial/src/index.ts` (3), `packages/bot-reference-check/src/index.ts`, `packages/bot-markdown-renderer/src/index.ts`, `packages/bots/src/testing/` (2), `packages/create-colloquium-journal/src/generator.ts`
-- **Test files** (15 in 5 `.tsx` files): Test mocks/setup in `apps/web/src/`
-- **Docs/plans** (39 in 13 files): Documentation references
-- **Config/scripts** (16 in 12 files): `.env.example`, CI, docker, shell scripts
-
-**Fix:** For production code, replace hardcoded URLs with `context.config.apiUrl` (bots) or env-based config. For tests, use a shared test constant. Docs and config templates can reference `localhost:4000` as the default.
+Fixed: All production code and test files now use environment-based config (`API_URL` from `@/lib/api` in frontend, `process.env.API_URL || fallback` in backend/bots). Remaining `localhost:4000` references are only in docs/plans (example URLs) and config templates (`.env.example`, docker-compose defaults), which is intentional.
 
 ### ~~C2. Magic Link Secret Falls Back to Hardcoded Default~~ (RESOLVED)
 

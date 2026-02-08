@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { notifications } from '@mantine/notifications';
 import { useBotFileUpload } from '../useBotFileUpload';
+import { API_URL } from '@/lib/api';
 
 // Mock notifications
 jest.mock('@mantine/notifications', () => ({
@@ -61,7 +62,7 @@ describe('useBotFileUpload', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/bot-config-files/bot-1/files',
+      `${API_URL}/api/bot-config-files/bot-1/files`,
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
@@ -125,7 +126,7 @@ describe('useBotFileUpload', () => {
 
     expect(result.current.files).toEqual(mockFiles);
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/bot-config-files/bot-1/files',
+      `${API_URL}/api/bot-config-files/bot-1/files`,
       { credentials: 'include' }
     );
   });
@@ -175,7 +176,7 @@ describe('useBotFileUpload', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/bot-config-files/file-1',
+      `${API_URL}/api/bot-config-files/file-1`,
       expect.objectContaining({
         method: 'DELETE',
         credentials: 'include'

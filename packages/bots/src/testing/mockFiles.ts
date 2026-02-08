@@ -2,6 +2,8 @@
  * Mock file utilities for bot testing
  */
 
+const DEFAULT_API_URL = process.env.API_URL || 'http://localhost:4000';
+
 export type MockFileType = 'SOURCE' | 'ASSET' | 'BIBLIOGRAPHY' | 'RENDERED';
 
 export interface MockFile {
@@ -32,7 +34,7 @@ export function createMockFile(options: Partial<MockFile> & { filename?: string;
     fileType: options.fileType ?? 'SOURCE',
     mimetype: options.mimetype ?? guessMimeType(filename),
     content,
-    downloadUrl: options.downloadUrl ?? `http://localhost:4000/api/articles/test/files/${id}/download`,
+    downloadUrl: options.downloadUrl ?? `${DEFAULT_API_URL}/api/articles/test/files/${id}/download`,
     size: options.size ?? (typeof content === 'string' ? Buffer.byteLength(content) : content.length)
   };
 }

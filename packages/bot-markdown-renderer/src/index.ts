@@ -8,7 +8,7 @@ import * as path from 'path';
 // Service URL for the Pandoc microservice
 const PANDOC_SERVICE_URL = process.env.PANDOC_SERVICE_URL || 'http://localhost:8080';
 // Default API base URL fallback (prefer context.config.apiUrl at runtime)
-const DEFAULT_API_URL = process.env.API_BASE_URL || 'http://localhost:4000';
+const DEFAULT_API_URL = process.env.API_URL || 'http://localhost:4000';
 import { CommandBot, BotCommand, BotInstallationContext } from '@colloquium/types';
 
 // Create DOMPurify instance

@@ -1,5 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useSSE } from '../useSSE';
+import { API_URL } from '@/lib/api';
 
 // Mock EventSource
 class MockEventSource {
@@ -84,7 +85,7 @@ describe('useSSE Hook', () => {
     });
 
     expect(global.EventSource).toHaveBeenCalledWith(
-      'http://localhost:4000/api/events/conversations/conversation-123',
+      `${API_URL}/api/events/conversations/conversation-123`,
       { withCredentials: true }
     );
     expect(mockEventSources).toHaveLength(1);

@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { MantineProvider } from '@mantine/core';
 import { MessageComposer } from '../MessageComposer';
 import { AuthProvider, useAuth } from '../../../contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 interface User {
   id: string;
   email: string;
@@ -88,7 +89,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
     );
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bots', {
+      expect(fetch).toHaveBeenCalledWith(`${API_URL}/api/bots`, {
         credentials: 'include'
       });
     });
@@ -106,7 +107,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
         if (!user) return;
         
         const fetchBots = async () => {
-          const response = await fetch('http://localhost:4000/api/bots', {
+          const response = await fetch(`${API_URL}/api/bots`, {
             credentials: 'include'
           });
           
@@ -149,7 +150,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
 
     // Wait for bots to be fetched and processed
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bots', {
+      expect(fetch).toHaveBeenCalledWith(`${API_URL}/api/bots`, {
         credentials: 'include'
       });
     });
@@ -597,7 +598,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
 
       // Verify authentication check and bot fetching
       await waitFor(() => {
-        expect(fetch).toHaveBeenCalledWith('http://localhost:4000/api/bots', {
+        expect(fetch).toHaveBeenCalledWith(`${API_URL}/api/bots`, {
           credentials: 'include'
         });
       });
@@ -678,7 +679,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
           if (!user) return;
           
           const fetchBots = async () => {
-            const response = await fetch('http://localhost:4000/api/bots', {
+            const response = await fetch(`${API_URL}/api/bots`, {
               credentials: 'include'
             });
             

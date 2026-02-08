@@ -6,6 +6,7 @@ import { MantineProvider } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import BotManagementPage from '../page';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_URL } from '@/lib/api';
 
 // Mock the auth context
 jest.mock('@/contexts/AuthContext', () => ({
@@ -293,7 +294,7 @@ describe('BotManagementPage - File Configuration', () => {
 
     // Verify fetch was called with correct data
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/bot-config-files/bot-markdown-renderer/files',
+      `${API_URL}/api/bot-config-files/bot-markdown-renderer/files`,
       expect.objectContaining({
         method: 'POST',
         credentials: 'include',
@@ -415,7 +416,7 @@ describe('BotManagementPage - File Configuration', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      'http://localhost:4000/api/bot-config-files/file-1',
+      `${API_URL}/api/bot-config-files/file-1`,
       expect.objectContaining({
         method: 'DELETE',
         credentials: 'include'

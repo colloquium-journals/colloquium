@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { MessageComposer } from '../MessageComposer';
+import { API_URL } from '@/lib/api';
 
 // Mock the auth context
 const mockUser = {
@@ -68,7 +69,7 @@ describe('MessageComposer - Mention Functionality Integration', () => {
     
     // Mock bots API response
     mockFetch.mockImplementation((url) => {
-      if (url === 'http://localhost:4000/api/bots') {
+      if (url === `${API_URL}/api/bots`) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ bots: mockBots })
@@ -76,7 +77,7 @@ describe('MessageComposer - Mention Functionality Integration', () => {
       }
       
       // Mock conversation participants API response
-      if (url === 'http://localhost:4000/api/conversations/conv-123') {
+      if (url === `${API_URL}/api/conversations/conv-123`) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ participants: mockParticipants })
@@ -95,7 +96,7 @@ describe('MessageComposer - Mention Functionality Integration', () => {
     
     // Check that APIs are called
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:4000/api/bots', {
+      expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/api/bots`, {
         credentials: 'include'
       });
     });
@@ -105,7 +106,7 @@ describe('MessageComposer - Mention Functionality Integration', () => {
     renderMessageComposer();
     
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:4000/api/conversations/conv-123', {
+      expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/api/conversations/conv-123`, {
         credentials: 'include'
       });
     });
@@ -115,7 +116,7 @@ describe('MessageComposer - Mention Functionality Integration', () => {
     renderMessageComposer({ conversationId: undefined });
     
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:4000/api/bots', {
+      expect(mockFetch).toHaveBeenCalledWith(`${API_URL}/api/bots`, {
         credentials: 'include'
       });
     });

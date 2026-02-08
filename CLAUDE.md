@@ -271,7 +271,6 @@ Published:       /static/published/{id}/{filename}           (static, public)
 
 See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. Key remaining items:
 
-- **Hardcoded API URLs**: 178 occurrences of `http://localhost:4000` across 69 files — needs centralized config before deployment (C1)
 - **Large files**: `botActionProcessor.ts` (1553 lines), `bot-markdown-renderer/index.ts` (1823 lines), `SubmissionHeader.tsx` (1125 lines)
 - **Pre-existing test failures**: 12 failures in `apps/web` (missing components, stale imports)
 - **No message pagination**: Conversations load all messages in a single query
