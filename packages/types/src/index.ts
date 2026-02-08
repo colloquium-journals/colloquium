@@ -1,15 +1,5 @@
 import { z } from 'zod';
 
-// Enum definitions that match the Prisma schema
-export enum UserRole {
-  AUTHOR = 'AUTHOR',
-  REVIEWER = 'REVIEWER',
-  EDITOR = 'EDITOR',
-  ADMIN = 'ADMIN'
-}
-
-
-
 export enum ManuscriptStatus {
   SUBMITTED = 'SUBMITTED',
   UNDER_REVIEW = 'UNDER_REVIEW',
@@ -17,7 +7,8 @@ export enum ManuscriptStatus {
   REVISED = 'REVISED',
   ACCEPTED = 'ACCEPTED',
   REJECTED = 'REJECTED',
-  PUBLISHED = 'PUBLISHED'
+  PUBLISHED = 'PUBLISHED',
+  RETRACTED = 'RETRACTED'
 }
 
 export enum ReviewStatus {

@@ -2,6 +2,7 @@
 
 import { Container, Group, Text, Anchor, Stack, Divider } from '@mantine/core';
 import { useJournalSettings } from '@/contexts/JournalSettingsContext';
+import { sanitizeHTML } from '@/lib/sanitize';
 
 export function Footer() {
   const { settings } = useJournalSettings();
@@ -24,7 +25,7 @@ export function Footer() {
           {/* Custom Footer Content */}
           {settings.customFooter && (
             <>
-              <div dangerouslySetInnerHTML={{ __html: settings.customFooter }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(settings.customFooter) }} />
               <Divider />
             </>
           )}

@@ -5,7 +5,6 @@ import {
   conversationSchema,
   messageSchema,
   userUpdateSchema,
-  UserRole,
   ManuscriptStatus,
   ConversationType,
   PrivacyLevel,
@@ -174,23 +173,16 @@ describe('Type Schemas', () => {
   });
 
   describe('Enum Values', () => {
-    it('should contain all expected user roles', () => {
-      const expectedRoles = ['AUTHOR', 'REVIEWER', 'EDITOR', 'ADMIN'];
-      
-      expectedRoles.forEach(role => {
-        expect(Object.values(UserRole)).toContain(role);
-      });
-    });
-
     it('should contain all expected manuscript statuses', () => {
       const expectedStatuses = [
-        'SUBMITTED', 
-        'UNDER_REVIEW', 
-        'REVISION_REQUESTED', 
-        'REVISED', 
-        'ACCEPTED', 
-        'REJECTED', 
-        'PUBLISHED'
+        'SUBMITTED',
+        'UNDER_REVIEW',
+        'REVISION_REQUESTED',
+        'REVISED',
+        'ACCEPTED',
+        'REJECTED',
+        'PUBLISHED',
+        'RETRACTED'
       ];
       
       expectedStatuses.forEach(status => {

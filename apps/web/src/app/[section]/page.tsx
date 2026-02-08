@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
+import { sanitizeHTML } from '@/lib/sanitize';
 import {
   Container,
   Stack,
@@ -388,7 +389,7 @@ export default function DynamicSectionPage() {
                       color: 'var(--mantine-color-text)'
                     }}
                     dangerouslySetInnerHTML={{
-                      __html: currentContent.content || ''
+                      __html: sanitizeHTML(currentContent.content || '')
                     }}
                   />
                 </Stack>

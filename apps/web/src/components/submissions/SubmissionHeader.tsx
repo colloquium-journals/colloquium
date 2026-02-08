@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { sanitizeHTML } from '@/lib/sanitize';
 import {
   Paper,
   Title,
@@ -998,7 +999,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
             }}
           >
             <div 
-              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(htmlContent) }}
               style={{
                 lineHeight: '1.6',
                 fontSize: '14px'

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { sanitizeHTML } from '@/lib/sanitize';
 import {
   Container,
   Stack,
@@ -205,7 +206,7 @@ export default function AboutPageDetail() {
           {editorialData.content && (
             <Paper withBorder p="lg" radius="md">
               <div 
-                dangerouslySetInnerHTML={{ __html: editorialData.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(editorialData.content) }}
                 style={{ 
                   lineHeight: 1.6,
                   fontSize: '16px'
@@ -369,7 +370,7 @@ export default function AboutPageDetail() {
         {/* Content */}
         <Paper withBorder p="xl" radius="md">
           <div 
-            dangerouslySetInnerHTML={{ __html: pageData.html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHTML(pageData.html) }}
             style={{ 
               lineHeight: 1.7,
               fontSize: '16px'

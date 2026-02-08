@@ -2,7 +2,7 @@ import { Text } from '@mantine/core';
 import { parseContentWithMentions, ContentChunk } from '../../lib/mentions';
 import { parseMarkdownWithMentions, type MarkdownChunk } from '../../lib/markdown';
 import { MentionTooltip } from './MentionTooltip';
-// TODO: InteractiveCheckbox and useCheckboxStates removed - using built-in markdown checkboxes instead
+import { sanitizeHTML } from '../../lib/sanitize';
 import styles from './MarkdownContent.module.css';
 import { useEffect, useRef } from 'react';
 
@@ -80,7 +80,7 @@ function MarkdownChunk({ chunk, conversationId, messageId }: MarkdownChunkProps)
       return (
         <div 
           className={styles.markdownContentBlock}
-          dangerouslySetInnerHTML={{ __html: chunk.html }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHTML(chunk.html) }}
         />
       );
     } else {
@@ -90,11 +90,11 @@ function MarkdownChunk({ chunk, conversationId, messageId }: MarkdownChunkProps)
         // Strip the paragraph tags and any trailing whitespace/newlines
         inlineHtml = chunk.html.replace(/^<p[^>]*>(.*)<\/p>\s*$/s, '$1');
       }
-      
+
       return (
-        <span 
+        <span
           className={styles.markdownContent}
-          dangerouslySetInnerHTML={{ __html: inlineHtml }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHTML(inlineHtml) }}
         />
       );
     }

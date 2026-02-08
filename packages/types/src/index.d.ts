@@ -1,10 +1,4 @@
 import { z } from 'zod';
-export declare enum UserRole {
-    AUTHOR = "AUTHOR",
-    REVIEWER = "REVIEWER",
-    EDITOR = "EDITOR",
-    ADMIN = "ADMIN"
-}
 export declare enum ManuscriptStatus {
     SUBMITTED = "SUBMITTED",
     UNDER_REVIEW = "UNDER_REVIEW",
@@ -12,7 +6,8 @@ export declare enum ManuscriptStatus {
     REVISED = "REVISED",
     ACCEPTED = "ACCEPTED",
     REJECTED = "REJECTED",
-    PUBLISHED = "PUBLISHED"
+    PUBLISHED = "PUBLISHED",
+    RETRACTED = "RETRACTED"
 }
 export declare enum ReviewStatus {
     PENDING = "PENDING",
@@ -38,6 +33,86 @@ export declare enum PrivacyLevel {
     SEMI_PUBLIC = "SEMI_PUBLIC",
     PUBLIC = "PUBLIC"
 }
+export declare enum WorkflowPhase {
+    REVIEW = "REVIEW",
+    DELIBERATION = "DELIBERATION",
+    RELEASED = "RELEASED",
+    AUTHOR_RESPONDING = "AUTHOR_RESPONDING"
+}
+export declare const WorkflowConfigSchema: z.ZodObject<{
+    author: z.ZodObject<{
+        seesReviews: z.ZodEnum<["realtime", "on_release", "never"]>;
+        seesReviewerIdentity: z.ZodEnum<["always", "never", "on_release"]>;
+        canParticipate: z.ZodEnum<["anytime", "on_release", "invited"]>;
+    }, "strip", z.ZodTypeAny, {
+        seesReviews: "never" | "realtime" | "on_release";
+        seesReviewerIdentity: "never" | "on_release" | "always";
+        canParticipate: "on_release" | "anytime" | "invited";
+    }, {
+        seesReviews: "never" | "realtime" | "on_release";
+        seesReviewerIdentity: "never" | "on_release" | "always";
+        canParticipate: "on_release" | "anytime" | "invited";
+    }>;
+    reviewers: z.ZodObject<{
+        seeEachOther: z.ZodEnum<["realtime", "after_all_submit", "never"]>;
+        seeAuthorIdentity: z.ZodEnum<["always", "never"]>;
+        seeAuthorResponses: z.ZodEnum<["realtime", "on_release"]>;
+    }, "strip", z.ZodTypeAny, {
+        seeEachOther: "never" | "realtime" | "after_all_submit";
+        seeAuthorIdentity: "never" | "always";
+        seeAuthorResponses: "realtime" | "on_release";
+    }, {
+        seeEachOther: "never" | "realtime" | "after_all_submit";
+        seeAuthorIdentity: "never" | "always";
+        seeAuthorResponses: "realtime" | "on_release";
+    }>;
+    phases: z.ZodObject<{
+        enabled: z.ZodBoolean;
+        authorResponseStartsNewCycle: z.ZodBoolean;
+        requireAllReviewsBeforeRelease: z.ZodBoolean;
+    }, "strip", z.ZodTypeAny, {
+        enabled: boolean;
+        authorResponseStartsNewCycle: boolean;
+        requireAllReviewsBeforeRelease: boolean;
+    }, {
+        enabled: boolean;
+        authorResponseStartsNewCycle: boolean;
+        requireAllReviewsBeforeRelease: boolean;
+    }>;
+}, "strip", z.ZodTypeAny, {
+    author: {
+        seesReviews: "never" | "realtime" | "on_release";
+        seesReviewerIdentity: "never" | "on_release" | "always";
+        canParticipate: "on_release" | "anytime" | "invited";
+    };
+    reviewers: {
+        seeEachOther: "never" | "realtime" | "after_all_submit";
+        seeAuthorIdentity: "never" | "always";
+        seeAuthorResponses: "realtime" | "on_release";
+    };
+    phases: {
+        enabled: boolean;
+        authorResponseStartsNewCycle: boolean;
+        requireAllReviewsBeforeRelease: boolean;
+    };
+}, {
+    author: {
+        seesReviews: "never" | "realtime" | "on_release";
+        seesReviewerIdentity: "never" | "on_release" | "always";
+        canParticipate: "on_release" | "anytime" | "invited";
+    };
+    reviewers: {
+        seeEachOther: "never" | "realtime" | "after_all_submit";
+        seeAuthorIdentity: "never" | "always";
+        seeAuthorResponses: "realtime" | "on_release";
+    };
+    phases: {
+        enabled: boolean;
+        authorResponseStartsNewCycle: boolean;
+        requireAllReviewsBeforeRelease: boolean;
+    };
+}>;
+export type WorkflowConfig = z.infer<typeof WorkflowConfigSchema>;
 export interface ApiResponse<T = any> {
     data?: T;
     error?: {
@@ -146,19 +221,16 @@ export declare const messageSchema: z.ZodObject<{
 }>;
 export declare const userUpdateSchema: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
-    orcidId: z.ZodOptional<z.ZodString>;
     bio: z.ZodOptional<z.ZodString>;
     affiliation: z.ZodOptional<z.ZodString>;
     website: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
-    orcidId?: string | undefined;
     bio?: string | undefined;
     affiliation?: string | undefined;
     website?: string | undefined;
 }, {
     name?: string | undefined;
-    orcidId?: string | undefined;
     bio?: string | undefined;
     affiliation?: string | undefined;
     website?: string | undefined;
@@ -241,6 +313,7 @@ export interface BotResponse {
         content: string;
         replyTo?: string;
         attachments?: BotAttachment[];
+        actions?: BotMessageAction[];
     }[];
     actions?: BotAction[];
     errors?: string[];
@@ -252,8 +325,43 @@ export interface BotAttachment {
     mimetype?: string;
 }
 export interface BotAction {
-    type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION' | 'ASSIGN_ACTION_EDITOR' | 'EXECUTE_PUBLICATION_WORKFLOW';
+    type: 'UPDATE_MANUSCRIPT_STATUS' | 'ASSIGN_REVIEWER' | 'CREATE_CONVERSATION' | 'RESPOND_TO_REVIEW' | 'SUBMIT_REVIEW' | 'MAKE_EDITORIAL_DECISION' | 'ASSIGN_ACTION_EDITOR' | 'EXECUTE_PUBLICATION_WORKFLOW' | 'UPDATE_WORKFLOW_PHASE' | 'SEND_MANUAL_REMINDER';
     data: Record<string, any>;
+}
+export interface BotMessageAction {
+    id: string;
+    label: string;
+    style?: 'primary' | 'secondary' | 'danger';
+    confirmText?: string;
+    targetUserId?: string;
+    targetRoles?: string[];
+    handler: {
+        botId: string;
+        action: string;
+        params: Record<string, any>;
+    };
+    resultContent?: string;
+    resultLabel?: string;
+    triggered?: boolean;
+    triggeredBy?: string;
+    triggeredAt?: string;
+}
+export interface BotActionHandlerResult {
+    success: boolean;
+    updatedContent?: string;
+    updatedLabel?: string;
+    error?: string;
+}
+export type BotActionHandler = (params: Record<string, any>, context: BotActionHandlerContext) => Promise<BotActionHandlerResult>;
+export interface BotActionHandlerContext {
+    manuscriptId: string;
+    conversationId: string;
+    messageId: string;
+    triggeredBy: {
+        userId: string;
+        userRole: string;
+    };
+    serviceToken: string;
 }
 export declare enum BotTrigger {
     MENTION = "mention",
@@ -332,6 +440,7 @@ export interface CommandBot {
     };
     customHelpSections?: BotCustomHelpSection[];
     onInstall?: (context: BotInstallationContext) => Promise<void>;
+    actionHandlers?: Record<string, BotActionHandler>;
 }
 export interface ParsedCommand {
     botId: string;
@@ -347,4 +456,7 @@ export type UpdateUserData = z.infer<typeof userUpdateSchema>;
 export type UpdateJournalSettingsData = z.infer<typeof journalSettingsSchema>;
 export type UpdateBotConfigData = z.infer<typeof botConfigSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
+export * from './workflowTemplates';
+export * from './creditRoles';
+export * from './jatsTypes';
 //# sourceMappingURL=index.d.ts.map

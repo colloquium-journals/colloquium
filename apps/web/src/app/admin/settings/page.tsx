@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { sanitizeHTML } from '@/lib/sanitize';
 import {
   Container,
   Stack,
@@ -2900,9 +2901,9 @@ export default function JournalSettingsPage() {
             className="bot-help-content"
             style={{ height: '100%', overflow: 'auto' }}
             dangerouslySetInnerHTML={{
-              __html: botHelpContent.startsWith('Loading') || botHelpContent.startsWith('Failed')
+              __html: sanitizeHTML(botHelpContent.startsWith('Loading') || botHelpContent.startsWith('Failed')
                 ? `<p>${botHelpContent}</p>`
-                : parseMarkdown(botHelpContent)
+                : parseMarkdown(botHelpContent))
             }}
           />
           <style>{`

@@ -23,6 +23,8 @@ const getStatusConfig = (status: ManuscriptStatus) => {
       return { color: 'red', label: 'Rejected' };
     case 'PUBLISHED':
       return { color: 'violet', label: 'Published' };
+    case 'RETRACTED':
+      return { color: 'dark', label: 'Retracted' };
     default:
       return { color: 'gray', label: status };
   }

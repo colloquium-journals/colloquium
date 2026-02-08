@@ -1,5 +1,6 @@
 'use client';
 
+import { sanitizeHTML } from '@/lib/sanitize';
 import {
   Container,
   Stack,
@@ -379,7 +380,7 @@ export default function AboutPage() {
                       color: 'var(--mantine-color-text)'
                     }}
                     dangerouslySetInnerHTML={{
-                      __html: currentContent.content || ''
+                      __html: sanitizeHTML(currentContent.content || '')
                     }}
                   />
                 </Stack>
