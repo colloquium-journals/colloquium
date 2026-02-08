@@ -43,7 +43,7 @@ import {
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../contexts/AuthContext';
 import FileDropzone from '../files/FileDropzone';
-import { hasManuscriptPermission, ManuscriptPermission, GlobalRole } from '@colloquium/auth';
+import { hasManuscriptPermission, ManuscriptPermission, GlobalRole } from '@colloquium/auth/permissions';
 import { API_URL } from '@/lib/api';
 
 interface SubmissionData {

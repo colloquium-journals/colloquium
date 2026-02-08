@@ -86,7 +86,8 @@ npm run build               # Build all packages and apps
 
 ### Frontend Build Notes
 
-- **Webpack mode**: Next.js 16 defaults to Turbopack, but we use `--webpack` (in `apps/web/package.json` build/dev scripts) because `next.config.js` has custom webpack config for HTML asset handling and client-side resolve fallbacks
+- **Turbopack**: Next.js 16 uses Turbopack by default and this project uses it (no custom webpack config)
+- **Auth package split**: `@colloquium/auth` has a `./permissions` subpath export containing client-safe enums and functions (no Node.js deps). The web app imports from `@colloquium/auth/permissions` to avoid pulling jwt/crypto/bcrypt into the client bundle. The API imports from `@colloquium/auth` which re-exports everything
 - **`next lint` removed**: Next.js 16 removed the `next lint` command. All packages use `eslint src` directly
 - **ESLint 9 flat config**: The root `eslint.config.mjs` extends `@colloquium/eslint-config` (`packages/config/index.mjs`). Legacy `.eslintrc` files are no longer used. The `--ext` flag is not supported in ESLint 9
 
