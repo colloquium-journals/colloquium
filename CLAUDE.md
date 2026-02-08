@@ -269,14 +269,12 @@ Published:       /static/published/{id}/{filename}           (static, public)
 
 ## Known Technical Debt
 
-See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. Key items:
+See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. Key remaining items:
 
-- **Hardcoded API URLs**: 178 occurrences of `http://localhost:4000` across 69 files — needs centralized config before deployment
-- **Type/Schema drift**: Some `packages/types/src/index.ts` enums may not fully match Prisma schema
-- **N+1 queries**: Conversation message loading runs per-message DB queries for permission checks
-- **No data fetching layer**: All fetching is manual `useState`/`useEffect`; consider using React 19 `use()` hook and Suspense
+- **Hardcoded API URLs**: 178 occurrences of `http://localhost:4000` across 69 files — needs centralized config before deployment (C1)
 - **Large files**: `botActionProcessor.ts` (1553 lines), `bot-markdown-renderer/index.ts` (1823 lines), `SubmissionHeader.tsx` (1125 lines)
-- **Email transporter duplication**: Same nodemailer config in 4+ files
+- **Pre-existing test failures**: 12 failures in `apps/web` (missing components, stale imports)
+- **No message pagination**: Conversations load all messages in a single query
 
 ## Security Notes
 

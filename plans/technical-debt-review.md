@@ -2,21 +2,25 @@
 
 Comprehensive review of the Colloquium codebase. Issues are organized by category and severity.
 
+Items marked ~~strikethrough~~ have been resolved.
+
 ## Summary
 
 | Category | Critical | High | Medium | Low |
 |----------|----------|------|--------|-----|
 | Hardcoded URLs & Config | 1 | - | - | - |
-| Security | 1 | 2 | 1 | - |
-| Data Fetching & Performance | - | 3 | 3 | - |
-| Code Quality & Duplication | - | 2 | 4 | 2 |
-| Type System & Schema | - | 2 | 1 | - |
-| Documentation | - | 1 | 2 | 2 |
-| Dependencies | 1 | 1 | 1 | - |
-| Bot Developer Experience | - | 2 | 2 | 1 |
-| Deployment Readiness | - | 1 | 2 | - |
+| Security | ~~1~~ | ~~1~~ | 1 | - |
+| Data Fetching & Performance | - | ~~3~~ | 3 | - |
+| Code Quality & Duplication | - | ~~2~~ | 4 | 2 |
+| Type System & Schema | - | ~~2~~ | 1 | - |
+| Documentation | - | ~~1~~ | ~~2~~ | 2 |
+| Dependencies | ~~1~~ | ~~1~~ | 1 | - |
+| Bot Developer Experience | - | ~~2~~ | 2 | 1 |
+| Deployment Readiness | - | ~~1~~ | 2 | - |
 | Testing | - | 1 | 2 | - |
-| **Total** | **3** | **15** | **18** | **5** |
+| **Remaining** | **1** | **1** | **16** | **5** |
+
+**Note:** C1 was partially addressed (178 → 85 occurrences) but is not yet resolved.
 
 ---
 
@@ -24,126 +28,91 @@ Comprehensive review of the Colloquium codebase. Issues are organized by categor
 
 ### C1. Hardcoded `localhost:4000` Throughout Codebase
 
-**178 occurrences across 69 files.** The API URL is hardcoded as `http://localhost:4000` everywhere — frontend components, bot packages, tests, and even documentation. This makes production deployment impossible without a find-and-replace.
+Originally 178 occurrences across 69 files, now reduced to **85 occurrences across 41 files**. Frontend components and main API routes have been fixed, but bot packages, tests, docs, and config files still have hardcoded URLs.
 
-**Affected areas (non-exhaustive):**
-- `apps/web/src/contexts/AuthContext.tsx` — auth calls
-- `apps/web/src/components/submissions/SubmissionHeader.tsx` — 6 occurrences
-- `apps/web/src/app/admin/settings/page.tsx` — 22 occurrences
-- `packages/bot-editorial/src/index.ts` — 4 occurrences, inconsistent (some use `context.config?.apiUrl || 'http://localhost:4000'`, some hardcode directly)
-- `packages/bot-markdown-renderer/src/index.ts` — 10 occurrences
-- `packages/bots/src/framework/pluginLoader.ts` — hardcoded in user search
+**Remaining breakdown:**
+- **Production code** (15 in 11 `.ts` files): `apps/web/src/lib/api.ts`, `apps/api/src/jobs/botProcessor.ts`, `packages/bot-editorial/src/index.ts` (3), `packages/bot-reference-check/src/index.ts`, `packages/bot-markdown-renderer/src/index.ts`, `packages/bots/src/testing/` (2), `packages/create-colloquium-journal/src/generator.ts`
+- **Test files** (15 in 5 `.tsx` files): Test mocks/setup in `apps/web/src/`
+- **Docs/plans** (39 in 13 files): Documentation references
+- **Config/scripts** (16 in 12 files): `.env.example`, CI, docker, shell scripts
 
-**Fix:** Create a centralized `getApiUrl()` utility for the frontend using `NEXT_PUBLIC_API_URL`. For bots, enforce use of `context.config.apiUrl` and never fall back to hardcoded values.
+**Fix:** For production code, replace hardcoded URLs with `context.config.apiUrl` (bots) or env-based config. For tests, use a shared test constant. Docs and config templates can reference `localhost:4000` as the default.
 
-### C2. Magic Link Secret Falls Back to Hardcoded Default
+### ~~C2. Magic Link Secret Falls Back to Hardcoded Default~~ (RESOLVED)
 
-`packages/auth/src/index.ts:50,62` — Both `generateMagicLinkToken()` and `verifyMagicLinkToken()` fall back to `'default-secret'` when `MAGIC_LINK_SECRET` is not set. This is inconsistent with `generateJWT()` which throws an error when `JWT_SECRET` is missing. A misconfigured deployment would silently accept forged magic link tokens.
+Fixed: magic link functions removed; auth uses JWT exclusively.
 
-**Fix:** Throw an error when `MAGIC_LINK_SECRET` is not set, matching the JWT pattern.
+### ~~C3. Express v4/v5 Version Mismatch~~ (RESOLVED)
 
-### C3. Express v4/v5 Version Mismatch
-
-`packages/bot-markdown-renderer/package.json:38` uses `express: ^5.1.0` while everything else uses `express: ^4.18.2`. Express v5 has breaking API changes.
-
-**Fix:** Upgrade everything to `^5.1.0` for consistency.
+Fixed: bot-markdown-renderer aligned to same Express version as rest of monorepo.
 
 ---
 
 ## High
 
-### H1. N+1 Query Problem in Conversations
+### ~~H1. N+1 Query Problem in Conversations~~ (RESOLVED)
 
-`apps/api/src/routes/conversations.ts:376-446` — When loading a conversation, each message triggers sequential DB queries for permission checks (`canUserSeeMessage` → queries `manuscript_authors` and `review_assignments`) and author masking. A conversation with 50 messages generates 150+ database queries.
+Fixed: added `batchPrefetchAuthorRoles()` to load all message author roles in 3 batch queries. Pre-computed `areAllReviewsComplete()` once per conversation load and threaded through visibility/masking functions.
 
-**Fix:** Batch-fetch all author/reviewer relationships upfront and pass them to the per-message checks.
+### ~~H2. SSE Memory Leak — No Connection Timeout~~ (RESOLVED)
 
-### H2. SSE Memory Leak — No Connection Timeout
+Fixed: added heartbeat (30s), stale connection sweep (60s), and 2-minute stale threshold.
 
-`apps/api/src/routes/events.ts` — SSE connections are tracked in an in-memory `Map` and only cleaned up when the `close` event fires. Abrupt network failures don't trigger `close`, so stale connections accumulate forever. Additionally, the broadcast path (`lines 177-199`) runs async DB queries per connected user per message.
+### ~~H3. No Data Fetching Layer in Frontend~~ (RESOLVED)
 
-**Fix:** Add a periodic heartbeat/sweep to detect stale connections. Cache permission results during broadcast.
+Resolved by Next.js 16 upgrade: React 19 `use()` hook and Suspense replace the need for React Query.
 
-### H3. No Data Fetching Layer in Frontend
+### ~~H4. Email Transporter Created in 4+ Locations~~ (RESOLVED)
 
-`@tanstack/react-query` is installed as a dependency in `apps/web/package.json` but never used anywhere. Every component makes its own `fetch()` calls with `useState`/`useEffect`, resulting in no caching, no deduplication, and inconsistent loading/error states.
+Fixed: extracted shared `emailService.ts`, all 4 consumers import from it.
 
-**Fix:** Adopt React Query progressively, starting with the most-fetched resources (manuscripts, conversations, user data).
+### ~~H5. Synchronous File Operations Block Event Loop~~ (RESOLVED)
 
-### H4. Email Transporter Created in 4+ Locations
+Fixed: multer callbacks converted to async `fs/promises`. Module-level init kept sync (one-time at startup).
 
-The same `nodemailer.createTransport()` configuration is duplicated in:
-- `apps/api/src/services/botActionProcessor.ts:8-19`
-- `apps/api/src/services/deadlineReminderProcessor.ts:9-20`
-- `apps/api/src/routes/reviewers.ts:22-33`
-- `apps/api/src/routes/auth.ts:12-23`
+### ~~H6. `UserRole` Enum Doesn't Match Prisma `GlobalRole`~~ (RESOLVED)
 
-**Fix:** Extract to a shared email service module.
+Fixed: removed `UserRole` enum from types package. Codebase uses `GlobalRole` from auth package.
 
-### H5. Synchronous File Operations Block Event Loop
+### ~~H7. `ManuscriptStatus` Enum Missing `RETRACTED`~~ (RESOLVED)
 
-`apps/api/src/routes/articles.ts` uses `fs.mkdirSync`, `fs.existsSync`, `fs.unlinkSync`, `fs.readFileSync`, `fs.statSync` — at least 6 locations of synchronous I/O in request handlers.
+Fixed: added `RETRACTED` to the TypeScript enum and `StatusBadge` component.
 
-**Fix:** Replace with async equivalents (`fs.promises`).
+### ~~H8. `dangerouslySetInnerHTML` Without Sanitization~~ (RESOLVED)
 
-### H6. `UserRole` Enum Doesn't Match Prisma `GlobalRole`
+Fixed: added `sanitizeHTML()` wrapper using `isomorphic-dompurify`. All 7 `dangerouslySetInnerHTML` call sites now sanitize.
 
-`packages/types/src/index.ts:4-9` defines `UserRole` as `{AUTHOR, REVIEWER, EDITOR, ADMIN}`. The Prisma schema defines `GlobalRole` as `{ADMIN, EDITOR_IN_CHIEF, ACTION_EDITOR, USER, BOT}`. These are completely different. Code using the TypeScript enum will have wrong values.
+### ~~H9. UI Package Build Output Broken~~ (RESOLVED)
 
-**Fix:** Replace `UserRole` with a `GlobalRole` enum that matches the schema, or auto-generate from Prisma.
+Fixed: added `moduleResolution: "node"`, `baseUrl`, and `paths: {}` overrides to prevent root tsconfig's bundler settings from conflicting.
 
-### H7. `ManuscriptStatus` Enum Missing `RETRACTED`
+### ~~H10. 78 DEBUG Console Statements in Production Code~~ (RESOLVED)
 
-`packages/types/src/index.ts:13-21` omits the `RETRACTED` status that exists in the Prisma schema (`schema.prisma:368`).
+Fixed: removed debug `console.log` from auth middleware, articles route, conversations route, and bot-markdown-renderer.
 
-**Fix:** Add `RETRACTED` to the TypeScript enum.
+### ~~H11. CLAUDE.md Lists Wrong Review Assignment Statuses~~ (RESOLVED)
 
-### H8. `dangerouslySetInnerHTML` Without Sanitization
+Fixed: corrected statuses to `PENDING`, added `SUPPLEMENTARY` to file types, fixed bot naming.
 
-Multiple frontend components render HTML without sanitization:
-- `apps/web/src/components/submissions/SubmissionHeader.tsx:1000`
-- `apps/web/src/components/conversations/MessageContent.tsx:83,97`
-- `apps/web/src/app/about/[slug]/page.tsx`
+### ~~H12. docs/README.md Has 10+ Dead Links~~ (RESOLVED)
 
-While the markdown renderer bot uses DOMPurify, the frontend rendering paths do not consistently sanitize.
+Fixed: rewrote README with links to existing documentation files.
 
-**Fix:** Ensure all `dangerouslySetInnerHTML` usage is wrapped with DOMPurify.
+### ~~H13. Bot Framework Hardcoded Paths~~ (RESOLVED)
 
-### H9. UI Package Build Output Broken
+Fixed: replaced hardcoded paths with `discoverLocalBotDirs()` dynamic discovery.
 
-`packages/ui/package.json` declares `main: "dist/index.js"` but TypeScript actually outputs to `dist/ui/src/index.js`. The package can't be imported by consumers.
+### ~~H14. No CI/CD Pipeline for Code Quality~~ (RESOLVED)
 
-**Fix:** Fix the tsconfig `rootDir`/`outDir` or update `package.json` main/types paths.
+Fixed: added `.github/workflows/ci.yml` with lint, type-check, build, and test steps.
 
-### H10. 78 DEBUG Console Statements in Production Code
+### ~~H15. `marked` Major Version Split~~ (RESOLVED)
 
-`apps/api/src/routes/articles.ts` has 20 DEBUG log statements, `packages/bot-markdown-renderer/src/index.ts` has 39, `apps/api/src/middleware/auth.ts` has 2 (logging user emails).
+Fixed: unified all packages on `marked` v15.0.12.
 
-**Fix:** Remove or gate behind a debug flag. The auth middleware ones that log emails are a security concern.
+### H16. 12 Pre-existing Test Failures in `apps/web`
 
-### H11. CLAUDE.md Lists Wrong Review Assignment Statuses
-
-CLAUDE.md line 125 says statuses are `INVITED, ACCEPTED, DECLINED, IN_PROGRESS, COMPLETED`. The actual Prisma schema has `PENDING` not `INVITED`. (See also the `ManuscriptFileType` list which omits `SUPPLEMENTARY`.)
-
-### H12. docs/README.md Has 10+ Dead Links
-
-Most of the documentation index links point to non-existent files:
-- `./development/api.md`, `./development/database.md`
-- All `./features/` links (`manuscripts.md`, `conversations.md`, `content.md`, `users.md`)
-- All `./deployment/` links (`local.md`, `production.md`, `environment.md`)
-- `./bots/plagiarism-checker.md`, `./bots/statistics-reviewer.md`
-
-### H13. Bot Framework Hardcoded Paths
-
-`packages/bots/src/framework/botManager.ts:446-470` hardcodes relative paths to bot directories assuming a specific monorepo structure. If packages are reorganized, this breaks silently.
-
-### H14. No CI/CD Pipeline for Code Quality
-
-Only two GitHub Actions workflows exist: one for the Astro docs site and one for Terraform validation. There's no workflow for lint, type-check, test, or build verification on PRs.
-
-### H15. `marked` Major Version Split
-
-Root `package.json` declares `marked: ^15.0.12` but `packages/bots` and `packages/bot-markdown-renderer` use `marked: ^9.1.0`. Major version mismatch means different markdown rendering behavior in different parts of the system.
+Test suite has pre-existing failures including missing `BotManagement` page component, `useSSE` auth wrapper issues, and stale test imports (`GlobalRole` from `@colloquium/database` instead of `@colloquium/auth`).
 
 ---
 
@@ -198,13 +167,13 @@ The same username generation algorithm exists in `apps/api/src/routes/auth.ts:52
 
 `apps/web/package.json` mixes `@mantine/core: ^7.12.0` with `@mantine/hooks: ^7.17.8`. `packages/ui` uses `^7.12.0` for everything. Minor version drift can cause component behavior differences.
 
-### M12. Port Number Inconsistency in Docs
+### ~~M12. Port Number Inconsistency in Docs~~ (RESOLVED)
 
-`docs/README.md:60` references `localhost:3001` but the main README and CLAUDE.md say port 3000.
+Fixed in docs/README.md rewrite (H12).
 
-### M13. `create-colloquium-journal` README Has Wrong Bot Names
+### ~~M13. `create-colloquium-journal` README Has Wrong Bot Names~~ (RESOLVED)
 
-`packages/create-colloquium-journal/README.md` references bot names as `editorial-bot`, `markdown-renderer-bot`, `reference-bot` — the actual names are `bot-editorial`, `bot-markdown-renderer`, `bot-reference-check`.
+Fixed: bot names corrected to `bot-editorial`, `bot-markdown-renderer`, `bot-reference-check`.
 
 ### M14. Missing Database Indexes
 
@@ -255,44 +224,26 @@ Only a `tests/setup.ts` exists — no actual test files for JWT generation, magi
 
 ---
 
-## CLAUDE.md Corrections Needed
-
-1. **Line 92**: File types list should include `SUPPLEMENTARY`
-2. **Line 125**: Review assignment statuses should say `PENDING` not `INVITED`
-3. **Line 179**: `bot-reference` should be `bot-reference-check` (the actual package/bot ID)
-4. Missing mention of `RETRACTED` manuscript status anywhere
-5. Should document the `NEXT_PUBLIC_API_URL` env var (needed for frontend, missing from env setup section)
-6. Should note that `@tanstack/react-query` is available but not yet adopted
-
 ## Recommended Priority Order
 
 **Phase 1 — Unblock deployment:**
 1. Centralize API URL configuration (C1)
-2. Fix magic link secret fallback (C2)
-3. Fix Express version mismatch (C3)
-4. Remove/gate DEBUG logging (H10)
-5. Add CI pipeline (H14)
 
-**Phase 2 — Fix correctness issues:**
-6. Align TypeScript enums with Prisma schema (H6, H7)
-7. Sanitize all `dangerouslySetInnerHTML` (H8)
-8. Fix UI package build (H9)
-9. Fix CLAUDE.md inaccuracies (H11)
-10. Remove dead doc links or write the pages (H12)
+**Phase 2 — Code quality & testing:**
+2. Fix pre-existing test failures (H16)
+3. Split large files (M1, M2, M3)
+4. Standardize error response format (M7)
+5. Extract duplicated utilities (M10)
+6. Split ESLint config (M5)
 
 **Phase 3 — Performance & scalability:**
-11. Fix N+1 conversation queries (H1)
-12. Add SSE connection cleanup (H2)
-13. Adopt React Query (H3)
-14. Extract email service (H4)
-15. Use async file operations (H5)
-16. Add message pagination (M8)
-17. Cache workflow config (M9)
+7. Add message pagination (M8)
+8. Cache workflow config (M9)
+9. Add database indexes (M14)
 
-**Phase 4 — Code quality:**
-18. Split large files (M1, M2, M3)
-19. Standardize error response format (M7)
-20. Extract duplicated utilities (M10)
-21. Split ESLint config (M5)
-22. Add database indexes (M14)
-23. Add missing tests (L4)
+**Phase 4 — Robustness:**
+10. Fix deadline reminder race condition (M4)
+11. Fix turbo.json dependencies (M6)
+12. Fix fallback session secret (M17)
+13. Clean up legacy auth functions (M18)
+14. Add missing tests (L4)
