@@ -1,26 +1,12 @@
 import { Router } from 'express';
 import { prisma, GlobalRole } from '@colloquium/database';
 import { generateJWT, generateSecureToken } from '@colloquium/auth';
-import * as nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { validateRequest } from '../middleware/validation';
+import { transporter } from '../services/emailService';
 
 const router = Router();
-
-// Email transporter setup
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'localhost',
-  port: parseInt(process.env.SMTP_PORT || '1025'),
-  secure: false, // Use STARTTLS
-  auth: process.env.SMTP_USER ? {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  } : undefined,
-  tls: {
-    rejectUnauthorized: false // For development
-  }
-});
 
 // Validation schemas
 const loginSchema = z.object({

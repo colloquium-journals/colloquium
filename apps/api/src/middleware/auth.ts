@@ -66,7 +66,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         ...user,
         role: user.role as GlobalRole
       };
-      console.log(`DEBUG: Authenticated user - email: ${user.email}, role: ${user.role}`);
       next();
     } catch (jwtError) {
       return res.status(401).json({
@@ -242,7 +241,6 @@ export const authenticateWithBots = async (req: Request, res: Response, next: Ne
           permissions: botPayload.permissions || [],
           type: 'BOT_SERVICE_TOKEN'
         };
-        console.log(`DEBUG: Authenticated bot - botId: ${botPayload.botId}, manuscriptId: ${botPayload.manuscriptId}`);
         return next();
       } catch (botError) {
         return res.status(401).json({

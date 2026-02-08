@@ -28,6 +28,18 @@ function stringifyYamlConfig(obj: any): string {
   });
 }
 
+function getPackagesDir(): string {
+  return path.resolve(__dirname, "../../..");
+}
+
+function discoverLocalBotDirs(): string[] {
+  const packagesDir = getPackagesDir();
+  const entries = fs.readdirSync(packagesDir, { withFileTypes: true });
+  return entries
+    .filter((e) => e.isDirectory() && e.name.startsWith("bot-"))
+    .map((e) => path.join(packagesDir, e.name));
+}
+
 export class DatabaseBotManager implements BotManager {
   private pluginLoader: BotPluginLoader;
   private botExecutor: BotExecutor;
@@ -439,66 +451,18 @@ export class DatabaseBotManager implements BotManager {
     const isDevelopment = process.env.NODE_ENV !== "production";
 
     const defaultBots = isDevelopment
-      ? [
-          {
-            source: {
-              type: "local" as const,
-              path: path.resolve(__dirname, "../../../bot-editorial"),
-            },
-            // No config - will use default-config.yaml
+      ? discoverLocalBotDirs().map((botPath) => ({
+          source: {
+            type: "local" as const,
+            path: botPath,
           },
-          {
-            source: {
-              type: "local" as const,
-              path: path.resolve(__dirname, "../../../bot-reference-check"),
-            },
-            // No config - will use default-config.yaml
+        }))
+      : discoverLocalBotDirs().map((botPath) => ({
+          source: {
+            type: "npm" as const,
+            packageName: `@colloquium/${path.basename(botPath)}`,
           },
-          {
-            source: {
-              type: "local" as const,
-              path: path.resolve(__dirname, "../../../bot-markdown-renderer"),
-            },
-            // No config - will use default-config.yaml
-          },
-          {
-            source: {
-              type: "local" as const,
-              path: path.resolve(__dirname, "../../../bot-reviewer-checklist"),
-            },
-            // No config - will use default-config.yaml
-          },
-        ]
-      : [
-          {
-            source: {
-              type: "npm" as const,
-              packageName: "@colloquium/bot-editorial",
-            },
-            // No config - will use default-config.yaml from npm package
-          },
-          {
-            source: {
-              type: "npm" as const,
-              packageName: "@colloquium/bot-reference-check",
-            },
-            // No config - will use default-config.yaml from npm package
-          },
-          {
-            source: {
-              type: "npm" as const,
-              packageName: "@colloquium/bot-markdown-renderer",
-            },
-            // No config - will use default-config.yaml from npm package
-          },
-          {
-            source: {
-              type: "npm" as const,
-              packageName: "@colloquium/bot-reviewer-checklist",
-            },
-            // No config - will use default-config.yaml from npm package
-          },
-        ];
+        }));
 
     const installations: BotInstallation[] = [];
 
@@ -649,10 +613,9 @@ export class DatabaseBotManager implements BotManager {
       let source: BotInstallationSource;
       
       if (isDevelopment) {
-        // Folder names now match bot IDs directly (e.g., bot-editorial)
         source = {
           type: "local",
-          path: path.resolve(__dirname, `../../../${botId}`)
+          path: path.join(getPackagesDir(), botId)
         };
       } else {
         source = {
@@ -696,10 +659,9 @@ export class DatabaseBotManager implements BotManager {
         let source: BotInstallationSource;
         
         if (isDevelopment) {
-          // In development, use local paths - folder names now match bot IDs directly
           source = {
             type: "local",
-            path: path.resolve(__dirname, `../../../${botId}`)
+            path: path.join(getPackagesDir(), botId)
           };
         } else {
           // In production, use npm packages

@@ -43,9 +43,66 @@ interface AuthenticatedConnection {
   response: Response;
   userId: string | null;
   userRole: string | null;
+  lastActivity: Date;
 }
 
 const connections = new Map<string, AuthenticatedConnection[]>();
+
+// Module-level interval handles for cleanup on shutdown
+let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+let sweepInterval: ReturnType<typeof setInterval> | null = null;
+
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const SWEEP_INTERVAL_MS = 60_000;
+const STALE_THRESHOLD_MS = 2 * 60_000;
+
+function startHeartbeat() {
+  if (heartbeatInterval) return;
+  heartbeatInterval = setInterval(() => {
+    connections.forEach((conns, conversationId) => {
+      const deadConnections: AuthenticatedConnection[] = [];
+      conns.forEach((conn) => {
+        try {
+          conn.response.write(':heartbeat\n\n');
+          conn.response.flush();
+          conn.lastActivity = new Date();
+        } catch {
+          deadConnections.push(conn);
+        }
+      });
+      deadConnections.forEach((dead) => {
+        const index = conns.indexOf(dead);
+        if (index > -1) conns.splice(index, 1);
+      });
+      if (conns.length === 0) connections.delete(conversationId);
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+}
+
+function startSweep() {
+  if (sweepInterval) return;
+  sweepInterval = setInterval(() => {
+    const now = Date.now();
+    connections.forEach((conns, conversationId) => {
+      const staleConnections = conns.filter(
+        (conn) => now - conn.lastActivity.getTime() > STALE_THRESHOLD_MS
+      );
+      staleConnections.forEach((stale) => {
+        try {
+          stale.response.end();
+        } catch {
+          // already closed
+        }
+        const index = conns.indexOf(stale);
+        if (index > -1) conns.splice(index, 1);
+      });
+      if (conns.length === 0) connections.delete(conversationId);
+    });
+  }, SWEEP_INTERVAL_MS);
+}
+
+startHeartbeat();
+startSweep();
 
 // Test endpoint to verify events route is working
 router.get('/test', (req: Request, res: Response) => {
@@ -135,7 +192,8 @@ router.get('/conversations/:conversationId', async (req: Request, res: Response)
   connections.get(conversationId)!.push({
     response: res,
     userId: authenticatedUser?.id || null,
-    userRole: authenticatedUser?.role || null
+    userRole: authenticatedUser?.role || null,
+    lastActivity: new Date()
   });
 
 
@@ -216,6 +274,7 @@ export async function broadcastToConversation(conversationId: string, eventData:
           const data = JSON.stringify({ ...eventData, message: maskedMessage });
           connection.response.write(`data: ${data}\n\n`);
           connection.response.flush();
+          connection.lastActivity = new Date();
         }
       } catch (error) {
         console.error(`📡 SSE: Failed to write to connection ${index}:`, error);
@@ -237,9 +296,9 @@ export async function broadcastToConversation(conversationId: string, eventData:
     
     conversationConnections.forEach((connection, index) => {
       try {
-        console.log(`📡 SSE: Sending non-message event to connection ${index}`);
         connection.response.write(`data: ${data}\n\n`);
         connection.response.flush();
+        connection.lastActivity = new Date();
       } catch (error) {
         console.error(`📡 SSE: Failed to write to connection ${index}:`, error);
         deadConnections.push(connection);
@@ -275,7 +334,16 @@ export function getConnectionCount(conversationId?: string): number {
 // Add this new function to close all connections on shutdown
 export function closeAllConnections() {
   console.log('🔌 Shutting down: Closing all active SSE connections...');
-  
+
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  if (sweepInterval) {
+    clearInterval(sweepInterval);
+    sweepInterval = null;
+  }
+
   connections.forEach((conns, conversationId) => {
     console.log(`🔌 Closing ${conns.length} connections for conversation ${conversationId}`);
     conns.forEach(conn => {

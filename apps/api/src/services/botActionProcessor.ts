@@ -1,22 +1,8 @@
 import { prisma } from '@colloquium/database';
 import { BotAction, WorkflowPhase } from '@colloquium/types';
-import * as nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 import { broadcastToConversation } from '../routes/events';
-
-// Email transporter (should be configured centrally)
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'localhost',
-  port: parseInt(process.env.SMTP_PORT || '1025'),
-  secure: false,
-  auth: process.env.SMTP_USER ? {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  } : undefined,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+import { transporter } from './emailService';
 
 export interface ActionContext {
   manuscriptId: string;

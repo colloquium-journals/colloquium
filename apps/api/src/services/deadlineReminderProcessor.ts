@@ -4,20 +4,7 @@ import { getJournalSettings, ReminderInterval, JournalSettingsData } from '../ro
 import { generateAutomatedReminderEmail, generateManualReminderEmail, generateReminderConversationMessage } from '../templates/reminderEmails';
 import { broadcastToConversation } from '../routes/events';
 import { randomUUID } from 'crypto';
-import * as nodemailer from 'nodemailer';
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'localhost',
-  port: parseInt(process.env.SMTP_PORT || '1025'),
-  secure: false,
-  auth: process.env.SMTP_USER ? {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  } : undefined,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+import { transporter } from './emailService';
 
 function findIntervalSettings(daysBefore: number, settings: JournalSettingsData): ReminderInterval | null {
   const reminderSettings = settings.reminderSettings;

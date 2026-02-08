@@ -14,23 +14,9 @@ import {
   IdSchema,
   PaginationSchema
 } from '../schemas/validation';
-import * as nodemailer from 'nodemailer';
+import { transporter } from '../services/emailService';
 
 const router = Router();
-
-// Email transporter (should be configured in a service)
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'localhost',
-  port: parseInt(process.env.SMTP_PORT || '1025'),
-  secure: false,
-  auth: process.env.SMTP_USER ? {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  } : undefined,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
 
 // GET /api/reviewers/search - Search for potential reviewers
 router.get('/search',
