@@ -184,7 +184,7 @@ Automated reminder system for review deadlines.
 
 ### Bot Naming Convention
 - **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference-check`, `bot-reviewer-checklist`)
-- **Package folders**: Use `bot-` prefix (e.g., `bot-editorial/`, `bot-reference/`) - package names match bot IDs
+- **Package folders**: Use `bot-` prefix (e.g., `bot-editorial/`, `bot-reference-check/`) - package names match bot IDs
 - **Reserved prefix**: The `bot-` username prefix is reserved for system bots - non-bot accounts cannot use usernames starting with `bot-`
 
 ## Environment Setup
@@ -193,6 +193,7 @@ Required environment variables (see `.env.example`):
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` / `MAGIC_LINK_SECRET` - Auth secrets
 - `FRONTEND_URL` / `API_URL` - App URLs (localhost:3000 / localhost:4000)
+- `NEXT_PUBLIC_API_URL` - API URL for frontend (defaults to http://localhost:4000)
 
 Development services:
 - **MailHog**: http://localhost:8025 (email testing)
@@ -271,7 +272,7 @@ Published:       /static/published/{id}/{filename}           (static, public)
 See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. Key items:
 
 - **Hardcoded API URLs**: 178 occurrences of `http://localhost:4000` across 69 files — needs centralized config before deployment
-- **Type/Schema drift**: `packages/types/src/index.ts` enums (`UserRole`, `ManuscriptStatus`) don't match Prisma `GlobalRole` and are missing values like `RETRACTED`
+- **Type/Schema drift**: Some `packages/types/src/index.ts` enums may not fully match Prisma schema
 - **N+1 queries**: Conversation message loading runs per-message DB queries for permission checks
 - **No data fetching layer**: All fetching is manual `useState`/`useEffect`; consider using React 19 `use()` hook and Suspense
 - **Large files**: `botActionProcessor.ts` (1553 lines), `bot-markdown-renderer/index.ts` (1823 lines), `SubmissionHeader.tsx` (1125 lines)
