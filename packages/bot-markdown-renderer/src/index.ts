@@ -189,18 +189,10 @@ const renderCommand: BotCommand = {
 
     try {
       // Step 1: Access manuscript files
-      console.log(`DEBUG: Fetching files for manuscript: ${manuscriptId}`);
       const manuscriptFiles = await getManuscriptFiles(manuscriptId, serviceToken, apiUrl);
-      console.log(`DEBUG: Found ${manuscriptFiles.length} files`);
-      console.log(`DEBUG: Files:`, manuscriptFiles.map(f => ({
-        originalName: f.originalName,
-        fileType: f.fileType,
-        downloadUrl: f.downloadUrl
-      })));
-      
+
       const markdownFile = findMarkdownFile(manuscriptFiles);
-      console.log(`DEBUG: Selected markdown file:`, markdownFile);
-      
+
       if (!markdownFile) {
         return {
           messages: [{
@@ -220,23 +212,11 @@ const renderCommand: BotCommand = {
         true // Always include assets
       );
       
-      // Debug: Check for citations in markdown
-      const citationMatches = markdownContent.match(/\[@[^\]]+\]/g);
-      if (citationMatches) {
-        console.log(`DEBUG: Found ${citationMatches.length} citation(s):`, citationMatches);
-      } else {
-        console.log(`DEBUG: No Pandoc-style citations found in markdown`);
-        console.log(`DEBUG: First 500 chars of markdown:`, markdownContent.substring(0, 500));
-      }
-
       // Step 4: Find bibliography file
       const bibliographyFile = findBibliographyFile(manuscriptFiles);
       let bibliographyContent = '';
       if (bibliographyFile) {
-        console.log(`DEBUG: Found bibliography file: ${bibliographyFile.originalName}`);
         bibliographyContent = await downloadFile(bibliographyFile.downloadUrl, serviceToken, apiUrl);
-        console.log(`DEBUG: Bibliography content length: ${bibliographyContent.length} chars`);
-        console.log(`DEBUG: First 200 chars of bibliography:`, bibliographyContent.substring(0, 200));
       }
 
       // Step 5: Get manuscript metadata
@@ -293,8 +273,6 @@ const renderCommand: BotCommand = {
         }
       }
       
-      console.log(`DEBUG: Upload results:`, uploadResults.map(r => ({ type: r.type, filename: r.filename })));
-
       // Step 7: Return success message
       let message = `✅ **Markdown Rendered Successfully**\n\n`;
       message += `**Source:** ${markdownFile.originalName}\n`;
@@ -490,9 +468,7 @@ const listTemplatesCommand: BotCommand = {
 // Helper functions
 async function getManuscriptFiles(manuscriptId: string, serviceToken: string, apiUrl: string = DEFAULT_API_URL): Promise<any[]> {
   const url = `${apiUrl}/api/articles/${manuscriptId}/files`;
-  console.log(`DEBUG: Fetching files from: ${url}`);
-  console.log(`DEBUG: Service token present: ${!!serviceToken}`);
-  
+
   const response = await fetch(url, {
     headers: {
       'x-bot-token': serviceToken,
@@ -500,16 +476,11 @@ async function getManuscriptFiles(manuscriptId: string, serviceToken: string, ap
     }
   });
   
-  console.log(`DEBUG: Files API response: ${response.status} ${response.statusText}`);
-  
   if (!response.ok) {
-    const errorText = await response.text();
-    console.log(`DEBUG: Error response body:`, errorText);
     throw new Error(`Failed to fetch manuscript files: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
-  console.log(`DEBUG: Files API response data:`, data);
   return data.files || [];
 }
 
@@ -545,17 +516,12 @@ async function downloadFile(downloadUrl: string, serviceToken: string, apiUrl: s
   // Convert relative URL to absolute URL for internal API calls
   const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${apiUrl}${downloadUrl}`;
   
-  console.log(`DEBUG: Downloading file from: ${fullUrl}`);
-  console.log(`DEBUG: Using service token: ${serviceToken ? 'present' : 'missing'}`);
-  
   const response = await fetch(fullUrl, {
     headers: {
       'x-bot-token': serviceToken
     }
   });
-  
-  console.log(`DEBUG: Download response status: ${response.status} ${response.statusText}`);
-  
+
   if (!response.ok) {
     throw new Error(`Failed to download file: ${response.statusText}`);
   }
@@ -609,7 +575,7 @@ async function processMarkdownContent(
   }
 
   // Convert markdown to HTML
-  const html = marked(content);
+  const html = marked.parse(content);
   
   // Sanitize HTML for security
   const cleanHtml = purify.sanitize(html);
@@ -926,31 +892,13 @@ async function collectAssetFiles(
   const assetFiles: Array<{filename: string; content: string; encoding: string}> = [];
 
   try {
-    // Log input details for debugging
-    console.log(`DEBUG collectAssetFiles: manuscriptFiles count: ${manuscriptFiles.length}`);
-    console.log(`DEBUG collectAssetFiles: manuscriptFiles details:`, JSON.stringify(manuscriptFiles.map(f => ({
-      originalName: f.originalName,
-      fileType: f.fileType,
-      downloadUrl: f.downloadUrl
-    })), null, 2));
-    console.log(`DEBUG collectAssetFiles: serviceToken present: ${!!serviceToken}, length: ${serviceToken?.length || 0}`);
-
     // Find all image references in the markdown
     const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
     const imageMatches = [...markdownContent.matchAll(imagePattern)];
 
-    console.log(`DEBUG collectAssetFiles: Found ${imageMatches.length} image references in markdown`);
-
     for (const match of imageMatches) {
       const imagePath = match[2];
       const cleanFilename = imagePath.replace(/^\.?\//, '');
-
-      console.log(`DEBUG collectAssetFiles: Looking for image file: "${cleanFilename}"`);
-
-      // Log all ASSET files for comparison
-      const assetFilesInList = manuscriptFiles.filter(f => f.fileType === 'ASSET');
-      console.log(`DEBUG collectAssetFiles: Available ASSET files: ${assetFilesInList.length}`,
-        assetFilesInList.map(f => `"${f.originalName}"`).join(', '));
 
       // Find the corresponding asset file
       const assetFile = manuscriptFiles.find(file =>
@@ -961,22 +909,17 @@ async function collectAssetFiles(
       );
 
       if (assetFile) {
-        console.log(`DEBUG collectAssetFiles: Found asset file: ${assetFile.originalName}, downloading from ${assetFile.downloadUrl}...`);
-
         try {
           // Download the asset file
           const downloadUrl = assetFile.downloadUrl.startsWith('http') ?
             assetFile.downloadUrl :
             `${apiUrl}${assetFile.downloadUrl}`;
-          console.log(`DEBUG collectAssetFiles: Full download URL: ${downloadUrl}`);
 
           const response = await fetch(downloadUrl, {
             headers: {
               'x-bot-token': serviceToken
             }
           });
-
-          console.log(`DEBUG collectAssetFiles: Download response status: ${response.status} ${response.statusText}`);
 
           if (response.ok) {
             const buffer = await response.arrayBuffer();
@@ -987,30 +930,18 @@ async function collectAssetFiles(
               content: base64Content,
               encoding: 'base64'
             });
-
-            console.log(`DEBUG collectAssetFiles: Successfully collected asset: ${cleanFilename} (${buffer.byteLength} bytes)`);
           } else {
-            const errorText = await response.text().catch(() => 'Could not read error body');
-            console.warn(`DEBUG collectAssetFiles: Failed to download asset ${cleanFilename}: ${response.status} ${response.statusText} - ${errorText}`);
+            console.warn(`Failed to download asset ${cleanFilename}: ${response.status} ${response.statusText}`);
           }
         } catch (downloadError) {
-          console.warn(`DEBUG collectAssetFiles: Error downloading asset ${cleanFilename}:`, downloadError);
-        }
-      } else {
-        console.warn(`DEBUG collectAssetFiles: Asset file not found in list: "${cleanFilename}"`);
-        // Log comparison details
-        for (const file of manuscriptFiles) {
-          if (file.fileType === 'ASSET') {
-            console.log(`DEBUG collectAssetFiles: Comparing "${file.originalName}" === "${cleanFilename}": ${file.originalName === cleanFilename}`);
-          }
+          console.warn(`Error downloading asset ${cleanFilename}:`, downloadError);
         }
       }
     }
   } catch (error) {
-    console.warn('DEBUG collectAssetFiles: Error collecting asset files:', error);
+    console.warn('Error collecting asset files:', error);
   }
 
-  console.log(`DEBUG collectAssetFiles: Returning ${assetFiles.length} asset files`);
   return assetFiles;
 }
 
@@ -1025,8 +956,6 @@ async function generatePandocPDF(
   apiUrl: string = DEFAULT_API_URL
 ): Promise<Buffer> {
   try {
-    console.log(`Converting markdown to PDF using ${pdfEngine} engine via microservice`);
-    
     // Get template content based on engine
     let templateContent = '';
     switch (pdfEngine) {
@@ -1069,8 +998,7 @@ async function generatePandocPDF(
     
     // Collect asset files referenced in the markdown
     const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken, apiUrl);
-    console.log(`DEBUG: Collected ${assetFiles.length} asset files for PDF generation`);
-    
+
     const requestBody = {
       markdown: markdownContent,
       engine: pdfEngine,
@@ -1080,8 +1008,6 @@ async function generatePandocPDF(
       bibliography: bibliographyContent,
       assets: assetFiles
     };
-    
-    console.log(`Sending request to Pandoc service: ${PANDOC_SERVICE_URL}/convert`);
     
     // Make HTTP request to the Pandoc microservice
     const response = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
@@ -1099,8 +1025,6 @@ async function generatePandocPDF(
     
     // Get the PDF buffer from the response
     const pdfBuffer = await response.arrayBuffer();
-    console.log(`PDF generated successfully, size: ${pdfBuffer.byteLength} bytes`);
-    
     return Buffer.from(pdfBuffer);
     
   } catch (error) {
@@ -1120,15 +1044,11 @@ async function generatePandocHTML(
   apiUrl: string = DEFAULT_API_URL
 ): Promise<Buffer> {
   try {
-    console.log(`Converting markdown to HTML using Pandoc with native template support`);
-
     const assetFiles = await collectAssetFiles(markdownContent, manuscriptFiles, serviceToken, apiUrl);
-    console.log(`DEBUG: Collected ${assetFiles.length} asset files for HTML generation`);
 
     // Use Pandoc's native template format - pass template directly
     // Template uses $variable$ syntax and $body$ for content
     const htmlTemplate = template.htmlTemplate || '';
-    console.log(`DEBUG generatePandocHTML: template keys: ${Object.keys(template)}, htmlTemplate length: ${htmlTemplate.length}`);
 
     // Normalize citationHover config (support both boolean shorthand and object form)
     const citationHoverConfig = template.metadata?.features?.citationHover;
@@ -1184,9 +1104,6 @@ async function generatePandocHTML(
       selfContained: true
     };
 
-    console.log(`Sending request to Pandoc service with native template: ${PANDOC_SERVICE_URL}/convert`);
-    console.log(`DEBUG: Template length: ${htmlTemplate.length}, Metadata keys: ${Object.keys(metadata)}`);
-
     const response = await fetch(`${PANDOC_SERVICE_URL}/convert`, {
       method: 'POST',
       headers: {
@@ -1202,7 +1119,6 @@ async function generatePandocHTML(
 
     // Get the final HTML directly from Pandoc (already rendered with template)
     const renderedHtml = await response.text();
-    console.log(`Pandoc HTML with template rendered, size: ${renderedHtml.length} characters`);
 
     return Buffer.from(renderedHtml, 'utf-8');
 
@@ -1297,22 +1213,17 @@ export const markdownRendererBot: CommandBot = {
   
   // Upload built-in templates and create configuration when the bot is installed
   onInstall: async (context: BotInstallationContext) => {
-    console.log(`📂 Installing built-in templates for ${context.botId}...`);
-
     try {
       // Find templates directory
       const templatesDir = path.join(__dirname, '..', 'templates');
 
       if (!await fs.pathExists(templatesDir)) {
-        console.log(`⚠️ Templates directory not found: ${templatesDir}`);
         return;
       }
 
       // Get all template directories
       const entries = await fs.readdir(templatesDir, { withFileTypes: true });
       const templateDirs = entries.filter(entry => entry.isDirectory());
-
-      console.log(`📁 Found ${templateDirs.length} template directories`);
 
       // Upload files and build configuration
       const templates: Record<string, any> = {};
@@ -1321,8 +1232,6 @@ export const markdownRendererBot: CommandBot = {
       for (const dir of templateDirs) {
         const templateName = dir.name;
         const templateDir = path.join(templatesDir, templateName);
-
-        console.log(`📄 Processing template: ${templateName}`);
 
         const templateDef: any = {
           name: templateName,
@@ -1383,7 +1292,6 @@ export const markdownRendererBot: CommandBot = {
             });
 
             uploadedCount++;
-            console.log(`✅ Uploaded ${uploadFilename} -> ${uploadResult.id}`);
           } catch (error) {
             console.warn(`⚠️ Failed to upload template ${templateName}/${filename}:`, error);
           }
@@ -1405,8 +1313,6 @@ export const markdownRendererBot: CommandBot = {
       // Store updated configuration in context (this will update the bot's config)
       Object.assign(context.config, newConfig);
 
-      console.log(`🎉 Successfully uploaded ${uploadedCount} template files and configured ${Object.keys(templates).length} templates`);
-      console.log(`📋 Available templates: ${Object.keys(templates).join(', ')}`);
     } catch (error) {
       console.error(`❌ Failed to install templates:`, error);
     }

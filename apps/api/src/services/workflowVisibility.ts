@@ -32,23 +32,76 @@ interface ReviewAssignment {
 
 const reviewerIndexCache = new Map<string, Map<string, number>>();
 
+/**
+ * Batch-prefetch author roles for all message authors in a conversation.
+ * Populates the cache with 3 queries total instead of up to 3 per unique author.
+ */
+export async function batchPrefetchAuthorRoles(
+  authorIds: string[],
+  manuscriptId: string,
+  cache: Map<string, ViewerRole>
+): Promise<void> {
+  const uniqueIds = [...new Set(authorIds)].filter(id => !cache.has(id));
+  if (uniqueIds.length === 0) return;
+
+  const [users, authors, reviewers] = await Promise.all([
+    prisma.users.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, role: true }
+    }),
+    prisma.manuscript_authors.findMany({
+      where: { manuscriptId, userId: { in: uniqueIds } },
+      select: { userId: true }
+    }),
+    prisma.review_assignments.findMany({
+      where: { manuscriptId, reviewerId: { in: uniqueIds } },
+      select: { reviewerId: true }
+    })
+  ]);
+
+  const userRoleMap = new Map(users.map((u: { id: string; role: string }) => [u.id, u.role]));
+  const authorSet = new Set(authors.map((a: { userId: string }) => a.userId));
+  const reviewerSet = new Set(reviewers.map((r: { reviewerId: string }) => r.reviewerId));
+
+  for (const id of uniqueIds) {
+    const globalRole = userRoleMap.get(id);
+    let role: ViewerRole;
+    if (globalRole === 'ADMIN') {
+      role = 'admin';
+    } else if (globalRole === 'EDITOR_IN_CHIEF' || globalRole === 'ACTION_EDITOR') {
+      role = 'editor';
+    } else if (globalRole === 'BOT') {
+      role = 'editor';
+    } else if (authorSet.has(id)) {
+      role = 'author';
+    } else if (reviewerSet.has(id)) {
+      role = 'reviewer';
+    } else {
+      role = 'public';
+    }
+    cache.set(id, role);
+  }
+}
+
 export async function getViewerRole(
   userId: string | undefined,
   userGlobalRole: string | undefined,
-  manuscriptId: string
+  manuscriptId: string,
+  prefetchedIsAuthor?: boolean,
+  prefetchedIsReviewer?: boolean
 ): Promise<ViewerRole> {
   if (!userId) return 'public';
 
   if (userGlobalRole === 'ADMIN') return 'admin';
   if (userGlobalRole === 'EDITOR_IN_CHIEF' || userGlobalRole === 'ACTION_EDITOR') return 'editor';
 
-  const isAuthor = await prisma.manuscript_authors.findFirst({
+  const isAuthor = prefetchedIsAuthor ?? !!await prisma.manuscript_authors.findFirst({
     where: { manuscriptId, userId },
     select: { id: true }
   });
   if (isAuthor) return 'author';
 
-  const isReviewer = await prisma.review_assignments.findFirst({
+  const isReviewer = prefetchedIsReviewer ?? !!await prisma.review_assignments.findFirst({
     where: { manuscriptId, reviewerId: userId },
     select: { id: true }
   });
@@ -59,30 +112,44 @@ export async function getViewerRole(
 
 export async function getMessageAuthorRole(
   authorId: string,
-  manuscriptId: string
+  manuscriptId: string,
+  authorRoleCache?: Map<string, ViewerRole>
 ): Promise<ViewerRole> {
+  if (authorRoleCache?.has(authorId)) {
+    return authorRoleCache.get(authorId)!;
+  }
+
   const user = await prisma.users.findUnique({
     where: { id: authorId },
     select: { role: true }
   });
 
-  if (user?.role === 'ADMIN') return 'admin';
-  if (user?.role === 'EDITOR_IN_CHIEF' || user?.role === 'ACTION_EDITOR') return 'editor';
-  if (user?.role === 'BOT') return 'editor';
+  let role: ViewerRole;
 
-  const isAuthor = await prisma.manuscript_authors.findFirst({
-    where: { manuscriptId, userId: authorId },
-    select: { id: true }
-  });
-  if (isAuthor) return 'author';
+  if (user?.role === 'ADMIN') {
+    role = 'admin';
+  } else if (user?.role === 'EDITOR_IN_CHIEF' || user?.role === 'ACTION_EDITOR') {
+    role = 'editor';
+  } else if (user?.role === 'BOT') {
+    role = 'editor';
+  } else {
+    const isAuthor = await prisma.manuscript_authors.findFirst({
+      where: { manuscriptId, userId: authorId },
+      select: { id: true }
+    });
+    if (isAuthor) {
+      role = 'author';
+    } else {
+      const isReviewer = await prisma.review_assignments.findFirst({
+        where: { manuscriptId, reviewerId: authorId },
+        select: { id: true }
+      });
+      role = isReviewer ? 'reviewer' : 'public';
+    }
+  }
 
-  const isReviewer = await prisma.review_assignments.findFirst({
-    where: { manuscriptId, reviewerId: authorId },
-    select: { id: true }
-  });
-  if (isReviewer) return 'reviewer';
-
-  return 'public';
+  authorRoleCache?.set(authorId, role);
+  return role;
 }
 
 export async function canAuthorSeeReview(
@@ -109,7 +176,8 @@ export async function canAuthorSeeReview(
 export async function canReviewerSeeOtherReviews(
   config: WorkflowConfig,
   phase: WorkflowPhase | string,
-  manuscriptId: string
+  manuscriptId: string,
+  prefetchedAllReviewsComplete?: boolean
 ): Promise<boolean> {
   switch (config.reviewers.seeEachOther) {
     case 'realtime':
@@ -118,7 +186,7 @@ export async function canReviewerSeeOtherReviews(
       return phase === WorkflowPhase.DELIBERATION ||
              phase === WorkflowPhase.RELEASED ||
              phase === WorkflowPhase.AUTHOR_RESPONDING ||
-             await areAllReviewsComplete(manuscriptId);
+             (prefetchedAllReviewsComplete ?? await areAllReviewsComplete(manuscriptId));
     case 'never':
       return false;
     default:
@@ -126,7 +194,7 @@ export async function canReviewerSeeOtherReviews(
   }
 }
 
-async function areAllReviewsComplete(manuscriptId: string): Promise<boolean> {
+export async function areAllReviewsComplete(manuscriptId: string): Promise<boolean> {
   const assignments = await prisma.review_assignments.findMany({
     where: {
       manuscriptId,
@@ -146,14 +214,17 @@ export async function canUserSeeMessageWithWorkflow(
   messagePrivacy: string,
   manuscriptId: string,
   config: WorkflowConfig | null | undefined,
-  manuscript: ManuscriptContext
+  manuscript: ManuscriptContext,
+  prefetchedViewerRole?: ViewerRole,
+  authorRoleCache?: Map<string, ViewerRole>,
+  prefetchedAllReviewsComplete?: boolean
 ): Promise<boolean> {
   if (!config) {
     return true;
   }
 
-  const viewerRole = await getViewerRole(userId, userGlobalRole, manuscriptId);
-  const authorRole = await getMessageAuthorRole(messageAuthorId, manuscriptId);
+  const viewerRole = prefetchedViewerRole ?? await getViewerRole(userId, userGlobalRole, manuscriptId);
+  const authorRole = await getMessageAuthorRole(messageAuthorId, manuscriptId, authorRoleCache);
 
   if (viewerRole === 'admin' || viewerRole === 'editor') {
     return true;
@@ -170,7 +241,7 @@ export async function canUserSeeMessageWithWorkflow(
 
   if (viewerRole === 'reviewer') {
     if (authorRole === 'reviewer' && messageAuthorId !== userId) {
-      return await canReviewerSeeOtherReviews(config, phase, manuscriptId);
+      return await canReviewerSeeOtherReviews(config, phase, manuscriptId, prefetchedAllReviewsComplete);
     }
 
     if (authorRole === 'author') {
@@ -218,7 +289,8 @@ export async function shouldMaskIdentity(
   viewerId: string | undefined,
   config: WorkflowConfig,
   phase: WorkflowPhase | string,
-  manuscriptId: string
+  manuscriptId: string,
+  prefetchedAllReviewsComplete?: boolean
 ): Promise<{ shouldMask: boolean; maskedName?: string }> {
   if (viewerRole === 'admin' || viewerRole === 'editor') {
     return { shouldMask: false };
@@ -246,7 +318,7 @@ export async function shouldMaskIdentity(
   }
 
   if (viewerRole === 'reviewer' && messageAuthorRole === 'reviewer') {
-    const canSeeOthers = await canReviewerSeeOtherReviews(config, phase, manuscriptId);
+    const canSeeOthers = await canReviewerSeeOtherReviews(config, phase, manuscriptId, prefetchedAllReviewsComplete);
     if (!canSeeOthers) {
       const index = await getReviewerIndex(messageAuthorId, manuscriptId);
       return { shouldMask: true, maskedName: `Reviewer ${String.fromCharCode(64 + index)}` };
@@ -262,7 +334,10 @@ export async function maskMessageAuthor(
   viewerGlobalRole: string | undefined,
   manuscriptId: string,
   config: WorkflowConfig | null | undefined,
-  phase: WorkflowPhase | string
+  phase: WorkflowPhase | string,
+  prefetchedViewerRole?: ViewerRole,
+  authorRoleCache?: Map<string, ViewerRole>,
+  prefetchedAllReviewsComplete?: boolean
 ): Promise<MaskedAuthor> {
   if (!config) {
     return {
@@ -272,8 +347,8 @@ export async function maskMessageAuthor(
     };
   }
 
-  const viewerRole = await getViewerRole(viewerId, viewerGlobalRole, manuscriptId);
-  const authorRole = await getMessageAuthorRole(author.id, manuscriptId);
+  const viewerRole = prefetchedViewerRole ?? await getViewerRole(viewerId, viewerGlobalRole, manuscriptId);
+  const authorRole = await getMessageAuthorRole(author.id, manuscriptId, authorRoleCache);
 
   const { shouldMask, maskedName } = await shouldMaskIdentity(
     viewerRole,
@@ -282,7 +357,8 @@ export async function maskMessageAuthor(
     viewerId,
     config,
     phase,
-    manuscriptId
+    manuscriptId,
+    prefetchedAllReviewsComplete
   );
 
   if (shouldMask && maskedName) {
@@ -332,14 +408,16 @@ export async function computeEffectiveVisibility(
   messageAuthorId: string,
   manuscriptId: string,
   config: WorkflowConfig | null | undefined,
-  phase: WorkflowPhase | string
+  phase: WorkflowPhase | string,
+  authorRoleCache?: Map<string, ViewerRole>,
+  prefetchedAllReviewsComplete?: boolean
 ): Promise<EffectiveVisibility> {
   // No workflow config - use simple privacy-based visibility
   if (!config) {
     return getPrivacyBasedVisibility(messagePrivacy);
   }
 
-  const authorRole = await getMessageAuthorRole(messageAuthorId, manuscriptId);
+  const authorRole = await getMessageAuthorRole(messageAuthorId, manuscriptId, authorRoleCache);
   const isReleased = phase === WorkflowPhase.RELEASED || phase === WorkflowPhase.AUTHOR_RESPONDING;
 
   // ADMIN_ONLY and EDITOR_ONLY are never affected by workflow
@@ -362,7 +440,7 @@ export async function computeEffectiveVisibility(
   // REVIEWER_ONLY - check if reviewers can see each other
   if (messagePrivacy === 'REVIEWER_ONLY') {
     if (authorRole === 'reviewer') {
-      const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId);
+      const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId, prefetchedAllReviewsComplete);
       if (!canReviewersSeeEachOther && config.reviewers.seeEachOther === 'after_all_submit') {
         return {
           level: 'editors_only',
@@ -411,7 +489,7 @@ export async function computeEffectiveVisibility(
       }
 
       // Authors can see, but check reviewer-to-reviewer visibility
-      const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId);
+      const canReviewersSeeEachOther = await canReviewerSeeOtherReviews(config, phase, manuscriptId, prefetchedAllReviewsComplete);
       if (!canReviewersSeeEachOther) {
         // Check if this is a permanent restriction or phase-based
         if (config.reviewers.seeEachOther === 'never') {

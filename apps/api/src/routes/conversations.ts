@@ -13,8 +13,11 @@ import {
   maskMessageAuthor,
   getViewerRole,
   computeEffectiveVisibility,
+  batchPrefetchAuthorRoles,
+  areAllReviewsComplete,
   MaskedAuthor,
-  EffectiveVisibility
+  EffectiveVisibility,
+  ViewerRole
 } from '../services/workflowVisibility';
 import {
   canUserParticipate,
@@ -46,8 +49,16 @@ async function getWorkflowConfig(): Promise<WorkflowConfig | null> {
 }
 
 // Helper function to determine if user can see a message based on privacy level
-export async function canUserSeeMessage(userId: string | undefined, userRole: string | undefined, messagePrivacy: string, manuscriptId: string) {
-  
+// Optional prefetchedIsAuthor/prefetchedIsReviewer skip per-message DB queries when provided
+export async function canUserSeeMessage(
+  userId: string | undefined,
+  userRole: string | undefined,
+  messagePrivacy: string,
+  manuscriptId: string,
+  prefetchedIsAuthor?: boolean,
+  prefetchedIsReviewer?: boolean
+) {
+
   if (!userId || !userRole) {
     return messagePrivacy === 'PUBLIC';
   }
@@ -56,47 +67,47 @@ export async function canUserSeeMessage(userId: string | undefined, userRole: st
   switch (messagePrivacy) {
     case 'PUBLIC':
       return true;
-    
+
     case 'AUTHOR_VISIBLE':
       // Check if user is author, reviewer, editor, or admin
       if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'ACTION_EDITOR') return true;
-      
-      // Check if user is an author of the manuscript
-      const authorRelation = await prisma.manuscript_authors.findFirst({
-        where: { 
+
+      // Use pre-fetched value or fall back to DB query
+      const isAuthor = prefetchedIsAuthor ?? !!await prisma.manuscript_authors.findFirst({
+        where: {
           manuscriptId,
-          userId 
+          userId
         }
       });
-      if (authorRelation) return true;
-      
-      // Check if user is assigned as reviewer
-      const reviewerAssignment = await prisma.review_assignments.findFirst({
+      if (isAuthor) return true;
+
+      // Use pre-fetched value or fall back to DB query
+      const isReviewer = prefetchedIsReviewer ?? !!await prisma.review_assignments.findFirst({
         where: {
           manuscriptId,
           reviewerId: userId
         }
       });
-      return !!reviewerAssignment;
-    
+      return isReviewer;
+
     case 'REVIEWER_ONLY':
       // Only reviewers, editors, and admins
       if (userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'ACTION_EDITOR') return true;
-      
-      const reviewAssignment = await prisma.review_assignments.findFirst({
+
+      const isReviewerOnly = prefetchedIsReviewer ?? !!await prisma.review_assignments.findFirst({
         where: {
           manuscriptId,
           reviewerId: userId
         }
       });
-      return !!reviewAssignment;
-    
+      return isReviewerOnly;
+
     case 'EDITOR_ONLY':
       return userRole === 'ADMIN' || userRole === 'EDITOR_IN_CHIEF' || userRole === 'ACTION_EDITOR';
-    
+
     case 'ADMIN_ONLY':
       return userRole === 'ADMIN';
-    
+
     default:
       return false;
   }
@@ -368,31 +379,69 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       workflowRound: conversation.manuscripts.workflowRound
     };
 
+    // Pre-fetch the viewer's manuscript relationships to avoid N+1 queries
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    let prefetchedIsAuthor: boolean | undefined;
+    let prefetchedIsReviewer: boolean | undefined;
+    let prefetchedViewerRole: ViewerRole | undefined;
+
+    if (userId) {
+      const [authorRelation, reviewerRelation] = await Promise.all([
+        prisma.manuscript_authors.findFirst({
+          where: { manuscriptId: conversation.manuscriptId, userId },
+          select: { id: true }
+        }),
+        prisma.review_assignments.findFirst({
+          where: { manuscriptId: conversation.manuscriptId, reviewerId: userId },
+          select: { id: true }
+        })
+      ]);
+      prefetchedIsAuthor = !!authorRelation;
+      prefetchedIsReviewer = !!reviewerRelation;
+      prefetchedViewerRole = await getViewerRole(
+        userId, userRole, conversation.manuscriptId,
+        prefetchedIsAuthor, prefetchedIsReviewer
+      );
+    }
+
+    // Batch-prefetch all message author roles (3 queries total instead of up to 3 per unique author)
+    const authorRoleCache = new Map<string, ViewerRole>();
+    const allAuthorIds = conversation.messages.map(msg => msg.authorId);
+    const [, prefetchedAllReviewsComplete] = await Promise.all([
+      batchPrefetchAuthorRoles(allAuthorIds, conversation.manuscriptId, authorRoleCache),
+      areAllReviewsComplete(conversation.manuscriptId)
+    ]);
+
     // Filter messages based on user's permission to see them
-    console.log(`Found ${conversation.messages.length} total messages for conversation ${id}`);
     const visibleMessages = [];
     const messageVisibilityMap = [];
 
     for (const msg of conversation.messages) {
       // First check privacy-based visibility
       const canSeePrivacy = await canUserSeeMessage(
-        req.user?.id,
-        req.user?.role,
+        userId,
+        userRole,
         msg.privacy,
-        conversation.manuscriptId
+        conversation.manuscriptId,
+        prefetchedIsAuthor,
+        prefetchedIsReviewer
       );
 
       // Then apply workflow-based visibility if config exists
       let canSeeWorkflow = true;
       if (workflowConfig && canSeePrivacy) {
         canSeeWorkflow = await canUserSeeMessageWithWorkflow(
-          req.user?.id,
-          req.user?.role,
+          userId,
+          userRole,
           msg.authorId,
           msg.privacy,
           conversation.manuscriptId,
           workflowConfig,
-          manuscriptContext
+          manuscriptContext,
+          prefetchedViewerRole,
+          authorRoleCache,
+          prefetchedAllReviewsComplete
         );
       }
 
@@ -408,18 +457,19 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         visibleMessages.push(msg);
       }
     }
-    console.log(`Returning ${visibleMessages.length} visible messages`);
-
     // Apply identity masking and compute effective visibility for visible messages
     const maskedMessages = await Promise.all(
       visibleMessages.map(async msg => {
         const maskedAuthor = await maskMessageAuthor(
           msg.users,
-          req.user?.id,
-          req.user?.role,
+          userId,
+          userRole,
           conversation.manuscriptId,
           workflowConfig,
-          manuscriptContext.workflowPhase
+          manuscriptContext.workflowPhase,
+          prefetchedViewerRole,
+          authorRoleCache,
+          prefetchedAllReviewsComplete
         );
 
         const effectiveVisibility = await computeEffectiveVisibility(
@@ -427,7 +477,9 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
           msg.authorId,
           conversation.manuscriptId,
           workflowConfig,
-          manuscriptContext.workflowPhase
+          manuscriptContext.workflowPhase,
+          authorRoleCache,
+          prefetchedAllReviewsComplete
         );
 
         return {

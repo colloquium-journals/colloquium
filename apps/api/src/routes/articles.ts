@@ -4,6 +4,7 @@ import { ManuscriptFileType, StorageType } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { authenticate, requirePermission, optionalAuth, authenticateWithBots } from '../middleware/auth';
@@ -24,37 +25,41 @@ if (!fs.existsSync(uploadDir)) {
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Create manuscript-specific directory
-    const manuscriptId = req.params?.id || req.body?.manuscriptId || 'temp';
-    const manuscriptDir = path.join(uploadDir, manuscriptId);
-    
-    // Ensure manuscript directory exists
-    if (!fs.existsSync(manuscriptDir)) {
-      fs.mkdirSync(manuscriptDir, { recursive: true });
+  destination: async (req, file, cb) => {
+    try {
+      const manuscriptId = req.params?.id || req.body?.manuscriptId || 'temp';
+      const manuscriptDir = path.join(uploadDir, manuscriptId);
+      await fsPromises.mkdir(manuscriptDir, { recursive: true });
+      cb(null, manuscriptDir);
+    } catch (err) {
+      cb(err as Error, '');
     }
-    
-    cb(null, manuscriptDir);
   },
-  filename: (req, file, cb) => {
-    // Preserve original filename with conflict resolution
-    const originalName = file.originalname;
-    const manuscriptId = req.params?.id || req.body?.manuscriptId || 'temp';
-    const manuscriptDir = path.join(uploadDir, manuscriptId);
-    const fullPath = path.join(manuscriptDir, originalName);
-    
-    // Check if file already exists and add suffix if needed
-    let finalFilename = originalName;
-    let counter = 1;
-    
-    while (fs.existsSync(path.join(manuscriptDir, finalFilename))) {
-      const ext = path.extname(originalName);
-      const baseName = path.basename(originalName, ext);
-      finalFilename = `${baseName}_${counter}${ext}`;
-      counter++;
+  filename: async (req, file, cb) => {
+    try {
+      const originalName = file.originalname;
+      const manuscriptId = req.params?.id || req.body?.manuscriptId || 'temp';
+      const manuscriptDir = path.join(uploadDir, manuscriptId);
+
+      let finalFilename = originalName;
+      let counter = 1;
+
+      while (true) {
+        try {
+          await fsPromises.access(path.join(manuscriptDir, finalFilename));
+          const ext = path.extname(originalName);
+          const baseName = path.basename(originalName, ext);
+          finalFilename = `${baseName}_${counter}${ext}`;
+          counter++;
+        } catch {
+          break; // File doesn't exist, use this name
+        }
+      }
+
+      cb(null, finalFilename);
+    } catch (err) {
+      cb(err as Error, '');
     }
-    
-    cb(null, finalFilename);
   }
 });
 
@@ -304,11 +309,9 @@ router.post('/', authenticate, (req, res, next) => {
 
       if (maxSupplementalFiles > 0 && assetFileCount > maxSupplementalFiles) {
         // Clean up uploaded files
-        files.forEach(file => {
-          if (fs.existsSync(file.path)) {
-            fs.unlinkSync(file.path);
-          }
-        });
+        await Promise.all(files.map(async (file) => {
+          try { await fsPromises.unlink(file.path); } catch {}
+        }));
         return res.status(400).json({
           error: 'Validation Error',
           message: `Too many supplemental files. Maximum allowed: ${maxSupplementalFiles}, received: ${assetFileCount}`
@@ -414,7 +417,7 @@ router.post('/', authenticate, (req, res, next) => {
           
           try {
             // Detect format for the file
-            const fileContent = fs.readFileSync(file.path);
+            const fileContent = await fsPromises.readFile(file.path);
             let formatDetectionResult;
             try {
               formatDetectionResult = await formatDetection.detectFormat(
@@ -511,11 +514,9 @@ router.post('/', authenticate, (req, res, next) => {
             
           } catch (error) {
             fileValidationErrors.push(`Failed to process file ${file.originalname}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            
+
             // Clean up the uploaded file if processing failed
-            if (fs.existsSync(file.path)) {
-              fs.unlinkSync(file.path);
-            }
+            try { await fsPromises.unlink(file.path); } catch {}
           }
         }
 
@@ -635,11 +636,9 @@ router.post('/', authenticate, (req, res, next) => {
     // Clean up uploaded files if manuscript creation failed
     if (req.files) {
       const files = req.files as Express.Multer.File[];
-      files.forEach(file => {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-      });
+      await Promise.all(files.map(async (file) => {
+        try { await fsPromises.unlink(file.path); } catch {}
+      }));
     }
 
     if (error instanceof z.ZodError) {
@@ -672,7 +671,6 @@ const optionalAuthWithBots = async (req: Request, res: Response, next: NextFunct
           permissions: botPayload.permissions || [],
           type: 'BOT_SERVICE_TOKEN'
         };
-        console.log(`DEBUG: Authenticated bot - botId: ${botPayload.botId}, manuscriptId: ${botPayload.manuscriptId}`);
         return next();
       }
     } catch (botError) {
@@ -759,23 +757,14 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
       });
     }
 
-    // Check if user can access this manuscript using new permission system
-    console.log('DEBUG: Checking manuscript permissions for manuscript:', id);
-    console.log('DEBUG: User:', req.user?.email, 'Role:', req.user?.role);
-    console.log('DEBUG: Manuscript status:', manuscript.status);
-    
     const isPublished = manuscript.status === 'PUBLISHED' || manuscript.status === 'RETRACTED';
     const isSubmitted = Boolean(manuscript.status); // Any manuscript with a status is considered submitted
     const isAuthor = req.user && manuscript.manuscript_authors.some((rel: any) => rel.userId === req.user!.id);
     const isActionEditor = req.user && manuscript.action_editors?.editorId === req.user.id;
     const isReviewer = req.user && manuscript.review_assignments.some((review: any) => review.reviewerId === req.user!.id);
     
-    console.log('DEBUG: Permission context - isPublished:', isPublished, 'isSubmitted:', isSubmitted, 'isAuthor:', isAuthor, 'isActionEditor:', isActionEditor, 'isReviewer:', isReviewer);
-    console.log('DEBUG: Bot context:', req.botContext);
-    
     // Check if this is a bot request for the same manuscript
     const isBotWithAccess = req.botContext && req.botContext.manuscriptId === id;
-    console.log('DEBUG: Bot has access:', isBotWithAccess);
     
     const canView = isBotWithAccess || hasManuscriptPermission(
       req.user?.role || GlobalRole.USER,
@@ -788,8 +777,6 @@ router.get('/:id', optionalAuthWithBots, async (req, res, next) => {
         isSubmitted
       }
     );
-    
-    console.log('DEBUG: Can view manuscript:', canView);
     
     if (!canView) {
       return res.status(403).json({
@@ -889,9 +876,6 @@ const authenticateForFileDownload = async (req: Request, res: Response, next: Ne
 router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (req, res, next) => {
   try {
     const { id, fileId } = req.params;
-    console.log(`DEBUG: Download endpoint hit - manuscriptId: ${id}, fileId: ${fileId}`);
-    console.log(`DEBUG: User:`, req.user ? `${req.user.email} (${req.user.role})` : 'none');
-    console.log(`DEBUG: Bot context:`, req.botContext ? `${req.botContext.botId} for ${req.botContext.manuscriptId}` : 'none');
 
     const file = await prisma.manuscript_files.findFirst({
       where: {
@@ -900,10 +884,7 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
       }
     });
 
-    console.log(`DEBUG: File lookup result:`, file);
-
     if (!file) {
-      console.log(`DEBUG: File not found in database - fileId: ${fileId}, manuscriptId: ${id}`);
       return res.status(404).json({
         error: 'File not found',
         message: 'The requested file does not exist or is not associated with this manuscript'
@@ -926,11 +907,7 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
         });
       }
       
-      // Allow public access to files from submitted manuscripts (any manuscript with a status)
-      console.log(`DEBUG: Public file access for manuscript status: ${manuscript.status}`);
     }
-    
-    console.log(`DEBUG: File download authorized - bot: ${!!isBotWithAccess}, user: ${!!req.user}`);
 
     // Check if file exists on disk
     // Handle both absolute and relative paths
@@ -940,13 +917,9 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
       filePath = '.' + filePath;
     }
     
-    console.log(`DEBUG: Original path: ${file.path}`);
-    console.log(`DEBUG: Resolved path: ${filePath}`);
-    console.log(`DEBUG: Full absolute path: ${path.resolve(filePath)}`);
-    console.log(`DEBUG: File exists check: ${fs.existsSync(filePath)}`);
-    
-    if (!fs.existsSync(filePath)) {
-      console.log(`DEBUG: File not found on disk at: ${filePath}`);
+    try {
+      await fsPromises.access(filePath);
+    } catch {
       return res.status(404).json({
         error: 'File not found',
         message: 'The file has been deleted or moved'
@@ -955,25 +928,20 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
 
     // Set appropriate headers for file download or inline viewing
     const inline = req.query.inline === 'true';
-    
+
     if (inline && (file.mimetype === 'application/pdf' || file.mimetype === 'text/html')) {
-      // For inline PDF or HTML viewing, use 'inline' disposition
       res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
     } else if (file.mimetype === 'text/html') {
-      // HTML files should always be displayed inline by default, not downloaded
       res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
     } else if (inline && file.mimetype && file.mimetype.startsWith('image/')) {
-      // For inline image viewing, use 'inline' disposition
       res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
     } else {
-      // For downloads, use 'attachment' disposition
       res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
     }
-    
+
     res.setHeader('Content-Type', file.mimetype);
 
-    // Use actual file size from disk, not database (may be stale)
-    const fileStats = fs.statSync(filePath);
+    const fileStats = await fsPromises.stat(filePath);
     res.setHeader('Content-Length', fileStats.size.toString());
 
     // Stream the file
@@ -1266,7 +1234,7 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
     for (const file of files) {
       try {
         // Calculate checksum
-        const fileContent = fs.readFileSync(file.path);
+        const fileContent = await fsPromises.readFile(file.path);
         const crypto = require('crypto');
         const checksum = crypto.createHash('sha256').update(fileContent).digest('hex');
 
@@ -1329,15 +1297,10 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
           // Delete existing files from filesystem and database
           for (const existingFile of existingRenderedFiles) {
             try {
-              // Delete from filesystem
-              if (fs.existsSync(existingFile.path)) {
-                fs.unlinkSync(existingFile.path);
-              }
-              // Delete from database
+              try { await fsPromises.unlink(existingFile.path); } catch {}
               await prisma.manuscript_files.delete({
                 where: { id: existingFile.id }
               });
-              console.log(`Deleted existing RENDERED file: ${existingFile.originalName}`);
             } catch (deleteError) {
               console.error(`Failed to delete existing file ${existingFile.originalName}:`, deleteError);
             }
@@ -1358,15 +1321,10 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
           // Delete existing source files with the same extension
           for (const existingFile of existingSourceFiles) {
             try {
-              // Delete from filesystem
-              if (fs.existsSync(existingFile.path)) {
-                fs.unlinkSync(existingFile.path);
-              }
-              // Delete from database
+              try { await fsPromises.unlink(existingFile.path); } catch {}
               await prisma.manuscript_files.delete({
                 where: { id: existingFile.id }
               });
-              console.log(`Replaced existing SOURCE file: ${existingFile.originalName} with ${file.originalname}`);
             } catch (deleteError) {
               console.error(`Failed to delete existing file ${existingFile.originalName}:`, deleteError);
             }
@@ -1405,10 +1363,8 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
       } catch (error) {
         console.error(`Failed to process file ${file.originalname}:`, error);
         // Clean up the uploaded file if processing failed
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-        
+        try { await fsPromises.unlink(file.path); } catch {}
+
         return res.status(500).json({
           error: 'File processing failed',
           message: `Failed to process file: ${file.originalname}`
@@ -1510,9 +1466,7 @@ router.delete('/:id/files/:fileId', authenticate, async (req, res, next) => {
     }
 
     // Delete file from filesystem
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    try { await fsPromises.unlink(file.path); } catch {}
 
     // Delete file record from database
     await prisma.manuscript_files.delete({
