@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "Colloquium" - Open-source scientific journal publishing platform with conversational review processes and extensible bot ecosystem.
 
-**Stack**: Next.js 14, Express.js, TypeScript, Prisma ORM, PostgreSQL, Magic link auth, Mantine UI
+**Stack**: Next.js 16, React 19, Express.js, TypeScript, Prisma ORM, PostgreSQL, Magic link auth, Mantine UI
 
 **Roadmap**: See [plans/TODO.md](plans/TODO.md) for the high-level feature roadmap and links to detailed plans.
 
@@ -23,7 +23,7 @@ This project is in **early active development**. There are no production deploym
 
 ```
 apps/
-├── web/                    # Next.js 14 frontend (port 3000)
+├── web/                    # Next.js 16 + React 19 frontend (port 3000)
 ├── api/                    # Express.js backend (port 4000)
 packages/
 ├── database/               # Prisma schema and client
@@ -31,7 +31,7 @@ packages/
 ├── types/                  # Shared TypeScript types and Zod schemas
 ├── auth/                   # Authentication utilities
 ├── ui/                     # Shared React components
-├── config/                 # Shared ESLint config
+├── config/                 # Shared ESLint 9 flat config
 ├── bot-editorial/          # Editorial workflow bot
 ├── bot-markdown-renderer/  # Markdown to HTML rendering
 ├── bot-reference-check/    # DOI validation and reference checking
@@ -66,7 +66,7 @@ cd apps/api && npx jest --testNamePattern="should create manuscript"
 cd apps/api && npm run test:watch
 
 # Linting and type checking
-npm run lint
+npm run lint                # Uses ESLint 9 flat config (eslint.config.mjs)
 npm run type-check
 
 # Database operations
@@ -84,12 +84,18 @@ npm run docker:up           # Start postgres, mailhog
 npm run build               # Build all packages and apps
 ```
 
+### Frontend Build Notes
+
+- **Webpack mode**: Next.js 16 defaults to Turbopack, but we use `--webpack` (in `apps/web/package.json` build/dev scripts) because `next.config.js` has custom webpack config for HTML asset handling and client-side resolve fallbacks
+- **`next lint` removed**: Next.js 16 removed the `next lint` command. All packages use `eslint src` directly
+- **ESLint 9 flat config**: The root `eslint.config.mjs` extends `@colloquium/eslint-config` (`packages/config/index.mjs`). Legacy `.eslintrc` files are no longer used. The `--ext` flag is not supported in ESLint 9
+
 ## Key Systems
 
 ### File Storage & Management
 - **Storage Structure**: Manuscript-specific folders at `apps/api/uploads/manuscripts/{manuscriptId}/`
 - **File Organization**: Original filenames preserved with conflict resolution (e.g., `file(1).pdf`)
-- **File Types**: SOURCE (main manuscript), ASSET (images/data), RENDERED (bot outputs), BIBLIOGRAPHY
+- **File Types**: SOURCE (main manuscript), ASSET (images/data), RENDERED (bot outputs), SUPPLEMENTARY, BIBLIOGRAPHY
 - **Database**: `manuscript_files` table tracks `path`, `originalName`, `filename`, `fileType`, `mimetype`
 - **Endpoints**: 
   - `POST /api/articles/` (manuscript submission)
@@ -122,7 +128,7 @@ npm run build               # Build all packages and apps
 **Reviewer Assignments**:
 - **Database**: `review_assignments` table with `reviewerId`, `manuscriptId`, `status`, `assignedAt`, `dueDate`
 - **API**: Available via `/api/articles/:id` endpoint in `reviewAssignments` field
-- **Statuses**: INVITED, ACCEPTED, DECLINED, IN_PROGRESS, COMPLETED
+- **Statuses**: PENDING, ACCEPTED, DECLINED, IN_PROGRESS, COMPLETED
 - **Filtering**: Only ACCEPTED, IN_PROGRESS, COMPLETED assignments shown in UI
 
 ### Conversation System
@@ -176,7 +182,7 @@ Automated reminder system for review deadlines.
 - `@bot-editorial send-reminder @reviewer message="Please prioritize"` - With custom message
 
 ### Bot Naming Convention
-- **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference`, `bot-reviewer-checklist`)
+- **Bot IDs**: All bots use the `bot-` prefix (e.g., `bot-editorial`, `bot-reference-check`, `bot-reviewer-checklist`)
 - **Package folders**: Use `bot-` prefix (e.g., `bot-editorial/`, `bot-reference/`) - package names match bot IDs
 - **Reserved prefix**: The `bot-` username prefix is reserved for system bots - non-bot accounts cannot use usernames starting with `bot-`
 
@@ -198,6 +204,14 @@ Development services:
 - Academic naming conventions
 - Comprehensive error handling
 - No code comments unless necessary
+
+### React 19 Patterns
+
+- **No `forwardRef`**: Use `ref` as a regular prop (`{ ref }: { ref?: Ref<T> }`) instead of wrapping with `forwardRef`
+- **Context as JSX**: Use `<MyContext value={...}>` directly instead of `<MyContext.Provider value={...}>`
+- **Async route params**: In Next.js 16 route handlers, `params` is a `Promise` and must be `await`ed
+- **Ref nullability**: `useRef<T>(null)` returns `RefObject<T | null>` — interfaces accepting refs should use `RefObject<T | null>`
+- **JSX namespace**: Use `React.JSX.Element` instead of bare `JSX.Element`
 
 ## Test Structure
 
@@ -250,6 +264,17 @@ Published:       /static/published/{id}/{filename}           (static, public)
 - `apps/api/src/services/botActionProcessor.ts` (publication hooks)
 
 **Migration**: `npm run migrate-published-assets` (for existing published content)
+
+## Known Technical Debt
+
+See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. Key items:
+
+- **Hardcoded API URLs**: 178 occurrences of `http://localhost:4000` across 69 files — needs centralized config before deployment
+- **Type/Schema drift**: `packages/types/src/index.ts` enums (`UserRole`, `ManuscriptStatus`) don't match Prisma `GlobalRole` and are missing values like `RETRACTED`
+- **N+1 queries**: Conversation message loading runs per-message DB queries for permission checks
+- **No data fetching layer**: All fetching is manual `useState`/`useEffect`; consider using React 19 `use()` hook and Suspense
+- **Large files**: `botActionProcessor.ts` (1553 lines), `bot-markdown-renderer/index.ts` (1823 lines), `SubmissionHeader.tsx` (1125 lines)
+- **Email transporter duplication**: Same nodemailer config in 4+ files
 
 ## Security Notes
 

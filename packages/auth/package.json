@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "exit 0",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",

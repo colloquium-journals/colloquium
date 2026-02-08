@@ -57,8 +57,8 @@ describe('useMentionInput', () => {
     }
   ];
 
-  let mockTextareaRef: React.RefObject<HTMLTextAreaElement>;
-  let mockContainerRef: React.RefObject<HTMLDivElement>;
+  let mockTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  let mockContainerRef: React.RefObject<HTMLDivElement | null>;
   let mockOnChange: jest.Mock;
 
   beforeEach(() => {

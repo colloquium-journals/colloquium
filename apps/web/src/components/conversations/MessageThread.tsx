@@ -141,7 +141,7 @@ export function MessageThread({
   };
 
   // Simple function to render a message (no hierarchy)
-  const renderMessage = (message: MessageData): JSX.Element => {
+  const renderMessage = (message: MessageData): React.JSX.Element => {
     return (
       <MessageCard
         key={message.id}
@@ -205,7 +205,7 @@ export function MessageThread({
       return result;
     }
     
-    const result: JSX.Element[] = [];
+    const result: React.JSX.Element[] = [];
     const sortedVisibilityMap = [...messageVisibilityMap].sort((a, b) => 
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );

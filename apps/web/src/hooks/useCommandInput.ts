@@ -40,8 +40,8 @@ export interface ActiveCommandInfo {
 }
 
 interface UseCommandInputProps {
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
-  containerRef: React.RefObject<HTMLDivElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   value: string;
   onChange: (value: string) => void;
 }

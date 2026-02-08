@@ -1225,7 +1225,7 @@ async function uploadRenderedFile(
 
   const blob = typeof content === 'string'
     ? new Blob([content], { type: mimeType })
-    : new Blob([content], { type: mimeType });
+    : new Blob([new Uint8Array(content) as BlobPart], { type: mimeType });
 
   formData.append('files', blob, filename);
   formData.append('fileType', 'RENDERED');

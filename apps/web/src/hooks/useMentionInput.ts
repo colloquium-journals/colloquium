@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MentionSuggestion } from '@/components/shared/MentionSuggest';
 
 interface UseMentionInputProps {
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
-  containerRef: React.RefObject<HTMLDivElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   value: string;
   onChange: (value: string) => void;
   suggestions: MentionSuggestion[];

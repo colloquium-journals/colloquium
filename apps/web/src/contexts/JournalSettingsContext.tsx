@@ -162,10 +162,10 @@ export function JournalSettingsProvider({ children }: JournalSettingsProviderPro
   }, [settings.primaryColor, settings.secondaryColor, settings.darkPrimaryColor, settings.darkSecondaryColor, settings.customCss]);
 
   return (
-    <JournalSettingsContext.Provider 
+    <JournalSettingsContext
       value={{ settings, loading, error, refreshSettings }}
     >
       {children}
-    </JournalSettingsContext.Provider>
+    </JournalSettingsContext>
   );
 }

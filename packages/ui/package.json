@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src --ext .ts,.tsx",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "storybook": "storybook dev -p 6006",
@@ -16,23 +16,23 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "@mantine/core": "^7.12.0",
     "@mantine/hooks": "^7.12.0",
-    "@tabler/icons-react": "^2.40.0",
+    "@tabler/icons-react": "^3.36.0",
     "@colloquium/types": "*"
   },
   "devDependencies": {
     "@colloquium/eslint-config": "*",
-    "@storybook/react": "^7.4.0",
-    "@storybook/react-vite": "^7.4.0",
+    "@storybook/react": "^8.6.0",
+    "@storybook/react-vite": "^8.6.0",
     "@testing-library/jest-dom": "^6.1.0",
-    "@testing-library/react": "^14.1.0",
+    "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.5.0",
     "@types/jest": "^29.5.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
@@ -40,7 +40,7 @@
     "typescript": "^5.2.2"
   },
   "peerDependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }

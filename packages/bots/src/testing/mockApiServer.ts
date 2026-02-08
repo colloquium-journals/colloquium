@@ -127,12 +127,14 @@ export class MockApiServer {
           ok: true,
           status: 200,
           text: async () => typeof content === 'string' ? content : content.toString('utf-8'),
-          blob: async () => new Blob([content]),
-          arrayBuffer: async () => {
+          blob: async () => typeof content === 'string'
+            ? new Blob([content])
+            : new Blob([new Uint8Array(content) as BlobPart]),
+          arrayBuffer: async (): Promise<ArrayBuffer> => {
             if (typeof content === 'string') {
-              return new TextEncoder().encode(content).buffer;
+              return new TextEncoder().encode(content).buffer as ArrayBuffer;
             }
-            return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+            return content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength) as ArrayBuffer;
           }
         };
       }

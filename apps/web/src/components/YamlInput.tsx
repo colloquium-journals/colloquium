@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type Ref } from 'react';
 import { Box, Text, useMantineTheme } from '@mantine/core';
 import * as yaml from 'js-yaml';
 import Editor from '@monaco-editor/react';
@@ -24,12 +24,11 @@ interface YamlInputProps {
   className?: string;
 }
 
-export const YamlInput = forwardRef<HTMLDivElement, YamlInputProps>(
-  ({ 
-    value, 
-    onChange, 
-    validationError, 
-    error, 
+export function YamlInput({
+    value,
+    onChange,
+    validationError,
+    error,
     placeholder,
     minRows = 4,
     maxRows = 20,
@@ -42,8 +41,9 @@ export const YamlInput = forwardRef<HTMLDivElement, YamlInputProps>(
     style,
     styles,
     className,
-    ...props 
-  }, ref) => {
+    ref,
+    ...props
+  }: YamlInputProps & { ref?: Ref<HTMLDivElement> }) {
     const theme = useMantineTheme();
     const [editorHeight, setEditorHeight] = useState(minRows * 20);
     const editorRef = useRef<any>(null);
@@ -170,6 +170,3 @@ export const YamlInput = forwardRef<HTMLDivElement, YamlInputProps>(
       </Box>
     );
   }
-);
-
-YamlInput.displayName = 'YamlInput';

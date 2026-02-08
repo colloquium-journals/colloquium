@@ -25,7 +25,7 @@ async function startNextDev() {
   
   console.log('🚀 Starting Next.js development server...');
   
-  nextProcess = spawn('npx', ['next', 'dev'], {
+  nextProcess = spawn('npx', ['next', 'dev', '--webpack'], {
     stdio: 'inherit',
     shell: true
   });

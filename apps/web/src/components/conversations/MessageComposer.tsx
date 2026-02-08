@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, useCallback, type Ref } from 'react';
 import { 
   Paper, 
   Textarea, 
@@ -98,7 +98,7 @@ function getDefaultPrivacy(userRole: string | undefined): string {
   }
 }
 
-export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerProps>(function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false, conversationId }, ref) {
+export function MessageComposer({ onSubmit, placeholder = "Write your message...", disabled = false, conversationId, ref }: MessageComposerProps & { ref?: Ref<MessageComposerRef> }) {
   const { user } = useAuth();
   const [content, setContent] = useState('');
   const [mentionedBots, setMentionedBots] = useState<Bot[]>([]);
@@ -547,4 +547,4 @@ export const MessageComposer = forwardRef<MessageComposerRef, MessageComposerPro
       </Stack>
     </Paper>
   );
-});
+}
