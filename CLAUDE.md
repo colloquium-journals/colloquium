@@ -269,10 +269,9 @@ Published:       /static/published/{id}/{filename}           (static, public)
 
 ## Known Technical Debt
 
-See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. All critical, high (except H16), and medium issues are resolved. Key remaining items:
+See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. All critical, medium, and low issues are resolved. Only remaining item:
 
 - **Pre-existing test failures (H16)**: 12 failures in `apps/web` (missing components, stale imports)
-- **5 low-severity items**: No Prettier config, incomplete Jest root config, unused Storybook dep, no auth package tests, Handlebars template sanitization
 
 ## Security Notes
 

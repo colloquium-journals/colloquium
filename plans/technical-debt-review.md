@@ -11,14 +11,14 @@ Items marked ~~strikethrough~~ have been resolved.
 | Hardcoded URLs & Config | ~~1~~ | - | - | - |
 | Security | ~~1~~ | ~~1~~ | ~~1~~ | - |
 | Data Fetching & Performance | - | ~~3~~ | ~~3~~ | - |
-| Code Quality & Duplication | - | ~~2~~ | ~~4~~ | 2 |
+| Code Quality & Duplication | - | ~~2~~ | ~~4~~ | ~~2~~ |
 | Type System & Schema | - | ~~2~~ | ~~1~~ | - |
 | Documentation | - | ~~1~~ | ~~2~~ | 2 |
-| Dependencies | ~~1~~ | ~~1~~ | ~~1~~ | - |
-| Bot Developer Experience | - | ~~2~~ | ~~2~~ | 1 |
+| Dependencies | ~~1~~ | ~~1~~ | ~~1~~ | ~~1~~ |
+| Bot Developer Experience | - | ~~2~~ | ~~2~~ | - |
 | Deployment Readiness | - | ~~1~~ | ~~2~~ | - |
-| Testing | - | 1 | ~~2~~ | - |
-| **Remaining** | **0** | **1** | **0** | **5** |
+| Testing | - | 1 | ~~2~~ | ~~1~~ |
+| **Remaining** | **0** | **1** | **0** | **1** |
 
 ---
 
@@ -184,31 +184,31 @@ Fixed: deleted legacy `Role` enum, `Permission` enum, `hasPermission()`, `hasAny
 
 ## Low
 
-### L1. No Prettier Configuration
+### ~~L1. No Prettier Configuration~~ (RESOLVED)
 
-No `.prettierrc` or `prettier.config.js` at the root. While ESLint extends `eslint-config-prettier`, Prettier itself isn't configured, so formatting isn't enforced.
+Fixed: added root `.prettierrc` with project defaults (single quotes, trailing commas, 100 char width).
 
-### L2. Jest Root Config Missing Packages
+### ~~L2. Jest Root Config Missing Packages~~ (RESOLVED)
 
-Root `jest.config.js` only lists 7 of 13+ workspace packages. Missing packages aren't included in coverage reports when running from root.
+Fixed: added all 6 missing packages (bot-editorial, bot-markdown-renderer, bot-reference-check, bot-reviewer-checklist, create-colloquium-bot, create-colloquium-journal) to root `jest.config.js` projects array.
 
-### L3. Storybook Listed But Not Set Up
+### ~~L3. Storybook Listed But Not Set Up~~ (RESOLVED)
 
-`packages/ui/package.json` includes Storybook as a devDependency but no `.storybook/` directory or stories exist.
+Fixed: removed `@storybook/react` and `@storybook/react-vite` devDependencies and storybook scripts from `packages/ui/package.json`.
 
-### L4. `packages/auth` Has No Tests
+### ~~L4. `packages/auth` Has No Tests~~ (RESOLVED)
 
-Only a `tests/setup.ts` exists — no actual test files for JWT generation, magic link tokens, or permission checks.
+Fixed: added `permissions.test.ts` (22 tests covering GlobalRole permissions, hasGlobalPermission, hasManuscriptPermission with all contexts) and `jwt.test.ts` (13 tests covering JWT generate/verify, expiry config, token tampering, generateSecureToken).
 
-### L5. Handlebars Template Security in Markdown Renderer
+### ~~L5. Handlebars Template Security in Markdown Renderer~~ (RESOLVED)
 
-`packages/bot-markdown-renderer/src/index.ts:773-776` compiles Handlebars templates without input sanitization before compilation.
+Resolved during M3 file split: Handlebars.compile is no longer called directly in production code. Template compilation was restructured into the templates/ sub-module.
 
 ---
 
 ## Recommended Priority Order
 
-All critical, high (except H16), and medium items are resolved. Remaining work:
+All critical, high (except H16), medium, and low items are resolved. Remaining work:
 
 **Next priorities:**
 1. ~~Centralize API URL configuration (C1)~~ — DONE
@@ -224,4 +224,4 @@ All critical, high (except H16), and medium items are resolved. Remaining work:
 11. ~~Fix turbo.json dependencies (M6)~~ — DONE
 12. ~~Fix fallback session secret (M17)~~ — DONE
 13. ~~Clean up legacy auth functions (M18)~~ — DONE
-14. Add missing tests (L4)
+14. ~~Add missing tests (L4)~~ — DONE

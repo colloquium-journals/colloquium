@@ -10,9 +10,7 @@
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "test": "jest",
+"test": "jest",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -25,9 +23,7 @@
   },
   "devDependencies": {
     "@colloquium/eslint-config": "*",
-    "@storybook/react": "^8.6.0",
-    "@storybook/react-vite": "^8.6.0",
-    "@testing-library/jest-dom": "^6.1.0",
+"@testing-library/jest-dom": "^6.1.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.5.0",
     "@types/jest": "^29.5.0",
