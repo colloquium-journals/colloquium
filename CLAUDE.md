@@ -269,11 +269,10 @@ Published:       /static/published/{id}/{filename}           (static, public)
 
 ## Known Technical Debt
 
-See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. Key remaining items:
+See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. All critical, high (except H16), and medium issues are resolved. Key remaining items:
 
-- **Large files**: `botActionProcessor.ts` (1553 lines), `bot-markdown-renderer/index.ts` (1823 lines), `SubmissionHeader.tsx` (1125 lines)
-- **Pre-existing test failures**: 12 failures in `apps/web` (missing components, stale imports)
-- **No message pagination**: Conversations load all messages in a single query
+- **Pre-existing test failures (H16)**: 12 failures in `apps/web` (missing components, stale imports)
+- **5 low-severity items**: No Prettier config, incomplete Jest root config, unused Storybook dep, no auth package tests, Handlebars template sanitization
 
 ## Security Notes
 

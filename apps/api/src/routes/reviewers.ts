@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
-import { requireAuth, requireAnyRole, optionalAuth } from '../middleware/auth';
+import { requireAuth, requireAnyRole, optionalAuth, authenticateWithBots } from '../middleware/auth';
+import { generateUniqueUsername } from '../utils/usernameGeneration';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { z } from 'zod';
 import { 
@@ -15,6 +16,7 @@ import {
   PaginationSchema
 } from '../schemas/validation';
 import { transporter } from '../services/emailService';
+import { errors } from '../utils/errorResponse';
 
 const router = Router();
 
@@ -125,12 +127,7 @@ router.post('/invite',
     });
 
     if (!manuscript) {
-      return res.status(404).json({
-        error: {
-          message: 'Manuscript not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Manuscript not found');
     }
 
     const results = {
@@ -148,17 +145,7 @@ router.post('/invite',
 
         // If user doesn't exist, create them as a potential reviewer
         if (!reviewer) {
-          const baseUsername = email.toLowerCase().split('@')[0]
-            .replace(/[^a-z0-9-]/g, '-')
-            .replace(/^[^a-z]/, 'u')
-            .slice(0, 27);
-          const paddedUsername = baseUsername.length < 3 ? baseUsername + 'x'.repeat(3 - baseUsername.length) : baseUsername;
-          let username = paddedUsername;
-          let suffix = 2;
-          while (await prisma.users.findUnique({ where: { username }, select: { id: true } })) {
-            username = `${paddedUsername}-${suffix}`;
-            suffix++;
-          }
+          const username = await generateUniqueUsername(email);
 
           reviewer = await prisma.users.create({
             data: {
@@ -301,12 +288,7 @@ router.post('/assign',
     });
 
     if (!manuscript) {
-      return res.status(404).json({
-        error: {
-          message: 'Manuscript not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Manuscript not found');
     }
 
     // Verify reviewer exists
@@ -315,12 +297,7 @@ router.post('/assign',
     });
 
     if (!reviewer) {
-      return res.status(404).json({
-        error: {
-          message: 'Reviewer not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Reviewer not found');
     }
 
     // Check if already assigned
@@ -334,12 +311,7 @@ router.post('/assign',
     });
 
     if (existingAssignment) {
-      return res.status(409).json({
-        error: {
-          message: 'Reviewer is already assigned to this manuscript',
-          type: 'ConflictError'
-        }
-      });
+      return errors.conflict(res, 'Reviewer is already assigned to this manuscript');
     }
 
     // Create assignment
@@ -370,8 +342,9 @@ router.post('/assign',
 
 // GET /api/reviewers/assignments/:manuscriptId - Get review assignments for a manuscript
 router.get('/assignments/:manuscriptId',
-  requireAuth,
-  (req, res, next) => {
+  authenticateWithBots,
+  (req: any, res, next) => {
+    if (req.botContext) return next();
     const { GlobalRole } = require('@colloquium/auth');
     return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
   },
@@ -434,12 +407,7 @@ router.put('/assignments/:id',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review assignment not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review assignment not found');
     }
 
     // Check permissions: reviewer can update their own assignments, editors can update any
@@ -447,12 +415,7 @@ router.put('/assignments/:id',
                      ['ADMIN', 'EDITOR_IN_CHIEF', 'MANAGING_EDITOR'].includes(userRole);
 
     if (!canUpdate) {
-      return res.status(403).json({
-        error: {
-          message: 'You do not have permission to update this assignment',
-          type: 'ForbiddenError'
-        }
-      });
+      return errors.forbidden(res, 'You do not have permission to update this assignment');
     }
 
     // Update the assignment
@@ -504,12 +467,7 @@ router.delete('/assignments/:id',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review assignment not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review assignment not found');
     }
 
     await prisma.review_assignments.delete({
@@ -541,12 +499,7 @@ router.post('/bulk-assign',
     });
 
     if (!manuscript) {
-      return res.status(404).json({
-        error: {
-          message: 'Manuscript not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Manuscript not found');
     }
 
     const results = {
@@ -649,32 +602,17 @@ router.post('/invitations/:id/respond',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review invitation not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review invitation not found');
     }
 
     // Verify the user is the assigned reviewer
     if (assignment.reviewerId !== userId) {
-      return res.status(403).json({
-        error: {
-          message: 'You can only respond to your own review invitations',
-          type: 'ForbiddenError'
-        }
-      });
+      return errors.forbidden(res, 'You can only respond to your own review invitations');
     }
 
     // Check if already responded
     if (assignment.status !== 'PENDING') {
-      return res.status(400).json({
-        error: {
-          message: `You have already ${assignment.status.toLowerCase()} this review invitation`,
-          type: 'ValidationError'
-        }
-      });
+      return errors.validation(res, `You have already ${assignment.status.toLowerCase()} this review invitation`);
     }
 
     // Update the assignment status
@@ -800,32 +738,17 @@ router.post('/assignments/:id/submit',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review assignment not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review assignment not found');
     }
 
     // Verify the user is the assigned reviewer
     if (assignment.reviewerId !== userId) {
-      return res.status(403).json({
-        error: {
-          message: 'You can only submit reviews for your own assignments',
-          type: 'ForbiddenError'
-        }
-      });
+      return errors.forbidden(res, 'You can only submit reviews for your own assignments');
     }
 
     // Check if review is in the right status
     if (!['ACCEPTED', 'IN_PROGRESS'].includes(assignment.status)) {
-      return res.status(400).json({
-        error: {
-          message: `Cannot submit review for assignment with status: ${assignment.status}`,
-          type: 'ValidationError'
-        }
-      });
+      return errors.validation(res, `Cannot submit review for assignment with status: ${assignment.status}`);
     }
 
     // Update assignment to completed
@@ -970,12 +893,7 @@ router.get('/invitations/:id/public',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review invitation not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review invitation not found');
     }
 
     // Verify authorization when processing an action (valid token OR matching authenticated user)
@@ -986,19 +904,9 @@ router.get('/invitations/:id/public',
 
       if (!hasValidToken && !isAuthenticatedReviewer) {
         if (req.user) {
-          return res.status(403).json({
-            error: {
-              message: 'This invitation was sent to another reviewer. Only the invited reviewer can respond.',
-              type: 'ForbiddenError'
-            }
-          });
+          return errors.forbidden(res, 'This invitation was sent to another reviewer. Only the invited reviewer can respond.');
         }
-        return res.status(403).json({
-          error: {
-            message: 'Invalid or missing invitation token. Please use the link from your invitation email.',
-            type: 'ForbiddenError'
-          }
-        });
+        return errors.forbidden(res, 'Invalid or missing invitation token. Please use the link from your invitation email.');
       }
     }
 
@@ -1010,12 +918,7 @@ router.get('/invitations/:id/public',
         ? 'This invitation has already been declined.'
         : `This invitation status is: ${assignment.status}`;
 
-      return res.status(400).json({
-        error: {
-          message: statusMessage,
-          type: 'ValidationError'
-        }
-      });
+      return errors.validation(res, statusMessage);
     }
 
     // If action is provided, process the response
@@ -1101,12 +1004,7 @@ router.get('/invitations/:id/public',
         
       } catch (error) {
         console.error('Failed to update invitation status:', error);
-        return res.status(500).json({
-          error: {
-            message: 'Failed to process invitation response',
-            type: 'InternalServerError'
-          }
-        });
+        return res.status(500).json({ error: 'Internal Server Error', message: 'Failed to process invitation response' });
       }
     }
 
@@ -1160,12 +1058,7 @@ router.post('/invitations/:id/respond-public',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review invitation not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review invitation not found');
     }
 
     // Verify authorization (valid token OR matching authenticated user)
@@ -1174,29 +1067,14 @@ router.post('/invitations/:id/respond-public',
 
     if (!hasValidToken && !isAuthenticatedReviewer) {
       if (req.user) {
-        return res.status(403).json({
-          error: {
-            message: 'This invitation was sent to another reviewer. Only the invited reviewer can respond.',
-            type: 'ForbiddenError'
-          }
-        });
+        return errors.forbidden(res, 'This invitation was sent to another reviewer. Only the invited reviewer can respond.');
       }
-      return res.status(403).json({
-        error: {
-          message: 'Invalid or missing invitation token. Please use the link from your invitation email.',
-          type: 'ForbiddenError'
-        }
-      });
+      return errors.forbidden(res, 'Invalid or missing invitation token. Please use the link from your invitation email.');
     }
 
     // Check if invitation is still pending
     if (assignment.status !== 'PENDING') {
-      return res.status(400).json({
-        error: {
-          message: `This invitation has already been ${assignment.status.toLowerCase()}`,
-          type: 'ValidationError'
-        }
-      });
+      return errors.validation(res, `This invitation has already been ${assignment.status.toLowerCase()}`);
     }
 
     const newStatus = action === 'accept' ? 'IN_PROGRESS' : 'DECLINED';
@@ -1288,12 +1166,7 @@ router.post('/invitations/:id/respond-public',
 
     } catch (error) {
       console.error('Failed to process invitation response:', error);
-      res.status(500).json({
-        error: {
-          message: 'Failed to process invitation response',
-          type: 'InternalServerError'
-        }
-      });
+      res.status(500).json({ error: 'Internal Server Error', message: 'Failed to process invitation response' });
     }
   })
 );
@@ -1337,22 +1210,12 @@ router.get('/invitations/:id',
     });
 
     if (!assignment) {
-      return res.status(404).json({
-        error: {
-          message: 'Review invitation not found',
-          type: 'NotFoundError'
-        }
-      });
+      return errors.notFound(res, 'Review invitation not found');
     }
 
     // Verify the user is the assigned reviewer
     if (assignment.reviewerId !== userId) {
-      return res.status(403).json({
-        error: {
-          message: 'You can only view your own review invitations',
-          type: 'ForbiddenError'
-        }
-      });
+      return errors.forbidden(res, 'You can only view your own review invitations');
     }
 
     res.json({

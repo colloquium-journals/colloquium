@@ -16,6 +16,8 @@ model action_editors {
   users_action_editors_assignedByTousers users?      @relation("action_editors_assignedByTousers", fields: [assignedBy], references: [id])
   users_action_editors_editorIdTousers   users       @relation("action_editors_editorIdTousers", fields: [editorId], references: [id])
   manuscripts                            manuscripts @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+
+  @@index([editorId])
 }
 
 model bot_actions {
@@ -67,7 +69,6 @@ model bot_definitions {
   bot_config_files    bot_config_files[]
   bot_executions      bot_executions[]
   bot_installs        bot_installs?
-  bot_permissions     bot_permissions[]
 }
 
 model bot_executions {
@@ -95,16 +96,6 @@ model bot_installs {
   installedAt     DateTime        @default(now())
   updatedAt       DateTime        @default(now())
   bot_definitions bot_definitions @relation(fields: [botId], references: [id], onDelete: Cascade)
-}
-
-model bot_permissions {
-  id              String          @id
-  botId           String
-  permission      String
-  description     String
-  bot_definitions bot_definitions @relation(fields: [botId], references: [id], onDelete: Cascade)
-
-  @@unique([botId, permission])
 }
 
 model conversation_participants {
@@ -225,6 +216,9 @@ model manuscripts {
   manuscript_funding   manuscript_funding[]
   review_assignments   review_assignments[]
   workflow_releases    workflow_releases[]
+
+  @@index([status])
+  @@index([workflowPhase])
 }
 
 model messages {
@@ -246,6 +240,8 @@ model messages {
   conversations  conversations    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   messages       messages?        @relation("messagesTomessages", fields: [parentId], references: [id])
   other_messages messages[]       @relation("messagesTomessages")
+
+  @@index([conversationId])
 }
 
 model review_assignments {

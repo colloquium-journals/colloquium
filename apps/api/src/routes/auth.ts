@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { validateRequest } from '../middleware/validation';
 import { transporter } from '../services/emailService';
+import { generateUniqueUsername } from '../utils/usernameGeneration';
 
 const router = Router();
 
@@ -34,25 +35,7 @@ router.post('/login', validateRequest({ body: loginSchema }), async (req, res, n
     });
 
     if (!user) {
-      // Generate username from email prefix
-      let baseUsername = email.toLowerCase().split('@')[0]
-        .replace(/[^a-z0-9-]/g, '-')
-        .replace(/^[^a-z]/, 'u')
-        .slice(0, 27);
-
-      // Ensure auto-generated usernames don't start with 'bot-' (reserved for system bots)
-      if (baseUsername.startsWith('bot-')) {
-        baseUsername = 'u' + baseUsername.slice(4);
-      }
-
-      const paddedUsername = baseUsername.length < 3 ? baseUsername + 'x'.repeat(3 - baseUsername.length) : baseUsername;
-
-      let username = paddedUsername;
-      let suffix = 2;
-      while (await prisma.users.findUnique({ where: { username }, select: { id: true } })) {
-        username = `${paddedUsername}-${suffix}`;
-        suffix++;
-      }
+      const username = await generateUniqueUsername(email);
 
       user = await prisma.users.create({
         data: {

@@ -9,16 +9,16 @@ Items marked ~~strikethrough~~ have been resolved.
 | Category | Critical | High | Medium | Low |
 |----------|----------|------|--------|-----|
 | Hardcoded URLs & Config | ~~1~~ | - | - | - |
-| Security | ~~1~~ | ~~1~~ | 1 | - |
-| Data Fetching & Performance | - | ~~3~~ | 3 | - |
-| Code Quality & Duplication | - | ~~2~~ | 4 | 2 |
-| Type System & Schema | - | ~~2~~ | 1 | - |
+| Security | ~~1~~ | ~~1~~ | ~~1~~ | - |
+| Data Fetching & Performance | - | ~~3~~ | ~~3~~ | - |
+| Code Quality & Duplication | - | ~~2~~ | ~~4~~ | 2 |
+| Type System & Schema | - | ~~2~~ | ~~1~~ | - |
 | Documentation | - | ~~1~~ | ~~2~~ | 2 |
-| Dependencies | ~~1~~ | ~~1~~ | 1 | - |
-| Bot Developer Experience | - | ~~2~~ | 2 | 1 |
-| Deployment Readiness | - | ~~1~~ | 2 | - |
-| Testing | - | 1 | 2 | - |
-| **Remaining** | **0** | **1** | **16** | **5** |
+| Dependencies | ~~1~~ | ~~1~~ | ~~1~~ | - |
+| Bot Developer Experience | - | ~~2~~ | ~~2~~ | 1 |
+| Deployment Readiness | - | ~~1~~ | ~~2~~ | - |
+| Testing | - | 1 | ~~2~~ | - |
+| **Remaining** | **0** | **1** | **0** | **5** |
 
 ---
 
@@ -108,54 +108,49 @@ Test suite has pre-existing failures including missing `BotManagement` page comp
 
 ## Medium
 
-### M1. `botActionProcessor.ts` is 1553 Lines
+### ~~M1. `botActionProcessor.ts` is 1553 Lines~~ (RESOLVED)
 
-`apps/api/src/services/botActionProcessor.ts` handles 10+ action types (assign reviewer, update status, send email, publish, etc.) in a single file. Hard to test and maintain.
+Fixed: split into thin dispatcher (`botActionProcessor.ts`, ~80 lines) + 5 sub-modules in `botActions/`: `reviewerActions.ts`, `reviewActions.ts`, `editorialActions.ts`, `publicationActions.ts`, `conversationActions.ts`.
 
-### M2. `SubmissionHeader.tsx` is 1125 Lines
+### ~~M2. `SubmissionHeader.tsx` is 1125 Lines~~ (RESOLVED)
 
-`apps/web/src/components/submissions/SubmissionHeader.tsx` mixes data fetching, UI rendering, and business logic with 26+ `useState` calls and calls `window.location.reload()` on file upload success.
+Fixed: split into orchestrator (`SubmissionHeader.tsx`) + sub-components (`SubmissionMetadata.tsx`, `SubmissionEditPanel.tsx`, `SubmissionFilesSection.tsx`) and hooks (`useSubmissionData.ts`, `useFileOperations.ts`). Shared utilities in `submissionUtils.ts`.
 
-### M3. `bot-markdown-renderer/src/index.ts` is 1823 Lines
+### ~~M3. `bot-markdown-renderer/src/index.ts` is 1823 Lines~~ (RESOLVED)
 
-Handles file retrieval, template loading (5 levels of fallback), rendering, and asset processing in one file.
+Fixed: split into thin entry point (`index.ts`) + sub-modules: `commands/` (renderCommand, listCommand), `templates/` (templateManager, schemas), `rendering/` (pandocClient, assetProcessor), `files/` (fileClient), and `renderMarkdown.ts` public API.
 
-### M4. Race Condition in Deadline Reminder Scheduling
+### ~~M4. Race Condition in Deadline Reminder Scheduling~~ (RESOLVED)
 
-`apps/api/src/services/deadlineScanner.ts:68-102` — If `scheduleReminderJob()` fails after the `deadline_reminders` DB record is created, the reminder is orphaned (exists in DB but never executed).
+Fixed: added nested try/catch around `scheduleReminderJob()` in both `scheduleRemindersForAssignment` and `scheduleOverdueRemindersForAssignment`. If job scheduling fails, the reminder record is updated to `FAILED` status before re-throwing.
 
-### M5. ESLint Config Forces Next.js/React Rules on All Packages
+### ~~M5. ESLint Config Forces Next.js/React Rules on All Packages~~ (RESOLVED)
 
-`packages/config/index.js` imports `@next/eslint-plugin-next` and `react-hooks` rules globally. Non-React packages (API, bots, database, auth) shouldn't depend on these.
+Fixed: split into `base.mjs` (TypeScript + Prettier only), `react.mjs` (adds react-hooks), and `index.mjs` (full Next.js config). Added subpath exports to `packages/config/package.json`. Non-React packages import `@colloquium/eslint-config/base`, UI uses `@colloquium/eslint-config/react`, web app uses `@colloquium/eslint-config`.
 
-**Fix:** Split into base, React, and Next.js configs.
+### ~~M6. Incomplete `turbo.json` Dependencies~~ (RESOLVED)
 
-### M6. Incomplete `turbo.json` Dependencies
+Fixed: added `@colloquium/database#build` and `@colloquium/auth#build` to the `dev#@colloquium/api` task dependencies in `turbo.json`.
 
-`turbo.json:16-17` only declares `@colloquium/bots#build` and `@colloquium/types#build` as API dev dependencies, but the API actually depends on all bot packages, database, and auth.
+### ~~M7. Inconsistent Error Response Formats~~ (RESOLVED)
 
-### M7. Inconsistent Error Response Formats
+Fixed: created `apps/api/src/utils/errorResponse.ts` with standardized helpers (`errorResponse`, `errors.notFound`, `errors.forbidden`, etc.). Migrated `reviewers.ts` and `bot-management.ts` error responses to flat `{ error, message }` format. Updated test assertions.
 
-API routes use different error shapes:
-- `{ error: 'message' }` in articles routes
-- `{ error: { message: '...', type: '...' } }` in reviewer routes
-- Mixed formats in conversations
+### ~~M8. No Message Pagination~~ (RESOLVED)
 
-### M8. No Message Pagination
+Fixed: added cursor-based pagination to `GET /api/conversations/:id` with `?messageLimit=50&messageBefore=<messageId>` query params. Returns `hasMoreMessages` boolean. Defaults to most recent 50 messages.
 
-`apps/api/src/routes/conversations.ts:308-354` loads all messages for a conversation in a single query with nested includes. Conversations with hundreds of messages will have slow response times.
+### ~~M9. Workflow Config Queried on Every Request~~ (RESOLVED)
 
-### M9. Workflow Config Queried on Every Request
+Fixed: extracted `apps/api/src/services/workflowConfig.ts` with 60-second TTL cache. Replaced duplicate local `getWorkflowConfig()` in `conversations.ts` and `events.ts`. Cache invalidated via `invalidateWorkflowConfigCache()` in settings update route.
 
-`getWorkflowConfig()` queries the database on every conversation request with no caching. This is static-ish data that changes rarely.
+### ~~M10. Username Generation Duplicated~~ (RESOLVED)
 
-### M10. Username Generation Duplicated
+Fixed: extracted `apps/api/src/utils/usernameGeneration.ts` with `generateUniqueUsername(email)` (includes `bot-` prefix guard, padding, collision resolution). Replaced all 3 inline copies in `auth.ts`, `reviewers.ts`, and `botActionProcessor.ts`.
 
-The same username generation algorithm exists in `apps/api/src/routes/auth.ts:52-69`, `apps/api/src/routes/reviewers.ts`, and `apps/api/src/services/botActionProcessor.ts:122-132`.
+### ~~M11. Mantine Version Drift~~ (RESOLVED)
 
-### M11. Mantine Version Drift
-
-`apps/web/package.json` mixes `@mantine/core: ^7.12.0` with `@mantine/hooks: ^7.17.8`. `packages/ui` uses `^7.12.0` for everything. Minor version drift can cause component behavior differences.
+Fixed: aligned all Mantine packages to `^7.17.8` in both `apps/web/package.json` and `packages/ui/package.json`.
 
 ### ~~M12. Port Number Inconsistency in Docs~~ (RESOLVED)
 
@@ -165,28 +160,25 @@ Fixed in docs/README.md rewrite (H12).
 
 Fixed: bot names corrected to `bot-editorial`, `bot-markdown-renderer`, `bot-reference-check`.
 
-### M14. Missing Database Indexes
+### ~~M14. Missing Database Indexes~~ (RESOLVED)
 
-Schema lacks indexes on frequently queried columns:
-- `manuscripts.status` and `manuscripts.workflowPhase` (used for filtering)
-- `messages.conversationId` (foreign key, frequently joined)
-- `action_editors.editorId` (queried to find editor's manuscripts)
+Fixed: added `@@index([status])` and `@@index([workflowPhase])` to manuscripts, `@@index([conversationId])` to messages, and `@@index([editorId])` to action_editors in Prisma schema.
 
-### M15. Bot Permission System Defined But Not Enforced
+### ~~M15. Bot Permission System Defined But Not Enforced~~ (RESOLVED)
 
-`packages/bots/src/framework/plugin.ts:27` defines a `permissions` array in the bot schema, and `plugin.ts:85-98` defines a `BotRegistry` interface — neither is implemented or enforced at runtime.
+Fixed: removed `bot_permissions` model from Prisma schema (no runtime code enforced it). Kept `permissions` field in bot manifest schema as informational metadata for future use.
 
-### M16. `bot-reviewer-checklist` Uses Hardcoded Mock Data
+### ~~M16. `bot-reviewer-checklist` Uses Hardcoded Mock Data~~ (RESOLVED)
 
-`packages/bot-reviewer-checklist/src/index.ts:54-77` — `getAssignedReviewers()` is async but returns hardcoded mock data instead of querying the API.
+Fixed: replaced mock data with real API calls using `context.config.apiUrl` and `context.serviceToken`. Added `authenticateWithBots` middleware to reviewer assignments endpoint for bot access.
 
-### M17. Fallback Session Secret
+### ~~M17. Fallback Session Secret~~ (RESOLVED)
 
-`apps/api/src/app.ts:65` — Session secret falls back to `'fallback-secret-for-development'` instead of failing if the env var is missing.
+Fixed: session secret now throws `SESSION_SECRET environment variable is required in production` if missing in production. Development fallback preserved.
 
-### M18. Legacy Auth Permission Functions Are Broken
+### ~~M18. Legacy Auth Permission Functions Are Broken~~ (RESOLVED)
 
-`packages/auth/src/index.ts:273-318` — Legacy `hasPermission()` only maps 4 permissions; all others return false. Any code using the legacy system has broken authorization.
+Fixed: deleted legacy `Role` enum, `Permission` enum, `hasPermission()`, `hasAnyPermission()`, `hasAllPermissions()` from auth package. Deleted `requirePermission` middleware. Migrated all callers to `requireGlobalPermission`/`GlobalPermission`. Also fixed a bug in `formats.ts` where `Permission.MANAGE_FORMATS` (nonexistent) silently denied all users — replaced with `GlobalPermission.MANAGE_JOURNAL_SETTINGS`.
 
 ---
 
@@ -216,24 +208,20 @@ Only a `tests/setup.ts` exists — no actual test files for JWT generation, magi
 
 ## Recommended Priority Order
 
-**Phase 1 — Unblock deployment:**
-1. Centralize API URL configuration (C1)
+All critical, high (except H16), and medium items are resolved. Remaining work:
 
-**Phase 2 — Code quality & testing:**
+**Next priorities:**
+1. ~~Centralize API URL configuration (C1)~~ — DONE
 2. Fix pre-existing test failures (H16)
-3. Split large files (M1, M2, M3)
-4. Standardize error response format (M7)
-5. Extract duplicated utilities (M10)
-6. Split ESLint config (M5)
-
-**Phase 3 — Performance & scalability:**
-7. Add message pagination (M8)
-8. Cache workflow config (M9)
-9. Add database indexes (M14)
-
-**Phase 4 — Robustness:**
-10. Fix deadline reminder race condition (M4)
-11. Fix turbo.json dependencies (M6)
-12. Fix fallback session secret (M17)
-13. Clean up legacy auth functions (M18)
+3. ~~Split large files (M1, M2, M3)~~ — DONE
+4. ~~Standardize error response format (M7)~~ — DONE
+5. ~~Extract duplicated utilities (M10)~~ — DONE
+6. ~~Split ESLint config (M5)~~ — DONE
+7. ~~Add message pagination (M8)~~ — DONE
+8. ~~Cache workflow config (M9)~~ — DONE
+9. ~~Add database indexes (M14)~~ — DONE
+10. ~~Fix deadline reminder race condition (M4)~~ — DONE
+11. ~~Fix turbo.json dependencies (M6)~~ — DONE
+12. ~~Fix fallback session secret (M17)~~ — DONE
+13. ~~Clean up legacy auth functions (M18)~~ — DONE
 14. Add missing tests (L4)

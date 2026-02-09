@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma, GlobalRole as PrismaGlobalRole } from '@colloquium/database';
-import { authenticate, authenticateWithBots, requireRole, requirePermission, requireAnyRole } from '../middleware/auth';
-import { Permission, Role } from '@colloquium/auth';
+import { authenticate, authenticateWithBots, requireRole, requireAnyRole } from '../middleware/auth';
+import { GlobalRole } from '@colloquium/auth';
 import { validateRequest, asyncHandler } from '../middleware/validation';
 import { UserUpdateSchema, UserQuerySchema, IdSchema } from '../schemas/validation';
 import { z } from 'zod';

@@ -5,6 +5,8 @@ import { BotInstallationSource, BotPluginError } from '@colloquium/bots';
 import { parseYamlConfig, validateYamlConfig } from '../utils/yamlConfig';
 import { botManager, botExecutor } from '../bots';
 
+import { errors } from '../utils/errorResponse';
+
 const router = express.Router();
 
 // Helper function to check if a bot is required
@@ -37,12 +39,7 @@ const updateBotSchema = z.object({
 // Admin middleware - only admins can manage bots
 const adminMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (req.user?.role !== 'ADMIN') {
-    return res.status(403).json({
-      error: {
-        message: 'Admin access required',
-        type: 'forbidden'
-      }
-    });
+    return errors.forbidden(res, 'Admin access required');
   }
   next();
 };
@@ -71,12 +68,7 @@ router.get('/', authenticate, adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error listing bots:', error);
-    res.status(500).json({
-      error: {
-        message: 'Failed to list bots',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to list bots' });
   }
 });
 
@@ -87,12 +79,7 @@ router.get('/:botId', authenticate, adminMiddleware, async (req, res) => {
     const installation = await botManager.get(botId);
     
     if (!installation) {
-      return res.status(404).json({
-        error: {
-          message: 'Bot not found',
-          type: 'not_found'
-        }
-      });
+      return errors.notFound(res, 'Bot not found');
     }
 
     res.json({
@@ -118,12 +105,7 @@ router.get('/:botId', authenticate, adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting bot:', error);
-    res.status(500).json({
-      error: {
-        message: 'Failed to get bot details',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to get bot details' });
   }
 });
 
@@ -132,43 +114,22 @@ router.post('/install', authenticate, adminMiddleware, async (req, res) => {
   try {
     const validation = installBotSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({
-        error: {
-          message: 'Invalid request data',
-          type: 'validation_error',
-          details: validation.error.errors
-        }
-      });
+      return res.status(400).json({ error: 'Validation Error', message: 'Invalid request data', details: validation.error.errors });
     }
 
     const { source, config } = validation.data;
 
     // Validate source has required fields
     if (source.type === 'npm' && !source.packageName) {
-      return res.status(400).json({
-        error: {
-          message: 'packageName is required for npm sources',
-          type: 'validation_error'
-        }
-      });
+      return errors.validation(res, 'packageName is required for npm sources');
     }
 
     if ((source.type === 'git' || source.type === 'url') && !source.url) {
-      return res.status(400).json({
-        error: {
-          message: 'url is required for git and url sources',
-          type: 'validation_error'
-        }
-      });
+      return errors.validation(res, 'url is required for git and url sources');
     }
 
     if (source.type === 'local' && !source.path) {
-      return res.status(400).json({
-        error: {
-          message: 'path is required for local sources',
-          type: 'validation_error'
-        }
-      });
+      return errors.validation(res, 'path is required for local sources');
     }
 
     const installation = await botManager.install(source as BotInstallationSource, config);
@@ -189,21 +150,10 @@ router.post('/install', authenticate, adminMiddleware, async (req, res) => {
     
     if (error instanceof BotPluginError) {
       const statusCode = error.code === 'ALREADY_INSTALLED' ? 409 : 400;
-      return res.status(statusCode).json({
-        error: {
-          message: error.message,
-          type: error.code.toLowerCase(),
-          details: error.details
-        }
-      });
+      return res.status(statusCode).json({ error: error.code.toLowerCase(), message: error.message, details: error.details });
     }
 
-    res.status(500).json({
-      error: {
-        message: 'Failed to install bot',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to install bot' });
   }
 });
 
@@ -214,12 +164,7 @@ router.delete('/:botId', authenticate, adminMiddleware, async (req, res) => {
     
     // Prevent uninstalling required bots
     if (isRequiredBot(botId)) {
-      return res.status(400).json({
-        error: {
-          message: 'Cannot uninstall required system bot',
-          type: 'system_bot_protected'
-        }
-      });
+      return errors.validation(res, 'Cannot uninstall required system bot');
     }
     
     await botManager.uninstall(botId);
@@ -234,20 +179,10 @@ router.delete('/:botId', authenticate, adminMiddleware, async (req, res) => {
     
     if (error instanceof BotPluginError) {
       const statusCode = error.code === 'NOT_INSTALLED' ? 404 : 400;
-      return res.status(statusCode).json({
-        error: {
-          message: error.message,
-          type: error.code.toLowerCase()
-        }
-      });
+      return res.status(statusCode).json({ error: error.code.toLowerCase(), message: error.message });
     }
 
-    res.status(500).json({
-      error: {
-        message: 'Failed to uninstall bot',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to uninstall bot' });
   }
 });
 
@@ -258,13 +193,7 @@ router.put('/:botId', authenticate, adminMiddleware, async (req, res) => {
     const validation = updateBotSchema.safeParse(req.body);
     
     if (!validation.success) {
-      return res.status(400).json({
-        error: {
-          message: 'Invalid request data',
-          type: 'validation_error',
-          details: validation.error.errors
-        }
-      });
+      return res.status(400).json({ error: 'Validation Error', message: 'Invalid request data', details: validation.error.errors });
     }
 
     const { version } = validation.data;
@@ -284,20 +213,10 @@ router.put('/:botId', authenticate, adminMiddleware, async (req, res) => {
     
     if (error instanceof BotPluginError) {
       const statusCode = error.code === 'NOT_INSTALLED' ? 404 : 400;
-      return res.status(statusCode).json({
-        error: {
-          message: error.message,
-          type: error.code.toLowerCase()
-        }
-      });
+      return res.status(statusCode).json({ error: error.code.toLowerCase(), message: error.message });
     }
 
-    res.status(500).json({
-      error: {
-        message: 'Failed to update bot',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to update bot' });
   }
 });
 
@@ -317,20 +236,10 @@ router.post('/:botId/enable', authenticate, adminMiddleware, async (req, res) =>
     
     if (error instanceof BotPluginError) {
       const statusCode = error.code === 'NOT_INSTALLED' ? 404 : 400;
-      return res.status(statusCode).json({
-        error: {
-          message: error.message,
-          type: error.code.toLowerCase()
-        }
-      });
+      return res.status(statusCode).json({ error: error.code.toLowerCase(), message: error.message });
     }
 
-    res.status(500).json({
-      error: {
-        message: 'Failed to enable bot',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to enable bot' });
   }
 });
 
@@ -341,12 +250,7 @@ router.post('/:botId/disable', authenticate, adminMiddleware, async (req, res) =
     
     // Prevent disabling required bots
     if (isRequiredBot(botId)) {
-      return res.status(400).json({
-        error: {
-          message: 'Cannot disable required system bot',
-          type: 'system_bot_protected'
-        }
-      });
+      return errors.validation(res, 'Cannot disable required system bot');
     }
     
     await botManager.disable(botId);
@@ -361,20 +265,10 @@ router.post('/:botId/disable', authenticate, adminMiddleware, async (req, res) =
     
     if (error instanceof BotPluginError) {
       const statusCode = error.code === 'NOT_INSTALLED' ? 404 : 400;
-      return res.status(statusCode).json({
-        error: {
-          message: error.message,
-          type: error.code.toLowerCase()
-        }
-      });
+      return res.status(statusCode).json({ error: error.code.toLowerCase(), message: error.message });
     }
 
-    res.status(500).json({
-      error: {
-        message: 'Failed to disable bot',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to disable bot' });
   }
 });
 
@@ -385,13 +279,7 @@ router.put('/:botId/config', authenticate, adminMiddleware, async (req, res) => 
     const validation = updateBotConfigSchema.safeParse(req.body);
     
     if (!validation.success) {
-      return res.status(400).json({
-        error: {
-          message: 'Invalid configuration data',
-          type: 'validation_error',
-          details: validation.error.errors
-        }
-      });
+      return res.status(400).json({ error: 'Validation Error', message: 'Invalid configuration data', details: validation.error.errors });
     }
 
     const { config } = validation.data;
@@ -400,12 +288,7 @@ router.put('/:botId/config', authenticate, adminMiddleware, async (req, res) => 
     if (typeof config === 'string') {
       const validation = validateYamlConfig(config);
       if (!validation.valid) {
-        return res.status(400).json({
-          error: {
-            message: `Invalid YAML configuration: ${validation.error}`,
-            type: 'validation_error'
-          }
-        });
+        return errors.validation(res, `Invalid YAML configuration: ${validation.error}`);
       }
     }
     
@@ -421,20 +304,10 @@ router.put('/:botId/config', authenticate, adminMiddleware, async (req, res) => 
     
     if (error instanceof BotPluginError) {
       const statusCode = error.code === 'NOT_INSTALLED' ? 404 : 400;
-      return res.status(statusCode).json({
-        error: {
-          message: error.message,
-          type: error.code.toLowerCase()
-        }
-      });
+      return res.status(statusCode).json({ error: error.code.toLowerCase(), message: error.message });
     }
 
-    res.status(500).json({
-      error: {
-        message: 'Failed to configure bot',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to configure bot' });
   }
 });
 
@@ -445,12 +318,7 @@ router.get('/:botId/help', authenticate, adminMiddleware, async (req, res) => {
     const helpContent = await botManager.getBotHelp(botId);
     
     if (!helpContent) {
-      return res.status(404).json({
-        error: {
-          message: 'Bot not found or help not available',
-          type: 'not_found'
-        }
-      });
+      return errors.notFound(res, 'Bot not found or help not available');
     }
 
     res.json({
@@ -462,12 +330,7 @@ router.get('/:botId/help', authenticate, adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting bot help:', error);
-    res.status(500).json({
-      error: {
-        message: 'Failed to get bot help',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to get bot help' });
   }
 });
 
@@ -488,12 +351,7 @@ router.post('/install-defaults', authenticate, adminMiddleware, async (req, res)
     });
   } catch (error) {
     console.error('Error installing default bots:', error);
-    res.status(500).json({
-      error: {
-        message: 'Failed to install default bots',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to install default bots' });
   }
 });
 
@@ -537,12 +395,7 @@ router.get('/status/executor', authenticate, adminMiddleware, async (req, res) =
     });
   } catch (error) {
     console.error('Error getting bot executor status:', error);
-    res.status(500).json({
-      error: {
-        message: 'Failed to get bot executor status',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to get bot executor status' });
   }
 });
 
@@ -569,12 +422,7 @@ router.post('/reload', authenticate, adminMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error reloading bots:', error);
-    res.status(500).json({
-      error: {
-        message: 'Failed to reload bots',
-        type: 'server_error'
-      }
-    });
+    res.status(500).json({ error: 'Internal Server Error', message: 'Failed to reload bots' });
   }
 });
 

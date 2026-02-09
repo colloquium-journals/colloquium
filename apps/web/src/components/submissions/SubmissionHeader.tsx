@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { sanitizeHTML } from '@/lib/sanitize';
 import {
   Paper,
   Title,
@@ -9,43 +8,25 @@ import {
   Group,
   Badge,
   Stack,
-  Avatar,
-  Divider,
   Box,
   Loader,
   Alert,
   Button,
-  ActionIcon,
-  Collapse,
-  TextInput,
-  Textarea,
-  TagsInput,
   useComputedColorScheme
 } from '@mantine/core';
-import { 
-  IconCalendar, 
-  IconUser, 
-  IconFileText,
+import {
   IconAlertCircle,
-  IconClock,
   IconCheck,
-  IconX,
-  IconEye,
-  IconDownload,
-  IconFiles,
-  IconPhoto,
-  IconCode,
-  IconUserCog,
-  IconChevronDown,
-  IconChevronRight,
-  IconUpload,
   IconEdit
 } from '@tabler/icons-react';
 import { useSSE } from '../../hooks/useSSE';
 import { useAuth } from '../../contexts/AuthContext';
-import FileDropzone from '../files/FileDropzone';
 import { hasManuscriptPermission, ManuscriptPermission, GlobalRole } from '@colloquium/auth/permissions';
 import { API_URL } from '@/lib/api';
+import { getStatusColor, getStatusIcon, getStatusLabel } from './submissionUtils';
+import { SubmissionMetadata } from './SubmissionMetadata';
+import { SubmissionEditPanel } from './SubmissionEditPanel';
+import { SubmissionFilesSection } from './SubmissionFilesSection';
 
 interface SubmissionData {
   id: string;
@@ -101,12 +82,6 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const [submission, setSubmission] = useState<SubmissionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filesExpanded, setFilesExpanded] = useState(false);
-  const [revisionFiles, setRevisionFiles] = useState<File[]>([]);
-  const [uploadingRevision, setUploadingRevision] = useState(false);
-  const [showHTML, setShowHTML] = useState(false);
-  const [htmlContent, setHtmlContent] = useState<string>('');
-  const [loadingHTML, setLoadingHTML] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     title: '',
@@ -136,7 +111,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const handleReviewerAssigned = (assignment: any) => {
     setSubmission(prev => {
       if (!prev) return prev;
-      
+
       const newAssignment = {
         id: assignment.assignmentId,
         reviewer: {
@@ -147,7 +122,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         assignedAt: assignment.assignedAt,
         dueDate: assignment.dueDate
       };
-      
+
       // Only add the assignment if it's in an accepted state
       if (assignment.status === 'ACCEPTED' || assignment.status === 'IN_PROGRESS' || assignment.status === 'COMPLETED') {
         return {
@@ -158,7 +133,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
           ]
         };
       }
-      
+
       return prev;
     });
   };
@@ -167,7 +142,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
   const handleReviewerInvitationResponse = (response: any) => {
     setSubmission(prev => {
       if (!prev) return prev;
-      
+
       // Update the review assignment status if it exists
       const updatedReviewAssignments = prev.reviewAssignments?.map(assignment => {
         if (assignment.id === response.assignmentId) {
@@ -179,7 +154,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         }
         return assignment;
       }) || [];
-      
+
       // If this is a new response for an assignment we don't have yet, add it
       const existingAssignment = prev.reviewAssignments?.find(a => a.id === response.assignmentId);
       if (!existingAssignment && response.reviewer) {
@@ -194,12 +169,12 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
           dueDate: undefined
         });
       }
-      
+
       // Filter to only show accepted, in-progress, or completed reviewers
       const filteredReviewAssignments = updatedReviewAssignments.filter(
         assignment => assignment.status === 'ACCEPTED' || assignment.status === 'IN_PROGRESS' || assignment.status === 'COMPLETED'
       );
-      
+
       return {
         ...prev,
         reviewAssignments: filteredReviewAssignments
@@ -219,13 +194,13 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     const fetchSubmission = async () => {
       try {
         setLoading(true);
-        
-        
+
+
         // First, fetch the conversation to get the manuscript ID
         const conversationResponse = await fetch(`${API_URL}/api/conversations/${submissionId}`, {
           credentials: 'include'
         });
-        
+
         if (!conversationResponse.ok) {
           throw new Error('Failed to fetch conversation details');
         }
@@ -328,97 +303,26 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
     }
   }, [submission]);
 
-  // Check if user can upload file revisions
-  const canUploadRevisions = () => {
-    if (!user || !submission) return false;
-    
-    // Check if user is an author
-    const isAuthor = submission.authors.some(author => author.email === user.email);
-    
-    // Check if user is admin
-    const isAdmin = user.role === GlobalRole.ADMIN;
-    
-    return hasManuscriptPermission(
-      user.role as GlobalRole, 
-      ManuscriptPermission.EDIT_MANUSCRIPT, 
-      { isAuthor }
-    ) || isAdmin;
-  };
-
   // Check if user can edit manuscript metadata
   const canEditMetadata = () => {
     if (!user || !submission) return false;
-    
-    // Check if user is an author
+
     const isAuthor = submission.authors.some(author => author.email === user.email);
-    
-    // Check if user is admin
     const isAdmin = user.role === GlobalRole.ADMIN;
-    
+
     return hasManuscriptPermission(
-      user.role as GlobalRole, 
-      ManuscriptPermission.EDIT_MANUSCRIPT, 
+      user.role as GlobalRole,
+      ManuscriptPermission.EDIT_MANUSCRIPT,
       { isAuthor }
     ) || isAdmin;
-  };
-
-  // Handle file revision upload
-  const handleRevisionUpload = async () => {
-    if (!submission || revisionFiles.length === 0) return;
-    
-    setUploadingRevision(true);
-    
-    try {
-      const formData = new FormData();
-      
-      // Add files
-      revisionFiles.forEach(file => {
-        formData.append('files', file);
-      });
-      
-      // Add metadata
-      const metadata = {
-        uploadType: 'revision',
-        userAgent: navigator.userAgent,
-        timestamp: new Date().toISOString()
-      };
-      formData.append('metadata', JSON.stringify(metadata));
-      
-      const response = await fetch(`${API_URL}/api/articles/${submission.id}/files`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to upload revision files');
-      }
-      
-      const result = await response.json();
-      
-      // Clear the upload files and exit edit mode
-      setRevisionFiles([]);
-      setIsEditing(false);
-      
-      // Refresh the submission data to show new files
-      // We'll trigger a re-fetch by updating the submission
-      window.location.reload(); // Simple refresh for now
-      
-    } catch (err) {
-      console.error('Error uploading revision:', err);
-      alert(err instanceof Error ? err.message : 'Failed to upload revision files');
-    } finally {
-      setUploadingRevision(false);
-    }
   };
 
   // Handle saving manuscript metadata edits
   const handleSaveEdits = async () => {
     if (!submission) return;
-    
+
     setSavingEdits(true);
-    
+
     try {
       const response = await fetch(`${API_URL}/api/articles/${submission.id}`, {
         method: 'PUT',
@@ -432,12 +336,12 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
           keywords: editData.keywords
         })
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to save changes');
       }
-      
+
       // Update local submission data
       setSubmission(prev => prev ? {
         ...prev,
@@ -446,12 +350,9 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         keywords: editData.keywords,
         updatedAt: new Date().toISOString()
       } : prev);
-      
+
       setIsEditing(false);
-      
-      // Optionally refresh the page to ensure data consistency
-      // window.location.reload();
-      
+
     } catch (err) {
       console.error('Error saving edits:', err);
       alert(err instanceof Error ? err.message : 'Failed to save changes');
@@ -470,139 +371,6 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
       });
     }
     setIsEditing(false);
-  };
-
-  // Helper function to find the rendered PDF
-  const getRenderedPDF = () => {
-    if (!submission?.files) return null;
-    return submission.files
-      .filter(f => f.fileType === 'RENDERED' && f.mimetype === 'application/pdf')
-      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
-  };
-
-  // Helper function to find the rendered HTML
-  const getRenderedHTML = () => {
-    if (!submission?.files) return null;
-    return submission.files
-      .filter(f => f.fileType === 'RENDERED' && f.mimetype === 'text/html')
-      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] || null;
-  };
-
-  // Function to automatically scope CSS to prevent interference with page styles
-  const scopeHTMLContent = (htmlContent: string): string => {
-    // Extract CSS from style tags
-    const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
-    
-    let scopedHTML = htmlContent;
-    let match;
-    
-    while ((match = styleRegex.exec(htmlContent)) !== null) {
-      const originalCSS = match[1];
-      
-      // Skip if already scoped or contains scoping comments
-      if (originalCSS.includes('.rendered-document') || originalCSS.includes('/* scoped */')) {
-        continue;
-      }
-      
-      // Scope CSS rules by prefixing with .rendered-document
-      const scopedCSS = originalCSS
-        // Handle body styles specifically
-        .replace(/\bbody\s*{/g, '.rendered-document {')
-        // Handle element selectors (but not pseudo-selectors or media queries)
-        .replace(/^(\s*)([a-zA-Z][a-zA-Z0-9]*(?:\s*,\s*[a-zA-Z][a-zA-Z0-9]*)*)\s*{/gm, '$1.rendered-document $2 {')
-        // Handle class selectors that aren't already scoped
-        .replace(/^(\s*)(\.[a-zA-Z][a-zA-Z0-9_-]*(?:\s*,\s*\.[a-zA-Z][a-zA-Z0-9_-]*)*)\s*{/gm, '$1.rendered-document $2 {')
-        // Handle complex selectors with combinators
-        .replace(/^(\s*)([^@}]+?)\s*{/gm, (fullMatch, indent, selector) => {
-          // Skip @rules, already scoped rules, or rules with .rendered-document
-          if (selector.includes('@') || selector.includes('.rendered-document') || selector.trim().startsWith('/*')) {
-            return fullMatch;
-          }
-          return `${indent}.rendered-document ${selector.trim()} {`;
-        });
-      
-      // Add scoping comment
-      const finalCSS = `/* CSS automatically scoped for safe embedding */\n${scopedCSS}`;
-      
-      // Replace the original style tag with scoped version
-      scopedHTML = scopedHTML.replace(match[0], `<style>${finalCSS}</style>`);
-    }
-    
-    // Wrap body content in scoped container if not already wrapped
-    if (!scopedHTML.includes('class="rendered-document"')) {
-      scopedHTML = scopedHTML.replace(
-        /<body[^>]*>([\s\S]*?)<\/body>/i,
-        '<body><div class="rendered-document">$1</div></body>'
-      );
-    }
-    
-    return scopedHTML;
-  };
-
-  const handleViewHTML = async () => {
-    const htmlFile = getRenderedHTML();
-    if (!htmlFile || !submission) return;
-
-    setLoadingHTML(true);
-    try {
-      const response = await fetch(`${API_URL}/api/articles/${submission.id}/files/${htmlFile.id}/download?inline=true`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch HTML: ${response.status} ${response.statusText}`);
-      }
-      
-      const htmlText = await response.text();
-      const scopedHTML = scopeHTMLContent(htmlText);
-      setHtmlContent(scopedHTML);
-      setShowHTML(true);
-    } catch (error) {
-      console.error('Error fetching HTML content:', error);
-    } finally {
-      setLoadingHTML(false);
-    }
-  };
-
-  const handleDownload = async (fileId?: string) => {
-    if (!submission?.files || submission.files.length === 0) return;
-    
-    // Use specific file if ID provided, otherwise prioritize most recent RENDERED, then SOURCE, then first file
-    const fileToDownload = fileId 
-      ? submission.files.find(f => f.id === fileId)
-      : submission.files
-          .filter(f => f.fileType === 'RENDERED')
-          .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0] ||
-        submission.files.find(f => f.fileType === 'SOURCE') || 
-        submission.files[0];
-    
-    if (!fileToDownload) return;
-    
-    try {
-      console.log(`Downloading file: ${fileToDownload.originalName} (${fileToDownload.fileType})`);
-      const response = await fetch(`${API_URL}/api/articles/${submission.id}/files/${fileToDownload.id}/download`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Download failed:', response.status, errorText);
-        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileToDownload.originalName;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
   };
 
   if (loading) {
@@ -634,7 +402,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
         <Group justify="space-between" align="flex-start">
           <Box style={{ flex: 1 }}>
             <Group gap="sm" mb="xs" align="center">
-              <Badge 
+              <Badge
                 size="lg"
                 variant="filled"
                 color={getStatusColor(submission.status)}
@@ -642,7 +410,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
               >
                 {getStatusLabel(submission.status)}
               </Badge>
-              
+
               {canEditMetadata() && !isEditing && (
                 <Button
                   variant="light"
@@ -653,7 +421,7 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                   Revision
                 </Button>
               )}
-              
+
               {isEditing && (
                 <Group gap="xs">
                   <Button
@@ -677,450 +445,37 @@ export function SubmissionHeader({ submissionId }: SubmissionHeaderProps) {
                 </Group>
               )}
             </Group>
-            
+
             {isEditing ? (
-              <TextInput
-                value={editData.title}
-                onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Article title"
-                size="xl"
-                variant="filled"
-                mb="sm"
-                styles={{
-                  input: {
-                    fontSize: '1.75rem',
-                    fontWeight: 700,
-                    lineHeight: 1.3
-                  }
-                }}
+              <SubmissionEditPanel
+                submissionId={submission.id}
+                editData={editData}
+                onEditDataChange={setEditData}
+                savingEdits={savingEdits}
+                onSaveEdits={handleSaveEdits}
+                onRefresh={() => window.location.reload()}
               />
             ) : (
               <Title order={1} size="h2" mb="sm" style={{ lineHeight: 1.3 }}>
                 {submission.title}
               </Title>
             )}
-            
-            {isEditing && (
-              <Textarea
-                value={editData.abstract}
-                onChange={(e) => setEditData(prev => ({ ...prev, abstract: e.target.value }))}
-                placeholder="Abstract"
-                minRows={4}
-                autosize
-                variant="filled"
-                style={{ maxWidth: '80%' }}
-              />
-            )}
-            
-            {isEditing && (
-              <Stack gap="lg" mt="sm" style={{ maxWidth: '80%' }}>
-                <TagsInput
-                  value={editData.keywords}
-                  onChange={(keywords) => setEditData(prev => ({ ...prev, keywords }))}
-                  placeholder="Add keywords (press Enter to add)"
-                  label="Keywords"
-                  variant="filled"
-                />
-
-                {/* File Revision Upload - Only in Edit Mode */}
-                <Box>
-                  <Divider mb="md" />
-                  <Stack gap="md">
-                    <Group gap="xs" align="center">
-                      <IconUpload size={16} />
-                      <Text fw={500} size="sm">Upload Revised Files (Optional)</Text>
-                    </Group>
-
-                    <Text size="sm" c="dimmed">
-                      Upload revised versions of your manuscript files. These will be added as new versions.
-                    </Text>
-
-                    <FileDropzone
-                      value={revisionFiles}
-                      onFilesChange={setRevisionFiles}
-                      accept=".md,.tex,.pdf,.docx,.doc"
-                      placeholder="Upload revised manuscript files"
-                      description="Supported: Markdown, LaTeX, PDF, Word • Max 50MB per file"
-                      allowFolders={false}
-                      maxFileSize={50 * 1024 * 1024}
-                    />
-
-                    {revisionFiles.length > 0 && (
-                      <Group justify="flex-end">
-                        <Button
-                          variant="light"
-                          color="gray"
-                          size="sm"
-                          onClick={() => setRevisionFiles([])}
-                          disabled={uploadingRevision || savingEdits}
-                        >
-                          Clear Files
-                        </Button>
-                        <Button
-                          leftSection={<IconUpload size={16} />}
-                          size="sm"
-                          onClick={handleRevisionUpload}
-                          loading={uploadingRevision}
-                          disabled={savingEdits}
-                        >
-                          Upload Files
-                        </Button>
-                      </Group>
-                    )}
-                  </Stack>
-                </Box>
-              </Stack>
-            )}
           </Box>
         </Group>
 
         {/* Organized Information Section */}
         <Stack gap="md">
-          {/* Authors */}
-          <Group gap="xs" align="center">
-            <IconUser size={16} />
-            <Text fw={500} size="sm">Authors:</Text>
-            <Group gap="md">
-              {submission.authors.map((author) => (
-                <Group key={author.id} gap="xs">
-                  <Avatar size="xs" color="blue">
-                    {author.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                  </Avatar>
-                  <Text size="sm" fw={500}>{author.name}</Text>
-                  {author.isCorresponding && (
-                    <Badge size="xs" variant="light" color="orange">Corresponding</Badge>
-                  )}
-                  {author.affiliation && (
-                    <Text size="xs" c="dimmed">({author.affiliation})</Text>
-                  )}
-                </Group>
-              ))}
-            </Group>
-          </Group>
-
-          {/* Assigned Editor */}
-          <Group gap="xs" align="center">
-            <IconUserCog size={16} />
-            <Text fw={500} size="sm">Editor:</Text>
-            {submission.assignedEditor ? (
-              <Group gap="xs">
-                <Avatar size="xs" color="indigo">
-                  {submission.assignedEditor.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </Avatar>
-                <Text size="sm" fw={500}>{submission.assignedEditor.name}</Text>
-                {submission.assignedEditor.affiliation && (
-                  <Text size="xs" c="dimmed">({submission.assignedEditor.affiliation})</Text>
-                )}
-              </Group>
-            ) : (
-              <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
-                No editor assigned
-              </Text>
-            )}
-          </Group>
-
-          {/* Assigned Reviewers */}
-          <Group gap="xs" align="center">
-            <IconEye size={16} />
-            <Text fw={500} size="sm">Reviewers:</Text>
-            {submission.reviewAssignments && submission.reviewAssignments.length > 0 ? (
-              <Group gap="md">
-                {submission.reviewAssignments.map((assignment) => (
-                  <Group key={assignment.id} gap="xs">
-                    <Avatar size="xs" color="grape">
-                      {(assignment.reviewer.name || 'R').split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                    </Avatar>
-                    <Text size="sm" fw={500}>{assignment.reviewer.name}</Text>
-                  </Group>
-                ))}
-              </Group>
-            ) : (
-              <Text size="sm" c="dimmed" style={{ fontStyle: 'italic' }}>
-                No reviewers assigned
-              </Text>
-            )}
-          </Group>
-
-          {/* Dates */}
-          <Group gap="xl">
-            <Group gap="xs">
-              <IconCalendar size={14} />
-              <Text size="sm" c="dimmed">
-                Submitted: {new Date(submission.submittedAt).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
-              </Text>
-            </Group>
-            
-            <Group gap="xs">
-              <IconClock size={14} />
-              <Text size="sm" c="dimmed">
-                Updated: {new Date(submission.updatedAt).toLocaleDateString('en-US', { 
-                  month: 'short', 
-                  day: 'numeric', 
-                  year: 'numeric' 
-                })}
-              </Text>
-            </Group>
-          </Group>
+          <SubmissionMetadata submission={submission} />
 
           {/* Files Section - Collapsible */}
           {submission.files && submission.files.length > 0 && (
-            <Box>
-              <Group justify="space-between" align="center">
-                <Group 
-                  gap="xs" 
-                  style={{ cursor: 'pointer', flex: 1 }}
-                  onClick={() => setFilesExpanded(!filesExpanded)}
-                >
-                  {filesExpanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
-                  <IconFiles size={16} />
-                  <Text fw={500} size="sm">Files</Text>
-                  <Badge size="sm" variant="light" color="blue">
-                    {submission.files.length}
-                  </Badge>
-                </Group>
-                
-                <Group gap="xs">
-                  {getRenderedHTML() && (
-                    <Button
-                      size="md"
-                      variant="filled"
-                      color="green"
-                      leftSection={loadingHTML ? <Loader size={18} /> : <IconEye size={18} />}
-                      onClick={handleViewHTML}
-                      loading={loadingHTML}
-                    >
-                      View HTML
-                    </Button>
-                  )}
-                  {getRenderedPDF() && (
-                    <Button
-                      size="md"
-                      variant="filled"
-                      color="blue"
-                      leftSection={<IconDownload size={18} />}
-                      onClick={() => handleDownload(getRenderedPDF()?.id)}
-                    >
-                      Download PDF
-                    </Button>
-                  )}
-                </Group>
-              </Group>
-              
-              <Collapse in={filesExpanded}>
-                <Stack gap="xs" mt="xs">
-                  {submission.files
-                    .sort((a, b) => {
-                      // Sort by: RENDERED first, then SOURCE, then others, then by upload date
-                      const typeOrder = { 'RENDERED': 0, 'SOURCE': 1, 'ASSET': 2, 'SUPPLEMENTARY': 3 };
-                      const aOrder = typeOrder[a.fileType as keyof typeof typeOrder] ?? 4;
-                      const bOrder = typeOrder[b.fileType as keyof typeof typeOrder] ?? 4;
-                      if (aOrder !== bOrder) return aOrder - bOrder;
-                      return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
-                    })
-                    .map((file, index) => (
-                      <Group key={file.id} justify="space-between" p="xs"
-                             style={{
-                               backgroundColor: index === 0 && file.fileType === 'RENDERED'
-                                 ? (dark ? 'var(--mantine-color-dark-5)' : 'var(--mantine-color-blue-0)')
-                                 : (dark ? 'var(--mantine-color-dark-6)' : 'var(--mantine-color-gray-0)'),
-                               borderRadius: 'var(--mantine-radius-sm)',
-                               border: index === 0 && file.fileType === 'RENDERED'
-                                 ? '1px solid var(--mantine-color-blue-4)'
-                                 : `1px solid ${dark ? 'var(--mantine-color-dark-4)' : 'var(--mantine-color-gray-3)'}`
-                             }}>
-                        <Group gap="sm" style={{ flex: 1, minWidth: 0 }}>
-                          {getFileIcon(file.fileType, file.mimetype)}
-                          <Box style={{ flex: 1, minWidth: 0 }}>
-                            <Group gap="xs" align="center">
-                              <Text size="sm" fw={500} truncate style={{ flex: 1 }}>
-                                {file.originalName}
-                              </Text>
-                              <Badge 
-                                size="xs" 
-                                variant="light" 
-                                color={getFileTypeColor(file.fileType)}
-                              >
-                                {file.fileType}
-                              </Badge>
-                              {index === 0 && file.fileType === 'RENDERED' && (
-                                <Badge size="xs" variant="filled" color="blue">
-                                  Latest
-                                </Badge>
-                              )}
-                            </Group>
-                            <Text size="xs" c="dimmed" truncate>
-                              {formatFileSize(file.size)} • {getFileTypeLabel(file.mimetype)}
-                            </Text>
-                          </Box>
-                        </Group>
-                        <ActionIcon 
-                          variant="light" 
-                          color="blue" 
-                          size="sm"
-                          onClick={() => handleDownload(file.id)}
-                        >
-                          <IconDownload size={14} />
-                        </ActionIcon>
-                      </Group>
-                    ))}
-                </Stack>
-              </Collapse>
-            </Box>
+            <SubmissionFilesSection
+              submissionId={submission.id}
+              files={submission.files}
+            />
           )}
-
-
         </Stack>
       </Stack>
-
-      {/* HTML Content Display */}
-      {showHTML && htmlContent && (
-        <Box mt="xl">
-          <Group justify="space-between" align="center" mb="md">
-            <Title order={3}>Rendered HTML</Title>
-            <Button
-              variant="light"
-              color="gray"
-              size="sm"
-              onClick={() => setShowHTML(false)}
-            >
-              Hide
-            </Button>
-          </Group>
-          <Paper
-            p="xl"
-            withBorder
-            style={{
-              maxHeight: '80vh',
-              overflow: 'auto'
-            }}
-          >
-            <div 
-              dangerouslySetInnerHTML={{ __html: sanitizeHTML(htmlContent) }}
-              style={{
-                lineHeight: '1.6',
-                fontSize: '14px'
-              }}
-            />
-          </Paper>
-        </Box>
-      )}
     </Paper>
   );
 }
-
-function getFileIcon(fileType: string, mimetype: string) {
-  if (fileType === 'ASSET') {
-    if (mimetype.startsWith('image/')) {
-      return <IconPhoto size={16} color="var(--mantine-color-green-6)" />;
-    }
-    return <IconFiles size={16} color="var(--mantine-color-blue-6)" />;
-  }
-  
-  if (fileType === 'SOURCE') {
-    if (mimetype.includes('markdown')) {
-      return <IconCode size={16} color="var(--mantine-color-violet-6)" />;
-    }
-    return <IconFileText size={16} color="var(--mantine-color-orange-6)" />;
-  }
-  
-  return <IconFileText size={16} color="var(--mantine-color-gray-6)" />;
-}
-
-function getFileTypeColor(fileType: string): string {
-  switch (fileType) {
-    case 'SOURCE':
-      return 'orange';
-    case 'ASSET':
-      return 'green';
-    case 'RENDERED':
-      return 'blue';
-    case 'SUPPLEMENTARY':
-      return 'purple';
-    default:
-      return 'gray';
-  }
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-function getFileTypeLabel(mimetype: string): string {
-  const typeMap: { [key: string]: string } = {
-    'text/markdown': 'Markdown',
-    'application/pdf': 'PDF',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
-    'text/plain': 'Text',
-    'image/png': 'PNG Image',
-    'image/jpeg': 'JPEG Image',
-    'image/gif': 'GIF Image',
-    'image/svg+xml': 'SVG Image'
-  };
-  
-  return typeMap[mimetype] || mimetype.split('/')[1]?.toUpperCase() || 'Unknown';
-}
-
-function getStatusColor(status: string): string {
-  switch (status.toUpperCase()) {
-    case 'SUBMITTED':
-    case 'UNDER_REVIEW':
-      return 'blue';
-    case 'ACCEPTED':
-      return 'green';
-    case 'REJECTED':
-      return 'red';
-    case 'REVISION_REQUESTED':
-      return 'yellow';
-    case 'PUBLISHED':
-      return 'teal';
-    default:
-      return 'gray';
-  }
-}
-
-function getStatusIcon(status: string) {
-  switch (status.toUpperCase()) {
-    case 'SUBMITTED':
-      return <IconClock size={12} />;
-    case 'UNDER_REVIEW':
-      return <IconEye size={12} />;
-    case 'ACCEPTED':
-      return <IconCheck size={12} />;
-    case 'REJECTED':
-      return <IconX size={12} />;
-    case 'REVISION_REQUESTED':
-      return <IconAlertCircle size={12} />;
-    case 'PUBLISHED':
-      return <IconCheck size={12} />;
-    default:
-      return <IconFileText size={12} />;
-  }
-}
-
-function getStatusLabel(status: string): string {
-  switch (status.toUpperCase()) {
-    case 'SUBMITTED':
-      return 'Submitted';
-    case 'UNDER_REVIEW':
-      return 'Under Review';
-    case 'ACCEPTED':
-      return 'Accepted';
-    case 'REJECTED':
-      return 'Rejected';
-    case 'REVISION_REQUESTED':
-      return 'Revision Requested';
-    case 'PUBLISHED':
-      return 'Published';
-    default:
-      return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
-  }
-}
-

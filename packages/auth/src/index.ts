@@ -8,12 +8,7 @@ export {
   GlobalRole,
   GLOBAL_ROLE_PERMISSIONS,
   hasGlobalPermission,
-  hasManuscriptPermission,
-  Role,
-  Permission,
-  hasPermission,
-  hasAnyPermission,
-  hasAllPermissions
+  hasManuscriptPermission
 } from './permissions';
 
 // JWT types

@@ -7,8 +7,8 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { authenticate, requirePermission, optionalAuth, authenticateWithBots } from '../middleware/auth';
-import { Permission, hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermission, hasGlobalPermission } from '@colloquium/auth';
+import { authenticate, requireGlobalPermission, optionalAuth, authenticateWithBots } from '../middleware/auth';
+import { hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermission, hasGlobalPermission } from '@colloquium/auth';
 import { fileStorage } from '../services/fileStorage';
 import { formatDetection } from '../services/formatDetection';
 import { addBotJob } from '../jobs';
@@ -233,9 +233,8 @@ router.get('/', optionalAuth, async (req, res, next) => {
 
 // POST /api/manuscripts - Submit new manuscript (with file upload support)
 router.post('/', authenticate, (req, res, next) => {
-  // Check permissions dynamically
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.SUBMIT_MANUSCRIPT)(req, res, next);
+  const { GlobalPermission } = require('@colloquium/auth');
+  return requireGlobalPermission(GlobalPermission.SUBMIT_MANUSCRIPT)(req, res, next);
 }, upload.array('files', 20), async (req, res, next) => {
   try {
     

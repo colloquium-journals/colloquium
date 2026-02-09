@@ -14,7 +14,7 @@
       "env": ["PORT"]
     },
     "dev#@colloquium/api": {
-      "dependsOn": ["@colloquium/bots#build", "@colloquium/types#build"]
+      "dependsOn": ["@colloquium/database#build", "@colloquium/auth#build", "@colloquium/bots#build", "@colloquium/types#build"]
     },
     "lint": {
       "dependsOn": ["^lint"]

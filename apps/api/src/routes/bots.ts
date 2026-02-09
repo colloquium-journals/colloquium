@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { authenticate, requirePermission, generateBotServiceToken } from '../middleware/auth';
-import { Permission } from '@colloquium/auth';
+import { authenticate, requireGlobalPermission, generateBotServiceToken } from '../middleware/auth';
+import { GlobalPermission } from '@colloquium/auth';
 import { botExecutor } from '../bots';
 
 const router = Router();
@@ -92,8 +92,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 
 // POST /api/bots/:id/install - Install a bot
 router.post('/:id/install', authenticate, (req, res, next) => {
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.MANAGE_BOTS)(req, res, next);
+  return requireGlobalPermission(GlobalPermission.MANAGE_BOTS)(req, res, next);
 }, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -122,8 +121,7 @@ router.post('/:id/install', authenticate, (req, res, next) => {
 
 // PUT /api/bots/:id/configure - Update bot configuration
 router.put('/:id/configure', authenticate, (req, res, next) => {
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.MANAGE_BOTS)(req, res, next);
+  return requireGlobalPermission(GlobalPermission.MANAGE_BOTS)(req, res, next);
 }, async (req, res, next) => {
   try {
     const { id } = req.params;

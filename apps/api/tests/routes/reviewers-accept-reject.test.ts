@@ -185,7 +185,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('only respond to your own');
+      expect(response.body.message).toContain('only respond to your own');
     });
 
     it('should not allow responding to already responded invitation', async () => {
@@ -202,7 +202,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
         .send({ response: 'DECLINE' });
 
       expect(response.status).toBe(400);
-      expect(response.body.error.message).toContain('already accepted');
+      expect(response.body.message).toContain('already accepted');
     });
 
     it('should return 404 for non-existent invitation', async () => {
@@ -343,7 +343,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error.message).toContain('Cannot submit review for assignment with status');
+      expect(response.body.message).toContain('Cannot submit review for assignment with status');
     });
 
     it('should not allow non-assigned reviewer to submit', async () => {
@@ -359,7 +359,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
         });
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('only submit reviews for your own');
+      expect(response.body.message).toContain('only submit reviews for your own');
     });
 
     it('should validate review content length', async () => {
@@ -425,7 +425,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
         .set('Authorization', `Bearer ${otherToken}`);
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('only view your own');
+      expect(response.body.message).toContain('only view your own');
     });
 
     it('should return 404 for non-existent invitation', async () => {
@@ -436,7 +436,7 @@ describe('Reviewer Accept/Reject API Endpoints', () => {
         .set('Authorization', `Bearer ${reviewerToken}`);
 
       expect(response.status).toBe(404);
-      expect(response.body.error.message).toContain('not found');
+      expect(response.body.message).toContain('not found');
     });
   });
 });

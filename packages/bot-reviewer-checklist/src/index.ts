@@ -52,28 +52,33 @@ const DEFAULT_TEMPLATE = `# Reviewer Checklist
 *This checklist is editable. Check off items as you complete your review.*`;
 
 async function getAssignedReviewers(context: any): Promise<ReviewerAssignment[]> {
-  // In a real implementation, this would query the database for assigned reviewers
-  // For now, return mock data with mention names
-  return [
-    {
-      id: 'reviewer-1',
-      userId: context.userId || 'user-1',
-      userName: context.userName || 'Current User',
-      hasChecklist: false
-    },
-    {
-      id: 'reviewer-2', 
-      userId: 'user-2',
-      userName: 'Dr. Smith',
-      hasChecklist: false
-    },
-    {
-      id: 'reviewer-3',
-      userId: 'user-3', 
-      userName: 'Prof. Johnson',
-      hasChecklist: true
+  const apiUrl = context.config?.apiUrl || process.env.API_URL || 'http://localhost:4000';
+  const manuscriptId = context.manuscriptId;
+
+  try {
+    const response = await fetch(`${apiUrl}/api/reviewers/assignments/${manuscriptId}`, {
+      headers: {
+        'x-bot-token': context.serviceToken,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch reviewers: ${response.status}`);
+      return [];
     }
-  ];
+
+    const data = await response.json();
+    return (data.assignments || []).map((a: any) => ({
+      id: a.id,
+      userId: a.reviewerId,
+      userName: a.users?.name || a.users?.username || 'Unknown',
+      hasChecklist: false
+    }));
+  } catch (error) {
+    console.error('Error fetching assigned reviewers:', error);
+    return [];
+  }
 }
 
 function parseMentionName(mentionOrId: string): string {
@@ -117,17 +122,33 @@ function renderTemplate(template: string, context: any): string {
   return rendered;
 }
 
-async function checkReviewerPermission(context: any): Promise<boolean> {
-  // In a real implementation, this would check the database to see if the user
-  // is assigned as a reviewer for the manuscript
-  // For now, we'll return true to allow testing
-  return true;
+async function checkReviewerPermission(context: any, userId: string): Promise<boolean> {
+  const apiUrl = context.config?.apiUrl || process.env.API_URL || 'http://localhost:4000';
+  const manuscriptId = context.manuscriptId;
+
+  try {
+    const response = await fetch(`${apiUrl}/api/reviewers/assignments/${manuscriptId}`, {
+      headers: {
+        'x-bot-token': context.serviceToken,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) return false;
+
+    const data = await response.json();
+    return (data.assignments || []).some((a: any) =>
+      a.reviewerId === userId && ['ACCEPTED', 'IN_PROGRESS'].includes(a.status)
+    );
+  } catch (error) {
+    console.error('Error checking reviewer permission:', error);
+    return false;
+  }
 }
 
-async function markReviewerAsHavingChecklist(reviewerId: string): Promise<void> {
-  // In a real implementation, this would update the database
-  // to mark that this reviewer now has a checklist
-  console.log(`Marked reviewer ${reviewerId} as having checklist`);
+async function markReviewerAsHavingChecklist(context: any, reviewerId: string): Promise<void> {
+  // TODO: Store checklist completion status when manuscript metadata API is available
+  console.log(`Checklist completed by reviewer ${reviewerId} for manuscript ${context.manuscriptId}`);
 }
 
 async function getBotConfig(context: any): Promise<ChecklistConfig | null> {
@@ -291,7 +312,7 @@ const generateCommand: BotCommand = {
       });
       
       // Mark reviewer as having checklist
-      await markReviewerAsHavingChecklist(reviewer.id);
+      await markReviewerAsHavingChecklist(context, reviewer.id);
     }
 
     const summary = targetReviewers.length === 1 

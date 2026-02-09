@@ -5,6 +5,7 @@ import { validateRequest } from '../middleware/validation';
 import { prisma } from '@colloquium/database';
 import { WorkflowConfigSchema } from '@colloquium/types';
 import { userHasSubmissionsAccess } from '../services/userInvolvement';
+import { invalidateWorkflowConfigCache } from '../services/workflowConfig';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -303,12 +304,7 @@ async function updateJournalSettings(newSettings: any) {
 // Middleware to check admin access
 const requireAdmin = (req: any, res: any, next: any) => {
   if (!req.user || req.user.role !== 'ADMIN') {
-    return res.status(403).json({ 
-      error: { 
-        message: 'Admin access required',
-        code: 'ADMIN_REQUIRED' 
-      } 
-    });
+    return res.status(403).json({ error: 'Forbidden', message: 'Admin access required' });
   }
   next();
 };
@@ -385,7 +381,10 @@ router.put('/',
     try {
       // Update settings in database
       const updatedSettings = await updateJournalSettings(req.body);
-      
+
+      // Invalidate cached workflow config in case it changed
+      invalidateWorkflowConfigCache();
+
       // Log the settings update
       console.log(`Settings updated by admin: ${req.user?.email || 'unknown'}`);
       
@@ -406,9 +405,7 @@ router.post('/logo',
   async (req, res, next) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ 
-          error: { message: 'No logo file provided' } 
-        });
+        return res.status(400).json({ error: 'Validation Error', message: 'No logo file provided' });
       }
 
       const logoUrl = `/uploads/logos/${req.file.filename}`;

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
-import { authenticate, requirePermission, optionalAuth, generateBotServiceToken } from '../middleware/auth';
-import { Permission, GlobalRole } from '@colloquium/auth';
+import { authenticate, requireGlobalPermission, optionalAuth, generateBotServiceToken } from '../middleware/auth';
+import { GlobalPermission, GlobalRole } from '@colloquium/auth';
 import { WorkflowConfig, WorkflowPhase } from '@colloquium/types';
 import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
@@ -26,27 +26,9 @@ import {
 } from '../services/workflowParticipation';
 import { getJournalSettings } from './settings';
 import { getUserInvolvedManuscriptIds } from '../services/userInvolvement';
+import { getWorkflowConfig } from '../services/workflowConfig';
 
 const router = Router();
-
-// Helper function to get workflow config from journal settings
-async function getWorkflowConfig(): Promise<WorkflowConfig | null> {
-  try {
-    const settings = await prisma.journal_settings.findFirst({
-      where: { id: 'singleton' },
-      select: { settings: true }
-    });
-
-    if (settings?.settings && typeof settings.settings === 'object') {
-      const journalSettings = settings.settings as any;
-      return journalSettings.workflowConfig || null;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to get workflow config:', error);
-    return null;
-  }
-}
 
 // Helper function to determine if user can see a message based on privacy level
 // Optional prefetchedIsAuthor/prefetchedIsReviewer skip per-message DB queries when provided
@@ -348,18 +330,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
             }
           }
         },
-        messages: {
-          orderBy: { createdAt: 'asc' },
-          include: {
-            users: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                email: true
-              }
-            }
-          }
+        _count: {
+          select: { messages: true }
         }
       }
     });
@@ -370,6 +342,52 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         message: `No conversation found with ID: ${id}`
       });
     }
+
+    // Parse pagination params
+    const messageLimit = Math.min(Math.max(parseInt(req.query.messageLimit as string) || 50, 1), 200);
+    const messageBefore = req.query.messageBefore as string | undefined;
+
+    // Fetch messages with cursor-based pagination
+    // To get the last N messages, we fetch in desc order and reverse
+    const messageQuery: any = {
+      where: { conversationId: id },
+      orderBy: { createdAt: 'desc' as const },
+      take: messageLimit + 1, // fetch one extra to detect hasMoreMessages
+      include: {
+        users: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    };
+
+    if (messageBefore) {
+      messageQuery.cursor = { id: messageBefore };
+      messageQuery.skip = 1; // skip the cursor itself
+    }
+
+    const rawMessages = await prisma.messages.findMany(messageQuery);
+
+    // Detect if there are more messages before the current page
+    const hasMoreMessages = rawMessages.length > messageLimit;
+    if (hasMoreMessages) {
+      rawMessages.pop(); // remove the extra message used for detection
+    }
+
+    // Reverse to get chronological order (we fetched desc to get the last N)
+    rawMessages.reverse();
+
+    // Attach messages to conversation object for downstream processing
+    const conversationWithMessages = {
+      ...conversation,
+      messages: rawMessages
+    };
+
+    const totalMessageCount = conversation._count.messages;
 
     // Get workflow config for additional visibility rules
     const workflowConfig = await getWorkflowConfig();
@@ -407,7 +425,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 
     // Batch-prefetch all message author roles (3 queries total instead of up to 3 per unique author)
     const authorRoleCache = new Map<string, ViewerRole>();
-    const allAuthorIds = conversation.messages.map(msg => msg.authorId);
+    const allAuthorIds = conversationWithMessages.messages.map(msg => msg.authorId);
     const [, prefetchedAllReviewsComplete] = await Promise.all([
       batchPrefetchAuthorRoles(allAuthorIds, conversation.manuscriptId, authorRoleCache),
       areAllReviewsComplete(conversation.manuscriptId)
@@ -417,7 +435,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     const visibleMessages = [];
     const messageVisibilityMap = [];
 
-    for (const msg of conversation.messages) {
+    for (const msg of conversationWithMessages.messages) {
       // First check privacy-based visibility
       const canSeePrivacy = await canUserSeeMessage(
         userId,
@@ -524,7 +542,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
         role: p.role,
         user: p.users
       })),
-      totalMessageCount: conversation.messages.length,
+      totalMessageCount,
+      hasMoreMessages,
       visibleMessageCount: maskedMessages.length,
       messageVisibilityMap,
       messages: maskedMessages,
@@ -556,8 +575,7 @@ router.put('/:id', async (req, res, next) => {
 
 // POST /api/conversations/:id/messages - Post new message
 router.post('/:id/messages', authenticate, (req, res, next) => {
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.CREATE_CONVERSATION)(req, res, next);
+  return requireGlobalPermission(GlobalPermission.CREATE_CONVERSATION)(req, res, next);
 }, async (req, res, next) => {
   try {
     const { id: conversationId } = req.params;

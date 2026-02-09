@@ -28,7 +28,6 @@ BotRegistry → Manages bot lifecycle and execution
 
 - **`bot_definitions`**: Bot metadata, version, permissions
 - **`bot_actions`**: Available actions with input schemas
-- **`bot_permissions`**: Required permissions for each bot
 - **`bot_installs`**: Installation status and configuration
 - **`bot_executions`**: Complete audit trail of all executions
 

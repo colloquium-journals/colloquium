@@ -62,7 +62,13 @@ app.use(compression());
 app.use(morgan('combined'));
 app.use(cookieParser());
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback-secret-for-development',
+  secret: (() => {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET environment variable is required in production');
+    }
+    return secret || 'fallback-secret-for-development';
+  })(),
   resave: false,
   saveUninitialized: false,
   cookie: {

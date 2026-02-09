@@ -3,27 +3,9 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { prisma } from '@colloquium/database';
 import { WorkflowConfig } from '@colloquium/types';
 import { maskMessageAuthor } from '../services/workflowVisibility';
+import { getWorkflowConfig } from '../services/workflowConfig';
 
 const router = Router();
-
-// Helper function to get workflow config from journal settings
-async function getWorkflowConfig(): Promise<WorkflowConfig | null> {
-  try {
-    const settings = await prisma.journal_settings.findFirst({
-      where: { id: 'singleton' },
-      select: { settings: true }
-    });
-
-    if (settings?.settings && typeof settings.settings === 'object') {
-      const journalSettings = settings.settings as any;
-      return journalSettings.workflowConfig || null;
-    }
-    return null;
-  } catch (error) {
-    console.error('Failed to get workflow config:', error);
-    return null;
-  }
-}
 
 // Helper function to get manuscript workflow context
 async function getManuscriptWorkflowContext(manuscriptId: string) {

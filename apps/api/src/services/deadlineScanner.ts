@@ -78,16 +78,24 @@ async function scheduleRemindersForAssignment(
         },
       });
 
-      // Schedule the job
-      await scheduleReminderJob(
-        {
-          reminderId: reminder.id,
-          assignmentId: assignment.id,
-          daysBefore: interval.daysBefore,
-        },
-        reminderTime,
-        jobKey
-      );
+      // Schedule the job — if scheduling fails, mark the reminder as FAILED
+      try {
+        await scheduleReminderJob(
+          {
+            reminderId: reminder.id,
+            assignmentId: assignment.id,
+            daysBefore: interval.daysBefore,
+          },
+          reminderTime,
+          jobKey
+        );
+      } catch (scheduleError) {
+        await prisma.deadline_reminders.update({
+          where: { id: reminder.id },
+          data: { status: 'FAILED', updatedAt: new Date() },
+        });
+        throw scheduleError;
+      }
 
       scheduledCount++;
       console.log(`Scheduled reminder for assignment ${assignment.id}: ${interval.daysBefore} days before (${reminderTime.toISOString()})`);
@@ -160,15 +168,23 @@ async function scheduleOverdueRemindersForAssignment(
         },
       });
 
-      await scheduleReminderJob(
-        {
-          reminderId: reminder.id,
-          assignmentId: assignment.id,
-          daysBefore,
-        },
-        reminderTime,
-        jobKey
-      );
+      try {
+        await scheduleReminderJob(
+          {
+            reminderId: reminder.id,
+            assignmentId: assignment.id,
+            daysBefore,
+          },
+          reminderTime,
+          jobKey
+        );
+      } catch (scheduleError) {
+        await prisma.deadline_reminders.update({
+          where: { id: reminder.id },
+          data: { status: 'FAILED', updatedAt: new Date() },
+        });
+        throw scheduleError;
+      }
 
       scheduledCount++;
       console.log(`Scheduled overdue reminder for assignment ${assignment.id}: ${-daysBefore} days overdue`);

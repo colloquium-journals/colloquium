@@ -218,7 +218,7 @@ describe('Reviewer Management API', () => {
         });
 
       expect(response.status).toBe(404);
-      expect(response.body.error.message).toBe('Manuscript not found');
+      expect(response.body.message).toBe('Manuscript not found');
     });
   });
 
@@ -271,7 +271,7 @@ describe('Reviewer Management API', () => {
         });
 
       expect(response.status).toBe(409);
-      expect(response.body.error.message).toBe('Reviewer is already assigned to this manuscript');
+      expect(response.body.message).toBe('Reviewer is already assigned to this manuscript');
     });
 
     it('should validate UUID format for IDs', async () => {

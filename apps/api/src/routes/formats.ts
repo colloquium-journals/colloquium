@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
-import { authenticate, requirePermission } from '../middleware/auth';
-import { Permission } from '@colloquium/auth';
+import { authenticate, requireGlobalPermission } from '../middleware/auth';
+import { GlobalPermission } from '@colloquium/auth';
 import { z } from 'zod';
 import { formatDetection } from '../services/formatDetection';
 
@@ -91,8 +91,7 @@ router.get('/:id', async (req, res, next) => {
 
 // POST /api/formats - Register new format (admin only)
 router.post('/', authenticate, (req, res, next) => {
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.MANAGE_FORMATS || Permission.ADMIN)(req, res, next);
+  return requireGlobalPermission(GlobalPermission.MANAGE_JOURNAL_SETTINGS)(req, res, next);
 }, async (req, res, next) => {
   try {
     const formatData = createFormatSchema.parse(req.body);
@@ -183,8 +182,7 @@ router.post('/', authenticate, (req, res, next) => {
 
 // PUT /api/formats/:id - Update format configuration
 router.put('/:id', authenticate, (req, res, next) => {
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.MANAGE_FORMATS || Permission.ADMIN)(req, res, next);
+  return requireGlobalPermission(GlobalPermission.MANAGE_JOURNAL_SETTINGS)(req, res, next);
 }, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -272,8 +270,7 @@ router.put('/:id', authenticate, (req, res, next) => {
 
 // DELETE /api/formats/:id - Deactivate format
 router.delete('/:id', authenticate, (req, res, next) => {
-  const { Permission } = require('@colloquium/auth');
-  return requirePermission(Permission.MANAGE_FORMATS || Permission.ADMIN)(req, res, next);
+  return requireGlobalPermission(GlobalPermission.MANAGE_JOURNAL_SETTINGS)(req, res, next);
 }, async (req, res, next) => {
   try {
     const { id } = req.params;

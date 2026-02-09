@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyJWT, generateJWT, Permission, GlobalPermission, GlobalRole, hasPermission, hasGlobalPermission } from '@colloquium/auth';
+import { verifyJWT, generateJWT, GlobalPermission, GlobalRole, hasGlobalPermission } from '@colloquium/auth';
 import { prisma } from '@colloquium/database';
 
 // Extend Express Request to include user and bot context
@@ -76,26 +76,6 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   } catch (error) {
     next(error);
   }
-};
-
-export const requirePermission = (permission: Permission) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({
-        error: 'Not Authenticated',
-        message: 'Authentication required'
-      });
-    }
-
-    if (!hasPermission(req.user.role, permission)) {
-      return res.status(403).json({
-        error: 'Insufficient Permissions',
-        message: `This action requires ${permission} permission`
-      });
-    }
-
-    next();
-  };
 };
 
 export const requireGlobalPermission = (permission: GlobalPermission) => {
