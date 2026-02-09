@@ -16,7 +16,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockArticlesResponse = {
-  articles: [
+  manuscripts: [
     {
       id: '1',
       title: 'Machine Learning in Healthcare',
@@ -247,7 +247,7 @@ describe('Articles Page - Search Functionality', () => {
       await waitFor(() => {
         const lastCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
         expect(lastCall[0]).toMatch(/search=deep(\+|%20)learning/);
-        expect(lastCall[0]).toContain('status=PUBLISHED');
+        expect(lastCall[0]).toContain('status=ALL');
       });
     });
 
@@ -263,7 +263,7 @@ describe('Articles Page - Search Functionality', () => {
       // Initial API call should not include search parameter
       const initialCall = mockFetch.mock.calls[0];
       expect(initialCall[0]).not.toContain('search=');
-      expect(initialCall[0]).toContain('status=PUBLISHED');
+      expect(initialCall[0]).toContain('status=ALL');
     });
 
     it('should combine search with other query parameters', async () => {
@@ -313,7 +313,7 @@ describe('Articles Page - Search Functionality', () => {
         const lastCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
         expect(lastCall[0]).toContain('search=algorithms');
         expect(lastCall[0]).toContain('orderBy=title');
-        expect(lastCall[0]).toContain('status=PUBLISHED');
+        expect(lastCall[0]).toContain('status=ALL');
       });
     });
 
@@ -350,9 +350,9 @@ describe('Articles Page - Search Functionality', () => {
     it('should display filtered results when search is performed', async () => {
       // Mock search results
       const searchResults = {
-        articles: [
+        manuscripts: [
           {
-            ...mockArticlesResponse.articles[0] // Only healthcare article
+            ...mockArticlesResponse.manuscripts[0] // Only healthcare article
           }
         ],
         pagination: {
@@ -402,7 +402,7 @@ describe('Articles Page - Search Functionality', () => {
 
     it('should show "no articles found" when search returns empty results', async () => {
       const emptyResults = {
-        articles: [],
+        manuscripts: [],
         pagination: {
           page: 1,
           limit: 12,

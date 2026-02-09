@@ -219,7 +219,7 @@ describe('useBotFileUpload', () => {
         setTimeout(() => resolve({
           ok: true,
           json: async () => ({ success: true, file: {} })
-        }), 100)
+        }), 500)
       )
     );
 
@@ -231,11 +231,17 @@ describe('useBotFileUpload', () => {
 
     // Check that upload state is set
     expect(result.current.isUploading).toBe(true);
+
+    // Wait for at least one progress interval tick (100ms)
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    });
+
     expect(result.current.uploadProgress).toBeGreaterThan(0);
 
     await waitFor(() => {
       expect(result.current.isUploading).toBe(false);
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.uploadProgress).toBe(0);
   });

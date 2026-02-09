@@ -100,9 +100,9 @@ Fixed: added `.github/workflows/ci.yml` with lint, type-check, build, and test s
 
 Fixed: unified all packages on `marked` v15.0.12.
 
-### H16. 12 Pre-existing Test Failures in `apps/web`
+### ~~H16. Pre-existing Test Failures in `apps/web`~~ (RESOLVED)
 
-Test suite has pre-existing failures including missing `BotManagement` page component, `useSSE` auth wrapper issues, and stale test imports (`GlobalRole` from `@colloquium/database` instead of `@colloquium/auth`).
+Fixed: All web test failures resolved. Changes: (1) Added `ADD_ATTR: ['target', 'rel']` to DOMPurify sanitize config for marked-generated link attributes; (2) Added `useAuth` mock to `useSSE` tests; (3) Fixed `articles` → `manuscripts` response key and `status=PUBLISHED` → `status=ALL` in articles page tests; (4) Fixed `position: fixed` → `position: absolute` in MentionSuggest tests; (5) Deleted orphaned bot admin tests (standalone `BotManagementPage` was superseded by admin settings tab); (6) Updated ConversationThread SSE assertion for new callback params; (7) Fixed useBotFileUpload progress test timing; (8) Fixed MessageComposer bot testid references; (9) Fixed mentions test bot prefix convention. All 214 tests pass.
 
 ---
 
@@ -208,11 +208,11 @@ Resolved during M3 file split: Handlebars.compile is no longer called directly i
 
 ## Recommended Priority Order
 
-All critical, high (except H16), medium, and low items are resolved. Remaining work:
+All critical, high, medium, and low items are resolved.
 
-**Next priorities:**
+**Completed priorities:**
 1. ~~Centralize API URL configuration (C1)~~ — DONE
-2. Fix pre-existing test failures (H16)
+2. ~~Fix pre-existing test failures (H16)~~ — DONE
 3. ~~Split large files (M1, M2, M3)~~ — DONE
 4. ~~Standardize error response format (M7)~~ — DONE
 5. ~~Extract duplicated utilities (M10)~~ — DONE

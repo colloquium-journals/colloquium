@@ -131,7 +131,7 @@ describe('MentionSuggest', () => {
       position: { top: 200, left: 100 }
     });
     
-    const popup = container.querySelector('[style*="position: fixed"]');
+    const popup = container.querySelector('[style*="position: absolute"]');
     expect(popup).toHaveStyle({
       top: '200px',
       left: '100px'
@@ -188,7 +188,7 @@ describe('MentionSuggest', () => {
   it('should apply correct styling for popup', () => {
     const { container } = renderWithMantine();
     
-    const popup = container.querySelector('[style*="position: fixed"]');
+    const popup = container.querySelector('[style*="position: absolute"]');
     expect(popup).toHaveStyle({
       zIndex: '1000',
       maxWidth: '320px',

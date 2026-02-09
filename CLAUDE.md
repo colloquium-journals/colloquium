@@ -269,9 +269,7 @@ Published:       /static/published/{id}/{filename}           (static, public)
 
 ## Known Technical Debt
 
-See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. All critical, medium, and low issues are resolved. Only remaining item:
-
-- **Pre-existing test failures (H16)**: 12 failures in `apps/web` (missing components, stale imports)
+See [plans/technical-debt-review.md](plans/technical-debt-review.md) for the full review. All critical, high, medium, and low issues are resolved.
 
 ## Security Notes
 

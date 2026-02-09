@@ -2,6 +2,10 @@ import { renderHook, act } from '@testing-library/react';
 import { useSSE } from '../useSSE';
 import { API_URL } from '@/lib/api';
 
+jest.mock('../../contexts/AuthContext', () => ({
+  useAuth: () => ({ token: 'test-token' }),
+}));
+
 // Mock EventSource
 class MockEventSource {
   public url: string;
@@ -85,7 +89,7 @@ describe('useSSE Hook', () => {
     });
 
     expect(global.EventSource).toHaveBeenCalledWith(
-      `${API_URL}/api/events/conversations/conversation-123`,
+      `${API_URL}/api/events/conversations/conversation-123?token=${encodeURIComponent('test-token')}`,
       { withCredentials: true }
     );
     expect(mockEventSources).toHaveLength(1);

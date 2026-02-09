@@ -162,8 +162,8 @@ describe('MessageComposer Bot Mention Functionality', () => {
     // Verify that all expected bots are recognized
     expect(screen.getByTestId('bot-bot-editorial')).toHaveTextContent('Editorial Bot');
     expect(screen.getByTestId('bot-bot-plagiarism-checker')).toHaveTextContent('Plagiarism Checker');
-    expect(screen.getByTestId('bot-bot-reference')).toHaveTextContent('Reference Bot');
-    
+    expect(screen.getByTestId('bot-bot-reference-check')).toHaveTextContent('Reference Check Bot');
+
     // Verify the bot data structure is correct
     expect(capturedAvailableBots).toHaveLength(3);
     expect(capturedAvailableBots).toEqual(
@@ -731,7 +731,7 @@ describe('MessageComposer Bot Mention Functionality', () => {
       // Should show only enabled and installed bots
       expect(screen.getByTestId('enabled-bot-bot-editorial')).toHaveTextContent('Editorial Bot');
       expect(screen.getByTestId('enabled-bot-bot-plagiarism-checker')).toHaveTextContent('Plagiarism Checker');
-      expect(screen.getByTestId('enabled-bot-bot-reference')).toHaveTextContent('Reference Bot');
+      expect(screen.getByTestId('enabled-bot-bot-reference-check')).toHaveTextContent('Reference Check Bot');
 
       // Should NOT include disabled or uninstalled bots in the results
       expect(capturedAvailableBots.find(bot => bot.id === 'disabled-bot')).toBeUndefined();

@@ -16,7 +16,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 const mockArticlesResponse = {
-  articles: [
+  manuscripts: [
     {
       id: '1',
       title: 'Machine Learning in Healthcare',
@@ -136,8 +136,8 @@ describe('Articles Page - Tag Filtering', () => {
       // Mock a article with more than 3 keywords
       const articleWithManyKeywords = {
         ...mockArticlesResponse,
-        articles: [{
-          ...mockArticlesResponse.articles[0],
+        manuscripts: [{
+          ...mockArticlesResponse.manuscripts[0],
           keywords: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5']
         }]
       };
@@ -302,7 +302,7 @@ describe('Articles Page - Tag Filtering', () => {
     it('should only show articles that contain the selected tag', async () => {
       // Mock filtered response with only articles containing 'healthcare' tag
       const filteredResponse = {
-        articles: [
+        manuscripts: [
           {
             id: '1',
             title: 'Machine Learning in Healthcare',
@@ -437,7 +437,7 @@ describe('Articles Page - Tag Filtering', () => {
         // Verify the API call includes the tag parameter
         const lastCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1];
         expect(lastCall[0]).toContain('tag=AI');
-        expect(lastCall[0]).toContain('status=PUBLISHED');
+        expect(lastCall[0]).toContain('status=ALL');
       });
     });
 
@@ -453,7 +453,7 @@ describe('Articles Page - Tag Filtering', () => {
       // Check initial API call doesn't include tag parameter
       const initialCall = mockFetch.mock.calls[0];
       expect(initialCall[0]).not.toContain('tag=');
-      expect(initialCall[0]).toContain('status=PUBLISHED');
+      expect(initialCall[0]).toContain('status=ALL');
     });
 
     it('should combine tag filter with search and sorting parameters', async () => {

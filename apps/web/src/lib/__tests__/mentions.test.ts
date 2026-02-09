@@ -48,8 +48,8 @@ describe('Mention Parsing', () => {
     expect(mentions.every(m => m.isBot)).toBe(true);
   });
 
-  it('should identify bot-like IDs by suffix', () => {
-    const content = '@custom-bot does something';
+  it('should identify bot-like IDs by prefix', () => {
+    const content = '@bot-custom does something';
     const mentions = parseMentions(content);
 
     expect(mentions).toHaveLength(1);

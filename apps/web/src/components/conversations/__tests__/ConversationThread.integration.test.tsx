@@ -133,7 +133,9 @@ describe('ConversationThread Real-time Message Flow', () => {
     await waitFor(() => {
       expect(mockUseSSE).toHaveBeenCalledWith('conversation-123', {
         enabled: true,
-        onNewMessage: expect.any(Function)
+        onNewMessage: expect.any(Function),
+        onMessageUpdated: expect.any(Function),
+        onWorkflowPhaseChanged: expect.any(Function),
       });
     });
   });
