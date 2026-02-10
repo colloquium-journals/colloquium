@@ -12,6 +12,7 @@ describe('createBotClient', () => {
     expect(client.files).toBeDefined();
     expect(client.users).toBeDefined();
     expect(client.reviewers).toBeDefined();
+    expect(client.storage).toBeDefined();
     expect(client.apiUrl).toBe('http://localhost:4000');
   });
 

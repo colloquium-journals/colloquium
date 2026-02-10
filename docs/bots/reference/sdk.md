@@ -122,6 +122,44 @@ const result = await client.reviewers.assign('user-uuid', {
 });
 ```
 
+## client.storage
+
+A key-value store scoped to `(botId, manuscriptId)`. Useful for persisting state between invocations.
+
+### get(key)
+
+Retrieves a value by key. Returns `null` if the key doesn't exist.
+
+```typescript
+const hash = await client.storage.get<string>('file-hash');
+```
+
+### set(key, value)
+
+Sets a value for the given key (creates or updates).
+
+```typescript
+await client.storage.set('file-hash', 'sha256:abc123');
+await client.storage.set('analysis', { score: 0.95, checked: true });
+```
+
+### delete(key)
+
+Removes a key-value pair.
+
+```typescript
+await client.storage.delete('file-hash');
+```
+
+### list()
+
+Lists all keys for the current bot and manuscript.
+
+```typescript
+const entries = await client.storage.list();
+// Returns: Array<{ key: string; updatedAt: string }>
+```
+
 ## Error Handling
 
 Failed API calls throw `BotApiError`:
@@ -149,4 +187,5 @@ The SDK exports these types:
 - `FileData` - File metadata shape
 - `UserData` - User data shape
 - `ReviewerAssignment` - Reviewer assignment shape
+- `StorageClient` - Storage client interface
 - `BotApiError` - Error class for failed requests

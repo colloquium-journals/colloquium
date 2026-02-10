@@ -1,4 +1,4 @@
-import { CommandBot, BotCommand } from '@colloquium/types';
+import { CommandBot, BotCommand, BotEventName } from '@colloquium/types';
 import { createBotClient } from '@colloquium/bot-sdk';
 
 interface ChecklistConfig {
@@ -377,7 +377,7 @@ export const reviewerChecklistBot: CommandBot = {
   customHelpSections: [
     {
       title: '🎯 Features',
-      content: '• Generates checklists for all assigned reviewers without one\n• Customizable templates with variable support\n• Creates editable messages that reviewers can interact with\n• Smart targeting to avoid duplicate checklists',
+      content: '• Generates checklists for all assigned reviewers without one\n• Customizable templates with variable support\n• Creates editable messages that reviewers can interact with\n• Smart targeting to avoid duplicate checklists\n• Auto-generates checklists when reviewers are assigned (via event system)',
       position: 'before'
     },
     {
@@ -390,7 +390,40 @@ export const reviewerChecklistBot: CommandBot = {
       content: 'Customize the checklist template by uploading a markdown file via the Files tab or by editing the template in the bot configuration. Set `templateFile` to the filename of your uploaded template. The default template covers common review criteria across scientific rigor, significance, scholarship, technical quality, ethics, and reproducibility.',
       position: 'after'
     }
-  ]
+  ],
+  events: {
+    [BotEventName.REVIEWER_ASSIGNED]: async (context, payload) => {
+      const client = createBotClient(context);
+      const assignments = await client.reviewers.list();
+      const assignment = assignments.find((a: any) => a.reviewerId === payload.reviewerId);
+      if (!assignment) return;
+
+      const config = await getBotConfig(context);
+      const template = config?.template || DEFAULT_TEMPLATE;
+
+      const reviewerName = (assignment as any).users?.name || 'Reviewer';
+      const checklistContent = renderTemplate(template, {
+        ...context,
+        reviewerName,
+      });
+
+      return {
+        messages: [
+          {
+            content: `**Auto-Generated Checklist** for ${reviewerName}\n\nA review checklist has been automatically generated for the newly assigned reviewer.`,
+          },
+          {
+            content: checklistContent,
+            metadata: {
+              reviewerId: payload.reviewerId,
+              isEditable: true,
+              editPermissions: [payload.reviewerId],
+            },
+          },
+        ],
+      };
+    },
+  },
 };
 
 // Export the bot for npm package compatibility

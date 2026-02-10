@@ -12,6 +12,8 @@ import { hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermis
 import { fileStorage } from '../services/fileStorage';
 import { formatDetection } from '../services/formatDetection';
 import { addBotJob } from '../jobs';
+import { BotEventName } from '@colloquium/types';
+import { dispatchBotEvent } from '../services/botEventDispatcher';
 
 const router = Router();
 
@@ -631,6 +633,17 @@ router.post('/', authenticate, (req, res, next) => {
         console.error('Failed to auto-invoke submission commands:', err);
       }
     });
+
+    // Fire-and-forget: dispatch manuscript.submitted event to bots
+    setImmediate(async () => {
+      try {
+        await dispatchBotEvent(BotEventName.MANUSCRIPT_SUBMITTED, result.manuscript.id, {
+          manuscriptId: result.manuscript.id,
+        });
+      } catch (err) {
+        console.error('Failed to dispatch manuscript.submitted event:', err);
+      }
+    });
   } catch (error) {
     // Clean up uploaded files if manuscript creation failed
     if (req.files) {
@@ -1008,6 +1021,20 @@ router.put('/:id', authenticate, async (req, res, next) => {
         ...(status && { status })
       }
     });
+
+    // Fire-and-forget: dispatch status change event if status was updated
+    if (status && status !== existingManuscript.status) {
+      setImmediate(async () => {
+        try {
+          await dispatchBotEvent(BotEventName.MANUSCRIPT_STATUS_CHANGED, id, {
+            previousStatus: existingManuscript.status,
+            newStatus: status,
+          });
+        } catch (err) {
+          console.error('Failed to dispatch manuscript.statusChanged event:', err);
+        }
+      });
+    }
 
     // Post bot notification if there were changes
     if (changes.length > 0) {
@@ -1418,6 +1445,24 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
       files: uploadedFiles,
       count: uploadedFiles.length
     });
+
+    // Fire-and-forget: dispatch file.uploaded events for each uploaded file
+    for (const uploadedFile of uploadedFiles) {
+      setImmediate(async () => {
+        try {
+          await dispatchBotEvent(BotEventName.FILE_UPLOADED, id, {
+            file: {
+              id: uploadedFile.id,
+              name: uploadedFile.originalName,
+              type: uploadedFile.fileType,
+              mimetype: uploadedFile.mimetype,
+            },
+          });
+        } catch (err) {
+          console.error('Failed to dispatch file.uploaded event:', err);
+        }
+      });
+    }
 
   } catch (error) {
     next(error);

@@ -3,6 +3,7 @@ import { createManuscriptClient, ManuscriptClient } from './manuscripts';
 import { createFileClient, FileClient } from './files';
 import { createUserClient, UserClient } from './users';
 import { createReviewerClient, ReviewerClient } from './reviewers';
+import { createStorageClient, StorageClient } from './storage';
 
 export interface BotClientContext {
   manuscriptId: string;
@@ -15,6 +16,7 @@ export interface BotClient {
   files: FileClient;
   users: UserClient;
   reviewers: ReviewerClient;
+  storage: StorageClient;
   apiUrl: string;
 }
 
@@ -33,6 +35,7 @@ export function createBotClient(context: BotClientContext): BotClient {
     files: createFileClient(http, context.manuscriptId),
     users: createUserClient(http),
     reviewers: createReviewerClient(http, context.manuscriptId),
+    storage: createStorageClient(http),
     apiUrl,
   };
 }

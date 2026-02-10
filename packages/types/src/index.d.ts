@@ -306,6 +306,23 @@ export interface BotContext {
     };
     config: Record<string, any>;
     serviceToken?: string;
+    manuscript?: {
+        title: string;
+        abstract: string | null;
+        authors: string[];
+        status: string;
+        keywords: string[];
+        workflowPhase: string | null;
+        workflowRound: number;
+    };
+    files?: Array<{
+        id: string;
+        originalName: string;
+        filename: string;
+        fileType: string;
+        mimetype: string;
+        size: number;
+    }>;
 }
 export interface BotResponse {
     botId?: string;
@@ -370,6 +387,25 @@ export declare enum BotTrigger {
     REVIEW_COMPLETE = "review_complete",
     SCHEDULED = "scheduled"
 }
+export declare enum BotEventName {
+    MANUSCRIPT_SUBMITTED = "manuscript.submitted",
+    MANUSCRIPT_STATUS_CHANGED = "manuscript.statusChanged",
+    FILE_UPLOADED = "file.uploaded",
+    REVIEWER_ASSIGNED = "reviewer.assigned",
+    REVIEWER_STATUS_CHANGED = "reviewer.statusChanged",
+    WORKFLOW_PHASE_CHANGED = "workflow.phaseChanged",
+    DECISION_RELEASED = "decision.released"
+}
+export interface BotEventPayload {
+    [BotEventName.MANUSCRIPT_SUBMITTED]: { manuscriptId: string };
+    [BotEventName.MANUSCRIPT_STATUS_CHANGED]: { previousStatus: string; newStatus: string };
+    [BotEventName.FILE_UPLOADED]: { file: { id: string; name: string; type: string; mimetype: string } };
+    [BotEventName.REVIEWER_ASSIGNED]: { reviewerId: string; dueDate: string | null; status: string };
+    [BotEventName.REVIEWER_STATUS_CHANGED]: { reviewerId: string; previousStatus: string; newStatus: string };
+    [BotEventName.WORKFLOW_PHASE_CHANGED]: { previousPhase: string | null; newPhase: string; round: number };
+    [BotEventName.DECISION_RELEASED]: { decision: string; round: number };
+}
+export type BotEventHandler<E extends BotEventName> = (context: BotContext, payload: BotEventPayload[E]) => Promise<BotResponse | void>;
 export declare enum BotPermission {
     READ_MANUSCRIPT = "read_manuscript",
     READ_FILES = "read_files",
@@ -441,6 +477,9 @@ export interface CommandBot {
     customHelpSections?: BotCustomHelpSection[];
     onInstall?: (context: BotInstallationContext) => Promise<void>;
     actionHandlers?: Record<string, BotActionHandler>;
+    events?: {
+        [E in BotEventName]?: BotEventHandler<E>;
+    };
 }
 export interface ParsedCommand {
     botId: string;

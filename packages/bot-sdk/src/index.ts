@@ -6,3 +6,4 @@ export type { FileClient } from './files';
 export type { ManuscriptClient } from './manuscripts';
 export type { UserClient } from './users';
 export type { ReviewerClient } from './reviewers';
+export type { StorageClient } from './storage';

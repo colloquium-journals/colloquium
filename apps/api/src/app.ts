@@ -24,6 +24,7 @@ import eventsRoutes, { closeAllConnections } from './routes/events';
 import reviewersRoutes from './routes/reviewers';
 import formatsRoutes from './routes/formats';
 import orcidRoutes from './routes/orcid';
+import botStorageRoutes from './routes/bot-storage';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -148,6 +149,7 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/reviewers', reviewersRoutes);
 app.use('/api/formats', formatsRoutes);
 app.use('/api/auth/orcid', orcidRoutes);
+app.use('/api/bot-storage', botStorageRoutes);
 
 // Error handling middleware
 app.use(notFound);

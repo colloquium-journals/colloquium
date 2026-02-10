@@ -98,6 +98,21 @@ model bot_installs {
   bot_definitions bot_definitions @relation(fields: [botId], references: [id], onDelete: Cascade)
 }
 
+model bot_storage {
+  id           String      @id @default(uuid())
+  botId        String
+  manuscriptId String
+  key          String
+  value        Json
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  manuscripts  manuscripts @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+
+  @@unique([botId, manuscriptId, key])
+  @@index([botId, manuscriptId])
+}
+
 model conversation_participants {
   id             String          @id
   conversationId String
@@ -210,6 +225,7 @@ model manuscripts {
   // Subject classification for PMC/JATS
   subjects             String[]   @default([])
   action_editors       action_editors?
+  bot_storage          bot_storage[]
   conversations        conversations[]
   manuscript_authors   manuscript_authors[]
   manuscript_files     manuscript_files[]

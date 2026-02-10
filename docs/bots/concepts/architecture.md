@@ -58,6 +58,41 @@ The bot processor pre-fetches commonly needed data before invoking the bot:
 
 This saves bots 1-3 API round-trips per invocation. Both fields are optional for backwards compatibility.
 
+## Event System
+
+In addition to `@mention` commands, bots can subscribe to platform lifecycle events using the `events` property on `CommandBot`. When an event occurs (e.g., a reviewer is assigned), the system dispatches it to all installed bots that have a handler for that event.
+
+### Event Flow
+
+```
+1. Platform action occurs (e.g., reviewer assigned)
+2. Route/service calls dispatchBotEvent(eventName, manuscriptId, payload)
+3. Dispatcher checks all installed bots for matching event handlers
+4. For each match, a graphile-worker job is queued (bot-event-processing)
+5. Worker invokes the bot's event handler with enriched context + payload
+6. If handler returns messages, they are posted to the manuscript's review conversation
+```
+
+### Available Events
+
+| Event | Trigger |
+|-------|---------|
+| `manuscript.submitted` | New manuscript created |
+| `manuscript.statusChanged` | Manuscript status updated |
+| `file.uploaded` | File added to a manuscript |
+| `reviewer.assigned` | Reviewer assigned to manuscript |
+| `reviewer.statusChanged` | Review assignment status changes |
+| `workflow.phaseChanged` | Workflow phase transitions |
+| `decision.released` | Editorial decision released |
+
+See [Events Reference](events.md) for full payload documentation.
+
+## Bot-Scoped Storage
+
+Bots can persist key-value data scoped to `(botId, manuscriptId)` using the storage API. This allows bots to remember state between invocations (e.g., file hashes, analysis results, preferences).
+
+Access is via `client.storage` in the SDK or the `/api/bot-storage` REST endpoints.
+
 ## Error Handling
 
 - Bot errors are caught and logged

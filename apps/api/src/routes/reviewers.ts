@@ -17,6 +17,8 @@ import {
 } from '../schemas/validation';
 import { transporter } from '../services/emailService';
 import { errors } from '../utils/errorResponse';
+import { BotEventName } from '@colloquium/types';
+import { dispatchBotEvent } from '../services/botEventDispatcher';
 
 const router = Router();
 
@@ -253,6 +255,19 @@ Decline: ${invitationUrl}?action=decline
           status: assignment.status
         });
 
+        // Fire-and-forget: dispatch reviewer.assigned event
+        setImmediate(async () => {
+          try {
+            await dispatchBotEvent(BotEventName.REVIEWER_ASSIGNED, manuscriptId, {
+              reviewerId: reviewer.id,
+              dueDate: dueDate || null,
+              status: assignment.status,
+            });
+          } catch (err) {
+            console.error('Failed to dispatch reviewer.assigned event:', err);
+          }
+        });
+
       } catch (error) {
         console.error(`Failed to invite reviewer ${email}:`, error);
         results.failed.push({
@@ -336,6 +351,19 @@ router.post('/assign',
     res.status(201).json({
       message: 'Reviewer assigned successfully',
       assignment
+    });
+
+    // Fire-and-forget: dispatch reviewer.assigned event
+    setImmediate(async () => {
+      try {
+        await dispatchBotEvent(BotEventName.REVIEWER_ASSIGNED, manuscriptId, {
+          reviewerId,
+          dueDate: dueDate || null,
+          status: 'ACCEPTED',
+        });
+      } catch (err) {
+        console.error('Failed to dispatch reviewer.assigned event:', err);
+      }
     });
   })
 );
@@ -429,6 +457,7 @@ router.put('/assignments/:id',
       updateData.completedAt = new Date();
     }
 
+    const previousStatus = assignment.status;
     const updatedAssignment = await prisma.review_assignments.update({
       where: { id },
       data: updateData,
@@ -446,6 +475,21 @@ router.put('/assignments/:id',
       message: 'Review assignment updated successfully',
       assignment: updatedAssignment
     });
+
+    // Fire-and-forget: dispatch reviewer.statusChanged event if status changed
+    if (status && status !== previousStatus) {
+      setImmediate(async () => {
+        try {
+          await dispatchBotEvent(BotEventName.REVIEWER_STATUS_CHANGED, assignment.manuscriptId, {
+            reviewerId: assignment.reviewerId,
+            previousStatus,
+            newStatus: status,
+          });
+        } catch (err) {
+          console.error('Failed to dispatch reviewer.statusChanged event:', err);
+        }
+      });
+    }
   })
 );
 
@@ -559,6 +603,19 @@ router.post('/bulk-assign',
 
         results.successful.push(newAssignment);
 
+        // Fire-and-forget: dispatch reviewer.assigned event
+        setImmediate(async () => {
+          try {
+            await dispatchBotEvent(BotEventName.REVIEWER_ASSIGNED, manuscriptId, {
+              reviewerId: assignment.reviewerId,
+              dueDate: assignment.dueDate || null,
+              status: 'ACCEPTED',
+            });
+          } catch (err) {
+            console.error('Failed to dispatch reviewer.assigned event:', err);
+          }
+        });
+
       } catch (error) {
         results.failed.push({
           reviewerId: assignment.reviewerId,
@@ -630,6 +687,19 @@ router.post('/invitations/:id/respond',
         manuscripts: {
           select: { id: true, title: true }
         }
+      }
+    });
+
+    // Fire-and-forget: dispatch reviewer.statusChanged event
+    setImmediate(async () => {
+      try {
+        await dispatchBotEvent(BotEventName.REVIEWER_STATUS_CHANGED, assignment.manuscriptId, {
+          reviewerId: assignment.reviewerId,
+          previousStatus: 'PENDING',
+          newStatus,
+        });
+      } catch (err) {
+        console.error('Failed to dispatch reviewer.statusChanged event:', err);
       }
     });
 
@@ -752,11 +822,25 @@ router.post('/assignments/:id/submit',
     }
 
     // Update assignment to completed
+    const previousStatus = assignment.status;
     const updatedAssignment = await prisma.review_assignments.update({
       where: { id },
       data: {
         status: 'COMPLETED',
         completedAt: new Date()
+      }
+    });
+
+    // Fire-and-forget: dispatch reviewer.statusChanged event
+    setImmediate(async () => {
+      try {
+        await dispatchBotEvent(BotEventName.REVIEWER_STATUS_CHANGED, assignment.manuscriptId, {
+          reviewerId: assignment.reviewerId,
+          previousStatus,
+          newStatus: 'COMPLETED',
+        });
+      } catch (err) {
+        console.error('Failed to dispatch reviewer.statusChanged event:', err);
       }
     });
 
@@ -940,6 +1024,19 @@ router.get('/invitations/:id/public',
           }
         });
 
+        // Fire-and-forget: dispatch reviewer.statusChanged event
+        setImmediate(async () => {
+          try {
+            await dispatchBotEvent(BotEventName.REVIEWER_STATUS_CHANGED, assignment.manuscriptId, {
+              reviewerId: assignment.reviewerId,
+              previousStatus: 'PENDING',
+              newStatus,
+            });
+          } catch (err) {
+            console.error('Failed to dispatch reviewer.statusChanged event:', err);
+          }
+        });
+
         // Post bot message to the conversation
         try {
           // Find the conversation for this manuscript
@@ -1084,6 +1181,19 @@ router.post('/invitations/:id/respond-public',
       const updatedAssignment = await prisma.review_assignments.update({
         where: { id },
         data: { status: newStatus }
+      });
+
+      // Fire-and-forget: dispatch reviewer.statusChanged event
+      setImmediate(async () => {
+        try {
+          await dispatchBotEvent(BotEventName.REVIEWER_STATUS_CHANGED, assignment.manuscriptId, {
+            reviewerId: assignment.reviewerId,
+            previousStatus: 'PENDING',
+            newStatus,
+          });
+        } catch (err) {
+          console.error('Failed to dispatch reviewer.statusChanged event:', err);
+        }
       });
 
       // Create notification in editorial conversation

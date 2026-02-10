@@ -1,6 +1,7 @@
 import { run, Runner, TaskList, parseCronItems } from 'graphile-worker';
 import { processBotJob } from './botProcessor';
-import { BotProcessingJob, DeadlineReminderJob } from './index';
+import { processBotEventJob } from './botEventProcessor';
+import { BotProcessingJob, BotEventJob, DeadlineReminderJob } from './index';
 import { processDeadlineReminder } from '../services/deadlineReminderProcessor';
 import { scanAndScheduleReminders } from '../services/deadlineScanner';
 
@@ -17,6 +18,19 @@ const taskList: TaskList = {
       console.log(`✅ Bot job completed successfully for message ${jobPayload.messageId}`);
     } catch (error) {
       console.error(`❌ Bot job failed for message ${jobPayload.messageId}:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  },
+
+  'bot-event-processing': async (payload, helpers) => {
+    const jobPayload = payload as BotEventJob;
+    console.log(`🔔 Processing bot event ${jobPayload.eventName} for bot ${jobPayload.botId}`);
+
+    try {
+      await processBotEventJob(jobPayload);
+      console.log(`✅ Bot event job completed for ${jobPayload.botId} (${jobPayload.eventName})`);
+    } catch (error) {
+      console.error(`❌ Bot event job failed for ${jobPayload.botId} (${jobPayload.eventName}):`, error instanceof Error ? error.message : error);
       throw error;
     }
   },

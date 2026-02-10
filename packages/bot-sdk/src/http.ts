@@ -63,7 +63,19 @@ export function createHttpClient(apiUrl: string, serviceToken: string) {
     return response.json() as Promise<T>;
   }
 
-  return { request, getJSON, postJSON };
+  async function putJSON<T>(path: string, data: unknown): Promise<T> {
+    const response = await request(path, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+    return response.json() as Promise<T>;
+  }
+
+  async function deleteRequest(path: string): Promise<void> {
+    await request(path, { method: 'DELETE' });
+  }
+
+  return { request, getJSON, postJSON, putJSON, deleteRequest };
 }
 
 export type HttpClient = ReturnType<typeof createHttpClient>;

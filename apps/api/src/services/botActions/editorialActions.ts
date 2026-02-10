@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { broadcastToConversation } from '../../routes/events';
 import { transporter } from '../emailService';
 import { ActionContext } from '../botActionProcessor';
+import { BotEventName } from '@colloquium/types';
+import { dispatchBotEvent } from '../botEventDispatcher';
 
 export async function handleMakeEditorialDecision(data: any, context: ActionContext): Promise<void> {
   const { decision, status, revisionType } = data;
@@ -557,6 +559,28 @@ export async function handleUpdateWorkflowPhase(data: any, context: ActionContex
     decision,
     manuscriptId
   }, manuscriptId);
+
+  // Dispatch bot events for phase change
+  try {
+    await dispatchBotEvent(BotEventName.WORKFLOW_PHASE_CHANGED, manuscriptId, {
+      previousPhase: manuscript.workflowPhase,
+      newPhase: phase,
+      round: manuscript.workflowRound,
+    });
+  } catch (err) {
+    console.error('Failed to dispatch workflow.phaseChanged event:', err);
+  }
+
+  if (phase === 'RELEASED' && decision) {
+    try {
+      await dispatchBotEvent(BotEventName.DECISION_RELEASED, manuscriptId, {
+        decision,
+        round: manuscript.workflowRound,
+      });
+    } catch (err) {
+      console.error('Failed to dispatch decision.released event:', err);
+    }
+  }
 
   // Send notification emails based on phase
   if (phase === 'RELEASED') {

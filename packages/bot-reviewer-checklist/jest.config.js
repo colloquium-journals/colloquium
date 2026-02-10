@@ -7,7 +7,9 @@ module.exports = {
     '**/?(*.)+(spec|test).ts'
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.json'
+    }],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -15,4 +17,12 @@ module.exports = {
     '!src/tests/**',
   ],
   setupFilesAfterEnv: ['<rootDir>/src/tests/setup.ts'],
+  moduleNameMapper: {
+    '^@colloquium/types$': '<rootDir>/../types/src/index.ts',
+    '^@colloquium/bot-sdk$': '<rootDir>/../bot-sdk/src/index.ts',
+    '^@colloquium/(.*)$': '<rootDir>/../$1/src'
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@colloquium)/)'
+  ]
 };

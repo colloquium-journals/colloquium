@@ -14,6 +14,13 @@ export interface DeadlineReminderJob {
   daysBefore: number;
 }
 
+export interface BotEventJob {
+  eventName: string;
+  botId: string;
+  manuscriptId: string;
+  payload: Record<string, unknown>;
+}
+
 export interface DeadlineScannerJob {
   triggeredAt: string;
 }
@@ -71,6 +78,14 @@ export async function triggerDeadlineScanner(): Promise<void> {
   console.log('Deadline scanner job triggered manually');
 }
 
+// Add a bot event job to the queue
+export async function addBotEventJob(payload: BotEventJob): Promise<void> {
+  const utils = await getWorkerUtils();
+  await utils.addJob('bot-event-processing', payload, {
+    maxAttempts: 3,
+  });
+}
+
 // Export getWorkerUtils for external use
 export { getWorkerUtils };
 
@@ -102,4 +117,4 @@ export async function closeQueues(): Promise<void> {
   console.log('graphile-worker utils closed');
 }
 
-export default { addBotJob, getQueueHealth, closeQueues };
+export default { addBotJob, addBotEventJob, getQueueHealth, closeQueues };

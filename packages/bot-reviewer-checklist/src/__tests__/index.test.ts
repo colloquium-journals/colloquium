@@ -1,4 +1,5 @@
 import { reviewerChecklistBot } from '../index';
+import { BotEventName } from '@colloquium/types';
 
 // Mock fetch for SDK API calls
 const mockReviewerAssignments = {
@@ -222,6 +223,82 @@ describe('Reviewer Checklist Bot', () => {
       const result = await generateCommand!.execute({ reviewer: 'Smith' }, mockContext);
       
       expect(result.messages[0].content).toContain('Generated checklist for');
+    });
+  });
+
+  describe('events', () => {
+    it('should have a reviewer.assigned event handler', () => {
+      expect(reviewerChecklistBot.events).toBeDefined();
+      expect(reviewerChecklistBot.events![BotEventName.REVIEWER_ASSIGNED]).toBeDefined();
+      expect(typeof reviewerChecklistBot.events![BotEventName.REVIEWER_ASSIGNED]).toBe('function');
+    });
+
+    it('should auto-generate checklist on reviewer.assigned event', async () => {
+      const handler = reviewerChecklistBot.events![BotEventName.REVIEWER_ASSIGNED]!;
+
+      const mockContext = {
+        manuscriptId: 'test-manuscript-123',
+        conversationId: '',
+        triggeredBy: {
+          messageId: '',
+          userId: 'system',
+          userRole: 'SYSTEM',
+          trigger: 'EVENT' as any,
+        },
+        journal: { id: 'test-journal', settings: {} },
+        config: {},
+      };
+
+      const result = await handler(mockContext as any, {
+        reviewerId: 'test-user-001',
+        dueDate: '2024-02-01T00:00:00Z',
+        status: 'ACCEPTED',
+      });
+
+      expect(result).toBeDefined();
+      expect(result!.messages).toBeDefined();
+      expect(result!.messages!.length).toBe(2);
+      expect(result!.messages![0].content).toContain('Auto-Generated Checklist');
+      expect(result!.messages![0].content).toContain('Current User');
+      expect(result!.messages![1].content).toContain('# Reviewer Checklist');
+      expect(result!.messages![1].content).toContain('- [ ]');
+    });
+
+    it('should return void if reviewer assignment not found', async () => {
+      // Mock fetch to return empty assignments
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ assignments: [] }),
+      });
+
+      const handler = reviewerChecklistBot.events![BotEventName.REVIEWER_ASSIGNED]!;
+
+      const mockContext = {
+        manuscriptId: 'test-manuscript-123',
+        conversationId: '',
+        triggeredBy: {
+          messageId: '',
+          userId: 'system',
+          userRole: 'SYSTEM',
+          trigger: 'EVENT' as any,
+        },
+        journal: { id: 'test-journal', settings: {} },
+        config: {},
+      };
+
+      const result = await handler(mockContext as any, {
+        reviewerId: 'nonexistent-reviewer',
+        dueDate: null,
+        status: 'ACCEPTED',
+      });
+
+      expect(result).toBeUndefined();
+
+      // Restore mock for other tests
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockReviewerAssignments),
+      });
     });
   });
 
