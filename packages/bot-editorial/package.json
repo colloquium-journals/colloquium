@@ -30,6 +30,7 @@
   "license": "MIT",
   "dependencies": {
     "@colloquium/bot-sdk": "*",
+    "@colloquium/database": "*",
     "@colloquium/types": "*",
     "zod": "^3.22.0"
   },
