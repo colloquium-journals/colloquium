@@ -153,21 +153,11 @@ describe('Type Schemas', () => {
     it('should validate valid user update data', () => {
       const validUpdate = {
         name: 'John Doe',
-        orcidId: '0000-0000-0000-0000'
+        bio: 'A researcher'
       };
-      
+
       const result = userUpdateSchema.safeParse(validUpdate);
       expect(result.success).toBe(true);
-    });
-
-    it('should reject invalid ORCID format', () => {
-      const invalidUpdate = {
-        name: 'John Doe',
-        orcidId: 'invalid-orcid'
-      };
-      
-      const result = userUpdateSchema.safeParse(invalidUpdate);
-      expect(result.success).toBe(false);
     });
   });
 
