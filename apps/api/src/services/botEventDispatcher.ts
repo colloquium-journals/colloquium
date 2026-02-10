@@ -1,6 +1,7 @@
 import { BotEventName } from '@colloquium/types';
 import { botExecutor } from '../bots/index';
 import { addBotEventJob } from '../jobs/index';
+import { dispatchPipeline } from './pipelineExecutor';
 
 export async function dispatchBotEvent(
   eventName: BotEventName,
@@ -19,5 +20,12 @@ export async function dispatchBotEvent(
       manuscriptId,
       payload,
     });
+  }
+
+  // Also dispatch any matching pipelines
+  try {
+    await dispatchPipeline(eventName, manuscriptId);
+  } catch (error) {
+    console.error('Failed to dispatch pipeline for event:', eventName, error);
   }
 }

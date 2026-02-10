@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '@colloquium/database';
-import { authenticate, requireGlobalPermission, optionalAuth, generateBotServiceToken } from '../middleware/auth';
+import { authenticate, requireGlobalPermission, optionalAuth, generateBotServiceToken, authenticateWithBots } from '../middleware/auth';
 import { GlobalPermission, GlobalRole } from '@colloquium/auth';
-import { WorkflowConfig, WorkflowPhase } from '@colloquium/types';
+import { WorkflowConfig, WorkflowPhase, BotApiPermission } from '@colloquium/types';
 import { botExecutor } from '../bots';
 import { broadcastToConversation } from './events';
 import { botActionProcessor } from '../services/botActionProcessor';
@@ -27,6 +27,7 @@ import {
 import { getJournalSettings } from './settings';
 import { getUserInvolvedManuscriptIds } from '../services/userInvolvement';
 import { getWorkflowConfig } from '../services/workflowConfig';
+import { requireBotPermission } from '../middleware/botPermissions';
 
 const router = Router();
 
@@ -573,8 +574,80 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
+// GET /api/conversations/:id/messages - Bot-accessible message reading endpoint
+router.get('/:id/messages', authenticateWithBots, requireBotPermission(BotApiPermission.READ_CONVERSATIONS), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const conversation = await prisma.conversations.findUnique({
+      where: { id },
+      select: { id: true, manuscriptId: true },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    if (req.botContext && req.botContext.manuscriptId !== conversation.manuscriptId) {
+      return res.status(403).json({ error: 'Bot can only access conversations for its assigned manuscript' });
+    }
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
+    const before = req.query.before as string | undefined;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const query: any = {
+      where: {
+        conversationId: id,
+        privacy: { in: ['PUBLIC', 'AUTHOR_VISIBLE'] },
+      },
+      orderBy: { createdAt: 'desc' as const },
+      take: limit + 1,
+      include: {
+        users: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    };
+
+    if (before) {
+      query.cursor = { id: before };
+      query.skip = 1;
+    }
+
+    const rawMessages = await prisma.messages.findMany(query);
+
+    const hasMore = rawMessages.length > limit;
+    if (hasMore) rawMessages.pop();
+
+    rawMessages.reverse();
+
+    const messages = rawMessages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      privacy: msg.privacy,
+      author: (msg as any).users,
+      createdAt: msg.createdAt,
+      parentId: msg.parentId,
+      isBot: msg.isBot,
+      metadata: msg.metadata,
+    }));
+
+    res.json({ messages, hasMore });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // POST /api/conversations/:id/messages - Post new message
-router.post('/:id/messages', authenticate, (req, res, next) => {
+router.post('/:id/messages', authenticateWithBots, (req, res, next) => {
+  // Skip permission check for bot requests (they use requireBotPermission instead)
+  if (req.botContext) {
+    if (!req.botContext.permissions.includes(BotApiPermission.WRITE_MESSAGES)) {
+      return res.status(403).json({ error: `Missing permission: ${BotApiPermission.WRITE_MESSAGES}` });
+    }
+    return next();
+  }
   return requireGlobalPermission(GlobalPermission.CREATE_CONVERSATION)(req, res, next);
 }, async (req, res, next) => {
   try {
@@ -613,9 +686,18 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       });
     }
 
-    // Check workflow-based participation permission
+    const isBotRequest = !!req.botContext;
+
+    // Bots can only post to conversations for their assigned manuscript
+    if (isBotRequest && req.botContext!.manuscriptId !== conversation.manuscriptId) {
+      return res.status(403).json({
+        error: 'Bot can only post to conversations for its assigned manuscript'
+      });
+    }
+
+    // Check workflow-based participation permission (skip for bots)
     const workflowConfig = await getWorkflowConfig();
-    if (workflowConfig) {
+    if (!isBotRequest && workflowConfig) {
       const manuscriptContext = {
         id: conversation.manuscriptId,
         workflowPhase: conversation.manuscripts.workflowPhase,
@@ -654,17 +736,29 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       }
     }
 
+    // Determine author ID and bot flag
+    let authorId: string;
+    if (isBotRequest) {
+      const botUserId = botExecutor.getBotUserId(req.botContext!.botId);
+      if (!botUserId) {
+        return res.status(500).json({ error: 'Bot user not found' });
+      }
+      authorId = botUserId;
+    } else {
+      authorId = req.user!.id;
+    }
+
     // Determine privacy level (use provided privacy or default based on user role)
-    const messagePrivacy = privacy || getDefaultPrivacyLevel(req.user!.role);
+    const messagePrivacy = privacy || (isBotRequest ? 'AUTHOR_VISIBLE' : getDefaultPrivacyLevel(req.user!.role));
 
     // Create the message
     console.log('Creating message with data:', {
       content: content.trim(),
       conversationId,
-      authorId: req.user!.id,
+      authorId,
       parentId: parentId || null,
       privacy: messagePrivacy,
-      isBot: false
+      isBot: isBotRequest
     });
 
     const message = await prisma.messages.create({
@@ -672,10 +766,10 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
         id: randomUUID(),
         content: content.trim(),
         conversationId,
-        authorId: req.user!.id,
+        authorId,
         parentId: parentId || null,
         privacy: messagePrivacy,
-        isBot: false,
+        isBot: isBotRequest,
         updatedAt: new Date()
       },
       include: {
@@ -698,9 +792,9 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       data: { updatedAt: new Date() }
     });
 
-    // Handle author response cycle if workflow config is enabled
+    // Handle author response cycle if workflow config is enabled (skip for bots)
     let phaseChangeInfo = null;
-    if (workflowConfig) {
+    if (!isBotRequest && workflowConfig) {
       const cycleResult = await handleAuthorResponse(
         conversation.manuscriptId,
         req.user!.id,
@@ -723,30 +817,28 @@ router.post('/:id/messages', authenticate, (req, res, next) => {
       }
     }
 
-    // Queue bot processing for asynchronous execution
-    // Check if the message contains bot mentions before queuing
-    const hasBotMentions = content.includes('@') && /[@][\w-]+/.test(content);
-    
-    if (hasBotMentions) {
-      try {
-        console.log(`Queuing bot processing for message ${message.id} with content: "${content.substring(0, 100)}..."`);
-        
-        // Add job to the bot processing queue (uses PostgreSQL via graphile-worker)
-        await addBotJob({
-          messageId: message.id,
-          conversationId,
-          userId: req.user!.id,
-          manuscriptId: conversation.manuscriptId
-        });
-        
-        console.log(`Bot processing job queued successfully for message ${message.id}`);
-      } catch (queueError) {
-        console.error('Failed to queue bot processing:', queueError);
-        // Don't fail the message creation if queue fails
-        // TODO: Could optionally create a system message about the failure
+    // Queue bot processing for asynchronous execution (skip for bot-posted messages to prevent loops)
+    if (!isBotRequest) {
+      const hasBotMentions = content.includes('@') && /[@][\w-]+/.test(content);
+
+      if (hasBotMentions) {
+        try {
+          console.log(`Queuing bot processing for message ${message.id} with content: "${content.substring(0, 100)}..."`);
+
+          await addBotJob({
+            messageId: message.id,
+            conversationId,
+            userId: req.user!.id,
+            manuscriptId: conversation.manuscriptId
+          });
+
+          console.log(`Bot processing job queued successfully for message ${message.id}`);
+        } catch (queueError) {
+          console.error('Failed to queue bot processing:', queueError);
+        }
+      } else {
+        console.log('No bot mentions detected, skipping bot processing queue');
       }
-    } else {
-      console.log('No bot mentions detected, skipping bot processing queue');
     }
 
     // Format response

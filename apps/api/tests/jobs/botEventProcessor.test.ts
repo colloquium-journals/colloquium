@@ -20,6 +20,7 @@ jest.mock('../../src/bots/index', () => ({
     getInstalledBots: jest.fn(),
     getBotUserId: jest.fn(),
   },
+  getBotPermissions: jest.fn().mockReturnValue(['read_manuscript', 'read_manuscript_files', 'bot_storage']),
 }));
 
 jest.mock('../../src/routes/events', () => ({

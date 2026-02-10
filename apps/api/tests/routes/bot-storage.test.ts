@@ -23,6 +23,26 @@ jest.mock('../../src/middleware/auth', () => ({
   }),
 }));
 
+jest.mock('../../src/middleware/botPermissions', () => ({
+  requireBotPermission: jest.fn((...perms: string[]) => (req: any, res: any, next: any) => {
+    if (req.botContext) {
+      for (const perm of perms) {
+        if (!req.botContext.permissions.includes(perm)) {
+          return res.status(403).json({ error: `Missing permission: ${perm}` });
+        }
+      }
+    }
+    next();
+  }),
+  requireBotOnly: jest.fn((req: any, res: any) => {
+    if (!req.botContext) {
+      res.status(401).json({ error: 'Bot authentication required' });
+      return null;
+    }
+    return { botId: req.botContext.botId, manuscriptId: req.botContext.manuscriptId };
+  }),
+}));
+
 import express from 'express';
 import request from 'supertest';
 import botStorageRouter from '../../src/routes/bot-storage';
@@ -155,7 +175,6 @@ describe('bot-storage routes', () => {
 
   describe('permission checks', () => {
     it('should return 403 when bot lacks bot_storage permission', async () => {
-      // Override the middleware to set permissions without bot_storage
       const authMock = require('../../src/middleware/auth');
       authMock.authenticateWithBots.mockImplementationOnce((req: any, res: any, next: any) => {
         req.botContext = {

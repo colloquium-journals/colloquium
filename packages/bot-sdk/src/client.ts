@@ -4,6 +4,8 @@ import { createFileClient, FileClient } from './files';
 import { createUserClient, UserClient } from './users';
 import { createReviewerClient, ReviewerClient } from './reviewers';
 import { createStorageClient, StorageClient } from './storage';
+import { createConversationClient, ConversationClient } from './conversations';
+import { createBotInvocationClient, BotInvocationClient } from './bots';
 
 export interface BotClientContext {
   manuscriptId: string;
@@ -17,6 +19,8 @@ export interface BotClient {
   users: UserClient;
   reviewers: ReviewerClient;
   storage: StorageClient;
+  conversations: ConversationClient;
+  bots: BotInvocationClient;
   apiUrl: string;
 }
 
@@ -36,6 +40,8 @@ export function createBotClient(context: BotClientContext): BotClient {
     users: createUserClient(http),
     reviewers: createReviewerClient(http, context.manuscriptId),
     storage: createStorageClient(http),
+    conversations: createConversationClient(http, context.manuscriptId),
+    bots: createBotInvocationClient(http),
     apiUrl,
   };
 }

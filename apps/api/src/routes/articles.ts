@@ -12,8 +12,9 @@ import { hasManuscriptPermission, ManuscriptPermission, GlobalRole, GlobalPermis
 import { fileStorage } from '../services/fileStorage';
 import { formatDetection } from '../services/formatDetection';
 import { addBotJob } from '../jobs';
-import { BotEventName } from '@colloquium/types';
+import { BotEventName, BotApiPermission } from '@colloquium/types';
 import { dispatchBotEvent } from '../services/botEventDispatcher';
+import { requireBotPermission } from '../middleware/botPermissions';
 
 const router = Router();
 
@@ -904,8 +905,9 @@ router.get('/:id/files/:fileId/download', authenticateForFileDownload, async (re
     }
 
     // Check if user/bot has permission to download this file
-    const isBotWithAccess = req.botContext && req.botContext.manuscriptId === id;
-    
+    const isBotWithAccess = req.botContext && req.botContext.manuscriptId === id &&
+      req.botContext.permissions.includes(BotApiPermission.READ_FILES);
+
     if (!isBotWithAccess && !req.user) {
       // No authentication at all - check if file is from a submitted, published, or retracted manuscript
       const manuscript = await prisma.manuscripts.findUnique({
@@ -1142,7 +1144,7 @@ router.get('/:id/conversations', optionalAuth, async (req, res, next) => {
 });
 
 // GET /api/manuscripts/:id/files - List all files for a manuscript
-router.get('/:id/files', authenticateWithBots, async (req, res, next) => {
+router.get('/:id/files', authenticateWithBots, requireBotPermission(BotApiPermission.READ_FILES), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -1222,8 +1224,11 @@ router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), 
       });
     }
 
-    // Check permissions for user uploads (bots skip permission checks)
+    // Check permissions for user uploads (bots need upload_files permission)
     const isBotUpload = !!req.botContext;
+    if (isBotUpload && !req.botContext!.permissions.includes(BotApiPermission.UPLOAD_FILES)) {
+      return res.status(403).json({ error: `Missing permission: ${BotApiPermission.UPLOAD_FILES}` });
+    }
     const isRevisionUpload = metadata && JSON.parse(metadata || '{}').uploadType === 'revision';
     
     if (!isBotUpload && req.user) {
@@ -1917,7 +1922,7 @@ router.get('/:id/action-editor', authenticate, async (req, res, next) => {
 });
 
 // POST /api/articles/:id/reviewers - Create reviewer assignment
-router.post('/:id/reviewers', authenticateWithBots, async (req, res, next) => {
+router.post('/:id/reviewers', authenticateWithBots, requireBotPermission(BotApiPermission.MANAGE_REVIEWERS), async (req, res, next) => {
   try {
     const { id: manuscriptId } = req.params;
     const { reviewerId, status = 'PENDING', dueDate } = req.body;
@@ -2022,7 +2027,7 @@ router.post('/:id/reviewers', authenticateWithBots, async (req, res, next) => {
 });
 
 // PUT /api/articles/:id/reviewers/:reviewerId - Update reviewer assignment
-router.put('/:id/reviewers/:reviewerId', authenticateWithBots, async (req, res, next) => {
+router.put('/:id/reviewers/:reviewerId', authenticateWithBots, requireBotPermission(BotApiPermission.MANAGE_REVIEWERS), async (req, res, next) => {
   try {
     const { id: manuscriptId, reviewerId } = req.params;
     const { status, dueDate, completedAt } = req.body;
@@ -2097,7 +2102,7 @@ router.put('/:id/reviewers/:reviewerId', authenticateWithBots, async (req, res, 
 });
 
 // GET /api/articles/:id/reviewers/:reviewerId - Get specific reviewer assignment
-router.get('/:id/reviewers/:reviewerId', authenticateWithBots, async (req, res, next) => {
+router.get('/:id/reviewers/:reviewerId', authenticateWithBots, requireBotPermission(BotApiPermission.READ_MANUSCRIPT), async (req, res, next) => {
   try {
     const { id: manuscriptId, reviewerId } = req.params;
 
@@ -2325,6 +2330,126 @@ router.put('/:id/subjects', authenticate, async (req, res, next) => {
       manuscript: updatedManuscript
     });
 
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/articles/:id/workflow - Get workflow state (bot-accessible)
+router.get('/:id/workflow', authenticateWithBots, requireBotPermission(BotApiPermission.READ_MANUSCRIPT), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (req.botContext && req.botContext.manuscriptId !== id) {
+      return res.status(403).json({ error: 'Bot can only access its assigned manuscript' });
+    }
+
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id },
+      select: {
+        workflowPhase: true,
+        workflowRound: true,
+        status: true,
+        releasedAt: true,
+        review_assignments: {
+          select: {
+            reviewerId: true,
+            status: true,
+            dueDate: true,
+            assignedAt: true,
+          },
+        },
+        action_editors: {
+          select: {
+            editorId: true,
+            assignedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({ error: 'Manuscript not found' });
+    }
+
+    res.json({
+      phase: manuscript.workflowPhase,
+      round: manuscript.workflowRound,
+      status: manuscript.status,
+      releasedAt: manuscript.releasedAt,
+      reviewAssignments: manuscript.review_assignments.map(ra => ({
+        reviewerId: ra.reviewerId,
+        status: ra.status,
+        dueDate: ra.dueDate,
+        assignedAt: ra.assignedAt,
+      })),
+      actionEditor: manuscript.action_editors
+        ? { editorId: manuscript.action_editors.editorId, assignedAt: manuscript.action_editors.assignedAt }
+        : null,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Metadata update schema
+const metadataUpdateSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  abstract: z.string().min(1).max(5000).optional(),
+  keywords: z.array(z.string()).optional(),
+  subjects: z.array(z.string()).optional(),
+});
+
+// PATCH /api/articles/:id/metadata - Update manuscript metadata (bot-accessible)
+router.patch('/:id/metadata', authenticateWithBots, requireBotPermission(BotApiPermission.UPDATE_METADATA), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (req.botContext && req.botContext.manuscriptId !== id) {
+      return res.status(403).json({ error: 'Bot can only access its assigned manuscript' });
+    }
+
+    const parsed = metadataUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation error', details: parsed.error.issues });
+    }
+
+    const data = parsed.data;
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'At least one field is required' });
+    }
+
+    const manuscript = await prisma.manuscripts.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!manuscript) {
+      return res.status(404).json({ error: 'Manuscript not found' });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = { updatedAt: new Date() };
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.abstract !== undefined) updateData.abstract = data.abstract;
+    if (data.keywords !== undefined) updateData.keywords = data.keywords;
+    if (data.subjects !== undefined) updateData.subjects = data.subjects;
+
+    const updated = await prisma.manuscripts.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        title: true,
+        abstract: true,
+        keywords: true,
+        subjects: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json(updated);
   } catch (error) {
     next(error);
   }

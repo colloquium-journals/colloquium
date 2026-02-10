@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { authenticate, requireGlobalPermission, generateBotServiceToken } from '../middleware/auth';
+import { authenticate, requireGlobalPermission, generateBotServiceToken, authenticateWithBots } from '../middleware/auth';
 import { GlobalPermission } from '@colloquium/auth';
-import { botExecutor } from '../bots';
+import { botExecutor, getBotPermissions } from '../bots';
+import { requireBotPermission } from '../middleware/botPermissions';
+import { BotApiPermission } from '@colloquium/types';
 
 const router = Router();
 
@@ -180,7 +182,7 @@ router.post('/:id/execute/:command', authenticate, async (req, res, next) => {
     }
 
     // Generate service token for bot API calls
-    const serviceToken = generateBotServiceToken(botId, manuscriptId || '', ['read_manuscript_files', 'upload_files']);
+    const serviceToken = generateBotServiceToken(botId, manuscriptId || '', getBotPermissions(botId));
 
     // Execute the command
     const result = await botExecutor.executeCommandBot(
@@ -280,6 +282,62 @@ router.get('/:id/help', authenticate, async (req, res, next) => {
         }
       });
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/bots/invoke - Bot-to-bot invocation
+router.post('/invoke', authenticateWithBots, requireBotPermission(BotApiPermission.INVOKE_BOTS), async (req, res, next) => {
+  try {
+    const ctx = req.botContext;
+    if (!ctx) {
+      return res.status(401).json({ error: 'Bot authentication required' });
+    }
+
+    const { botId: targetBotId, command, parameters = {} } = req.body;
+
+    if (!targetBotId || !command) {
+      return res.status(400).json({ error: 'botId and command are required' });
+    }
+
+    const commandBots = botExecutor.getCommandBots();
+    const targetBot = commandBots.find(b => b.id === targetBotId);
+    if (!targetBot) {
+      return res.status(404).json({ error: `Bot ${targetBotId} not found` });
+    }
+
+    const installedBots = botExecutor.getInstalledBots();
+    const installation = installedBots.find(ib => ib.botId === targetBotId);
+    if (!installation || installation.config.isEnabled === false) {
+      return res.status(400).json({ error: `Bot ${targetBotId} is not installed or enabled` });
+    }
+
+    const targetToken = generateBotServiceToken(targetBotId, ctx.manuscriptId, getBotPermissions(targetBotId));
+
+    const result = await botExecutor.executeCommandBot(
+      {
+        botId: targetBotId,
+        command,
+        parameters,
+        rawText: `@${targetBotId} ${command}`,
+      },
+      {
+        conversationId: '',
+        manuscriptId: ctx.manuscriptId,
+        triggeredBy: {
+          messageId: '',
+          userId: ctx.botId,
+          userRole: 'BOT',
+          trigger: 'MENTION' as any,
+        },
+        journal: { id: 'default', settings: {} },
+        config: { apiUrl: process.env.API_URL || 'http://localhost:4000', ...installation.config },
+        serviceToken: targetToken,
+      }
+    );
+
+    res.json(result);
   } catch (error) {
     next(error);
   }

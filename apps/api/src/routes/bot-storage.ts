@@ -1,24 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '@colloquium/database';
 import { authenticateWithBots } from '../middleware/auth';
+import { requireBotPermission, requireBotOnly } from '../middleware/botPermissions';
+import { BotApiPermission } from '@colloquium/types';
 
 const router = Router();
 
-function requireBotContext(req: Request, res: Response): { botId: string; manuscriptId: string } | null {
-  if (!req.botContext) {
-    res.status(401).json({ error: 'Bot authentication required' });
-    return null;
-  }
-  if (!req.botContext.permissions.includes('bot_storage')) {
-    res.status(403).json({ error: 'Missing bot_storage permission' });
-    return null;
-  }
-  return { botId: req.botContext.botId, manuscriptId: req.botContext.manuscriptId };
-}
-
 // GET /api/bot-storage - List all keys for bot+manuscript
-router.get('/', authenticateWithBots, async (req: Request, res: Response) => {
-  const ctx = requireBotContext(req, res);
+router.get('/', authenticateWithBots, requireBotPermission(BotApiPermission.BOT_STORAGE), async (req: Request, res: Response) => {
+  const ctx = requireBotOnly(req, res);
   if (!ctx) return;
 
   const entries = await prisma.bot_storage.findMany({
@@ -31,8 +21,8 @@ router.get('/', authenticateWithBots, async (req: Request, res: Response) => {
 });
 
 // GET /api/bot-storage/:key - Get value for key
-router.get('/:key', authenticateWithBots, async (req: Request, res: Response) => {
-  const ctx = requireBotContext(req, res);
+router.get('/:key', authenticateWithBots, requireBotPermission(BotApiPermission.BOT_STORAGE), async (req: Request, res: Response) => {
+  const ctx = requireBotOnly(req, res);
   if (!ctx) return;
 
   const entry = await prisma.bot_storage.findUnique({
@@ -53,8 +43,8 @@ router.get('/:key', authenticateWithBots, async (req: Request, res: Response) =>
 });
 
 // PUT /api/bot-storage/:key - Set value (upsert)
-router.put('/:key', authenticateWithBots, async (req: Request, res: Response) => {
-  const ctx = requireBotContext(req, res);
+router.put('/:key', authenticateWithBots, requireBotPermission(BotApiPermission.BOT_STORAGE), async (req: Request, res: Response) => {
+  const ctx = requireBotOnly(req, res);
   if (!ctx) return;
 
   const { value } = req.body;
@@ -83,8 +73,8 @@ router.put('/:key', authenticateWithBots, async (req: Request, res: Response) =>
 });
 
 // DELETE /api/bot-storage/:key - Delete key
-router.delete('/:key', authenticateWithBots, async (req: Request, res: Response) => {
-  const ctx = requireBotContext(req, res);
+router.delete('/:key', authenticateWithBots, requireBotPermission(BotApiPermission.BOT_STORAGE), async (req: Request, res: Response) => {
+  const ctx = requireBotOnly(req, res);
   if (!ctx) return;
 
   try {

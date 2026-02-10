@@ -71,11 +71,19 @@ export function createHttpClient(apiUrl: string, serviceToken: string) {
     return response.json() as Promise<T>;
   }
 
+  async function patchJSON<T>(path: string, data: unknown): Promise<T> {
+    const response = await request(path, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return response.json() as Promise<T>;
+  }
+
   async function deleteRequest(path: string): Promise<void> {
     await request(path, { method: 'DELETE' });
   }
 
-  return { request, getJSON, postJSON, putJSON, deleteRequest };
+  return { request, getJSON, postJSON, putJSON, patchJSON, deleteRequest };
 }
 
 export type HttpClient = ReturnType<typeof createHttpClient>;

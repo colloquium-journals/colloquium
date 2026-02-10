@@ -1,5 +1,5 @@
 import { prisma } from '@colloquium/database';
-import { botExecutor } from '../bots/index';
+import { botExecutor, getBotPermissions } from '../bots/index';
 import { broadcastToConversation } from '../routes/events';
 import { generateBotServiceToken } from '../middleware/auth';
 import { BotProcessingJob } from './index';
@@ -38,7 +38,7 @@ export const processBotJob = async (payload: BotProcessingJob) => {
     }
 
     // Generate service token for bot API calls
-    const serviceToken = generateBotServiceToken('system', manuscriptId || '', ['read_manuscript_files', 'upload_files']);
+    const serviceToken = generateBotServiceToken('system', manuscriptId || '', getBotPermissions('system'));
 
     // Pre-fetch manuscript metadata and files for enriched bot context
     let manuscriptData: { title: string; abstract: string | null; authors: string[]; status: string; keywords: string[]; workflowPhase: string | null; workflowRound: number } | undefined;

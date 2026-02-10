@@ -1,6 +1,6 @@
 import { prisma } from '@colloquium/database';
 import { BotEventName } from '@colloquium/types';
-import { botExecutor } from '../bots/index';
+import { botExecutor, getBotPermissions } from '../bots/index';
 import { broadcastToConversation } from '../routes/events';
 import { generateBotServiceToken } from '../middleware/auth';
 import { BotEventJob } from './index';
@@ -17,7 +17,7 @@ export const processBotEventJob = async (payload: BotEventJob) => {
   const handler = botEntry.bot.events?.[eventName as BotEventName];
   if (!handler) return;
 
-  const serviceToken = generateBotServiceToken(botId, manuscriptId, ['read_manuscript_files', 'upload_files', 'bot_storage']);
+  const serviceToken = generateBotServiceToken(botId, manuscriptId, getBotPermissions(botId));
 
   let manuscriptData: { title: string; abstract: string | null; authors: string[]; status: string; keywords: string[]; workflowPhase: string | null; workflowRound: number } | undefined;
   let filesData: Array<{ id: string; originalName: string; filename: string; fileType: string; mimetype: string; size: number }> | undefined;

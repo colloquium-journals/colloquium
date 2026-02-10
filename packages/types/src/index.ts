@@ -297,6 +297,32 @@ export enum BotPermission {
   MAKE_EDITORIAL_DECISION = 'make_editorial_decision',
 }
 
+export enum BotApiPermission {
+  READ_MANUSCRIPT = 'read_manuscript',
+  READ_FILES = 'read_manuscript_files',
+  UPLOAD_FILES = 'upload_files',
+  READ_CONVERSATIONS = 'read_conversations',
+  WRITE_MESSAGES = 'write_messages',
+  UPDATE_METADATA = 'update_metadata',
+  MANAGE_REVIEWERS = 'manage_reviewers',
+  MANAGE_WORKFLOW = 'manage_workflow',
+  BOT_STORAGE = 'bot_storage',
+  INVOKE_BOTS = 'invoke_bots',
+}
+
+export const PipelineStepSchema = z.object({
+  bot: z.string(),
+  command: z.string(),
+  parameters: z.record(z.any()).optional(),
+});
+
+export const PipelineConfigSchema = z.object({
+  pipelines: z.record(z.string(), z.array(PipelineStepSchema)).optional(),
+});
+
+export type PipelineStep = z.infer<typeof PipelineStepSchema>;
+export type PipelineConfig = z.infer<typeof PipelineConfigSchema>;
+
 export interface Bot {
   id: string;
   name: string;

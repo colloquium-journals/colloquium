@@ -25,6 +25,12 @@ export interface DeadlineScannerJob {
   triggeredAt: string;
 }
 
+export interface PipelineStepJob {
+  manuscriptId: string;
+  steps: Array<{ bot: string; command: string; parameters?: Record<string, unknown> }>;
+  stepIndex: number;
+}
+
 // Lazy initialization of worker utils
 let workerUtils: WorkerUtils | null = null;
 
@@ -86,6 +92,14 @@ export async function addBotEventJob(payload: BotEventJob): Promise<void> {
   });
 }
 
+// Add a pipeline step job to the queue
+export async function addPipelineStepJob(payload: PipelineStepJob): Promise<void> {
+  const utils = await getWorkerUtils();
+  await utils.addJob('bot-pipeline-step', payload, {
+    maxAttempts: 1,
+  });
+}
+
 // Export getWorkerUtils for external use
 export { getWorkerUtils };
 
@@ -117,4 +131,4 @@ export async function closeQueues(): Promise<void> {
   console.log('graphile-worker utils closed');
 }
 
-export default { addBotJob, addBotEventJob, getQueueHealth, closeQueues };
+export default { addBotJob, addBotEventJob, addPipelineStepJob, getQueueHealth, closeQueues };

@@ -5,7 +5,7 @@ import { MessageUpdateSchema, IdSchema } from '../schemas/validation';
 import { requireAuth, generateBotServiceToken } from '../middleware/auth';
 import { canUserSeeMessage } from './conversations';
 import { broadcastToConversation } from './events';
-import { botExecutor } from '../bots/index';
+import { botExecutor, getBotPermissions } from '../bots/index';
 import { z } from 'zod';
 import { BotMessageAction } from '@colloquium/types';
 
@@ -407,7 +407,7 @@ router.post('/:id/actions/:actionId',
     }
 
     const manuscriptId = message.conversations.manuscriptId || '';
-    const serviceToken = generateBotServiceToken('system', manuscriptId, ['read_manuscript_files', 'upload_files']);
+    const serviceToken = generateBotServiceToken('system', manuscriptId, getBotPermissions('system'));
 
     const handlerResult = await botExecutor.executeActionHandler(
       action.handler.botId,

@@ -1,6 +1,7 @@
 import * as BotsPackage from '@colloquium/bots';
 import { prisma } from '@colloquium/database';
 import { DatabaseBotManager } from '@colloquium/bots';
+import { BotPermission, BotApiPermission } from '@colloquium/types';
 
 // Export the bot executor for use in other parts of the application
 export const botExecutor = new BotsPackage.BotExecutor();
@@ -158,4 +159,38 @@ export async function initializeBots() {
   }
 
   // console.log('Bot system initialized');
+}
+
+const botPermissionToApiPermissions: Record<string, string[]> = {
+  [BotPermission.READ_MANUSCRIPT]: [BotApiPermission.READ_MANUSCRIPT],
+  [BotPermission.READ_FILES]: [BotApiPermission.READ_FILES],
+  [BotPermission.READ_CONVERSATIONS]: [BotApiPermission.READ_CONVERSATIONS],
+  [BotPermission.WRITE_MESSAGES]: [BotApiPermission.WRITE_MESSAGES],
+  [BotPermission.UPDATE_MANUSCRIPT]: [BotApiPermission.UPDATE_METADATA, BotApiPermission.MANAGE_WORKFLOW],
+  [BotPermission.ASSIGN_REVIEWERS]: [BotApiPermission.MANAGE_REVIEWERS],
+  [BotPermission.MAKE_EDITORIAL_DECISION]: [BotApiPermission.MANAGE_WORKFLOW],
+};
+
+export function getBotPermissions(botId: string): string[] {
+  const permissions = new Set<string>([
+    BotApiPermission.READ_MANUSCRIPT,
+    BotApiPermission.READ_FILES,
+    BotApiPermission.BOT_STORAGE,
+  ]);
+
+  const commandBots = botExecutor.getCommandBots();
+  const bot = commandBots.find(b => b.id === botId);
+
+  if (bot) {
+    for (const perm of bot.permissions) {
+      const mapped = botPermissionToApiPermissions[perm];
+      if (mapped) {
+        for (const apiPerm of mapped) {
+          permissions.add(apiPerm);
+        }
+      }
+    }
+  }
+
+  return Array.from(permissions);
 }

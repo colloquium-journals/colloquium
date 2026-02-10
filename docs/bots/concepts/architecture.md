@@ -93,6 +93,51 @@ Bots can persist key-value data scoped to `(botId, manuscriptId)` using the stor
 
 Access is via `client.storage` in the SDK or the `/api/bot-storage` REST endpoints.
 
+## Pipeline System
+
+Pipelines allow declarative, sequential bot execution triggered by platform events. Configure them in journal settings:
+
+```json
+{
+  "pipelines": {
+    "on-submission": [
+      { "bot": "bot-reference-check", "command": "check" },
+      { "bot": "bot-reviewer-checklist", "command": "generate" }
+    ]
+  }
+}
+```
+
+### Pipeline Execution Flow
+
+```
+1. Platform event occurs (e.g., manuscript.submitted)
+2. botEventDispatcher dispatches individual event handlers
+3. pipelineExecutor checks journal settings for matching pipeline
+4. First step queued as bot-pipeline-step job
+5. Worker executes bot command via botExecutor
+6. On success, next step is queued
+7. On error, pipeline stops (no further steps)
+```
+
+Pipeline keys map to event names: `on-submission` → `manuscript.submitted`, `on-status-changed` → `manuscript.statusChanged`, etc.
+
+See [Pipelines Reference](pipelines.md) for full configuration.
+
+## Bot-to-Bot Invocation
+
+Bots with the `invoke_bots` permission can invoke other bots synchronously via `POST /api/bots/invoke`. The invoking bot decides what to do with the result — no messages are automatically posted.
+
+```typescript
+const result = await client.bots.invoke('bot-reference-check', 'check');
+```
+
+## Granular Permissions
+
+Bot API permissions are enforced at every endpoint. Bots receive permissions based on their declared `BotPermission` values, mapped to API-level `BotApiPermission` values at token generation time. Baseline permissions (`read_manuscript`, `read_manuscript_files`, `bot_storage`) are always included.
+
+See [Permissions Reference](../reference/permissions.md) for the full mapping.
+
 ## Error Handling
 
 - Bot errors are caught and logged

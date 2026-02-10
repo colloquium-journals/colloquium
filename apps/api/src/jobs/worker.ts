@@ -1,7 +1,8 @@
 import { run, Runner, TaskList, parseCronItems } from 'graphile-worker';
 import { processBotJob } from './botProcessor';
 import { processBotEventJob } from './botEventProcessor';
-import { BotProcessingJob, BotEventJob, DeadlineReminderJob } from './index';
+import { processPipelineStep } from './pipelineProcessor';
+import { BotProcessingJob, BotEventJob, DeadlineReminderJob, PipelineStepJob } from './index';
 import { processDeadlineReminder } from '../services/deadlineReminderProcessor';
 import { scanAndScheduleReminders } from '../services/deadlineScanner';
 
@@ -56,6 +57,19 @@ const taskList: TaskList = {
       console.log(`✅ Deadline scanner completed successfully`);
     } catch (error) {
       console.error(`❌ Deadline scanner failed:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
+  },
+
+  'bot-pipeline-step': async (payload, helpers) => {
+    const jobPayload = payload as PipelineStepJob;
+    console.log(`🔗 Processing pipeline step ${jobPayload.stepIndex} for manuscript ${jobPayload.manuscriptId}`);
+
+    try {
+      await processPipelineStep(jobPayload);
+      console.log(`✅ Pipeline step ${jobPayload.stepIndex} completed`);
+    } catch (error) {
+      console.error(`❌ Pipeline step ${jobPayload.stepIndex} failed:`, error instanceof Error ? error.message : error);
       throw error;
     }
   },
