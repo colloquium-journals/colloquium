@@ -24,6 +24,7 @@
     "app:reset": "./scripts/reset-app.sh",
     "app:reset-quick": "./scripts/reset-app.sh --quick --force",
     "clean": "turbo run clean && rm -rf node_modules",
+    "bot:dev": "node scripts/bot-dev.js",
     "cleanup": "./scripts/cleanup-dev.sh"
   },
   "devDependencies": {

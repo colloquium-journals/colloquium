@@ -138,6 +138,73 @@ export function assertBotMessageNotContains(
 }
 
 /**
+ * Asserts that a bot response contains structured data matching expectations
+ */
+export function assertBotStructuredData(
+  response: BotResponse,
+  expectations: {
+    type?: string;
+    dataContains?: Record<string, any>;
+    messageIndex?: number;
+  }
+): void {
+  expect(response.messages).toBeDefined();
+  const idx = expectations.messageIndex ?? 0;
+  expect(response.messages!.length).toBeGreaterThan(idx);
+
+  const msg = response.messages![idx];
+  expect(msg.structuredData).toBeDefined();
+
+  if (expectations.type !== undefined) {
+    expect(msg.structuredData!.type).toBe(expectations.type);
+  }
+
+  if (expectations.dataContains !== undefined) {
+    for (const [key, value] of Object.entries(expectations.dataContains)) {
+      expect(msg.structuredData!.data[key]).toEqual(value);
+    }
+  }
+}
+
+/**
+ * Asserts that a bot response contains annotations matching expectations
+ */
+export function assertBotAnnotations(
+  response: BotResponse,
+  expectations: {
+    type?: 'warning' | 'error' | 'info' | 'suggestion';
+    count?: number;
+    messageContains?: string;
+    messageIndex?: number;
+  }
+): void {
+  expect(response.messages).toBeDefined();
+  const idx = expectations.messageIndex ?? 0;
+  expect(response.messages!.length).toBeGreaterThan(idx);
+
+  const msg = response.messages![idx];
+  expect(msg.annotations).toBeDefined();
+  expect(msg.annotations!.length).toBeGreaterThan(0);
+
+  if (expectations.count !== undefined) {
+    const filtered = expectations.type
+      ? msg.annotations!.filter(a => a.type === expectations.type)
+      : msg.annotations!;
+    expect(filtered).toHaveLength(expectations.count);
+  }
+
+  if (expectations.type !== undefined && expectations.count === undefined) {
+    expect(msg.annotations!.some(a => a.type === expectations.type)).toBe(true);
+  }
+
+  if (expectations.messageContains !== undefined) {
+    expect(
+      msg.annotations!.some(a => a.message.includes(expectations.messageContains!))
+    ).toBe(true);
+  }
+}
+
+/**
  * Extended Jest matchers for bot testing
  */
 export const botMatchers = {
@@ -197,6 +264,44 @@ export const botMatchers = {
           ? `expected response not to have included all assets: ${assets.join(', ')}`
           : `expected response to have included assets: ${assets.join(', ')}`
     };
+  },
+
+  toHaveBotStructuredData(
+    received: BotResponse,
+    expectedType?: string
+  ) {
+    const hasData = received.messages?.some(m => m.structuredData != null) ?? false;
+    const typeMatches = expectedType
+      ? received.messages?.some(m => m.structuredData?.type === expectedType) ?? false
+      : hasData;
+    return {
+      pass: typeMatches,
+      message: () =>
+        typeMatches
+          ? `expected response not to have structured data${expectedType ? ` of type "${expectedType}"` : ''}`
+          : `expected response to have structured data${expectedType ? ` of type "${expectedType}"` : ''}`
+    };
+  },
+
+  toHaveBotAnnotations(
+    received: BotResponse,
+    expectedType?: 'warning' | 'error' | 'info' | 'suggestion'
+  ) {
+    const hasAnnotations = received.messages?.some(
+      m => m.annotations != null && m.annotations.length > 0
+    ) ?? false;
+    const typeMatches = expectedType
+      ? received.messages?.some(
+          m => m.annotations?.some(a => a.type === expectedType)
+        ) ?? false
+      : hasAnnotations;
+    return {
+      pass: typeMatches,
+      message: () =>
+        typeMatches
+          ? `expected response not to have annotations${expectedType ? ` of type "${expectedType}"` : ''}`
+          : `expected response to have annotations${expectedType ? ` of type "${expectedType}"` : ''}`
+    };
   }
 };
 
@@ -215,6 +320,8 @@ declare global {
       toHaveBotAction(actionType: string): R;
       toHaveProcessedCitations(citations: string[]): R;
       toHaveIncludedAssets(assets: string[]): R;
+      toHaveBotStructuredData(expectedType?: string): R;
+      toHaveBotAnnotations(expectedType?: 'warning' | 'error' | 'info' | 'suggestion'): R;
     }
   }
 }

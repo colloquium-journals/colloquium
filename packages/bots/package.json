@@ -16,7 +16,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "jest",

@@ -69,9 +69,37 @@ export {
   assertBotAction,
   assertBotError,
   assertBotMessageNotContains,
+  assertBotStructuredData,
+  assertBotAnnotations,
   botMatchers,
   extendJestWithBotMatchers
 } from './assertions';
+
+// Snapshot testing
+export {
+  assertBotResponseSnapshot,
+  createBotResponseSerializer
+} from './snapshotTesting';
+
+// Mock SDK client
+export {
+  createMockSdkClient,
+  type MockBotClient
+} from './mockSdkClient';
+
+// Event testing
+export {
+  createEventTestHarness,
+  type EventTestHarness,
+  type EventLogEntry
+} from './eventTesting';
+
+// Integration testing
+export {
+  createIntegrationEnv,
+  type IntegrationEnv,
+  type IntegrationEnvOptions
+} from './integrationHelper';
 
 // Seed data testing
 export {

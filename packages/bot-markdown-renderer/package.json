@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "build": "tsc && cp -r templates dist/",
-    "dev": "tsc --watch",
+    "dev": "tsc --watch --preserveWatchOutput",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "jest",

@@ -191,14 +191,25 @@ export interface BotContext {
   }>;
 }
 
+export interface BotResponseMessage {
+  content: string;
+  replyTo?: string;
+  attachments?: BotAttachment[];
+  actions?: BotMessageAction[];
+  structuredData?: {
+    type: string;
+    data: Record<string, unknown>;
+  };
+  annotations?: Array<{
+    type: 'warning' | 'error' | 'info' | 'suggestion';
+    location?: { line?: number; section?: string };
+    message: string;
+  }>;
+}
+
 export interface BotResponse {
   botId?: string;
-  messages?: {
-    content: string;
-    replyTo?: string;
-    attachments?: BotAttachment[];
-    actions?: BotMessageAction[];
-  }[];
+  messages?: BotResponseMessage[];
   actions?: BotAction[];
   errors?: string[];
 }

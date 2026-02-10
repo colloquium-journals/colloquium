@@ -27,13 +27,24 @@ Bots authenticate with `x-bot-token` headers and interact with the platform excl
 ## Documentation
 
 - **[Quick Start](quick-start.md)** - Create your first bot in 5 minutes
+- **Tutorials**
+  - [Your First Bot](tutorials/your-first-bot.md) - Build a word count bot from scratch
+  - [Working with Files](tutorials/working-with-files.md) - Download, parse, and upload files
+  - [Event-Driven Bots](tutorials/event-driven-bots.md) - React to manuscript lifecycle events
+  - [Interactive Actions](tutorials/interactive-actions.md) - Add buttons and confirmations
 - **Concepts**
   - [Architecture](concepts/architecture.md) - How the bot system works
   - [Commands](concepts/commands.md) - Command syntax and the help system
+  - [Events](concepts/events.md) - Lifecycle events and subscriptions
+  - [Storage](concepts/storage.md) - Persistent key-value storage
   - [Authentication](concepts/authentication.md) - Security model and service tokens
   - [Configuration](concepts/configuration.md) - Bot configuration with YAML
+  - [Pipelines](concepts/pipelines.md) - Multi-bot pipeline composition
+  - [Testing](concepts/testing.md) - Test harnesses, mocks, and assertions
 - **Reference**
   - [Bot SDK](reference/sdk.md) - `@colloquium/bot-sdk` API reference
   - [Bot API Types](reference/bot-api.md) - TypeScript type reference
   - [CLI](reference/cli.md) - `create-colloquium-bot` generator reference
   - [API Endpoints](reference/api-endpoints.md) - HTTP endpoints for bots
+  - [Events](reference/events.md) - Complete event catalog with payload types
+  - [Permissions](reference/permissions.md) - Bot API permission reference

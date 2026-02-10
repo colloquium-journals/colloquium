@@ -138,8 +138,18 @@ export const processBotJob = async (payload: BotProcessingJob) => {
               updatedAt: new Date()
             };
 
+            const metadata: Record<string, any> = {};
             if (botMessage.actions?.length) {
-              messageData.metadata = { actions: botMessage.actions };
+              metadata.actions = botMessage.actions;
+            }
+            if (botMessage.structuredData) {
+              metadata.structuredData = botMessage.structuredData;
+            }
+            if (botMessage.annotations?.length) {
+              metadata.annotations = botMessage.annotations;
+            }
+            if (Object.keys(metadata).length > 0) {
+              messageData.metadata = metadata;
             }
 
             const responseMessage = await prisma.messages.create({
