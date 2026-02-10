@@ -9,9 +9,15 @@
     "eslint": "^9.20.0",
     "eslint-config-next": "^16.1.0",
     "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-react": "^7.33.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "typescript-eslint": "^8.20.0"
+    "eslint-import-resolver-node": "^0.3.6",
+    "eslint-import-resolver-typescript": "^3.5.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "typescript-eslint": "^8.20.0",
+    "zod": "^3.25.0",
+    "zod-validation-error": "^4.0.0"
   },
   "exports": {
     ".": "./index.mjs",
