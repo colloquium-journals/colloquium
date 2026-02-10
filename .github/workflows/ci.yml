@@ -52,7 +52,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/colloquium_test
 
       - name: Test
-        run: npm run test -- --passWithNoTests
+        run: npm run test -- -- --passWithNoTests
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/colloquium_test
           JWT_SECRET: test-jwt-secret
