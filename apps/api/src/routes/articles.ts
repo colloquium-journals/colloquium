@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import { prisma } from '@colloquium/database';
 import { ManuscriptFileType, StorageType } from '@prisma/client';
 import multer from 'multer';
@@ -235,10 +235,10 @@ router.get('/', optionalAuth, async (req, res, next) => {
 });
 
 // POST /api/manuscripts - Submit new manuscript (with file upload support)
-router.post('/', authenticate, (req, res, next) => {
+router.post('/', authenticate, (req: Request, res: Response, next: NextFunction) => {
   const { GlobalPermission } = require('@colloquium/auth');
   return requireGlobalPermission(GlobalPermission.SUBMIT_MANUSCRIPT)(req, res, next);
-}, upload.array('files', 20), async (req, res, next) => {
+}, upload.array('files', 20) as unknown as RequestHandler, async (req, res, next) => {
   try {
     
     // Parse and validate the manuscript data
@@ -1200,7 +1200,7 @@ const authenticateForFileUpload = async (req: Request, res: Response, next: Next
 };
 
 // POST /api/manuscripts/:id/files - Upload additional files (for bots and author revisions)
-router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10), async (req, res, next) => {
+router.post('/:id/files', authenticateForFileUpload, upload.array('files', 10) as unknown as RequestHandler, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { fileType, renderedBy, metadata } = req.body;

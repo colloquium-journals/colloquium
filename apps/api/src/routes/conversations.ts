@@ -371,7 +371,7 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
       messageQuery.skip = 1; // skip the cursor itself
     }
 
-    const rawMessages = await prisma.messages.findMany(messageQuery);
+    const rawMessages = await prisma.messages.findMany(messageQuery) as (Awaited<ReturnType<typeof prisma.messages.findMany>>[number] & { users: { id: string; username: string; name: string | null; email: string } })[];
 
     // Detect if there are more messages before the current page
     const hasMoreMessages = rawMessages.length > messageLimit;

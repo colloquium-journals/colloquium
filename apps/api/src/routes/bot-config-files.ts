@@ -53,7 +53,7 @@ const upload = multer({
 });
 
 // Upload bot configuration file
-router.post('/:botId/files', authenticate, upload.single('file'), async (req, res, next) => {
+router.post('/:botId/files', authenticate, upload.single('file') as unknown as express.RequestHandler, async (req, res, next) => {
   try {
     const { botId } = req.params;
     const { description } = req.body;

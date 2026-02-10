@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import { z } from 'zod';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
@@ -401,7 +401,7 @@ router.put('/',
 router.post('/logo',
   authenticate,
   requireAdmin,
-  upload.single('logo'),
+  upload.single('logo') as unknown as RequestHandler,
   async (req, res, next) => {
     try {
       if (!req.file) {

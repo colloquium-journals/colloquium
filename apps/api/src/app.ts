@@ -59,9 +59,9 @@ app.use(cors({
 }));
 
 // General middleware
-app.use(compression());
+app.use(compression() as unknown as express.RequestHandler);
 app.use(morgan('combined'));
-app.use(cookieParser());
+app.use(cookieParser() as unknown as express.RequestHandler);
 app.use(session({
   secret: (() => {
     const secret = process.env.SESSION_SECRET;
@@ -77,7 +77,7 @@ app.use(session({
     httpOnly: true,
     maxAge: 1000 * 60 * 15 // 15 minutes
   }
-}));
+}) as unknown as express.RequestHandler);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
