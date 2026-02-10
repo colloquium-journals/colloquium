@@ -151,21 +151,18 @@ async function getBotConfig(context: any): Promise<ChecklistConfig | null> {
 
 async function loadTemplateFromFile(filename: string, context: any): Promise<string | null> {
   try {
-    // Use the bot's service token to fetch the file
     const serviceToken = context.serviceToken;
     if (!serviceToken) {
       console.warn('No service token available for file download');
       return null;
     }
 
-    // Get the bot ID from context
+    const apiUrl = context.config?.apiUrl || process.env.API_URL || 'http://localhost:4000';
     const botId = context.botId || 'bot-reviewer-checklist';
-    
-    // First, get the list of files for this bot
-    const filesResponse = await fetch(`${context.apiBaseUrl}/api/bot-config-files/${botId}/files`, {
+
+    const filesResponse = await fetch(`${apiUrl}/api/bot-config-files/${botId}/files`, {
       headers: {
-        'Authorization': `Bearer ${serviceToken}`,
-        'X-Bot-Token': serviceToken
+        'x-bot-token': serviceToken
       }
     });
 
@@ -176,17 +173,15 @@ async function loadTemplateFromFile(filename: string, context: any): Promise<str
 
     const filesData = await filesResponse.json();
     const file = filesData.files?.find((f: any) => f.filename === filename);
-    
+
     if (!file) {
       console.warn(`Template file ${filename} not found in bot files`);
       return null;
     }
 
-    // Download the file content
-    const contentResponse = await fetch(`${context.apiBaseUrl}/api/bot-config-files/${file.id}/content`, {
+    const contentResponse = await fetch(`${apiUrl}/api/bot-config-files/${file.id}/content`, {
       headers: {
-        'Authorization': `Bearer ${serviceToken}`,
-        'X-Bot-Token': serviceToken
+        'x-bot-token': serviceToken
       }
     });
 
@@ -197,7 +192,7 @@ async function loadTemplateFromFile(filename: string, context: any): Promise<str
 
     const contentData = await contentResponse.json();
     return contentData.file?.content || null;
-    
+
   } catch (error) {
     console.error('Error loading template from file:', error);
     return null;

@@ -79,7 +79,7 @@ bot-my-awesome/
 ├── package.json          # Package configuration
 ├── tsconfig.json         # TypeScript configuration
 ├── jest.config.js        # Test configuration
-├── .eslintrc.js         # Code quality rules
+├── eslint.config.mjs    # ESLint 9 flat config
 ├── .gitignore           # Git ignore patterns
 ├── README.md            # Complete documentation
 └── LICENSE              # License file

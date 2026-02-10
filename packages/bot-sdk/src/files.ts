@@ -61,7 +61,7 @@ export function createFileClient(http: HttpClient, manuscriptId: string) {
 
       return {
         ...fileResult,
-        size: typeof content === 'string' ? content.length : content.length,
+        size: typeof content === 'string' ? Buffer.byteLength(content, 'utf-8') : content.length,
       };
     },
   };

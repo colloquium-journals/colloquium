@@ -189,6 +189,12 @@ export interface BotContext {
     mimetype: string;
     size: number;
   }>;
+  // Pre-fetched conversation metadata
+  conversation?: {
+    id: string;
+    privacy: string;
+    messageCount: number;
+  };
 }
 
 export interface BotResponseMessage {
@@ -321,6 +327,18 @@ export enum BotApiPermission {
   INVOKE_BOTS = 'invoke_bots',
 }
 
+export const VALID_PIPELINE_KEYS = [
+  'on-submission',
+  'on-status-changed',
+  'on-file-uploaded',
+  'on-reviewer-assigned',
+  'on-reviewer-status-changed',
+  'on-phase-changed',
+  'on-decision-released',
+] as const;
+
+export type PipelineKey = typeof VALID_PIPELINE_KEYS[number];
+
 export const PipelineStepSchema = z.object({
   bot: z.string(),
   command: z.string(),
@@ -328,7 +346,10 @@ export const PipelineStepSchema = z.object({
 });
 
 export const PipelineConfigSchema = z.object({
-  pipelines: z.record(z.string(), z.array(PipelineStepSchema)).optional(),
+  pipelines: z.record(
+    z.enum(VALID_PIPELINE_KEYS as unknown as [string, ...string[]]),
+    z.array(PipelineStepSchema)
+  ).optional(),
 });
 
 export type PipelineStep = z.infer<typeof PipelineStepSchema>;

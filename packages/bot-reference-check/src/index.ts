@@ -528,9 +528,25 @@ const checkDoiCommand: BotCommand = {
         references: analysis.references
       };
 
+      // Build annotations for references with issues
+      const annotations = analysis.references
+        .filter(r => r.status !== 'ok')
+        .map(r => ({
+          type: (r.status === 'not-found' ? 'error' : 'warning') as 'error' | 'warning',
+          location: { section: 'References' },
+          message: r.status === 'no-doi'
+            ? `Reference "${r.label}" is missing a DOI`
+            : `Reference "${r.label}" DOI does not resolve: ${r.error || 'unknown'}`,
+        }));
+
       return {
         messages: [{
           content: message,
+          structuredData: {
+            type: 'reference-report',
+            data: reportData,
+          },
+          annotations: annotations.length > 0 ? annotations : undefined,
           attachments: [{
             type: 'report',
             filename: `doi-check-report-${manuscriptId}.json`,

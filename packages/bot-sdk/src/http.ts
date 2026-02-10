@@ -29,13 +29,21 @@ export function createHttpClient(apiUrl: string, serviceToken: string) {
       fetchOptions.body = options.body;
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     if (options.timeout) {
       const controller = new AbortController();
-      setTimeout(() => controller.abort(), options.timeout);
+      timeoutId = setTimeout(() => controller.abort(), options.timeout);
       fetchOptions.signal = controller.signal;
     }
 
-    const response = await fetch(url, fetchOptions);
+    let response: Response;
+    try {
+      response = await fetch(url, fetchOptions);
+    } finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    }
 
     if (!response.ok) {
       let body = '';

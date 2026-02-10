@@ -19,6 +19,17 @@ export function createReviewerClient(http: HttpClient, manuscriptId: string) {
         { reviewerId, ...options }
       );
     },
+
+    async updateStatus(
+      reviewerId: string,
+      status: string,
+      options?: { dueDate?: string; completedAt?: string }
+    ): Promise<{ assignment: ReviewerAssignment }> {
+      return http.putJSON<{ assignment: ReviewerAssignment }>(
+        `/api/articles/${manuscriptId}/reviewers/${reviewerId}`,
+        { status, ...options }
+      );
+    },
   };
 }
 

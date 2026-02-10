@@ -123,6 +123,9 @@ export class BotPluginError extends Error {
   }
 }
 
+// Current platform bot API version
+export const PLATFORM_BOT_API_VERSION = 1;
+
 // Standard bot plugin validation
 export function validateBotPlugin(plugin: any): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
@@ -132,6 +135,15 @@ export function validateBotPlugin(plugin: any): { isValid: boolean; errors: stri
     const manifestResult = botPluginManifestSchema.safeParse(plugin.manifest);
     if (!manifestResult.success) {
       errors.push(...manifestResult.error.errors.map(e => `Manifest ${e.path.join('.')}: ${e.message}`));
+    }
+
+    // Check bot API version compatibility
+    const botApiVersion = plugin.manifest?.colloquium?.botApiVersion;
+    if (botApiVersion && botApiVersion > PLATFORM_BOT_API_VERSION) {
+      errors.push(
+        `Bot requires API version ${botApiVersion} but platform supports version ${PLATFORM_BOT_API_VERSION}. ` +
+        `Please upgrade the platform or use an older version of this bot.`
+      );
     }
     
     // Validate bot structure

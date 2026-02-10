@@ -1927,6 +1927,14 @@ router.post('/:id/reviewers', authenticateWithBots, requireBotPermission(BotApiP
     const { id: manuscriptId } = req.params;
     const { reviewerId, status = 'PENDING', dueDate } = req.body;
 
+    // Bot scope validation: bots can only manage reviewers for their assigned manuscript
+    if ((req as any).botContext && (req as any).botContext.manuscriptId !== manuscriptId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Bot can only manage reviewers for its assigned manuscript'
+      });
+    }
+
     // Validate required fields
     if (!reviewerId) {
       return res.status(400).json({
@@ -2031,6 +2039,14 @@ router.put('/:id/reviewers/:reviewerId', authenticateWithBots, requireBotPermiss
   try {
     const { id: manuscriptId, reviewerId } = req.params;
     const { status, dueDate, completedAt } = req.body;
+
+    // Bot scope validation: bots can only manage reviewers for their assigned manuscript
+    if ((req as any).botContext && (req as any).botContext.manuscriptId !== manuscriptId) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Bot can only manage reviewers for its assigned manuscript'
+      });
+    }
 
     // Find the assignment
     const assignment = await prisma.review_assignments.findUnique({

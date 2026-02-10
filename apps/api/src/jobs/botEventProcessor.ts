@@ -21,6 +21,7 @@ export const processBotEventJob = async (payload: BotEventJob) => {
 
   let manuscriptData: { title: string; abstract: string | null; authors: string[]; status: string; keywords: string[]; workflowPhase: string | null; workflowRound: number } | undefined;
   let filesData: Array<{ id: string; originalName: string; filename: string; fileType: string; mimetype: string; size: number }> | undefined;
+  let conversationData: { id: string; privacy: string; messageCount: number } | undefined;
 
   try {
     const [manuscript, files] = await Promise.all([
@@ -66,12 +67,26 @@ export const processBotEventJob = async (payload: BotEventJob) => {
       mimetype: f.mimetype,
       size: f.size,
     }));
+    // Pre-fetch conversation metadata (use REVIEW conversation)
+    const conversation = await prisma.conversations.findFirst({
+      where: { manuscriptId, type: 'REVIEW' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, privacy: true },
+    });
+    if (conversation) {
+      const msgCount = await prisma.messages.count({ where: { conversationId: conversation.id } });
+      conversationData = {
+        id: conversation.id,
+        privacy: conversation.privacy,
+        messageCount: msgCount,
+      };
+    }
   } catch (prefetchError) {
     console.warn('Failed to pre-fetch manuscript/files for bot event context:', prefetchError);
   }
 
   const context = {
-    conversationId: '',
+    conversationId: conversationData?.id || '',
     manuscriptId,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     triggeredBy: { messageId: '', userId: 'system', userRole: 'SYSTEM', trigger: 'EVENT' as any },
@@ -80,6 +95,7 @@ export const processBotEventJob = async (payload: BotEventJob) => {
     serviceToken,
     manuscript: manuscriptData,
     files: filesData,
+    conversation: conversationData,
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

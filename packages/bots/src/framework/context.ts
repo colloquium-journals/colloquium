@@ -17,6 +17,7 @@ export function createBotContext(params: {
   serviceToken?: string;
   manuscript?: BotContext['manuscript'];
   files?: BotContext['files'];
+  conversation?: BotContext['conversation'];
 }): BotContext {
   return {
     conversationId: params.conversationId,
@@ -30,5 +31,6 @@ export function createBotContext(params: {
     serviceToken: params.serviceToken,
     manuscript: params.manuscript,
     files: params.files,
+    conversation: params.conversation,
   };
 }

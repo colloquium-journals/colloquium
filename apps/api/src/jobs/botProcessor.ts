@@ -40,9 +40,10 @@ export const processBotJob = async (payload: BotProcessingJob) => {
     // Generate service token for bot API calls
     const serviceToken = generateBotServiceToken('system', manuscriptId || '', getBotPermissions('system'));
 
-    // Pre-fetch manuscript metadata and files for enriched bot context
+    // Pre-fetch manuscript metadata, files, and conversation for enriched bot context
     let manuscriptData: { title: string; abstract: string | null; authors: string[]; status: string; keywords: string[]; workflowPhase: string | null; workflowRound: number } | undefined;
     let filesData: Array<{ id: string; originalName: string; filename: string; fileType: string; mimetype: string; size: number }> | undefined;
+    let conversationData: { id: string; privacy: string; messageCount: number } | undefined;
 
     if (manuscriptId) {
       try {
@@ -89,6 +90,19 @@ export const processBotJob = async (payload: BotProcessingJob) => {
           mimetype: f.mimetype,
           size: f.size,
         }));
+        // Pre-fetch conversation metadata
+        const conversation = await prisma.conversations.findUnique({
+          where: { id: conversationId },
+          select: { id: true, privacy: true },
+        });
+        if (conversation) {
+          const msgCount = await prisma.messages.count({ where: { conversationId } });
+          conversationData = {
+            id: conversation.id,
+            privacy: conversation.privacy,
+            messageCount: msgCount,
+          };
+        }
       } catch (prefetchError) {
         console.warn('Failed to pre-fetch manuscript/files for bot context:', prefetchError);
       }
@@ -112,6 +126,7 @@ export const processBotJob = async (payload: BotProcessingJob) => {
       serviceToken,
       manuscript: manuscriptData,
       files: filesData,
+      conversation: conversationData,
     });
 
     if (botResponses && botResponses.length > 0) {

@@ -115,13 +115,53 @@ const analyzeCommand: BotCommand = {
   }
 };
 
+// Help command
+const helpCommand: BotCommand = {
+  name: 'help',
+  description: 'Show help information and available commands',
+  usage: '@{{BOT_NAME}} help',
+  parameters: [],
+  examples: ['@{{BOT_NAME}} help'],
+  permissions: [],
+  async execute(params, context) {
+    const content = `# {{BOT_DISPLAY_NAME}} Help
+
+{{BOT_DESCRIPTION}}
+
+## Available Commands
+
+### \`analyze\`
+Analyze the manuscript content with configurable modes and options.
+
+**Usage:** \`@{{BOT_NAME}} analyze [mode=standard] [includeMetadata=false]\`
+
+**Analysis Modes:**
+- \`basic\` - Quick overview of manuscript quality
+- \`standard\` - Comprehensive analysis (default)
+- \`detailed\` - In-depth analysis with metadata
+
+### \`help\`
+Show this help message.
+
+## Usage Examples
+
+- \`@{{BOT_NAME}} analyze\` - Run standard analysis
+- \`@{{BOT_NAME}} analyze mode=detailed\` - Run detailed analysis
+- \`@{{BOT_NAME}} analyze mode=basic includeMetadata=true\` - Basic analysis with metadata`;
+
+    return {
+      messages: [{ content }]
+    };
+  }
+};
+
 // The main bot export
 export const {{BOT_CLASS_NAME}}Bot: CommandBot = {
   id: '{{BOT_NAME}}',
   name: '{{BOT_DISPLAY_NAME}}',
   description: '{{BOT_DESCRIPTION}}',
   version: '1.0.0',
-  commands: [analyzeCommand],
+  commands: [analyzeCommand, helpCommand],
   keywords: [{{KEYWORDS}}],
   triggers: [],
   permissions: ['read_manuscript'],
@@ -179,6 +219,11 @@ export const manifest = {
     permissions: ['read_manuscript'],
     category: '{{CATEGORY}}' as const,
     isDefault: false,
+    defaultConfig: {
+      defaultMode: 'standard',
+      enableNotifications: true,
+      includeMetadataByDefault: false,
+    },
   }
 };
 
