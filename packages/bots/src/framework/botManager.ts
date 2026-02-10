@@ -560,6 +560,7 @@ export class DatabaseBotManager implements BotManager {
     return `@colloquium/${botId}`;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private generateConfigSchema(bot: any): any {
     // Generate a basic JSON schema for bot configuration
     // This could be enhanced based on bot metadata
@@ -681,7 +682,7 @@ export class DatabaseBotManager implements BotManager {
           
           // Ensure bot user exists (create user ID mapping)
           const botEmail = `${plugin.bot.id}@colloquium.bot`;
-          let botUser = await prisma.users.findUnique({
+          const botUser = await prisma.users.findUnique({
             where: { email: botEmail }
           });
           

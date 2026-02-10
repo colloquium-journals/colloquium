@@ -57,7 +57,6 @@ export const markdownRendererBot: CommandBot = {
       const templateDirs = entries.filter(entry => entry.isDirectory());
 
       const templates: Record<string, any> = {};
-      let uploadedCount = 0;
 
       for (const dir of templateDirs) {
         const templateName = dir.name;
@@ -85,7 +84,7 @@ export const markdownRendererBot: CommandBot = {
             templateDef.description = metadata.description || templateDef.description;
             templateDef.defaultEngine = metadata.defaultEngine || templateDef.defaultEngine;
             templateDef.metadata = { ...templateDef.metadata, ...metadata.metadata };
-          } catch (e) {
+          } catch {
             console.warn(`⚠️ Failed to parse metadata for ${templateName}/template.json`);
           }
         }
@@ -116,7 +115,6 @@ export const markdownRendererBot: CommandBot = {
               }
             });
 
-            uploadedCount++;
           } catch (error) {
             console.warn(`⚠️ Failed to upload template ${templateName}/${filename}:`, error);
           }

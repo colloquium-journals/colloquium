@@ -2,7 +2,7 @@
  * Bot Test Harness - High-level wrapper for testing bot commands
  */
 
-import { CommandBot, BotContext, BotResponse, BotTrigger } from '@colloquium/types';
+import { CommandBot, BotContext, BotResponse } from '@colloquium/types';
 import { createMockContext, MockContextOptions } from './mockContext';
 import { MockApiServer, MockManuscriptData } from './mockApiServer';
 import { MockFile, createMockFile } from './mockFiles';

@@ -109,19 +109,6 @@ function renderTemplate(template: string, context: any): string {
   return rendered;
 }
 
-async function checkReviewerPermission(context: any, userId: string): Promise<boolean> {
-  try {
-    const client = createBotClient(context);
-    const assignments = await client.reviewers.list();
-    return assignments.some((a: any) =>
-      a.reviewerId === userId && ['ACCEPTED', 'IN_PROGRESS'].includes(a.status)
-    );
-  } catch (error) {
-    console.error('Error checking reviewer permission:', error);
-    return false;
-  }
-}
-
 async function markReviewerAsHavingChecklist(context: any, reviewerId: string): Promise<void> {
   // TODO: Store checklist completion status when manuscript metadata API is available
   console.log(`Checklist completed by reviewer ${reviewerId} for manuscript ${context.manuscriptId}`);
@@ -308,7 +295,7 @@ const helpCommand: BotCommand = {
   parameters: [],
   examples: ['@bot-reviewer-checklist help'],
   permissions: [],
-  async execute(params, context) {
+  async execute() {
     const helpContent = `# Reviewer Checklist Bot
 
 **Available Commands:**

@@ -8,7 +8,7 @@ export const uploadTemplateCommand: BotCommand = {
   parameters: [],
   examples: ['@bot-markdown-renderer upload-template'],
   permissions: [],
-  async execute(_params, _context) {
+  async execute() {
     let message = `📤 **Upload Custom Journal Templates**\n\n`;
 
     message += `To upload a custom journal template, you need to upload the template files through the bot configuration system:\n\n`;

@@ -6,11 +6,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { CommandBot, BotContext } from '@colloquium/types';
-import { MockApiServer, MockManuscriptData } from './mockApiServer';
+import { CommandBot } from '@colloquium/types';
+import { MockApiServer } from './mockApiServer';
 import { MockFile, createMockFile } from './mockFiles';
 import { BotTestHarness, createTestHarness } from './testHarness';
-import { createMockContext } from './mockContext';
 
 // Import the papers structure from seed-content if available
 // This allows the runner to know about available papers

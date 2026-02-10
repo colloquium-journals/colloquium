@@ -180,7 +180,7 @@ export function createDefaultHelpCommand(bot: CommandBot): BotCommand {
       ...bot.commands.filter(cmd => cmd.name !== 'help').slice(0, 2).map(cmd => `@${bot.id} help ${cmd.name}`)
     ],
     permissions: [], // Help should be available to everyone
-    async execute(params, context) {
+    async execute(params) {
       const { command: commandName } = params;
       
       const helpContent = generateBotHelp(bot, { 

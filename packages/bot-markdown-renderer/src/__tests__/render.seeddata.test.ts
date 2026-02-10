@@ -14,7 +14,6 @@ import {
   SeedDataTestRunner,
   describeSeedDataTests,
   BotTestHarness,
-  assertBotResponse,
   MockFile,
   SeedPaperInfo
 } from '@colloquium/bots/testing';

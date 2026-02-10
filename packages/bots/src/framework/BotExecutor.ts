@@ -167,6 +167,7 @@ export class BotExecutor {
     return responses;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async executeBotsByTrigger(trigger: BotTrigger, context: BotContext): Promise<BotResponse[]> {
     const responses: BotResponse[] = [];
 

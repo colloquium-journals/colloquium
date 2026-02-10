@@ -9,28 +9,23 @@ export class NodeBotPluginLoader implements BotPluginLoader {
 
   async load(source: BotInstallationSource): Promise<BotPlugin> {
     let pluginPath: string;
-    let packageName: string;
 
     try {
       switch (source.type) {
         case 'npm':
           pluginPath = await this.loadFromNpm(source.packageName, source.version);
-          packageName = source.packageName;
           break;
         
         case 'local':
           pluginPath = path.resolve(source.path);
-          packageName = path.basename(pluginPath);
           break;
         
         case 'git':
           pluginPath = await this.loadFromGit(source.url, source.ref);
-          packageName = this.extractPackageNameFromGitUrl(source.url);
           break;
         
         case 'url':
           pluginPath = await this.loadFromUrl(source.url);
-          packageName = path.basename(source.url, '.tgz');
           break;
         
         default:
@@ -226,7 +221,8 @@ export class NodeBotPluginLoader implements BotPluginLoader {
         delete require.cache[modulePath];
       }
 
-      // Load the module
+      // Load the module (require needed for dynamic plugin loading)
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const loadedModule = require(modulePath);
       
       // Handle both default exports and named exports

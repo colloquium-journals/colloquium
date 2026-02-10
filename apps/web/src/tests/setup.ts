@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { beforeAll, afterAll, beforeEach, afterEach } from '@jest/globals';
+import { beforeAll, afterAll, beforeEach } from '@jest/globals';
 
 // Mock Next.js router
 jest.mock('next/router', () => ({

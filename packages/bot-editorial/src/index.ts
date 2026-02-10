@@ -1,53 +1,9 @@
 
-import { CommandBot, BotCommand, BotMessageAction, BotActionHandler, BotActionHandlerContext, BotActionHandlerResult } from '@colloquium/types';
+import { CommandBot, BotCommand, BotMessageAction, BotActionHandlerResult } from '@colloquium/types';
 import { createBotClient } from '@colloquium/bot-sdk';
 import { randomUUID } from 'crypto';
 
-/**
- * Utility for flexible default value handling in bot commands.
- * This allows for:
- * - Static default values
- * - Dynamic/computed default values  
- * - Conditional defaults that can be enabled/disabled
- * - No defaults when enabled=false
- */
-type DefaultValueProvider<T> = {
-  value?: T;                // Static default value
-  generate?: () => T;       // Function to generate dynamic default
-  enabled?: boolean;        // Whether to apply any default (false = no default)
-};
 
-function getDefaultValue<T>(provider: DefaultValueProvider<T>): T | undefined {
-  if (provider.enabled === false) return undefined;
-  if (provider.value !== undefined) return provider.value;
-  if (provider.generate) return provider.generate();
-  return undefined;
-}
-
-/**
- * Default providers for common editorial bot parameters.
- * Developers can easily modify these to change default behavior:
- * 
- * To enable 30-day deadline default:
- *   defaultProviders.deadline.enabled = true
- * 
- * To set a custom static default:
- *   defaultProviders.deadline.value = "2024-03-01"
- *   defaultProviders.deadline.enabled = true
- * 
- * To change the generated default period:
- *   defaultProviders.deadline.generate = () => { ... }
- */
-const defaultProviders = {
-  deadline: {
-    enabled: false, // Currently no default deadline - assignments have no deadline by default
-    generate: () => {
-      const date = new Date();
-      date.setDate(date.getDate() + 30); // Would generate 30 days from now if enabled
-      return date.toISOString().split('T')[0];
-    }
-  }
-};
 
 /**
  * Process @mention strings to ensure they're properly formatted
@@ -1073,8 +1029,6 @@ const sendReminderCommand: BotCommand = {
 
     // Process @mention to ensure proper formatting
     const processedReviewer = processMentions([reviewer])[0];
-    const username = processedReviewer.replace('@', '');
-
     let responseMessage = `📧 **Manual Reminder**\n\n`;
     responseMessage += `**Manuscript ID:** ${manuscriptId}\n`;
     responseMessage += `**Reviewer:** ${processedReviewer}\n`;
@@ -1121,9 +1075,9 @@ const helpCommand: BotCommand = {
     '@bot-editorial help assign-editor'
   ],
   permissions: [],
-  async execute(params, context) {
+  async execute(params) {
     const { command } = params;
-    
+
     if (command) {
       // Return help for specific command
       const commands = [acceptCommand, rejectCommand, assignEditorCommand, inviteReviewerCommand, releaseCommand, reviseCommand, deliberateCommand, sendReminderCommand];
@@ -1273,7 +1227,7 @@ export const editorialBot: CommandBot = {
     }
   ],
   actionHandlers: {
-    REINVITE_REVIEWER: async (params, context): Promise<BotActionHandlerResult> => {
+    REINVITE_REVIEWER: async (params): Promise<BotActionHandlerResult> => {
       const { reviewerId, email, manuscriptId, deadline, message } = params;
 
       try {

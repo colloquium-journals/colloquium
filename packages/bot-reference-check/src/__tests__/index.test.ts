@@ -49,13 +49,6 @@ function mockDoiOrgResolves(url: string) {
   return null;
 }
 
-function mockDoiOrgNotFound(url: string) {
-  if (url.includes('doi.org/')) {
-    return Promise.resolve({ ok: false, status: 404, statusText: 'Not Found' });
-  }
-  return null;
-}
-
 describe('Reference Check Bot', () => {
   beforeEach(() => {
     mockFetch.mockReset();
