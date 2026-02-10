@@ -168,8 +168,9 @@ async function copyTemplateFiles(templateDir: string, targetDir: string, config:
     'README.md.template',
     'LICENSE.template',
     '.gitignore.template',
-    '.eslintrc.js.template',
-    'jest.config.js.template'
+    'eslint.config.mjs.template',
+    'jest.config.js.template',
+    'default-config.yaml.template'
   ];
   
   for (const file of templateFiles) {

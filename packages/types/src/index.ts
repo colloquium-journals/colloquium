@@ -169,6 +169,26 @@ export interface BotContext {
   };
   config: Record<string, any>;
   serviceToken?: string; // Bot service token for API authentication
+
+  // Pre-fetched manuscript data (avoids extra API round-trips in bots)
+  manuscript?: {
+    title: string;
+    abstract: string | null;
+    authors: string[];
+    status: string;
+    keywords: string[];
+    workflowPhase: string | null;
+    workflowRound: number;
+  };
+  // Pre-fetched file list
+  files?: Array<{
+    id: string;
+    originalName: string;
+    filename: string;
+    fileType: string;
+    mimetype: string;
+    size: number;
+  }>;
 }
 
 export interface BotResponse {

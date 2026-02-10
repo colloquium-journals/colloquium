@@ -1,5 +1,40 @@
 import { reviewerChecklistBot } from '../index';
 
+// Mock fetch for SDK API calls
+const mockReviewerAssignments = {
+  assignments: [
+    {
+      id: 'assignment-1',
+      manuscriptId: 'test-manuscript-123',
+      reviewerId: 'test-user-001',
+      status: 'ACCEPTED',
+      assignedAt: '2024-01-01T00:00:00Z',
+      dueDate: '2024-02-01T00:00:00Z',
+      users: { id: 'test-user-001', name: 'Current User', email: 'user@test.com' }
+    },
+    {
+      id: 'assignment-2',
+      manuscriptId: 'test-manuscript-123',
+      reviewerId: 'reviewer-002',
+      status: 'ACCEPTED',
+      assignedAt: '2024-01-01T00:00:00Z',
+      dueDate: '2024-02-01T00:00:00Z',
+      users: { id: 'reviewer-002', name: 'Dr. Smith', email: 'smith@test.com' }
+    }
+  ]
+};
+
+beforeEach(() => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve(mockReviewerAssignments),
+  });
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 describe('Reviewer Checklist Bot', () => {
   it('should have correct bot metadata', () => {
     expect(reviewerChecklistBot.id).toBe('bot-reviewer-checklist');

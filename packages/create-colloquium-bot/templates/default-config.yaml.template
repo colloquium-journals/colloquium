@@ -1,0 +1,7 @@
+# {{BOT_DISPLAY_NAME}} Configuration
+#
+# Default analysis mode: basic, standard, or detailed
+defaultMode: "standard"
+
+# Include additional metadata in results
+includeMetadataByDefault: false

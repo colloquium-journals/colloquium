@@ -32,6 +32,7 @@
   "author": "Colloquium Team",
   "license": "MIT",
   "dependencies": {
+    "@colloquium/bot-sdk": "*",
     "@colloquium/types": "*",
     "cors": "^2.8.5",
     "dompurify": "^3.0.8",
@@ -58,6 +59,7 @@
   "colloquium": {
     "botId": "bot-markdown-renderer",
     "apiVersion": "1.0.0",
+    "botApiVersion": 1,
     "permissions": [
       "read_manuscript_files",
       "upload_files"

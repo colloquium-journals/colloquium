@@ -51,7 +51,7 @@ jest.mock('jsdom', () => ({
 
 // Mock marked to actually process some markdown
 jest.mock('marked', () => {
-  const mockMarked = jest.fn((content: string) => {
+  const convert = (content: string) => {
     // Simple markdown to HTML conversion for testing
     return content
       .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -61,8 +61,10 @@ jest.mock('marked', () => {
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/\n\n/g, '</p><p>')
       .replace(/^(.+)$/gm, '<p>$1</p>');
-  });
+  };
+  const mockMarked = jest.fn(convert);
   (mockMarked as any).setOptions = jest.fn();
+  (mockMarked as any).parse = jest.fn(convert);
   return {
     marked: mockMarked,
   };
@@ -146,7 +148,7 @@ describe('Markdown Renderer - Seed Data Tests', () => {
         const content = typeof mdFile!.content === 'string'
           ? mdFile!.content
           : mdFile!.content.toString();
-        expect(content).toContain('Machine Learning');
+        expect(content.toLowerCase()).toContain('machine learning');
       });
 
       it('should have bibliography file with citations', () => {
@@ -198,7 +200,7 @@ describe('Markdown Renderer - Seed Data Tests', () => {
           : mdFile!.content.toString();
 
         expect(content).toContain('Colloquium');
-        expect(content).toContain('Academic Publishing');
+        expect(content.toLowerCase()).toContain('academic publishing');
       });
     });
 

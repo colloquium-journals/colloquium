@@ -15,14 +15,10 @@ Welcome to the Colloquium documentation! This is an open-source academic journal
 - [**Settings**](./admin/settings.md) - Journal configuration and admin settings
 
 ### Bots
-- [**Bot Overview**](./bots/README.md) - Introduction to Colloquium's bot ecosystem
-- [**Editorial Bot**](./bots/editorial-bot.md) - Manuscript workflow automation
-- [**Bot Configuration**](./bot-configuration.md) - Configuring bot settings
-- [**Bot Help System**](./bot-help-system.md) - Bot help and command documentation
-
-### Bot Development
-- [**Bot Development Guide**](./bot-development/README.md) - Building custom bots
-- [**npx Template**](./bot-development/npx-template.md) - Quick-start bot template
+- [**Bot Framework**](./bots/README.md) - Overview, architecture, and built-in bots
+- [**Quick Start**](./bots/quick-start.md) - Create a bot in 5 minutes
+- [**SDK Reference**](./bots/reference/sdk.md) - `@colloquium/bot-sdk` API client
+- [**Built-in Bots**](./bots/README.md#built-in-bots) - Editorial, renderer, reference check, reviewer checklist
 
 ### Admin Guides
 - [**About Page Content**](./admin-about-content.md) - Managing about page content

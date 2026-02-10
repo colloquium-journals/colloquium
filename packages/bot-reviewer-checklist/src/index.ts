@@ -1,4 +1,5 @@
 import { CommandBot, BotCommand } from '@colloquium/types';
+import { createBotClient } from '@colloquium/bot-sdk';
 
 interface ChecklistConfig {
   template?: string;
@@ -52,24 +53,10 @@ const DEFAULT_TEMPLATE = `# Reviewer Checklist
 *This checklist is editable. Check off items as you complete your review.*`;
 
 async function getAssignedReviewers(context: any): Promise<ReviewerAssignment[]> {
-  const apiUrl = context.config?.apiUrl || process.env.API_URL || 'http://localhost:4000';
-  const manuscriptId = context.manuscriptId;
-
   try {
-    const response = await fetch(`${apiUrl}/api/reviewers/assignments/${manuscriptId}`, {
-      headers: {
-        'x-bot-token': context.serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`Failed to fetch reviewers: ${response.status}`);
-      return [];
-    }
-
-    const data = await response.json();
-    return (data.assignments || []).map((a: any) => ({
+    const client = createBotClient(context);
+    const assignments = await client.reviewers.list();
+    return assignments.map((a: any) => ({
       id: a.id,
       userId: a.reviewerId,
       userName: a.users?.name || a.users?.username || 'Unknown',
@@ -123,21 +110,10 @@ function renderTemplate(template: string, context: any): string {
 }
 
 async function checkReviewerPermission(context: any, userId: string): Promise<boolean> {
-  const apiUrl = context.config?.apiUrl || process.env.API_URL || 'http://localhost:4000';
-  const manuscriptId = context.manuscriptId;
-
   try {
-    const response = await fetch(`${apiUrl}/api/reviewers/assignments/${manuscriptId}`, {
-      headers: {
-        'x-bot-token': context.serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) return false;
-
-    const data = await response.json();
-    return (data.assignments || []).some((a: any) =>
+    const client = createBotClient(context);
+    const assignments = await client.reviewers.list();
+    return assignments.some((a: any) =>
       a.reviewerId === userId && ['ACCEPTED', 'IN_PROGRESS'].includes(a.status)
     );
   } catch (error) {

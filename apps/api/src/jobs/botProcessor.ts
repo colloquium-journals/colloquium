@@ -40,6 +40,60 @@ export const processBotJob = async (payload: BotProcessingJob) => {
     // Generate service token for bot API calls
     const serviceToken = generateBotServiceToken('system', manuscriptId || '', ['read_manuscript_files', 'upload_files']);
 
+    // Pre-fetch manuscript metadata and files for enriched bot context
+    let manuscriptData: { title: string; abstract: string | null; authors: string[]; status: string; keywords: string[]; workflowPhase: string | null; workflowRound: number } | undefined;
+    let filesData: Array<{ id: string; originalName: string; filename: string; fileType: string; mimetype: string; size: number }> | undefined;
+
+    if (manuscriptId) {
+      try {
+        const [manuscript, files] = await Promise.all([
+          prisma.manuscripts.findUnique({
+            where: { id: manuscriptId },
+            select: {
+              title: true,
+              abstract: true,
+              status: true,
+              keywords: true,
+              workflowPhase: true,
+              workflowRound: true,
+              manuscript_authors: {
+                select: { users: { select: { name: true } } }
+              }
+            }
+          }),
+          prisma.manuscript_files.findMany({
+            where: { manuscriptId },
+            select: { id: true, originalName: true, filename: true, fileType: true, mimetype: true, size: true }
+          })
+        ]);
+
+        if (manuscript) {
+          manuscriptData = {
+            title: manuscript.title,
+            abstract: manuscript.abstract,
+            authors: manuscript.manuscript_authors.map(
+              (ma: { users: { name: string | null } }) => ma.users.name || 'Unknown'
+            ),
+            status: manuscript.status,
+            keywords: manuscript.keywords as string[],
+            workflowPhase: manuscript.workflowPhase,
+            workflowRound: manuscript.workflowRound,
+          };
+        }
+
+        filesData = files.map((f: { id: string; originalName: string; filename: string; fileType: string; mimetype: string; size: number }) => ({
+          id: f.id,
+          originalName: f.originalName,
+          filename: f.filename,
+          fileType: f.fileType,
+          mimetype: f.mimetype,
+          size: f.size,
+        }));
+      } catch (prefetchError) {
+        console.warn('Failed to pre-fetch manuscript/files for bot context:', prefetchError);
+      }
+    }
+
     // Process the message using the bot executor
     const botResponses = await botExecutor.processMessage(message.content, {
       conversationId,
@@ -55,7 +109,9 @@ export const processBotJob = async (payload: BotProcessingJob) => {
         settings: {}
       },
       config: { apiUrl: process.env.API_URL || 'http://localhost:4000' },
-      serviceToken
+      serviceToken,
+      manuscript: manuscriptData,
+      files: filesData,
     });
 
     if (botResponses && botResponses.length > 0) {

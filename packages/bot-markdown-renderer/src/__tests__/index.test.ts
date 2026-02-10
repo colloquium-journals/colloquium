@@ -35,6 +35,7 @@ jest.mock('jsdom', () => ({
 jest.mock('marked', () => {
   const mockMarked = jest.fn((content: string) => `<p>${content}</p>`);
   (mockMarked as any).setOptions = jest.fn();
+  (mockMarked as any).parse = jest.fn((content: string) => `<p>${content}</p>`);
   return {
     marked: mockMarked,
   };

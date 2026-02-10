@@ -17,6 +17,11 @@ High-level roadmap of unimplemented features and planned work.
 
 ## Bot Ecosystem
 
+- [ ] Bot developer experience overhaul (see [bot-developer-experience.md](bot-developer-experience.md))
+  - [ ] Phase 1: Bot SDK, enriched context, docs restructure, template update
+  - [ ] Phase 2: Event/hook system, bot-scoped persistent storage
+  - [ ] Phase 3: Expanded API surface, bot composition/pipelines
+  - [ ] Phase 4: Dev tooling (watch mode, playground UI), structured return types
 - [ ] Containerized service-enhanced bots (see [bot-architecture-flexible-services.md](bot-architecture-flexible-services.md))
 - [ ] Bot marketplace: discovery, ratings, community contributions
 - [ ] Bot sandboxing / isolated execution
@@ -75,5 +80,5 @@ High-level roadmap of unimplemented features and planned work.
 - [ ] RSS feeds for new publications
 - [ ] Email subscriber notifications
 - [ ] Repository integration (institutional uploads)
-- [ ] Bot developer documentation and SDK
+- [ ] Bot developer documentation and SDK (see [bot-developer-experience.md](bot-developer-experience.md))
 - [ ] Self-hosting documentation and guides

@@ -14,6 +14,9 @@ export function createBotContext(params: {
     settings: Record<string, any>;
   };
   config?: Record<string, any>;
+  serviceToken?: string;
+  manuscript?: BotContext['manuscript'];
+  files?: BotContext['files'];
 }): BotContext {
   return {
     conversationId: params.conversationId,
@@ -23,6 +26,9 @@ export function createBotContext(params: {
       id: 'default',
       settings: {}
     },
-    config: params.config || {}
+    config: params.config || {},
+    serviceToken: params.serviceToken,
+    manuscript: params.manuscript,
+    files: params.files,
   };
 }

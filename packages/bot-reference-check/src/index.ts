@@ -1,64 +1,13 @@
 import { z } from 'zod';
 import { CommandBot, BotCommand } from '@colloquium/types';
-
-// Default API base URL fallback (prefer context.config.apiUrl at runtime)
-const DEFAULT_API_URL = process.env.API_URL || 'http://localhost:4000';
+import { createBotClient, FileData } from '@colloquium/bot-sdk';
 
 // DOI validation regex - matches standard DOI format
 const DOI_REGEX = /10\.\d{4,}\/[^\s]+/g;
 const DOI_REGEX_SINGLE = /10\.\d{4,}\/[^\s]+/;
 
-// Interface for manuscript file from API
-interface ManuscriptFile {
-  id: string;
-  filename: string;
-  originalName: string;
-  fileType: 'SOURCE' | 'ASSET' | 'RENDERED' | 'BIBLIOGRAPHY';
-  mimetype: string;
-  size: number;
-  downloadUrl: string;
-  detectedFormat?: string;
-}
-
-/**
- * Fetch list of files for a manuscript
- */
-async function getManuscriptFiles(manuscriptId: string, serviceToken: string, apiUrl: string = DEFAULT_API_URL): Promise<ManuscriptFile[]> {
-  const url = `${apiUrl}/api/articles/${manuscriptId}/files`;
-
-  const response = await fetch(url, {
-    headers: {
-      'x-bot-token': serviceToken,
-      'content-type': 'application/json'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch manuscript files: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.files || [];
-}
-
-/**
- * Download file content as text
- */
-async function downloadFileContent(downloadUrl: string, serviceToken: string, apiUrl: string = DEFAULT_API_URL): Promise<string> {
-  const fullUrl = downloadUrl.startsWith('http') ? downloadUrl : `${apiUrl}${downloadUrl}`;
-
-  const response = await fetch(fullUrl, {
-    headers: {
-      'x-bot-token': serviceToken
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
-  }
-
-  return await response.text();
-}
+// Use FileData from SDK
+type ManuscriptFile = FileData;
 
 /**
  * Find the best file for reference analysis (markdown or text source files)
@@ -465,7 +414,6 @@ const checkDoiCommand: BotCommand = {
   async execute(params, context) {
     const { detailed, timeout } = params;
     const { manuscriptId, serviceToken } = context;
-    const apiUrl = context.config?.apiUrl || DEFAULT_API_URL;
 
     try {
       // Validate we have a service token for API access
@@ -477,11 +425,15 @@ const checkDoiCommand: BotCommand = {
         };
       }
 
+      const client = createBotClient(context);
+
       let message = `🔍 **DOI Reference Check**\n\n`;
       message += `**Manuscript ID:** ${manuscriptId}\n`;
 
-      // Fetch manuscript files
-      const files = await getManuscriptFiles(manuscriptId, serviceToken, apiUrl);
+      // Use pre-fetched files from enriched context, or fetch via SDK
+      const files: ManuscriptFile[] = context.files
+        ? context.files.map((f: any) => ({ ...f, downloadUrl: `/api/articles/${manuscriptId}/files/${f.id}/download` }))
+        : await client.files.list();
 
       if (files.length === 0) {
         return {
@@ -519,10 +471,10 @@ const checkDoiCommand: BotCommand = {
       let analysisPromise: Promise<ReferenceAnalysis>;
 
       if (bibFile) {
-        const bibContent = await downloadFileContent(bibFile.downloadUrl, serviceToken, apiUrl);
+        const bibContent = await client.files.downloadByUrl(bibFile.downloadUrl);
         analysisPromise = analyzeBibReferences(bibContent, detailed);
       } else {
-        const manuscriptContent = await downloadFileContent(sourceFile!.downloadUrl, serviceToken, apiUrl);
+        const manuscriptContent = await client.files.downloadByUrl(sourceFile!.downloadUrl);
         analysisPromise = analyzeReferences(manuscriptContent, detailed);
       }
 

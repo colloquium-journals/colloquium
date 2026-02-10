@@ -1,0 +1,2 @@
+import config from "@colloquium/eslint-config/base";
+export default config;

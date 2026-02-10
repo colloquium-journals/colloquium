@@ -30,6 +30,7 @@
   "author": "Colloquium Team",
   "license": "MIT",
   "dependencies": {
+    "@colloquium/bot-sdk": "*",
     "@colloquium/types": "*",
     "zod": "^3.22.0"
   },
@@ -47,6 +48,7 @@
   "colloquium": {
     "botId": "bot-reference-check",
     "apiVersion": "1.0.0",
+    "botApiVersion": 1,
     "permissions": [
       "read_manuscript_files",
       "access_external_apis"

@@ -23,7 +23,8 @@ export const botPluginManifestSchema = z.object({
   }).optional(),
   colloquium: z.object({
     botId: z.string().regex(/^[a-z0-9\-]+$/, 'Bot ID must be lowercase alphanumeric with hyphens'),
-    apiVersion: z.string().default('1.0.0'),
+    apiVersion: z.string().default('1.0.0'), // legacy, use botApiVersion instead
+    botApiVersion: z.number().int().min(1).default(1),
     permissions: z.array(z.string()).default([]),
     isDefault: z.boolean().default(false), // Whether this bot should be installed by default
     category: z.enum(['editorial', 'analysis', 'formatting', 'quality', 'integration', 'utility']).optional(),
@@ -214,6 +215,7 @@ export function createBotManifest(options: {
     colloquium: {
       botId: options.botId,
       apiVersion: '1.0.0',
+      botApiVersion: 1,
       permissions: options.permissions || [],
       category: options.category,
       isDefault: options.isDefault || false,

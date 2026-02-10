@@ -1,5 +1,5 @@
-import { BotContext, BotResponse, CommandBot, BotCommand } from '@colloquium/types';
-import { z } from 'zod';
+import { CommandBot, BotCommand } from '@colloquium/types';
+import { createBotClient } from '@colloquium/bot-sdk';
 
 // Main command implementation
 const analyzeCommand: BotCommand = {
@@ -35,20 +35,18 @@ const analyzeCommand: BotCommand = {
     const { manuscriptId } = context;
 
     try {
-      // Perform the analysis
-      const results = await performAnalysis(manuscriptId, mode, includeMetadata);
-      
-      // Build response message
+      const results = await performAnalysis(context, mode, includeMetadata);
+
       let message = `🔍 **{{BOT_DISPLAY_NAME}} Analysis**\n\n`;
       message += `**Manuscript ID:** ${manuscriptId}\n`;
       message += `**Analysis Mode:** ${mode}\n`;
       message += `**Processing Time:** ${results.processingTime}\n\n`;
-      
+
       message += `**Results Summary:**\n`;
       message += `- Items analyzed: ${results.itemsAnalyzed}\n`;
       message += `- Issues found: ${results.issuesFound}\n`;
       message += `- Confidence score: ${(results.confidence * 100).toFixed(1)}%\n\n`;
-      
+
       if (results.issuesFound > 0) {
         message += `**Issues Detected:**\n`;
         results.issues.forEach((issue: any, i: number) => {
@@ -61,7 +59,7 @@ const analyzeCommand: BotCommand = {
       } else {
         message += `✅ **Excellent!** No issues detected in your manuscript.\n\n`;
       }
-      
+
       if (includeMetadata && results.metadata) {
         message += `**Additional Metadata:**\n`;
         Object.entries(results.metadata).forEach(([key, value]) => {
@@ -69,7 +67,7 @@ const analyzeCommand: BotCommand = {
         });
         message += '\n';
       }
-      
+
       message += `💡 **Recommendations:**\n`;
       if (results.recommendations.length > 0) {
         results.recommendations.forEach((rec: string, i: number) => {
@@ -79,7 +77,6 @@ const analyzeCommand: BotCommand = {
         message += `Your manuscript looks great! No specific recommendations at this time.\n`;
       }
 
-      // Generate report data
       const reportData = {
         manuscriptId,
         timestamp: new Date().toISOString(),
@@ -118,55 +115,15 @@ const analyzeCommand: BotCommand = {
   }
 };
 
-const helpCommand: BotCommand = {
-  name: 'help',
-  description: 'Show detailed help for {{BOT_DISPLAY_NAME}}',
-  usage: '@{{BOT_NAME}} help',
-  parameters: [],
-  examples: ['@{{BOT_NAME}} help'],
-  permissions: [],
-  async execute(params, context) {
-    let message = `📚 **{{BOT_DISPLAY_NAME}} Help**\n\n`;
-    message += `{{BOT_DESCRIPTION}}\n\n`;
-    
-    message += `**Available Commands:**\n`;
-    message += `• \`analyze\` - Analyze manuscript content with customizable modes\n\n`;
-    
-    message += `**Analysis Modes:**\n`;
-    message += `• \`basic\` - Quick overview analysis\n`;
-    message += `• \`standard\` - Comprehensive analysis (default)\n`;
-    message += `• \`detailed\` - In-depth analysis with extended reporting\n\n`;
-    
-    message += `**Usage Examples:**\n`;
-    message += `• \`@{{BOT_NAME}} analyze\` - Run standard analysis\n`;
-    message += `• \`@{{BOT_NAME}} analyze mode=detailed\` - Detailed analysis\n`;
-    message += `• \`@{{BOT_NAME}} analyze includeMetadata=true\` - Include metadata\n\n`;
-    
-    message += `**Configuration:**\n`;
-    message += `This bot can be configured through the admin interface to customize:\n`;
-    message += `• Default analysis mode\n`;
-    message += `• Notification settings\n`;
-    message += `• Report formats\n\n`;
-    
-    message += `**Need More Help?**\n`;
-    message += `• Documentation: https://docs.colloquium.org/bots/{{BOT_NAME}}\n`;
-    message += `• Support: Contact your journal administrators`;
-
-    return {
-      messages: [{ content: message }]
-    };
-  }
-};
-
 // The main bot export
 export const {{BOT_CLASS_NAME}}Bot: CommandBot = {
   id: '{{BOT_NAME}}',
   name: '{{BOT_DISPLAY_NAME}}',
   description: '{{BOT_DESCRIPTION}}',
   version: '1.0.0',
-  commands: [analyzeCommand, helpCommand],
+  commands: [analyzeCommand],
   keywords: [{{KEYWORDS}}],
-  triggers: [], // Add triggers like 'MANUSCRIPT_SUBMITTED' if needed
+  triggers: [],
   permissions: ['read_manuscript'],
   help: {
     overview: '{{BOT_DESCRIPTION}}',
@@ -218,14 +175,10 @@ export const manifest = {
   colloquium: {
     botId: '{{BOT_NAME}}',
     apiVersion: '1.0.0',
+    botApiVersion: 1,
     permissions: ['read_manuscript'],
     category: '{{CATEGORY}}' as const,
     isDefault: false,
-    defaultConfig: {
-      defaultMode: 'standard',
-      enableNotifications: true,
-      includeMetadataByDefault: false
-    }
   }
 };
 
@@ -239,52 +192,33 @@ export default {
 };
 
 // Implementation functions
-async function performAnalysis(manuscriptId: string, mode: string, includeMetadata: boolean) {
+async function performAnalysis(context: any, mode: string, includeMetadata: boolean) {
+  const client = createBotClient(context);
+
+  // Use enriched context data if available, otherwise fetch via SDK
+  const manuscript = context.manuscript || await client.manuscripts.get();
+  const files = context.files || await client.files.list();
+
   // TODO: Implement your specific analysis logic here
-  
-  // Simulate processing time based on mode
-  const processingTimes = {
-    basic: 500,
-    standard: 1500,
-    detailed: 3000
-  };
-  
-  const delay = processingTimes[mode as keyof typeof processingTimes] || 1500;
-  await new Promise(resolve => setTimeout(resolve, delay));
-  
-  // Mock analysis results - replace with your actual logic
+  // The manuscript and files data is now available for analysis
+
   const mockResults = {
-    itemsAnalyzed: Math.floor(Math.random() * 50) + 10,
-    issuesFound: Math.floor(Math.random() * 5),
-    confidence: 0.85 + Math.random() * 0.15,
-    processingTime: `${delay}ms`,
-    issues: [
-      {
-        severity: 'warning',
-        description: 'Consider adding more recent citations (past 5 years)',
-        suggestion: 'Include 2-3 citations from 2022-2024'
-      },
-      {
-        severity: 'info',
-        description: 'Abstract could benefit from quantitative results',
-        suggestion: 'Add specific numbers or percentages to highlight key findings'
-      }
-    ].slice(0, Math.floor(Math.random() * 3)),
+    itemsAnalyzed: files.length + 10,
+    issuesFound: 0,
+    confidence: 0.95,
+    processingTime: '150ms',
+    issues: [] as any[],
     recommendations: [
       'Manuscript structure follows standard academic format',
-      'Consider expanding the discussion section',
-      'References are properly formatted'
-    ].slice(0, Math.floor(Math.random() * 3) + 1),
+    ],
     ...(includeMetadata && {
       metadata: {
-        wordCount: Math.floor(Math.random() * 5000) + 3000,
-        figureCount: Math.floor(Math.random() * 8) + 1,
-        tableCount: Math.floor(Math.random() * 5) + 1,
-        referenceCount: Math.floor(Math.random() * 40) + 20,
+        title: manuscript.title || 'Unknown',
+        fileCount: files.length,
         analysisDepth: mode
       }
     })
   };
-  
+
   return mockResults;
 }

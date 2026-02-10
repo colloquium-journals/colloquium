@@ -1,5 +1,6 @@
 
 import { CommandBot, BotCommand, BotMessageAction, BotActionHandler, BotActionHandlerContext, BotActionHandlerResult } from '@colloquium/types';
+import { createBotClient } from '@colloquium/bot-sdk';
 import { randomUUID } from 'crypto';
 
 /**
@@ -74,11 +75,8 @@ async function checkActionEditorAssignmentPermission(context: any): Promise<bool
   if (!userId || !serviceToken) return false;
 
   try {
-    const response = await fetch(`${context.config?.apiUrl || 'http://localhost:4000'}/api/users/${userId}`, {
-      headers: { 'X-Bot-Token': serviceToken, 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) return false;
-    const user = await response.json();
+    const client = createBotClient(context);
+    const user = await client.users.get(userId);
     return validRoles.includes(user.role);
   } catch {
     return false;
@@ -102,24 +100,19 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
     // Remove @ symbol to get username for lookup
     const username = mention.replace('@', '');
 
-    // Find user by name using search endpoint
-    const apiUrl = context.config?.apiUrl || 'http://localhost:4000';
-    const userSearchResponse = await fetch(`${apiUrl}/api/users?search=${encodeURIComponent(username)}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
+    const client = createBotClient(context);
 
-    if (!userSearchResponse.ok) {
+    let userSearchResults;
+    try {
+      userSearchResults = await client.users.search(username);
+    } catch {
       return {
         isValid: false,
         error: 'Unable to search for users due to a system error. Please try again later.'
       };
     }
 
-    const userSearchResults = await userSearchResponse.json();
-    const user = userSearchResults.users?.find((u: any) => u.name === username);
+    const user = userSearchResults.find((u: any) => u.name === username);
 
     if (!user) {
       return {
@@ -138,21 +131,15 @@ async function validateActionEditor(mention: string, manuscriptId: string, conte
     }
 
     // Get manuscript data to check for existing assignment and conflicts
-    const manuscriptResponse = await fetch(`${apiUrl}/api/articles/${manuscriptId}`, {
-      headers: {
-        'X-Bot-Token': serviceToken,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!manuscriptResponse.ok) {
+    let manuscript;
+    try {
+      manuscript = await client.manuscripts.get();
+    } catch {
       return {
         isValid: false,
         error: 'Unable to validate action editor assignment due to a system error. Please try again later.'
       };
     }
-
-    const manuscript = await manuscriptResponse.json();
 
     // Check if an action editor is already assigned
     if (manuscript.action_editors?.users_action_editors_editorIdTousers) {
@@ -565,31 +552,22 @@ const inviteReviewerCommand: BotCommand = {
           continue;
         }
 
-        // Create invitation (pending review assignment) via API
-        const { serviceToken } = context;
-        const createResponse = await fetch(`${context.config?.apiUrl || 'http://localhost:4000'}/api/articles/${manuscriptId}/reviewers`, {
-          method: 'POST',
-          headers: {
-            'X-Bot-Token': serviceToken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            reviewerId: reviewer.id,
+        // Create invitation (pending review assignment) via SDK
+        const inviteClient = createBotClient(context);
+        let invitation;
+        try {
+          const createResult = await inviteClient.reviewers.assign(reviewer.id, {
             status: 'PENDING',
             dueDate: deadline
-          })
-        });
-
-        if (!createResponse.ok) {
+          });
+          invitation = createResult.assignment;
+        } catch (assignError) {
           results.failed.push({
             email,
-            error: `Failed to create reviewer assignment: ${createResponse.statusText}`
+            error: `Failed to create reviewer assignment: ${assignError instanceof Error ? assignError.message : 'Unknown error'}`
           });
           continue;
         }
-
-        const createResult = await createResponse.json();
-        const invitation = createResult.assignment;
 
         // Send invitation email with links to public API endpoints
         let emailSent = false;
