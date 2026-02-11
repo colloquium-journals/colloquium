@@ -3,13 +3,18 @@ import { prisma } from '@colloquium/database';
 import * as nodemailer from 'nodemailer';
 import { randomUUID } from 'crypto';
 
-// Mock nodemailer
-const mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-message-id' });
-jest.mock('nodemailer', () => ({
-  createTransport: jest.fn(() => ({
-    sendMail: mockSendMail
-  }))
-}));
+// Mock nodemailer - define mock inside factory to avoid TDZ issues with jest.mock hoisting
+jest.mock('nodemailer', () => {
+  const _mockSendMail = jest.fn().mockResolvedValue({ messageId: 'test-message-id' });
+  return {
+    createTransport: jest.fn(() => ({
+      sendMail: _mockSendMail
+    }))
+  };
+});
+
+// Get reference to the mocked sendMail (same instance across all createTransport calls)
+const mockSendMail = (nodemailer.createTransport as jest.Mock)().sendMail as jest.Mock;
 
 // Test utilities
 const createTestUser = async (userData: any = {}) => {

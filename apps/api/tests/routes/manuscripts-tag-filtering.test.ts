@@ -7,7 +7,7 @@ const mockFindMany = jest.fn() as jest.MockedFunction<any>;
 const mockCount = jest.fn() as jest.MockedFunction<any>;
 
 const mockPrisma = {
-  article: {
+  manuscripts: {
     findMany: mockFindMany,
     count: mockCount
   }
@@ -25,7 +25,10 @@ jest.mock('../../src/middleware/auth', () => ({
     req.user = createMockUser();
     next();
   },
-  requirePermission: () => (req: any, res: any, next: any) => next()
+  authenticateWithBots: (req: any, res: any, next: any) => next(),
+  requirePermission: () => (req: any, res: any, next: any) => next(),
+  requireGlobalPermission: () => (req: any, res: any, next: any) => next(),
+  generateBotServiceToken: jest.fn(() => 'mock-token'),
 }));
 
 // Import the route after mocking dependencies
@@ -42,6 +45,7 @@ describe('Articles API - Tag Filtering', () => {
   });
 
   describe('GET /api/articles with tag filter', () => {
+    // Sample data matching the Prisma response shape (with manuscript_authors and _count)
     const sampleArticles = [
       {
         id: '1',
@@ -52,17 +56,12 @@ describe('Articles API - Tag Filtering', () => {
         status: 'PUBLISHED',
         publishedAt: '2024-01-15T00:00:00Z',
         updatedAt: '2024-01-15T00:00:00Z',
-        authorRelations: [
-          { 
-            user: { id: '1', name: 'Dr. Smith', email: 'smith@example.com', orcidId: null },
-            order: 1, 
-            isCorresponding: true 
-          },
-          { 
-            user: { id: '2', name: 'Dr. Johnson', email: 'johnson@example.com', orcidId: null },
-            order: 2, 
-            isCorresponding: false 
-          }
+        fileUrl: null,
+        doi: null,
+        submittedAt: null,
+        manuscript_authors: [
+          { users: { id: '1', name: 'Dr. Smith', email: 'smith@example.com', orcidId: null, orcidVerified: false }, order: 1, isCorresponding: true },
+          { users: { id: '2', name: 'Dr. Johnson', email: 'johnson@example.com', orcidId: null, orcidVerified: false }, order: 2, isCorresponding: false }
         ],
         _count: { conversations: 2 }
       },
@@ -75,12 +74,11 @@ describe('Articles API - Tag Filtering', () => {
         status: 'PUBLISHED',
         publishedAt: '2024-01-10T00:00:00Z',
         updatedAt: '2024-01-10T00:00:00Z',
-        authorRelations: [
-          { 
-            user: { id: '3', name: 'Dr. Brown', email: 'brown@example.com', orcidId: null },
-            order: 1, 
-            isCorresponding: true 
-          }
+        fileUrl: null,
+        doi: null,
+        submittedAt: null,
+        manuscript_authors: [
+          { users: { id: '3', name: 'Dr. Brown', email: 'brown@example.com', orcidId: null, orcidVerified: false }, order: 1, isCorresponding: true }
         ],
         _count: { conversations: 1 }
       },
@@ -93,12 +91,11 @@ describe('Articles API - Tag Filtering', () => {
         status: 'PUBLISHED',
         publishedAt: '2024-01-05T00:00:00Z',
         updatedAt: '2024-01-05T00:00:00Z',
-        authorRelations: [
-          { 
-            user: { id: '4', name: 'Dr. Wilson', email: 'wilson@example.com', orcidId: null },
-            order: 1, 
-            isCorresponding: true 
-          }
+        fileUrl: null,
+        doi: null,
+        submittedAt: null,
+        manuscript_authors: [
+          { users: { id: '4', name: 'Dr. Wilson', email: 'wilson@example.com', orcidId: null, orcidVerified: false }, order: 1, isCorresponding: true }
         ],
         _count: { conversations: 0 }
       }
@@ -112,7 +109,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(3);
+      expect(response.body.manuscripts).toHaveLength(3);
       expect(response.body.pagination.total).toBe(3);
       
       // Verify that no tag filter was applied in the query
@@ -130,9 +127,9 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=healthcare')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(1);
-      expect(response.body.articles[0].title).toBe('Machine Learning in Healthcare');
-      expect(response.body.articles[0].keywords).toContain('healthcare');
+      expect(response.body.manuscripts).toHaveLength(1);
+      expect(response.body.manuscripts[0].title).toBe('Machine Learning in Healthcare');
+      expect(response.body.manuscripts[0].keywords).toContain('healthcare');
       expect(response.body.pagination.total).toBe(1);
       
       // Verify that tag filter was applied in the query
@@ -150,9 +147,9 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=AI')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(2);
-      expect(response.body.articles[0].keywords).toContain('AI');
-      expect(response.body.articles[1].keywords).toContain('AI');
+      expect(response.body.manuscripts).toHaveLength(2);
+      expect(response.body.manuscripts[0].keywords).toContain('AI');
+      expect(response.body.manuscripts[1].keywords).toContain('AI');
       expect(response.body.pagination.total).toBe(2);
       
       // Verify that tag filter was applied correctly
@@ -168,7 +165,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=nonexistent')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(0);
+      expect(response.body.manuscripts).toHaveLength(0);
       expect(response.body.pagination.total).toBe(0);
       
       // Verify that tag filter was applied
@@ -185,13 +182,13 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=healthcare&search=machine&status=PUBLISHED')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(1);
+      expect(response.body.manuscripts).toHaveLength(1);
       expect(response.body.pagination.total).toBe(1);
       
       // Verify that all filters were applied
       const callArgs = mockFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toEqual({ has: 'healthcare' });
-      expect(callArgs.where.status).toBe('PUBLISHED');
+      expect(callArgs.where.status).toEqual({ in: ['PUBLISHED', 'RETRACTED'] });
       expect(callArgs.where.OR).toBeDefined(); // Search filter
     });
 
@@ -204,7 +201,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=healthcare&page=1&limit=10')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(1);
+      expect(response.body.manuscripts).toHaveLength(1);
       expect(response.body.pagination.page).toBe(1);
       expect(response.body.pagination.limit).toBe(10);
       expect(response.body.pagination.total).toBe(1);
@@ -225,7 +222,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=AI&orderBy=title&order=asc')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(2);
+      expect(response.body.manuscripts).toHaveLength(2);
       
       // Verify sorting and filtering were applied
       const callArgs = mockFindMany.mock.calls[0][0] as any;
@@ -241,7 +238,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=ai') // lowercase 'ai' instead of 'AI'
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(0);
+      expect(response.body.manuscripts).toHaveLength(0);
       expect(response.body.pagination.total).toBe(0);
       
       // Verify that exact case was used in filter
@@ -258,7 +255,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=machine%20learning') // URL-encoded space
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(1);
+      expect(response.body.manuscripts).toHaveLength(1);
       
       // Verify that decoded tag was used in filter
       const callArgs = mockFindMany.mock.calls[0][0] as any;
@@ -273,7 +270,7 @@ describe('Articles API - Tag Filtering', () => {
         .get('/api/articles?tag=')
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(3);
+      expect(response.body.manuscripts).toHaveLength(3);
       
       // Verify that no tag filter was applied when tag is empty
       const callArgs = mockFindMany.mock.calls[0][0] as any;
@@ -302,7 +299,7 @@ describe('Articles API - Tag Filtering', () => {
         .get(`/api/articles?tag=${longTag}`)
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(0);
+      expect(response.body.manuscripts).toHaveLength(0);
       
       const callArgs = mockFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toEqual({ has: longTag });
@@ -317,7 +314,7 @@ describe('Articles API - Tag Filtering', () => {
         .get(`/api/articles?tag=${encodeURIComponent(specialTag)}`)
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(0);
+      expect(response.body.manuscripts).toHaveLength(0);
       
       const callArgs = mockFindMany.mock.calls[0][0] as any;
       expect(callArgs.where.keywords).toEqual({ has: specialTag });

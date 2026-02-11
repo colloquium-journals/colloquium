@@ -1,4 +1,4 @@
-import { prisma } from "@colloquium/database/src";
+import { prisma } from "@colloquium/database";
 import {
   BotManager,
   BotInstallation,

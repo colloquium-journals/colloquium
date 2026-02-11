@@ -7,7 +7,7 @@ const mockFindMany = jest.fn() as jest.MockedFunction<any>;
 const mockCount = jest.fn() as jest.MockedFunction<any>;
 
 const mockPrisma = {
-  article: {
+  manuscripts: {
     findMany: mockFindMany,
     count: mockCount
   }
@@ -25,7 +25,10 @@ jest.mock('../../src/middleware/auth', () => ({
     req.user = createMockUser();
     next();
   },
-  requirePermission: () => (req: any, res: any, next: any) => next()
+  authenticateWithBots: (req: any, res: any, next: any) => next(),
+  requirePermission: () => (req: any, res: any, next: any) => next(),
+  requireGlobalPermission: () => (req: any, res: any, next: any) => next(),
+  generateBotServiceToken: jest.fn(() => 'mock-token'),
 }));
 
 // Import the route after mocking dependencies
@@ -41,6 +44,7 @@ describe('Articles Search API', () => {
     jest.clearAllMocks();
   });
 
+  // Sample data matching the Prisma response shape (with manuscript_authors and _count)
   const sampleArticles = [
     {
       id: '1',
@@ -51,9 +55,13 @@ describe('Articles Search API', () => {
       status: 'PUBLISHED',
       publishedAt: '2024-01-15T00:00:00Z',
       updatedAt: '2024-01-15T00:00:00Z',
-      authorRelations: [
-        { id: '1', name: 'Dr. John Smith', email: 'john.smith@university.edu', order: 1, isCorresponding: true },
-        { id: '2', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@university.edu', order: 2, isCorresponding: false }
+      fileUrl: null,
+      doi: null,
+      submittedAt: null,
+      _count: { conversations: 0 },
+      manuscript_authors: [
+        { users: { id: '1', name: 'Dr. John Smith', email: 'john.smith@university.edu', orcidId: null, orcidVerified: false }, order: 1, isCorresponding: true },
+        { users: { id: '2', name: 'Dr. Sarah Johnson', email: 'sarah.johnson@university.edu', orcidId: null, orcidVerified: false }, order: 2, isCorresponding: false }
       ]
     },
     {
@@ -65,9 +73,13 @@ describe('Articles Search API', () => {
       status: 'PUBLISHED',
       publishedAt: '2024-01-10T00:00:00Z',
       updatedAt: '2024-01-10T00:00:00Z',
-      authorRelations: [
-        { id: '3', name: 'Dr. Michael Brown', email: 'michael.brown@tech.edu', order: 1, isCorresponding: true },
-        { id: '4', name: 'Dr. Emily Wilson', email: 'emily.wilson@tech.edu', order: 2, isCorresponding: false }
+      fileUrl: null,
+      doi: null,
+      submittedAt: null,
+      _count: { conversations: 0 },
+      manuscript_authors: [
+        { users: { id: '3', name: 'Dr. Michael Brown', email: 'michael.brown@tech.edu', orcidId: null, orcidVerified: false }, order: 1, isCorresponding: true },
+        { users: { id: '4', name: 'Dr. Emily Wilson', email: 'emily.wilson@tech.edu', orcidId: null, orcidVerified: false }, order: 2, isCorresponding: false }
       ]
     },
     {
@@ -79,8 +91,12 @@ describe('Articles Search API', () => {
       status: 'PUBLISHED',
       publishedAt: '2024-01-05T00:00:00Z',
       updatedAt: '2024-01-05T00:00:00Z',
-      authorRelations: [
-        { id: '5', name: 'Dr. David Smith', email: 'david.smith@quantum.edu', order: 1, isCorresponding: true }
+      fileUrl: null,
+      doi: null,
+      submittedAt: null,
+      _count: { conversations: 0 },
+      manuscript_authors: [
+        { users: { id: '5', name: 'Dr. David Smith', email: 'david.smith@quantum.edu', orcidId: null, orcidVerified: false }, order: 1, isCorresponding: true }
       ]
     }
   ];
@@ -96,9 +112,9 @@ describe('Articles Search API', () => {
         .query({ search: 'Dr. John Smith' })
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(1);
-      expect(response.body.articles[0].title).toBe('Machine Learning Research');
-      expect(response.body.articles[0].authors).toContain('Dr. John Smith');
+      expect(response.body.manuscripts).toHaveLength(1);
+      expect(response.body.manuscripts[0].title).toBe('Machine Learning Research');
+      expect(response.body.manuscripts[0].authors).toContain('Dr. John Smith');
 
       // Verify the correct query was made
       const calls = mockFindMany.mock.calls[0];
@@ -108,9 +124,9 @@ describe('Articles Search API', () => {
         { title: { contains: 'Dr. John Smith', mode: 'insensitive' } },
         { abstract: { contains: 'Dr. John Smith', mode: 'insensitive' } },
         { 
-          authorRelations: {
+          manuscript_authors: {
             some: {
-              user: {
+                users: {
                 name: { contains: 'Dr. John Smith', mode: 'insensitive' }
               }
             }
@@ -130,8 +146,8 @@ describe('Articles Search API', () => {
         .query({ search: 'John' })
         .expect(200);
 
-      expect(response.body.articles.length).toBeGreaterThan(0);
-      const foundArticle = response.body.articles.find(
+      expect(response.body.manuscripts.length).toBeGreaterThan(0);
+      const foundArticle = response.body.manuscripts.find(
         (m: any) => m.title === 'Machine Learning Research'
       );
       expect(foundArticle).toBeDefined();
@@ -144,9 +160,9 @@ describe('Articles Search API', () => {
         { title: { contains: 'John', mode: 'insensitive' } },
         { abstract: { contains: 'John', mode: 'insensitive' } },
         { 
-          authorRelations: {
+          manuscript_authors: {
             some: {
-              user: {
+                users: {
                 name: { contains: 'John', mode: 'insensitive' }
               }
             }
@@ -166,20 +182,20 @@ describe('Articles Search API', () => {
         .query({ search: 'Smith' })
         .expect(200);
 
-      expect(response.body.articles.length).toBe(2);
+      expect(response.body.manuscripts.length).toBe(2);
       
       // Should find both John Smith and David Smith articles
-      const titles = response.body.articles.map((m: any) => m.title);
+      const titles = response.body.manuscripts.map((m: any) => m.title);
       expect(titles).toContain('Machine Learning Research'); // Dr. John Smith
       expect(titles).toContain('Quantum Computing Advances'); // Dr. David Smith
 
       // Check the query structure
       const calls = mockFindMany.mock.calls[0];
       const whereClause = calls[0].where;
-      expect(whereClause.OR[2]).toEqual({ 
-        authorRelations: {
+      expect(whereClause.OR[2]).toEqual({
+        manuscript_authors: {
           some: {
-            user: {
+              users: {
               name: { contains: 'Smith', mode: 'insensitive' }
             }
           }
@@ -196,8 +212,8 @@ describe('Articles Search API', () => {
         .query({ search: 'john smith' })
         .expect(200);
 
-      expect(response.body.articles.length).toBeGreaterThan(0);
-      const foundArticle = response.body.articles.find(
+      expect(response.body.manuscripts.length).toBeGreaterThan(0);
+      const foundArticle = response.body.manuscripts.find(
         (m: any) => m.title === 'Machine Learning Research'
       );
       expect(foundArticle).toBeDefined();
@@ -218,7 +234,7 @@ describe('Articles Search API', () => {
         .query({ search: 'Dr. Nonexistent Author' })
         .expect(200);
 
-      expect(response.body.articles).toHaveLength(0);
+      expect(response.body.manuscripts).toHaveLength(0);
       expect(response.body.pagination.total).toBe(0);
     });
   });
@@ -252,11 +268,11 @@ describe('Articles Search API', () => {
         abstract: { contains: 'test search term', mode: 'insensitive' }
       });
       
-      // Authors search - now using authorRelations for proper partial matching
+      // Authors search - using manuscript_authors for proper partial matching
       expect(whereClause.OR[2]).toEqual({
-        authorRelations: {
+        manuscript_authors: {
           some: {
-            user: {
+              users: {
               name: { contains: 'test search term', mode: 'insensitive' }
             }
           }
@@ -269,7 +285,7 @@ describe('Articles Search API', () => {
       });
     });
 
-    it('should now support partial author matching with authorRelations', async () => {
+    it('should now support partial author matching with manuscript_authors', async () => {
       mockFindMany.mockResolvedValue([]);
       mockCount.mockResolvedValue(0);
 
@@ -280,12 +296,12 @@ describe('Articles Search API', () => {
 
       const calls = mockFindMany.mock.calls[0];
       const whereClause = calls[0].where;
-      
-      // The new implementation uses authorRelations with contains for partial matching
+
+      // The implementation uses manuscript_authors with contains for partial matching
       expect(whereClause.OR[2]).toEqual({
-        authorRelations: {
+        manuscript_authors: {
           some: {
-            user: {
+              users: {
               name: { contains: 'Smith', mode: 'insensitive' }
             }
           }
@@ -330,7 +346,7 @@ describe('Articles Search API', () => {
         .expect(200);
 
       // Should return all published articles when search is empty
-      expect(response.body.articles.length).toBe(3);
+      expect(response.body.manuscripts.length).toBe(3);
       
       // Verify no OR clause is added for empty search
       const calls = mockFindMany.mock.calls[0];

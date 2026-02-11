@@ -49,7 +49,7 @@ const createTestManuscript = async (authorId: string) => {
 };
 
 jest.mock('nodemailer', () => ({
-  createTransporter: jest.fn(() => ({
+  createTransport: jest.fn(() => ({
     sendMail: jest.fn().mockResolvedValue({ messageId: 'test-message-id' })
   }))
 }));
