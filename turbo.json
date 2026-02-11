@@ -24,7 +24,8 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "passThroughEnv": ["DATABASE_URL", "JWT_SECRET", "MAGIC_LINK_SECRET", "FRONTEND_URL", "API_URL", "NEXT_PUBLIC_API_URL"]
     },
     "clean": {
       "cache": false
