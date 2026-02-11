@@ -377,7 +377,7 @@ router.get('/assignments/:manuscriptId',
     return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
   },
   validateRequest({
-    params: IdSchema.transform(id => ({ manuscriptId: id }))
+    params: z.object({ manuscriptId: IdSchema })
   }),
   asyncHandler(async (req: any, res: any) => {
     const { manuscriptId } = req.params;
@@ -416,7 +416,7 @@ router.get('/assignments/:manuscriptId',
 router.put('/assignments/:id',
   requireAuth,
   validateRequest({
-    params: IdSchema.transform(id => ({ id })),
+    params: z.object({ id: IdSchema }),
     body: ReviewAssignmentUpdateSchema
   }),
   asyncHandler(async (req: any, res: any) => {
@@ -501,7 +501,7 @@ router.delete('/assignments/:id',
     return requireAnyRole([GlobalRole.ADMIN, GlobalRole.EDITOR_IN_CHIEF, GlobalRole.MANAGING_EDITOR])(req, res, next);
   },
   validateRequest({
-    params: IdSchema.transform(id => ({ id }))
+    params: z.object({ id: IdSchema })
   }),
   asyncHandler(async (req: any, res: any) => {
     const { id } = req.params;
@@ -635,7 +635,7 @@ router.post('/bulk-assign',
 router.post('/invitations/:id/respond',
   requireAuth,
   validateRequest({
-    params: IdSchema.transform(id => ({ id })),
+    params: z.object({ id: IdSchema }),
     body: ReviewInvitationResponseSchema
   }),
   asyncHandler(async (req: any, res: any) => {
@@ -773,7 +773,7 @@ router.post('/invitations/:id/respond',
     }
 
     res.json({
-      message: `Review invitation ${response.toLowerCase()}ed successfully`,
+      message: `Review invitation ${response === 'ACCEPT' ? 'accepted' : 'declined'} successfully`,
       assignment: updatedAssignment,
       status: newStatus
     });
@@ -784,7 +784,7 @@ router.post('/invitations/:id/respond',
 router.post('/assignments/:id/submit',
   requireAuth,
   validateRequest({
-    params: IdSchema.transform(id => ({ id })),
+    params: z.object({ id: IdSchema }),
     body: ReviewSubmissionSchema
   }),
   asyncHandler(async (req: any, res: any) => {
@@ -1285,7 +1285,7 @@ router.post('/invitations/:id/respond-public',
 router.get('/invitations/:id',
   requireAuth,
   validateRequest({
-    params: IdSchema.transform(id => ({ id }))
+    params: z.object({ id: IdSchema })
   }),
   asyncHandler(async (req: any, res: any) => {
     const { id } = req.params;

@@ -26,7 +26,7 @@ describe('Published Articles Performance Tests', () => {
   describe('Basic Published Articles Listing Performance', () => {
     it('should respond to published articles request within performance threshold', async () => {
       const { response, responseTime } = await measureResponseTime(
-        request(app).get('/api/manuscripts/published')
+        request(app).get('/api/articles')
       );
 
       expect(response.status).toBe(200);
@@ -38,7 +38,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle pagination efficiently', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ page: 1, limit: 20 })
       );
 
@@ -51,7 +51,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle large page sizes reasonably', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ page: 1, limit: 100 })
       );
 
@@ -66,7 +66,7 @@ describe('Published Articles Performance Tests', () => {
     it('should perform title search within threshold', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: 'research' })
       );
 
@@ -79,7 +79,7 @@ describe('Published Articles Performance Tests', () => {
     it('should perform abstract search within threshold', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: 'methodology' })
       );
 
@@ -92,7 +92,7 @@ describe('Published Articles Performance Tests', () => {
     it('should perform author search within threshold', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: 'smith' })
       );
 
@@ -105,7 +105,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle empty search efficiently', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: '' })
       );
 
@@ -118,7 +118,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle special characters in search', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: 'α-β γ-δ' })
       );
 
@@ -133,7 +133,7 @@ describe('Published Articles Performance Tests', () => {
     it('should perform tag filtering within threshold', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ tags: 'biology,chemistry' })
       );
 
@@ -149,7 +149,7 @@ describe('Published Articles Performance Tests', () => {
       
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ 
             publishedAfter: oneYearAgo.toISOString(),
             publishedBefore: new Date().toISOString()
@@ -165,7 +165,7 @@ describe('Published Articles Performance Tests', () => {
     it('should perform combined filtering within threshold', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ 
             search: 'research',
             tags: 'biology',
@@ -183,7 +183,7 @@ describe('Published Articles Performance Tests', () => {
   describe('Load Testing', () => {
     it('should handle concurrent published articles requests', async () => {
       const { results, totalTime, averageTime } = await runConcurrentRequests(
-        () => request(app).get('/api/manuscripts/published'),
+        () => request(app).get('/api/articles'),
         LOAD_TEST_CONCURRENT_REQUESTS
       );
 
@@ -208,7 +208,7 @@ describe('Published Articles Performance Tests', () => {
         () => {
           const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
           return request(app)
-            .get('/api/manuscripts/published')
+            .get('/api/articles')
             .query({ search: randomTerm });
         },
         LOAD_TEST_CONCURRENT_REQUESTS
@@ -229,10 +229,10 @@ describe('Published Articles Performance Tests', () => {
 
     it('should handle mixed concurrent requests', async () => {
       const requestTypes = [
-        () => request(app).get('/api/manuscripts/published'),
-        () => request(app).get('/api/manuscripts/published').query({ search: 'research' }),
-        () => request(app).get('/api/manuscripts/published').query({ tags: 'biology' }),
-        () => request(app).get('/api/manuscripts/published').query({ page: 2, limit: 10 }),
+        () => request(app).get('/api/articles'),
+        () => request(app).get('/api/articles').query({ search: 'research' }),
+        () => request(app).get('/api/articles').query({ tags: 'biology' }),
+        () => request(app).get('/api/articles').query({ page: 2, limit: 10 }),
       ];
 
       const { results, totalTime, averageTime } = await runConcurrentRequests(
@@ -260,7 +260,7 @@ describe('Published Articles Performance Tests', () => {
   describe('Response Size and Efficiency', () => {
     it('should return appropriate response sizes', async () => {
       const response = await request(app)
-        .get('/api/manuscripts/published')
+        .get('/api/articles')
         .query({ limit: 50 });
 
       expect(response.status).toBe(200);
@@ -287,7 +287,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle empty results efficiently', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: 'xyzzzzveryrareterm' })
       );
 
@@ -307,7 +307,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle invalid query parameters efficiently', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ 
             page: 'invalid',
             limit: 'notanumber',
@@ -325,7 +325,7 @@ describe('Published Articles Performance Tests', () => {
     it('should handle very large page numbers efficiently', async () => {
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ page: 999999, limit: 20 })
       );
 
@@ -340,7 +340,7 @@ describe('Published Articles Performance Tests', () => {
       
       const { response, responseTime } = await measureResponseTime(
         request(app)
-          .get('/api/manuscripts/published')
+          .get('/api/articles')
           .query({ search: longSearchTerm })
       );
 
@@ -355,7 +355,7 @@ describe('Published Articles Performance Tests', () => {
     it('should benefit from repeat requests (caching)', async () => {
       // First request
       const { response: firstResponse, responseTime: firstTime } = await measureResponseTime(
-        request(app).get('/api/manuscripts/published')
+        request(app).get('/api/articles')
       );
 
       expect(firstResponse.status).toBe(200);
@@ -365,7 +365,7 @@ describe('Published Articles Performance Tests', () => {
 
       // Second identical request
       const { response: secondResponse, responseTime: secondTime } = await measureResponseTime(
-        request(app).get('/api/manuscripts/published')
+        request(app).get('/api/articles')
       );
 
       expect(secondResponse.status).toBe(200);
@@ -399,7 +399,7 @@ describe('Published Articles Performance Tests', () => {
       for (const params of variations) {
         const { response, responseTime } = await measureResponseTime(
           request(app)
-            .get('/api/manuscripts/published')
+            .get('/api/articles')
             .query(params)
         );
 

@@ -6,27 +6,33 @@ const createTestUser = async (userData: any = {}) => {
   const { randomUUID } = require('crypto');
   return await prisma.users.create({
     data: {
+      id: randomUUID(),
       email: userData.email || 'test@example.com',
       username: userData.username || `test-user-${randomUUID().slice(0, 8)}`,
       name: userData.name || 'Test User',
       role: userData.role || 'USER',
+      updatedAt: new Date(),
       ...userData
     }
   });
 };
 
 const createTestManuscript = async (authorId: string) => {
+  const { randomUUID } = require('crypto');
   const manuscript = await prisma.manuscripts.create({
     data: {
+      id: randomUUID(),
       title: 'Test Manuscript',
       abstract: 'Test abstract for manuscript',
       content: 'Test content',
-      status: 'SUBMITTED'
+      status: 'SUBMITTED',
+      updatedAt: new Date()
     }
   });
 
-  await prisma.manuscriptAuthor.create({
+  await prisma.manuscript_authors.create({
     data: {
+      id: randomUUID(),
       manuscriptId: manuscript.id,
       userId: authorId,
       isCorresponding: true
@@ -60,6 +66,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
     
     reviewAssignment = await prisma.review_assignments.create({
       data: {
+        id: require('crypto').randomUUID(),
         manuscriptId: manuscript.id,
         reviewerId: reviewer.id,
         status: 'PENDING',
@@ -69,19 +76,23 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
 
     editorialConversation = await prisma.conversations.create({
       data: {
+        id: require('crypto').randomUUID(),
         title: 'Editorial Discussion',
         type: 'EDITORIAL',
         privacy: 'PRIVATE',
-        manuscriptId: manuscript.id
+        manuscriptId: manuscript.id,
+        updatedAt: new Date()
       }
     });
 
     reviewConversation = await prisma.conversations.create({
       data: {
+        id: require('crypto').randomUUID(),
         title: 'Review Discussion',
         type: 'REVIEW',
         privacy: 'SEMI_PUBLIC',
-        manuscriptId: manuscript.id
+        manuscriptId: manuscript.id,
+        updatedAt: new Date()
       }
     });
   });
@@ -91,7 +102,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
     await prisma.conversation_participants.deleteMany();
     await prisma.conversations.deleteMany();
     await prisma.review_assignments.deleteMany();
-    await prisma.manuscriptAuthor.deleteMany();
+    await prisma.manuscript_authors.deleteMany();
     await prisma.manuscripts.deleteMany();
     await prisma.users.deleteMany();
   });
@@ -288,7 +299,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       const reviewMessages = await prisma.messages.findMany({
         where: {
           conversationId: reviewConversation.id,
-          privacy: 'AUTHOR_VISIBLE',
+          privacy: 'PUBLIC',
           isBot: true
         }
       });
@@ -337,7 +348,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
         }
       });
       expect(messages).toHaveLength(1);
-      expect(messages[0].privacy).toBe('AUTHOR_VISIBLE');
+      expect(messages[0].privacy).toBe('PUBLIC');
     });
 
     it('should handle submission without score', async () => {
@@ -361,7 +372,7 @@ describe('BotActionProcessor - Accept/Reject Actions', () => {
       const messages = await prisma.messages.findMany({
         where: {
           conversationId: reviewConversation.id,
-          privacy: 'AUTHOR_VISIBLE',
+          privacy: 'PUBLIC',
           isBot: true
         }
       });

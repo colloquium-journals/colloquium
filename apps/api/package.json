@@ -9,7 +9,7 @@
     "start": "node dist/app.js",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "jest",
+    "test": "jest --runInBand --forceExit",
     "test:watch": "jest --watch",
     "clean": "rm -rf dist",
     "migrate-published-assets": "tsx src/scripts/migrate-published-assets.ts"

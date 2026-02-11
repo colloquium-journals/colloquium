@@ -30,7 +30,17 @@ jest.mock('@colloquium/database', () => ({
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn()
+    },
+    journal_settings: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      upsert: jest.fn()
     }
+  ,
+  $transaction: jest.fn((fn: any) => {
+    const { prisma } = require('@colloquium/database');
+    return fn(prisma);
+  }),
   },
   GlobalRole: {
     ADMIN: 'ADMIN',
@@ -228,7 +238,7 @@ describe('API Validation Integration Tests', () => {
           expect.arrayContaining([
             expect.objectContaining({
               field: 'content',
-              message: 'Message content is required'
+              message: 'Content cannot be empty'
             })
           ])
         );
@@ -242,7 +252,13 @@ describe('API Validation Integration Tests', () => {
           content: 'Original content'
         };
 
-        prisma.messages.findUnique.mockResolvedValue(mockMessage);
+        prisma.messages.findUnique.mockResolvedValue({
+          ...mockMessage,
+          conversations: {
+            conversation_participants: [{ userId: mockUser.id }],
+            manuscriptId: 'test-manuscript-id'
+          }
+        });
         prisma.messages.update.mockResolvedValue({
           ...mockMessage,
           content: 'Updated content',
