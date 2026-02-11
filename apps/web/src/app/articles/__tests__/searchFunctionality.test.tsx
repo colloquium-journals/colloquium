@@ -572,6 +572,9 @@ describe('Articles Page - Search Functionality', () => {
 
   describe('Search Loading and Error States', () => {
     it('should show loading state during search', async () => {
+      let fetchResolve: (value: any) => void;
+      const fetchPromise = new Promise(resolve => { fetchResolve = resolve; });
+
       await act(async () => {
         renderWithProvider(<ArticlesPage />);
       });
@@ -580,30 +583,31 @@ describe('Articles Page - Search Functionality', () => {
         expect(screen.getByText('Machine Learning in Healthcare')).toBeInTheDocument();
       });
 
-      // Mock a delayed response
-      mockFetch.mockImplementationOnce(
-        () => new Promise(resolve => 
-          setTimeout(() => resolve({
-            ok: true,
-            json: () => Promise.resolve(mockArticlesResponse)
-          }), 100)
-        )
-      );
+      // Mock a fetch that we control manually
+      mockFetch.mockImplementationOnce(() => fetchPromise);
 
       const searchInput = screen.getByPlaceholderText('Search articles by title, abstract, or author...');
-      
+
       await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'test search' } });
       });
 
-      await act(async () => {
-        fireEvent.submit(searchInput.closest('form')!);
+      // Submit without wrapping in act() so loading state is captured
+      fireEvent.submit(searchInput.closest('form')!);
+
+      // Loading indicator should appear
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toBeInTheDocument();
       });
 
-      // Should show loading indicator (small loader in results info)
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      // Resolve the fetch and wait for loading to complete
+      await act(async () => {
+        fetchResolve!({
+          ok: true,
+          json: () => Promise.resolve(mockArticlesResponse)
+        });
+      });
 
-      // Wait for loading to complete
       await waitFor(() => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       }, { timeout: 3000 });
