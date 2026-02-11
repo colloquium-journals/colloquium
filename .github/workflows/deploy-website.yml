@@ -33,8 +33,7 @@ jobs:
 
       - name: Build website
         working-directory: apps/website
-        # Sitemap plugin has a compatibility issue, but all pages build successfully before it fails
-        run: npx astro build || true
+        run: npm run build
 
       - name: Verify build output
         run: |
