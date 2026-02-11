@@ -66,7 +66,7 @@ export async function processMarkdownContent(
   }
 
   // Convert markdown to HTML
-  const html = marked.parse(content);
+  const html = await marked.parse(content);
 
   // Sanitize HTML for security
   const cleanHtml = purify.sanitize(html);
